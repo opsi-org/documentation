@@ -1,0 +1,1857 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; Until we found a better license:
+; All rights reserved.
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      05.05.2011
+:Revision:  4.0.1
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-configuration-tools]]
+== opsi-Konfiguration und Werkzeuge
+
+[[opsi-manual-configuration-tools-introduction]]
+=== Übersicht
+
+Die Konfiguration von opsi benötigt eine Datenhaltung.
+Die externen Komponenten von opsi kommunizieren mit
+dem opsi-server über einen Webservice. Der Prozess
+opsiconfd, welcher den Webservice bereitstellt, übergibt die
+Daten dem Backendmanager, der die Daten in das konfigurierte Backend schreibt.
+
+
+Dabei unterstützt opsi unterschiedliche Backends:
+
+* File-basiert
+* LDAP-basiert
+* MySQL-basiert
+
+Beim File-basierten Backend gibt es für jeden Datentyp einen Typ von Ini-Dateien: 
+
+.Schema: opsi mit File-Backend
+image::../images/opsi_with_file_backend.png["Schema: opsi mit File-Backend", width=432]
+
+Beim MySQL- und LDAP-Backend existieren für die Datentypen jeweils spezifischen Datenobjekte:
+
+.Schema: opsi mit SQL- und LDAP-Backend
+image::../images/opsi_with_sql_ldap_backend.png["Schema: opsi mit SQL- und LDAP-Backend", width=430]
+
+
+Mehr zur Datenhaltung finden Sie im <<opsi-manual-backends>>.
+
+
+
+Die Konfiguration der Backends erfolgt in den Konfigurationsdateien in den Verzeichnissen
+ `/etc/opsi/backendManager` sowie  `/etc/opsi/backends`.
+
+.Schema: Schichten der Backend-Konfiguration
+image::../images/opsibackend_configuration_layers.png["Schema: Schichten der Backend-Konfiguration", width=400]
+
+
+Die Dateien im opsi3.4-Verzeichnis  `/etc/opsi/backendManager.d` spielen keine Rolle mehr.
+
+In den Konfigurationsdateien im Verzeichnis `/etc/opsi/backends` werden die Backends definiert. 
+
+Welche Backends für welche Zwecke verwendet werden, steht in der Datei `/etc/opsi/backendManager/dispatch.conf`. 
+
+Wer auf welche Methoden zugreifen darf, ist in der Datei `/etc/opsi/backendManager/acl.conf` konfiguriert.
+
+Unterhalb von `/etc/opsi/backendManager/extend.d` können weitere opsi-Methoden definiert sein, welche die Basis opsi-Methoden verwenden.
+
+So ist z.B. das Mapping der "Legacy"-Methoden aus opsi 3 auf die neuen Methoden in der Datei `/etc/opsi/backendManager/extend.d/20_legacy.conf` definiert.
+Genaue Beschreibungen dieser Konfigurationsdateien finden Sie im <<opsi-manual-important-files-etc>>.
+
+
+
+[[opsi-manual-configuration-tools-opsi-setup]]
+=== Werkzeug: 'opsi-setup'
+
+Das Programm 'opsi-setup` ist das "Schweizer Taschenmesser" zur Einrichtung von opsi. 
+
+So greifen zum Beispiel die Pakete zur Installation von opsi auf dem Server auf dieses Skript zurück, um opsi korrekt einzurichten. Da dieses Skript nun auch extern aufrufbar ist, lassen sich damit diverse Wartungsarbeiten und Korrekturen durchführen:
+
+
+* Registrierung eines opsi-servers als Depotserver
+* Verzeichnisrechte korrigieren
+* die Backends initialisieren
+* Backends upgraden (von 3.4 nach 4.0)
+* '{MySQL-Backend}' erstmalig konfigurieren
+* Default-Konfigurationen anpassen
+* Backends bereinigen
+* Samba-Konfiguration anpassen
+* DHCP-Konfiguration anpassen
+
+Hier die Hilfe-Anzeige von `opsi-setup`
+
+[source,prompt]
+----
+opsi-setup --help
+
+Usage: opsi-setup [options]
+
+Options:
+   -h, --help  show this help
+   -l          log-level 0..9
+
+   --log-file <path>          path to log file
+   --register-depot           register depot at config server
+   --set-rights [path]        set default rights on opsi files (in [path] only)
+   --init-current-config      init current backend configuration
+   --update-mysql             update mysql backend
+   --update-ldap              update ldap backend
+   --update-file              update file backend
+   --configure-mysql          configure mysql backend
+   --edit-config-defaults     edit global config defaults
+   --cleanup-backend          cleanup backend
+   --auto-configure-samba     patch smb.conf
+   --auto-configure-dhcpd     patch dhcpd.conf  
+----
+
+Die Funktionen und Parameter im Einzelnen: 
+
+* `--register-depot` +
+Diese Option dient dazu, einen '{opsi-server}' an einem anderen '{opsi-server}'
+('{opsi-configserver}') als Depotserver anzumelden. Details hierzu vgl. <<opsi-manual-multidepot-installation>>. 
+
+
+* `--set-rights [path]` +
+Setzt bzw. korrigiert die Dateizugriffsrechte in den wesentlichen opsi-Verzeichnissen: 
++
+** `/tftpboot/linux`
+** `/home/opsiproducts`
+** `/var/log/opsi`
+** `/var/lib/opsi`
+** `/opt/pcbin/install`
+** `/etc/opsi`
++
+Als Parameter kann auch ein Verzeichnis übergeben werden. 
+Dann werden unterhalb dieses Verzeichnisses die Rechte aller opsi-relevanten 
+Verzeichnisse und Dateien gesetzt, +
+z.B.: +
+`opsi-setup --set-rights /opt/pcbin/install/winxppro/drivers` 
+
+* `--init-current-config` +
+Initialisiert die eingestellte Backendkonfiguration. Sollte nach jeder Änderung an der +
+`/etc/opsi/backendManager/dispatch.conf` +
+aufgerufen werden.
+
+* Die drei Befehle +
+`--update-mysql` +
+`--update-ldap` +
+`--update-file` +
+dienen zum Upgrade des jeweiligen Backends (z.B. von opsi 3.4 auf opsi 4). +
+Details siehe 'releasenotes-upgrade-Handbuch'.
+
+
+* `--configure-mysql` +
+Dient zur erstmaligen Initialisierung des '{MySQL-Backend}'. +
+Details vgl. <<opsi-manual-backends-mysql-initializing>>.
+
+* `--edit-config-defaults` +
+Zum Editieren der Defaultwerte der Config wie im '{opsi-configed}' in der Serverkonfiguration angezeigt.
++
+.Eingabemaske: `opsi-setup --edit-config-defaults`
+image::../images/opsi-setup_editconfigdefaults.png["Eingabemaske: opsi-setup --edit-config-defaults", width=400]
++
+z.B.:
++
+clientconfig.depot.id :: Der Name des Default-Depotservers.
++
+license-management.use :: Bestimmt, ob Netboot-Produkte Lizenzkeys aus dem Lizenzmanagement oder aus den Properties holen.
++
+product_sort_algorithm :: Bestimmt, nach welchem Algorithmus die Installationsreihenfolge ermittelt wird.
+
+* `--cleanup-backend` +
+Überprüft die aktuellen Backends auf Integrität und verwirft unnötige Einträge.
+
+* `--auto-configure-samba` +
+Erzeugt in der Samba-Konfigurationsdatei `/etc/samba/smb.conf` die von opsi benötigten shares.
+
+* `--auto-configure-dhcpd` +
+Erzeugt in der DHCP-Konfigurationsdatei `/etc/dhcp3/dhcpd.conf` die von opsi benötigten Eintragungen. +
+Nur verwenden, wenn der DHCP-Server auf dem opsi Server laufen soll. +
+Details hierzu im DHCP-Kapitel des 'opsi-getting-started' Handbuchs.
+
+[[opsi-manual-configuration-tools-opsi-configed]]
+=== Werkzeug: Das Managementinterface '{opsi-configed}'
+
+[[opsi-manual-configuration-tools-opsi-configed-preconditions]]
+==== Voraussetzungen und Aufruf
+
+Der '{opsi-configed}' setzt Java in der Version 6 voraus und benötigt einen laufenden 'opsiconfd' auf der Serverseite. 
+
+Wenn  '{opsi-configed}' auf einem Linuxrechner läuft, ist es wichtig darauf zu achten, dass Java 6 
+in der Sun-Version als Java-Umgebung installiert bzw. konfiguriert ist. 
+Standardmäßig wird bei den Distributionen oft OpenJDK als Javaumgebung installiert. 
+Unter dieser Umgebung kommt es zu subtilen Fehlern beim Configed. 
+Die Lösung ist, ggf. (Sun-) Java nachzuinstallieren und entweder das OpenJDK komplett zu deinstallieren 
+oder (Sun-) Java als Default zu konfigurieren. 
+Letzteres erfolgt auf der Kommandozeile mit dem Befehl
+
+[source, prompt]
+----
+update-alternatives –config java 
+----
+
+Der Aufruf
+
+[source, prompt]
+----
+java -version
+----
+
+auf der Kommandozeile muss ein Resultat der Form 
+
+[source, prompt]
+----
+java version "1.6....
+Java(TM) SE Runtime Environment ...
+----
+
+ergeben.
+
+Meist wird der opsi-configed im Browser aufgerufen per 
+
+`https://<servername>:4447/configed`
+
+
+Der  '{opsi-configed}' ist auch Bestandteil des Clientproduktes 'opsi-adminutils' und kann über die entsprechende Gruppe im Startmenü gestartet werden.
+Serverseitig wird '{opsi-configed}' als Debianpaket (opsi-configed.xxxxx.deb) installiert und ist über einen Menüeintrag im Desktopmenü sowie über `/usr/bin/opsi-configed` aufrufbar.
+
+Der Aufruf kann auch, wenn das entsprechende Verzeichnis vorgewählt ist, erfolgen über `java -jar configed.jar`.
+
+Der Aufruf  `java -jar configed.jar --help` zeigt die Kommandozeilenoptionen:
+
+[source, prompt]
+----
+P:\install\opsi-adminutils>java -jar configed.jar --help
+starting configed
+default charset is windows-1252
+server charset is configured as UTF-8
+
+configed [OPTIONS]...
+
+Options:
+     -l, --locale    Set locale (format: <language>_<country>)
+     -h, --host      Configuration server to connect to
+     -u, --user      Username for authentication
+     -p, --password  Password for authentication
+     -d, --logdirectory Directory for the log files
+         --help      Show this text
+----
+
+Soll ein anderer Port als der Standardport 4447 verwendet werden, so kann beim Hostnamen der Port mit angegeben werden in der Form: `host:port`.
+
+
+[[opsi-manual-configuration-tools-opsi-configed-login]]
+==== Login
+
+.Login des '{opsi-configed}'
+image::../images/opsi-configed-login["Login des {opsi-configed}", width="90mm"]
+
+Beim Login versucht sich der  '{opsi-configed}' per 'https' auf den Port 4447 des 'opsiconfd' - bzw. einen anderen angegebene Port - zu verbinden. 
+Das Login geschieht unter Angabe von 'Servernamen[:Port]', eines Usernamens auf dem '{opsi-configserver}':
+und des zugehörigen Unix-Passwortes. Damit das Login erfolgreich ist, muss der User in der Unix-Gruppe 'opsiadmin' sein.
+
+
+[[opsi-manual-configuration-tools-opsi-configed-copy]]
+==== Copy & Paste, Drag & Drop
+
+Sie können aus (fast) allen Bereichen des '{opsi-configed}' die markierten Daten mit den üblichen Tastenkombinationen ('Strg-Insert', 'Strg-C') in die Zwischenablage kopieren 
+und so anderen Programmen zur Verfügung stellen. 
+Für die meisten Tabellen ist auch die 'Drag & Drop'-Funktion aktiviert, mit der die Tabellendaten z.B. nach Excel transferiert werden können.
+
+CAUTION: In der Java-Version 1.6.24 hat Oracle das 'Copy & Paste' in die System-Zwischenablage aus Security-Gründen deaktiviert, sofern das Programm
+als Applet im Browser läuft. Es ist deshalb geplant für den '{opsi-configed}' eine neue Form des Textexports zu implementieren ('Drag & Drop' funktioniert aber weiterhin).
+
+
+[[opsi-manual-configuration-tools-opsi-configed-mode-selection]]
+==== Client- / Depot-/ Serverkonfiguration / Lizenzmanagement
+
+Um zwischen den verschiedenen Ansichten des opsi-configed zu wechseln, finden sich rechts oben vier Buttons:
+
+.{opsi-configed}: Wahl des Modus
+image::../images/opsi-configed-mode-selection["{opsi-configed}: Wahl des Modus", width="50mm"]
+
+Sie bieten die Funktion an, die Modi Clientkonfiguration, Depotkonfiguration (Depot-Properties) oder Serverkonfiguration (Server-Configs) zu wechseln sowie (in eigenem Fenster) das Lizenzmanagement aufzurufen.
+
+
+[[opsi-manual-configuration-tools-opsi-configed-depot-selection]]
+==== Depotauswahl
+
+Werden an Ihrem '{opsi-server}' mehrere Depotserver betrieben, so werden diese in einer Liste am linken Rand des `{opsi-configed}` angezeigt.
+
+Per default ist das Depot auf dem '{opsi-configserver}' markiert und die zu diesem Depot gehörigen Clients werden angezeigt. 
+Sie können mehrere Depots gleichzeitig markieren und deren Clients gemeinsam bearbeiten.  
+- allerdings nur dann, wenn die ausgewählten Depots untereinander synchron sind. Beim Versuch, Clients aus synchronen Depots gemeinsam zu bearbeiten, wird mit einer entsprechenden Warn- und Fehlermeldung abgewiesen.
+
+Nachdem Sie die Auswahl von Depots geändert haben, müssen Sie mit dem Refresh-Button oder mittels des entsprechenden Menüpunkts im Dateimenü "alle Daten neu laden".
+
+.'{opsi-configed}': Depotauswahl
+image::../images/opsi-configed-mode-depotselection.png["{opsi-configed}: Depotauswahl", width="52mm"]
+
+
+[[opsi-manual-configuration-tools-opsi-configed-client-selection]]
+==== Clientauswahl und Gruppenbildung
+
+Nach erfolgreichem Login zeigt sich das Hauptfenster mit dem aktiviertem Karteireiter 'Client-Auswahl'. Das Hauptfenster zeigt die Liste der Clients, wie sie durch die Depotwahl gegeben bzw. im 'Treeview' - s. <<opsi-manual-configuration-tools-opsi-configed-treeview>> - bestimmt ist.
+
+.'{opsi-configed}': Client-Auswahl
+image::../images/opsi-configed-clientselection.png["{opsi-configed}: Client-Auswahl", width=400]
+
+[[opsi-manual-configuration-tools-opsi-configed-client-selection-table]]
+===== Die Clientliste
+
+Die tabellarische Auflistung der Clients hat per Default die Spalten 'Client-Name', 'Beschreibung', 'An' und 'Zuletzt gesehen'. 
+
+* 'Client-Name' ist der 'full qualified hostname' also der Clientname inklusive (IP-) Domainnamen.
+
+* 'Beschreibung' ist eine frei wählbare Beschreibung, die im rechten oberen Teil des Fensters editiert werden kann.
+
+*  In der mit 'An' betitelten Spalte wird auf Betätigen des Buttons 'Prüfen, welche Clients verbunden sind' das Resultat 
+der entsprechenden Anfrage angezeigt.
+
+.'{opsi-configed}': Button 'Connected?'
+image::../images/opsi-configed-connected.png["{opsi-configed}: Button Connected?", width="48"]
+
+* 'Zuletzt gesehen' gibt Datum und Uhrzeit an, zu der der Client zum letzten Mal sich bei der Softwareverteilung (über den Webservice) gemeldet hat.
+
+In der Defaultkonfiguration deaktiviert sind die Spalten 'IP-Adresse', 'opsi-Mac-Adresse', 'Inventarnummer' und  'Erstellungsdatum'. 
+Sie können während einer Sitzung mittels des Kontextmenüs eingeblendet werden. 
+
+Die Defaultvorgabe, welche Spalten angezeigt werden, kann in der Server-Konfiguration mittels des Configs 'configed.host_displayfields' bearbeitet werden.
+
+.'{opsi-configed}': Spaltenkonfiguration für die Clientliste
+image::../images/opsi-configed-config-host-displayfields.png["{opsi-configed}: Spaltenkonfiguration für die Clientliste", width="82mm"]
+
+
+Die Clientliste kann durch Anklicken eines Spaltentitels nach der entsprechenden Spalte sortiert werden
+
+
+[[opsi-manual-configuration-tools-opsi-configed-client-selection-selecting]]
+===== Auswahl von Clients
+
+In der Clientliste lassen sich ein oder mehrere Clients markieren und so für die (gemeinsame) Bearbeitung auswählen. 
+
+Mittels des Trichter-Icons bzw. über 'Auswahl / Nur ausgewählte Clients anzeigen' kann die Anzeige der Clientliste auf die markierten Clients beschränkt werden
+
+Die Zusammenstellung der markierten Clients lässt sich über das Icon 'Auswahl als Gruppe speichern' bzw. über den Menüpunkt 
+'Auswahl / Die ausgewählten Clients als Gruppe speichern' als Gruppe klassifizieren und 
+unter einem frei wählbaren Namen speichern. 
+
+Im Client-Auswahldialog, der über 'Auswahl / Auswahl definieren' gestartet wird, können 
+abgespeicherte Clientzusammenstellungen wieder abgerufen  werden. 
+
+.'{opsi-configed}': Auswahldialog
+image::../images/opsi-configed-defining-group.png["{opsi-configed}: Auswahldialog", width="73mm"]
+
+
+Mittels dieses Dialogs lassen sich Client-Sets auch aufgrund diverser anderer, aktuell vorliegender Bedingungen bilden, wie z. B. alle Clients, bei denen das Produkt 'acroread' den Installationsstatus 'installed' hat, 
+aber der Versionstand nicht aktuell ist.
+
+[[opsi-manual-configuration-tools-opsi-configed-treeview]]
+==== Clientauswahl und hierarchische Gruppen im 'Treeview'
+
+Ab opsi 4.0 lassen sich Clients und Clientgruppen auch mittels eines 'Treeview' ansteuern. Diese neue Baumansicht der opsi-Clients ist auf der linken Seite des Hauptfensters des  
+des '{opsi-configed}' plaziert und bleibt auch beim Wechsel des Tabs sicht- und nutzbar. 
+
+Anders als mit der zuvor beschriebenen Speicherfunktion für Client-Sets können mittels der 'Treeview'-Komponente auch hierarchische Gruppierungen (also Gruppen in Gruppen) angelegt und verwaltet werden. 
+Dieses Feature ist zunächst ein Ko-Finanzierungsprojekt, welches Sie sich kostenpflichtig (500 €) freischalten lassen können.
+
+
+[[opsi-manual-configuration-tools-opsi-configed-treeview-principle]]
+===== Prinzipieller Aufbau
+
+Der Treeview hat einen Basisknoten 'ALL', unterhalb dessen sich zum einen alle Clients für sich befinden, zum anderen der Knoten 'GROUPS' als Obergruppe aller selbstdefinierten 
+Gruppen.
+
+.'{opsi-configed}': 'Treeview'
+image::../images/opsi-configed-treeview1.png["{opsi-configed}: Treeview", width="66mm"]
+
+
+Zusätzlich gibt es den "dynamischen" Knoten 'REPORTED_FAILURES', unterhalb dessen beim Initialisieren des Baums alle Clients (zusätzlich) platziert werden, bei denen bei einer 
+Produktinstallation als Resultat 'failed' gespeichert ist.
+
+Festzuhalten ist hier bereits: Zwar hat eine Gruppe einen eindeutigen Ort in der Baum-Hierarchie, aber ein Client kann zu beliebig vielen Gruppen gehören (wobei jede Gruppenmitgliedschaft einen Hinweis auf bestimmte Eigenschaften des Clients darstellen soll). 
+
+Wenn ein Client markiert ist, sind alle Gruppen, denen er angehört, mit gefüllter Farbfläche ausgezeichnet. 
+
+
+[[opsi-manual-configuration-tools-opsi-configed-treeview-howto]]
+===== How to ...
+
+Wenn Sie auf einen Knoten (bzw. eine Gruppe) klicken, so werden alle Clients, die sich unterhalb dieses Knotens befinden, im 'Client'-Tab angezeigt (aber kein Client zur Bearbeitung ausgewählt).
+
+Wenn Sie auf einen Client klicken oder im Treeview mehrere Clients per Strg-Klick oder Shift-Klick markieren, so werden diese im Client-Tab angezeigt und zur Bearbeitung markiert. 
+
+Sie können auf diese Art und Weise auch den /oder die in Bearbeitung befindlichen Clients wechseln, während Sie in anderen Tabs (wie z.B. Logdateien) arbeiten, ohne zum Client-Tab zurückkehren zu müssen.
+
+
+In diesem Treeview werden die Gruppen angezeigt, die Sie gemäß <<opsi-manual-configuration-tools-opsi-configed-client-selection-selecting>> angelegt haben. Sie können zusätzlich Gruppen definieren, indem Sie mit der rechten Maustaste über der Eltern-Gruppe bzw. dem Eltern-Knoten (z.B. Groups) das Kontextmenü öffnen und 'Untergruppe erzeugen' wählen.
+
+.'{opsi-configed}': Gruppe anlegen
+image::../images/opsi-configed-treeview-generate-group.png["{opsi-configed}: Gruppe anlegen", width="49mm"]
+
+Wenn Sie dies gemacht haben, werden Sie in einem Dialogfenster nach dem Namen der Gruppe gefragt.
+
+.'{opsi-configed}': Gruppenname eingeben
+image::../images/opsi-configed-treeview-groupname.png["{opsi-configed}: Gruppenname eingeben", width="46mm"]
+
+Eine Gruppe können Sie nun mit Clients füllen, indem Sie per Drag&Drop:
+
+* Clients aus der tabellarischen Clientliste im Client-Tab in die Gruppe kopieren (linke Maustaste)
+
+* Clients aus dem Treeview unterhalb des Knotens 'ALL' kopieren (linke Maustaste)
+
+* Clients aus dem Treeview aus anderen Gruppen verschieben (linke Maustaste) oder kopieren (Strg-linke Maustaste)
+
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing]]
+==== Client-Bearbeitung
+
+Im Client-Tab können Sie über den Menüpunkt 'OpsiClient' oder das Kontextmenü eine Reihe clientspezifischer Operationen starten.
+
+.'{opsi-configed}': Kontextmenü der Clientliste
+image::../images/opsi-configed-client-contextmenu.png["{opsi-configed}: Kontextmenü der Clientliste", width="51mm"]
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing-wakeonlan]]
+===== WakeOnLan
+Haben sie einen oder mehrere Clients gewählt, so können Sie diesen über den betreffenden Punkt im 'OpsiClient'-Menü bzw. den entsprechenden Eintrag des Kontextmenüs
+ein 'WakeOnLan'-Signal senden.
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing-ondemand]]
+=====  'on_demand' Ereignis auslösen (Push Installation)
+
+Über diesen Menüpunkt wird den selektierten Clients ein Aufruf an den '{opsi-client-agent}' gesendet, 
+dass auf den Clients zu installierende Software jetzt installiert werden soll. 
+Wenn ein Client nicht erreichbar ist, so meldet der '{opsi-configed}' dies mit einem Fehlerhinweis. 
+
+CAUTION: Wenn ein Produkt eine Rebootanforderung enthält, so wird der Client ohne Vorwarnung rebootet.
+
+Technisch gesehen wird dem '{opsi-client-agent}' die Meldung gesendet, er soll das Event 'on_demand' auslösen. Das genaue Verhalten ist in der Konfiguration diese Events festgelegt (in der 
+'opsiclientd.conf').
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing-send-message]]
+===== Nachrichten senden ('Starte Meldungsfenster')
+
+Über die Auswahl von 'Starte Meldungsfenster auf den ausgewählten Clients' erhalten Sie die Möglichkeit,
+Nachrichten an einen oder mehrere Clients zu senden. 
+Es erscheint zunächst ein Fenster in dem Sie die Nachricht editieren können.
+
+.'{opsi-configed}': Bearbeitungsfenster einer Nachricht
+image::../images/opsi-configed-client-message-editing.png["{opsi-configed}: Bearbeitungsfenster einer Nachricht", width="51mm"]
+
+Durch Anklicken des roten Häkchens versenden Sie die Nachricht. Auf den selektierten Clients wird nun die Nachricht angezeigt:
+
+.'{opsi-configed}': Nachrichtenfenster auf dem Client
+image::../images/opsi-configed-client-message-reading.png["{opsi-configed}: Nachrichtenfenster auf dem Client", width="53mm"]
+
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing-shutdown]]
+===== Herunterfahren / Reboot der ausgewählten Clients
+
+Sie können den ausgewählten Clients das Signal senden, herunterzufahren bzw. zu rebooten.
+
+CAUTION: Der Client fährt ggf. ohne Rückfrage herunter.
+
+[[opsi-manual-configuration-tools-opsi-configed-client-editing-manage]]
+===== Clients entfernen, erstellen, umbenennen, umziehen
+
+Sie können den ausgewählten Clients aus dem opsi-System löschen.
+
+Sie haben hier auch die Möglichkeit, Clients neu anzulegen. 
+Über den Menü-Punkt 'Neuen OpsiClient erstellen', erhalten Sie eine Maske zur Eingabe der nötigen Informationen zur Erstellung eines Clients.
+
+.'{opsi-configed}': Client anlegen
+image::../images/opsi-configed-client-new.png["{opsi-configed}: Client anlegen", width="54mm"]
+
+Diese Maske enthält auch Felder für die optionale Angabe der IP-Nummer und der Hardware- (MAC)-Adresse. 
+Wenn das Backend für die Konfiguration eines lokalen DHCP-Servers aktiviert ist (dies ist nicht der Default), 
+werden diese Informationen genutzt, um den neuen Client auch dem DHCP-Server bekannt zu machen. Ansonsten wird die MAC-Adresse im Backend gespeichert und die IP-Nummer verworfen.
+
+Sie können den ausgewählten Client innerhalb von opsi umbenennen. Sie werden dann in einem Dialogfenster nach dem neuen Namen gefragt.
+
+Ein weiterer Dialog steht für den Umzug von einem Client oder mehreren Clients zu einem anderen Depot zur Verfügung: 
+
+.'{opsi-configed}': Client zu anderem Depot umziehen
+image::../images/opsi-configed-client-change-depot.png["{opsi-configed}: Client zu anderem Depot umziehen", width="53mm"]
+
+[[opsi-manual-configuration-tools-opsi-configed-productconfiguration]]
+==== Produktkonfiguration
+
+Wechseln Sie auf den Karteireiter 'Produktkonfiguration', 
+so erhalten Sie die Liste der zur Softwareverteilung bereitstehenden Produkte
+und des Installations- und Aktionsstatus zu den ausgewählten Clients.
+
+.'{opsi-configed}': Tab Produktkonfiguration
+image::../images/opsi-configed-localbootproducts.png["{opsi-configed}: Tab Produktkonfiguration", width=400]
+
+
+Werte, die für die ausgewählten Clients unterschiedlich sind, werden grau (als Darstellung des Wertes 'undefined') angezeigt.
+ 
+Sie können auch für die Produktliste eine Sortierung nach einer anderen als der ersten Spalte durch Anklicken des Spaltentitels erreichen. 
+Verfügbar sind die folgenden Spalten:
+
+* 'Stand' ist der letzte der Softwareverteilung gemeldete Status zu diesem Produkt und kann die Werte 'installed', 'not_installed' und 'unknown' haben. 
+'not_installed' wird aus Gründen der Übersichtlichkeit nicht angezeigt. 
+'unknown' ist der Status üblicherweise während einer (De-)Installation sowie wenn das letzte Skript gescheitert ist.
+
+* 'Report' ist eine Zusammenfassung der Werte der internen Statusinformationen "Installationsfortschritt" ('actionProgress'), 
+"Ergebnis der letzten Aktion" ('actionResult') und "letzte angeforderte Aktion" ('lastAction').
+Während einer Installation steht hier z.B. 'installing'
+Nach Abschluss einer Aktion enthält das Feld den Text 'Ergebnis (letzte Aktion)', z.B. 'failed (setup)' oder 'success (uninstall)'.
+
+* 'Angefordert' ist die Aktion, welche ausgeführt werden soll. Ein möglicher Wert ist immer 'none' (visuell ist das Feld leer). 
+Darüber hinaus sind die Aktionen verfügbar, für die bei diesem Produkt Skripte hinterlegt wurden. Möglich sind 'setup', 'uninstall', 'update', 'once', 'always', 'custom'.
+
+* 'Prioritätsklasse' gibt an, welche Priorität (100 bis -100) dem Produkt zugeordnet wurde (per default ist die Spalte nicht sichtbar.)
+
+* 'Position' gibt an, in welcher Reihenfolge die Produkte installiert werden, per Default ebenfalls keine sichtbare Spalte.
+
+* 'Version' ist die Kombination aus Produkt-Version und Package-Version, des auf dem Client installierten opsi-Softwareprodukts.
+
+Durch das Anwählen eines Produkts erhalten Sie auf der rechten Seite des Fensters weitere Informationen zu diesem Produkt. Im Einzelnen:
+
+* 'ProduktID:': Klartextname des Produktes
+
+* 'Software/Paketversion': Produktversion-Paketversion der zur Verteilung bereitstehenden Software (wie sie der Paketierer angegeben hat).
+
+* 'Produktbeschreibung': Freier Text zur im Paket enthaltenen Software.
+
+* 'Hinweise': Freier Text mit Angaben zum Umgang mit diesem Paket.
+
+* 'Abhängigkeiten': Eine Liste von Produkten, 
+zu denen das ausgewählte Produkt Abhängigkeiten aufweist mit Angabe der Art der Abhängigkeit: 
+
+- 'required' bedeutet, das ausgewählte Produkt benötigt das hier angezeigte Produkt, es besteht aber keine zwingende Installationsreihenfolge.
+
+- 'pre-required' heißt, das hier angezeigte Produkt muss _vor_ dem Ausgewählten installiert werden.
+
+- 'post-required' spezifiziert, das hier angezeigte Produkt muss _nach_ dem Ausgewählten installiert werden.
+
+- 'on deinstall' bedeutet, diese Aktion soll bei der Deinstallation des ausgewählten Produktes durchgeführt werden; Reihenfolgen 
+können dabei nicht berücksichtigt werden (weil Installationen und Deinstallationen nicht gemischt vorkommen können, aber 
+ggf. zu entgegengesetzten Reihenfolgeanforderungen führen können).
+
+* 'Konfiguration für den Client': Zur clientspezifischen Anpassung der Installation können 
+für ein Produkt zusätzliche Properties definiert sein. 
+Die Darstellung und Bearbeitung der Tabelle der Properties ist in einem spezifischen Oberflächenelement realisiert:
+
+
+[[opsi-manual-configuration-tools-opsi-configed-property-editing]]
+==== Property-Tabellen mit Listen-Editierfenstern
+
+Eine Property-Tabelle ist eine zweispaltige Tabelle. 
+In der linken Spalte stehen Property-Namen, denen jeweils in der rechten Spalte ein Property-Wert zugeordnet ist.
+Sofern entsprechend konfiguriert, wird ein Hinweis zur Bedeutung eines Wertes sowie der Defaultwert angezeigt, 
+sobald der Mauszeiger über die betreffende Zeile bewegt wird ("Tooltip"):
+
+.'{opsi-configed}': Property-Tabelle
+image::../images/opsi-configed-editlist1.png["{opsi-configed}: Property-Tabelle", width="63mm"]
+
+
+Beim Anklicken eines Wertes poppt ein Fenster auf, der 'Listen-Editor', und zeigt einen Wert bzw. eine Liste vorkonfigurierter Werten, wobei der derzeit gültige Wert markiert ist:
+
+.'{opsi-configed}': Listen-Editor, Auswahlliste
+image::../images/opsi-configed-editlist2.png["{opsi-configed}: Listen-Editor, Auswahlliste", width="55mm"]
+
+
+Durch Anklicken eines anderen Wertes kann die Auswahl geändert werden.
+
+Sofern die Liste der zulässigen Werte erweiterbar ist (bzw. die Werte änderbar sind), 
+bietet das Fenster zusätzlich ein Editierfeld an, 
+in dem neue bzw. geänderte Werte eingegeben werden können.
+
+.'{opsi-configed}': Listeneditor, Editierfeld
+image::../images/opsi-configed-editlist3.png["{opsi-configed}: Listeneditor, Editierfeld", width="55mm"]
+
+Zwecks Modifikation kann ein Wert aus der Liste der vorhandenen mit Doppelklick in das Feld übernommen werden. 
+Sobald ein in der Liste noch nicht vorhandener Wert im Editierfeld steht, 
+aktiviert sich das Plus-Symbol zum Übernehmen des neuen Wertes. 
+
+Sofern - wie z.B. im Feld 'zusätzliche Treiber' der Fall sein sollte - Mehrfach-Werte zulässig sind, erlaubt die Liste eine Mehrfach-Selektion.
+Wenn die Liste zur Mehrfach-Selektion konfiguriert ist, wird ein Wert mit Strg-Klick zur Selektion hinzugefügt. 
+Mit derselben Tastenkombination lassen sich Werte auch wieder aus der Auswahl entfernen. Das Minus-Symbol leert die Selektion komplett.
+
+Wenn die Liste bearbeitet wurde, wechselt wie auch sonst im configed der grüne Haken nach Rot. Anklicken des Hakens übernimmt den neuen Wert (d.h. die neue Selektion als Wert). Der blaue Cancel-Knopf beendet die Bearbeitung, indem der ursprüngliche Wert zurückgesetzt wird.
+
+[[opsi-manual-configuration-tools-opsi-configed-netbootproducts]]
+==== Netboot-Produkte
+
+Die Produkte unter dem Karteireiter 'Netboot-Produkte' werden analog zum Karteireiter 'Produktkonfiguration' angezeigt und konfiguriert.
+
+Die hier angeführten Produkte versuchen, werden sie auf 'setup' gestellt, zu den ausgewählten Clients den Start von Bootimages beim nächsten Reboot festzulegen.
+Dies dient üblicherweise der OS-Installation.
+
+.'{opsi-configed}': Tab Netboot-Produkte
+image::../images/opsi-configed-netbootproducts.png["{opsi-configed}: Tab Netboot-Produkte", width=400]
+
+[[opsi-manual-configuration-tools-opsi-configed-hardwareinformation]]
+==== Hardwareinformationen
+
+Unter diesem Karteireiter erhalten Sie die letzten - entweder durch das Bootimage oder durch das Localboot-Produkt hwaudit erhobenen - Hardwareinformationen zum 
+ausgewählten Client.
+
+.'{opsi-configed}': Tab Hardware-Information
+image::../images/opsi-configed-hardwareinformation.png["{opsi-configed}: Tab Hardware-Information", width=400]
+
+[[opsi-manual-configuration-tools-opsi-configed-softwareinventory]]
+==== Software-Inventur
+
+Unter diesem Karteireiter erhalten Sie  die letzten mit swaudit ausgelesenen Informationen über installierte Software beim Client.
+
+.'{opsi-configed}': Tab Software-Inventur
+image::../images/opsi-configed-softwareinventory.png["{opsi-configed}: Tab Software-Inventur", width=400]
+
+
+[[opsi-manual-configuration-tools-opsi-configed-logfiles]]
+==== Logdateien: Logs von Client und Server
+
+Im Kartenreiter Logdateien sind die Logdateien der Clients über den opsi-configed einsehbar.
+Dabei kann auch in den Logdateien gesucht werden (Fortsetzung der Suche mit 'F3' oder 'n'. Die einzelnen Zeilen sind je nach Loglevel farbig hervorgehoben.
+
+.'{opsi-configed}': Tab Logdateien
+image::../images/opsi-configed-logfiles.png["{opsi-configed}: Tab Logdateien", width=400]
+
+
+[[opsi-manual-configuration-tools-opsi-configed-hostproperties]]
+==== Host-Parameter in der Client- und der Serverkonfiguration
+
+Einige Konfigurationsdaten können Sie über den Tab 'Host-Parameter' setzen und zwar als Server-Defaults im Modus Serverkonfiguration (vgl. <<opsi-manual-configuration-tools-opsi-configed-mode-selection>>) und clientspezifisch in der Clientkonfiguration. Als Werkzeug zur Bearbeitung der Werte dient der Listeneditor (vgl. <<opsi-manual-configuration-tools-opsi-configed-property-editing>> )
+Über das Kontextmenü ('Property hinzufügen')  können Sie neue Properties erstellen.
+
+.'{opsi-configed}': Tab Hostparameter (Server- und Client-Konfiguration)
+image::../images/opsi-configed-hostparameters.png["{opsi-configed}: Tab Hostparameter (Server- und Client-Konfiguration)", width=400]
+
+[[opsi-manual-configuration-tools-opsi-configed-depotconfiguration]]
+==== Depotkonfiguration
+
+Im Modus Depotkonfiguration (vgl. <<opsi-manual-configuration-tools-opsi-configed-mode-selection>>) öffnet sich der Tab 'Depots'. Nach Auswahl eines Depotservers in der Drop-Down-Liste können Werte bearbeitet werden, die das Depot parametrisieren.
+
+.'{opsi-configed}': Tab Depot-Konfiguration
+image::../images/opsi-configed-depotconfiguration.png["{opsi-configed}: Tab Depot-Konfiguration", width=400]
+
+[[opsi-manual-configuration-tools-opsi-package-manager]]
+=== Werkzeug 'opsi-package-manager': opsi-Pakete (de-) installieren
+
+Der 'opsi-package-manager' dient zur (De-) Installation von {opsi-product-packages}n auf einem {opsi-server}.
+
+Beim Aufruf von 'opsi-package-manager' zur Installation 
+muss das zu installierende Paket für den Systemuser 'opsiconfd' lesbar sein. 
+Es wird daher dringend empfohlen, {opsi-product-packages} aus '/home/opsiproducts' 
+bzw. einem Unterverzeichnis hiervon zu installieren.
+
+Die Logdatei des 'opsi-package-managers' ist '/var/log/opsi/package.log'
+
+Paket installieren (ohne Fragen neu installieren):
+
+[source, prompt]
+----
+opsi-package-manager -i softprod_1.0-5.opsi'
+----
+
+Paket installieren (mit Fragen nach Properties):
+
+[source, prompt]
+----
+opsi-package-manager -p ask -i softprod_1.0-5.opsi
+----
+
+Paket installieren (und für alle auf Setup stellen, bei denen es installiert ist):
+
+[source, prompt]
+----
+opsi-package-manager -S -i softprod_1.0-5.opsi
+----
+
+Paket deinstallieren:
+
+[source, prompt]
+----
+opsi-package-manager -r softprod
+----
+
+Paket extrahieren und umbenennen:
+
+[source, prompt]
+----
+opsi-package-manager -x opsi-template_<version>.opsi --new-product-id myprod
+----
+
+Eine Übersicht über alle Optionen liefert die Option --help.
+
+Zu beachten: 
+
+* Die Optionen -d bzw. --depots sind für den multi-depotserver Betrieb 
+und werden nur mit einem entsprechenden Supportvertrag unterstützt. 
+
+* Bei der Verwendung von -d wird das zu installierende Paket 
+zunächst nach `/var/lib/opsi/repository` kopiert. 
+Dort muss ausreichend Platz zur Verfügung stehen. +
+Siehe hierzu auch: opsi-server mit mehreren Depots <<opsi-manual-multidepot>>
+
+
+[source, prompt]
+----
+#opsi-package-manager --help
+
+usage: opsi-package-manager [options] <command>
+
+Manage opsi packages
+
+Commands: 
+  -i, --install      <opsi-package> ...      install opsi packages 
+  -u, --upload       <opsi-package> ...      upload opsi packages to repositories
+  -l, --list         <regex>                 list opsi packages matching regex
+  -D, --differences  <regex>                 show depot differences of opsi packages matching regex
+  -r, --remove       <opsi-product-id> ...   uninstall opsi packages
+  -x, --extract      <opsi-package> ...      extract opsi packages to local directory                                                                    
+  -V, --version                              show program's version info and exit
+  -h, --help                                 show this help message and exit
+
+Options:
+  -v, --verbose                    increase verbosity (can be used multiple times)
+  -q, --quiet                      do not display any messages
+  --log-file         <log-file>    path to debug log file
+  -d, --depots       <depots>      comma separated list of depot ids to process
+                                      all = all known depots
+  -p, --properties   <mode>        mode for default product property values
+                                      ask     = display dialog
+                                      package = use defaults from package
+                                      keep    = keep depot defaults (default)
+  --purge-client-properties        remove product property states of the installed product(s)
+  -f, --force                      force install/uninstall (use with extreme caution)
+  -U, --update                     set action "update" on hosts where installation status is "installed"
+  -S, --setup                      set action "setup" on hosts where installation status is "installed"
+  -o, --overwrite                  overwrite existing package on upload even if size matches
+  -k, --keep-files                 do not delete client data dir on uninstall
+  -t, --temp-dir     <path>        tempory directory for package install
+  --max-transfers    <num>         maximum number of simultaneous uploads
+                                      0 = unlimited (default)
+  --max-bandwidth    <kbps>        maximum transfer rate for each transfer (in kilobytes per second)
+                                      0 = unlimited (default)
+  --new-product-id   <product-id>  set a new product id when extracting opsi package
+----
+
+[[opsi-manual-configuration-tools-opsi-productupdater]]
+=== Werkzeug: 'opsi-product-updater'
+
+Das Kommandozeilen Werkzeug `opsi-product-updater` dient dazu, komfortabel 
+opsi-Produkte aus einem Repository zu laden und auf dem Server zu installieren. 
+Daneben kann es auch per cronjob zeitgesteuert aufgerufen werden 
+und so zur automatischen Synchronisation von opsi-Servern bzw. für automatische 
+Updates verwendet werden.
+
+[source, prompt]
+----
+# opsi-product-updater --help
+
+Usage: opsi-product-updater [options]
+Options:
+    -h    Show this help text
+    -v    Increase verbosity (can be used multiple times)
+    -V    Show version information and exit
+    -c    Location of config file
+
+----
+
+Die wesentlichen Features sind 'konfigurierbare Repositories' und 'konfigurierbare Aktionen'
+(die Konfigurationseinstellungen werden in der `/etc/opsi/opsi-product-updater.conf` vorgenommen).
+
+[[opsi-manual-configuration-tools-opsi-productupdater-repositories]]
+==== Konfigurierbare Repositories 
+
+Repositories sind die Quellen, von denen sich der {opsi-server} die Pakete holt.
+
+Grundsätzlich gibt es zwei Arten von Repositories, 'Internet-Repositories' und 'opsi-Server':
+
+*Internet-Repositories* 
+
+Das wichtigste Beispiel ist das uib-Repository mit der URL http://download.uib.de 
+
+Internet-Repositories sind gekennzeichnet durch die Parameter 
+
+- 'baseURL' (z.B. http://download.uib.de)
+
+-  'dirs' (Eine Liste von Verzeichnissen z.B. opsi4.0/produkte/essential)
+
+-  sowie bei Bedarf 'username' und 'password' für Passwort-geschützte Repositories (z.B. für Abo-Kunden)
+
+Bei Bedarf ist auch ein Proxy einzustellen.
+
+*opsi-server*
+
+Ein Repository hat den Typ 'opsi-server', wenn in der `/etc/opsi/opsi-product-updater.conf` 
+in der Sektion des Repositorys ein Eintrag zum Punkt 
+
+- 'opsiDepotId'
+
+vorgenommen wird.
+
+In der Regel ist bei einem '{opsi-depotserver}' an diese Steller der zentrale '{configserver}' einzutragen. 
+Damit zieht der Depotserver seine Pakete per Aufruf des 'opsi-product-updater' 
+bzw. automatisiert per Cronjob vom zentralen Server.
+
+[[opsi-manual-configuration-tools-opsi-productupdater-actions]]
+==== Konfigurierbare Aktionen 
+
+Für jedes Repository kann eingestellt werden:
+
+* 'autoupdate': Aktuellere Versionen installierter Pakete werden geholt und installiert.
+
+* 'autoinstall': Auch bis jetzt nicht installierte Pakete werden geholt und installiert
+
+* 'autosetup': Die geholten und installierten Pakete werden für alle Clients,
+auf denen dieses Produkt installiert ist, auf 'setup' gesetzt. 
+
+Zusätzlich ist es möglich, die Aktualisierung 
+der Pakete auf den Clients über einen konfigurierbaren Wake-On-Lan-Mechanismus 
+anzustoßen. 
+In Verbindung mit dem {opsi-product} 'shutdownwanted' 
+kann dafür gesorgt werden, 
+dass die Clients nacheinander geweckt, die Software verteilt 
+und die Clients danach wieder heruntergefahren werden. 
+Hierdurch kann man seine Clients zum Beispiel 
+außerhalb der Geschäftszeiten mit Updates und Software versorgen 
+und die Anwender können am nächsten Morgen direkt mit der Arbeit beginnen.
+
+
+[[opsi-manual-configuration-tools-opsi-admin]]
+=== Werkzeuge: opsi-admin / 'opsi config interface'
+
+
+[[opsi-manual-configuration-tools-opsi-admin-overview]]
+==== Übersicht
+
+Seit opsi 3.0 enthält eine serverseitige Bibliothek die zentralen Zugriffsfunktionen 
+auf die opsi-Datenhaltung. Nach außen bietet sie eine API an, mit der ihre Funktionen 
+genutzt werden können. Der 'opsiconfd' stellt die komplette API als Webservice zur Verfügung. 
+
+Über den Aufruf von https://<opsi-server>:4447/interface 
+kann über ein grafisches Frontend in elementare Form auf diesen Webservice zugegriffen werden. 
+Dazu müssen Sie sich als Mitglied der Gruppe 'opsiadmin' authentifizieren.
+
+
+.'opsiconfd': Web-Interface
+image::../images/opsi-webinterface2.png["opsiconfd: Web-Interface", width=400]
+
+
+Auf der Kommandozeile kann mit dem Befehl `opsi-admin` auf die API zugegriffen werden.
+Dabei bietet 'opsi-admin' einen interaktiven Modus und einen nicht-interaktiven z.B. zum Einsatz in Skripten.
+
+Der Aufruf von `opsi-admin --help` zeigt eine kleine Hilfe zu den Optionen:
+
+[source,prompt]
+----
+# opsi-admin --help
+
+Usage: opsi-admin [options] [command] [args...]
+Options:
+  -h, --help           Display this text
+  -V, --version        Display this text
+  -u, --username       Username (default: current user)
+  -p, --password       Password (default: prompt for password)
+  -a, --address        URL of opsiconfd (default: https://localhost:4447/rpc)
+  -d, --direct         Do not use opsiconfd
+      --no-depot       Do not use depotserver backend
+  -l, --loglevel       Set log level (default: 3)
+                       0=nothing, 1=essential, 2=critical, 3=error, 4=warning
+                       5=notice, 6=info, 7=debug, 8=debug2, 9=confidential
+  -f, --log-file       Path to log file
+  -i, --interactive    Start in interactive mode
+  -c, --colorize       Colorize output
+  -S, --simple-output  Simple output (only for scalars, lists)
+  -s, --shell-output   Shell output
+----
+
+'opsi-admin' kann auf einen opsi-Webservice zugreifen oder direkt auf der Datenhaltung arbeiten. 
+Für die Arbeit über den Webservice müssen neben der URL auch 'username' und 'password' angegeben werden. 
+Dies wird man in Skripten üblicherweise nicht tun wollen. 
+Stattdessen bietet sich hier der direkte Datenzugriff über Aufruf `opsi-admin -d` an.
+
+Im interaktiven Modus (Start mit `opsi-admin -i` bzw. `opsi-admin -d -i -c`, kurz  `opsi-admin -dic`) 
+erhalten Sie Eingabe-Unterstützung durch die Tabtaste. Betätigen der Tabtaste 
+führt auf eine Auswahl der der möglichen Fortsetzungen der Eingabe 
+bzw. die Angabe des Datentyps der nächsten erwarteten Eingabe. 
+In der Liste der möglichen Eingaben können Sie mit Bild-auf und Bild-ab blättern.
+
+Die Optionen `-s` und `-S `erzeugen eine Form der Ausgabe welche sich leichter in Skripten weiterverarbeiten lässt.
+
+Außer den Methodenaufrufen (eingeleitet mit `method`), welche direkt die API widerspiegeln, gibt 
+es Aufrufe (eingeleitet mit `task`), 
+die intern auf eine Kombination von Methodenaufrufen zur Erledigung 
+einer bestimmten Aufgabe abgebildet werden.
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage]]
+==== Typische Verwendung
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setup]]
+===== Ein Produkt für alle Clients auf setup stellen, welche dieses Produkt installiert haben:
+
+[source,prompt]
+----
+opsi-admin -d task setupWhereInstalled "softprod"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-clientlist]]
+===== Liste aller Clients
+
+[source,prompt]
+----
+opsi-admin -d method host_getIdents
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-delete-client]]
+===== Client löschen
+
+[source,prompt]
+----
+opsi-admin -d method host_delete <clientname>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method host_delete "pxevm.uib.local"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-create-client]]
+===== Client anlegen
+
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient <full qualified clientname>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient "pxevm.uib.local"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setProductActionRequest]]
+===== Action request setzen
+
+[source,prompt]
+----
+opsi-admin -d method setProductActionRequest <productId> <clientId> <actionRequest>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method setProductActionRequest win7 pxevm setup
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setHostDescription]]
+===== Beschreibungen den Clients zuordnen
+
+[source,prompt]
+----
+opsi-admin -d method setHostDescription "dpvm02.uib.local" , "Client unter VMware"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-setPcpatchPassword]]
+===== Pcpatch-Passwort setzen
+
+[source,prompt]
+----
+opsi-admin -d task setPcpatchPassword
+----
+
+Setzt das Passwort von pcpatch für Unix, samba und opsi.
+
+[[opsi-manual-configuration-tools-opsi-admin-api]]
+==== Webservice / API-Methoden
+
+[[opsi-manual-configuration-tools-opsi-admin-opsi4]]
+===== Methoden seit opsi 4.0
+
+Für opsi 4.0 wurden die Backends und die dazugehörigen Methoden komplett überarbeitet.
+
+Die opsi4-Backends basieren auf Objekten. 
+Ein Objekt hat eine Reihe von Eigenschaften. 
+
+Als Beispiel diene hier das Objekt 'product'. 
+Das Objekt vom Typ 'product', welches das opsi-Produkt 'javavm' beschreibt sieht z.B. so aus:
+
+[source, configfile]
+----
+"ident": "javavm;1.6.0.20;2"
+"id": "javavm"
+"description": "Java 1.6"
+"changelog": ""
+"advice": ""
+"userLoginScript": ""
+"name": "SunJavaRuntimeEnvironment"
+"priority": 0
+"packageVersion": "2"
+"productVersion": "1.6.0.20"
+"windowsSoftwareIds": None
+"productClassIds": None
+"type": "LocalbootProduct"
+"licenseRequired": False
+"setupScript": "javavm.ins"
+"updateScript": ""
+"uninstallScript": "deljvm.ins"
+"alwaysScript": ""
+"onceScript": ""
+"customScript": ""
+----
+
+Zu jedem Objekt gibt es eine Reihe von Operationen. In der Regel sind dies:
+
+* 'getObjects' (liefert die Objekte)
+* 'getHashes' (Variante, die aus Performance-Gründen die Backend-Objekte ohne Erzeugung von 
+internen Objekten readonly durchreicht; bei entsprechenden Datenvolumen erheblich schneller als 'getObjects')
+* 'create' (zum komfortablen Erzeugen eines Objektes)
+* 'createObjects' (zum Erzeugen vieler Objekte)
+* 'delete' (zum Löschen eines Objektes)
+* 'deleteObjects' (zum Löschen vieler Objekte)
+* 'getIdents' (liefert nur die Objekt-Ids)
+* 'insertObject' (zum Erzeugen eines neuen Objektes)
+* 'updateObject' (zum Aktualisieren eines Objektes, erzeugt das Objekt, wenn nicht vorhanden)
+* 'updateObjects' (zum Aktualisieren vieler Objekte)
+
+Die Namen der Methoden setzen sich zusammen aus:
+
+'<object name>_<operation>'
+
+Dadurch unterscheiden sie sich von den 'Legacy' Methoden aus opsi 3.x welche in der Regel mit 'get', 'set' oder 'create' anfangen.
+
+Die 'getObjects'-Methoden haben zwei optionale Parameter:
+
+* 'attributes'
+* 'filter'
+
+'attributes' dient dazu, nur bestimmte Attribute des Objektes abzufragen. 
+Zurückgeliefert werden immer alle Attributname, 
+aber nur die Werte der Attribute, welche das Objekt eindeutig kennzeichnen sowie die in 'attributes' 
+angegebenen Attributwerden. Die restlichen Attribute werden mit dem Wert 'None' geliefert.
+
+So liefert z.B die Methode 'product_getObjects', parametrisiert mit 'attributes:["name"]' für das Produkt 'javavm':
+
+[source, configfile]
+----
+"onceScript": None,
+"ident": "javavm;1.6.0.20;2",
+"windowsSoftwareIds": None,
+"description": None,
+"setupScript": None,
+"changelog": None,
+"customScript": None,
+"advice": None,
+"uninstallScript": None,
+"userLoginScript": None,
+"name": "Sun Java Runtime Environment",
+"priority": None,
+"packageVersion": "2",
+"productVersion": "1.6.0.20",
+"updateScript": None,
+"productClassIds": None,
+"alwaysScript": None,
+"type": "LocalbootProduct",
+"id": "javavm",
+"licenseRequired": None
+----
+
+Wenn Sie keine 'attributes', aber einen 'filter' angeben möchten, darf das Feld Sie für 'attributes' nicht
+ganz leer bleiben, sondern muss den Wert '[]' erhalten.
+
+Mit 'filter' kann eingeschränkt werden, zu welchen Objekten Informationen geholt werden sollen, 
+ähnlich einer sql-where-Bedingung.So schränkt für 'product_getObjects' 
+der Filter '{ "id":"javavm" }' die Rückgabe auf das Object 'javavm' ein.
+
+Bei den Methoden, denen ein oder mehrere Objekte übergeben werden, 
+muss dies als JSON-Objekt bzw. als Liste von JSON-Objekten geschehen.
+
+Die wichtigsten Objekte sind:
+
+
+* 'auditHardwareOnHost' (clientspezifische Hardwareinformationen)
+* 'auditHardware' (clientunabhängige Hardwareinformationen)
+* 'auditSoftwareOnClient' (clientspezifische Softwareinformationen)
+* 'auditSoftware' (clientunabhängige Softwareinformationen)
+* 'auditSoftwareToLicensePool' (Lizenzmanagement)
+* 'configState' (Verwaltung von Zusatzkonfigurationen)
+* 'config' (Verwaltung von neuen typisierten Zusatzkonfigurationen)
+* 'group' (Gruppenverwaltung)
+* 'host' (Server und Clients)
+* 'licenseContract' (Lizenzmanagement)
+* 'licenseOnClient' (Lizenzmanagement)
+* 'licensePool' (Lizenzmanagement)
+* 'objectToGroup' (Gruppenverwaltung)
+* 'productDependency' (Produktabhängigkeiten)
+* 'productOnClient' (Infos zu einem Produkt bezogen auf einen Client)
+* 'productOnDepot' (Infos zu einem Produkt bezogen auf ein Depot)
+* 'productPropertyState' (Depot und Client bezogene Product Property Werte)
+* 'productProperty' (Definition der Product Properties)
+* 'product' (Produkt Metadaten)
+* 'softwareLicenseToLicensePool' (Lizenzmanagement)
+* 'softwareLicense' (Lizenzmanagement)
+
+Daneben gibt es noch eine Reihe von weiteren Objekten mit speziellen Operationen. 
+Das aufgeführte Design ermöglicht es:
+
+* schnell Informationen zu einer großen Zahl von Objekten zu übertragen,
+* dabei mit einheitlicher Syntax Daten zu filtern,
+* die Informationen auf syntaktische Korrektheit der erzeugten Objekte zu prüfen.
+
+Hierdurch wird eine verbesserte Stabilität und höhere Performanz erreicht.
+
+[[opsi-manual-configuration-tools-opsi-admin-opsi3]]
+===== opsi3-Methoden
+
+Die mit opsi 3 eingeführten Methoden stehen als 'Legacy' Methoden weiterhin zur Verfügung, 
+werden aber ab opsi 4.0 intern auf die neuen Methoden 'gemappt'.
+
+Hier eine Liste der Methoden (dargestellt in der Form des Aufrufs mit 'opsi-admin') mit einer kurzen Beschreibung. 
+Diese dient zur Orientierung und nicht als Referenz. 
+Das bedeutet die Beschreibung muss nicht alle Informationen enthalten, die Sie benötigen, 
+um diese Methode tatsächlich zu verwenden.
+
+[source,prompt]
+----
+method addHardwareInformation hostId, info
+----
+
+Fügt Hardwareinformationen zum Rechner 'hostid' hinzu. Übergeben wird der Hash 'info'. 
+Vorhandene Informationen werden überschrieben, wenn die Keys über einstimmen. Es sind nur bestimmte Keys zulässig
+
+[source,prompt]
+----
+method authenticated
+----
+
+Überprüfen ob die Authentifizierung am Service erfolgreich war.
+
+[source,prompt]
+----
+method checkForErrors
+----
+
+Überprüft auf Inkonsistenzen im Backend (bisher nur implementiert für Backend File)
+
+[source,prompt]
+----
+method createClient clientName, domain, description=None, notes=None
+----
+
+Erzeugt einen neuen Client.
+
+[source,prompt]
+----
+method createGroup groupId, members = [], description = ""
+----
+
+Erzeugt eine Gruppe von Clients wie sie vom {opsi-Configed} verwendet wird.
+
+[source,prompt]
+----
+method createLicenseKey productId, licenseKey
+----
+
+Weist dem Produkt 'produktid' einen (weiteren) Lizenzkey zu.
+
+[source,prompt]
+----
+method createLocalBootProduct productId, name, productVersion, packageVersion, licenseRequired=0, setupScript="", uninstallScript="", updateScript="", alwaysScript="", onceScript="", priority=10, description="", advice="", productClassNames=('localBoot')
+----
+
+Legt ein neues Localboot-Produkt (Winst-Produkt) an.
+
+[source,prompt]
+----
+method createNetBootProduct productId, name, productVersion, packageVersion, licenseRequired=0, setupScript="", uninstallScript="", updateScript="", alwaysScript="", onceScript="", priority=10, description="", advice="", productClassNames=('netboot')
+----
+Legt ein neues bootimage Produkt an
+
+[source,prompt]
+----
+method createOpsiBase
+----
+
+Nur für interne Verwendung beim LDAP-Backend.
+
+[source,prompt]
+----
+method createProduct productType, productId, name, productVersion, packageVersion, licenseRequired=0,setupScript="", uninstallScript="", updateScript="", alwaysScript="", onceScript="", priority=10, description="", advice="", productClassNames=""
+----
+
+Legt ein neues Produkt an.
+
+[source,prompt]
+----
+method createProductDependency productId, action, requiredProductId="", requiredProductClassId="", requiredAction="", requiredInstallationStatus="", requirementType=""
+----
+
+Erstellt Produktabhängigkeiten.
+
+[source,prompt]
+----
+method createProductPropertyDefinition productId, name, description=None, defaultValue=None, possibleValues=[]
+----
+
+Erstellt eine Produkteigenschaft.
+
+[source,prompt]
+----
+method createServer serverName, domain, description=None
+----
+
+Erstellt im LDAP-Backend einen neuen Server.
+
+[source,prompt]
+----
+method createServerProduct  productId, name, productVersion, packageVersion, licenseRequired=0,setupScript="", uninstallScript="", updateScript="", alwaysScript="", onceScript="", priority=10, description="", advice="", productClassNames=('server')
+----
+
+Noch nicht implementiert - für zukünftige Verwendung.
+
+[source,prompt]
+----
+method deleteClient clientId
+----
+
+Löscht einen Client.
+
+[source,prompt]
+----
+method deleteGeneralConfig objectId
+----
+
+Löscht Konfiguration eines Clients oder einer Domain.
+
+[source,prompt]
+----
+method deleteGroup groupId
+----
+
+Löscht eine Clientgruppe.
+
+[source,prompt]
+----
+method deleteHardwareInformation hostId
+----
+
+Löscht sämtliche Hardwareinfos zum Rechner 'hostid'.
+
+[source,prompt]
+----
+method deleteLicenseKey productId, licenseKey
+----
+
+Löscht einen Lizenzkey.
+
+[source,prompt]
+----
+method deleteNetworkConfig objectId
+----
+
+Löscht Netzwerkkonfiguration (z.B. depotshare Eintrag) für Client oder Domain.
+
+[source,prompt]
+----
+method deleteOpsiHostKey hostId
+----
+
+Löscht einen pckey aus der pckey-Datenbank.
+
+[source,prompt]
+----
+method deleteProduct productId
+----
+
+Löscht ein Produkt aus der Datenbasis.
+
+[source,prompt]
+----
+method deleteProductDependency productId, action, requiredProductId="", requiredProductClassId="", requirementType=""
+----
+
+Löscht Produktabhängigkeit.
+
+[source,prompt]
+----
+method deleteProductProperties productId *objectId
+----
+
+Löscht alle Properties eines Produkts.
+
+[source,prompt]
+----
+method deleteProductProperty productId property *objectId
+----
+
+Löscht ein Property eines Produkts.
+
+[source,prompt]
+----
+method deleteProductPropertyDefinition productId, name
+method deleteProductPropertyDefinitions productId
+----
+
+Löscht alle Produkteigenschaften zum Produkt 'productid'.
+
+[source,prompt]
+----
+method deleteServer serverId
+----
+
+Löscht die Serverkonfiguration.
+
+[source,prompt]
+----
+method exit
+----
+
+Verlässt den opsi-admin.
+
+[source,prompt]
+----
+method getBackendInfos_listOfHashes
+----
+
+Liefert eine Beschreibung der auf dem opsi-server konfigurierten Backends und welche davon aktiviert sind.
+
+[source,prompt]
+----
+method getBootimages_list
+----
+
+Liefert die Liste der zur Auswahl stehenden Bootimages.
+
+[source,prompt]
+----
+method getClientIds_list serverId = None, groupId = None, productId = None, installationStatus = None, actionRequest = None
+----
+
+Liefert die Liste der Clients, welche den angegebenen Kriterien entsprechen.
+
+[source,prompt]
+----
+method getClients_listOfHashes serverId = None, groupId = None, productId = None, installationStatus = None, actionRequest = No
+----
+
+Liefert die Liste der Clients, welche den angegebenen Kriterien entsprechen, zusammen mit Beschreibung, Notizen und 'Lastseen'.
+
+[source,prompt]
+----
+method getDefaultNetBootProductId clientId
+----
+
+Liefert das Netboot-Produkt (z.B. Betriebssystem) welches beim Aufruf des bootimages 'install' installiert wird.
+
+[source,prompt]
+----
+method getDomain hostId
+----
+Liefert die Domain zu einem Rechner.
+
+[source,prompt]
+----
+method getGeneralConfig_hash objectId
+----
+
+Liefert allgemeine Konfiguration zu einem Client oder einer Domain.
+
+[source,prompt]
+----
+method getGroupIds_list
+----
+
+Liefert die Liste der gespeicherten Clientgruppen.
+
+[source,prompt]
+----
+method getHardwareInformation_listOfHashes hostId
+----
+
+Liefert die Hardwareinformationen zu dem angegebenen Rechner.
+
+[source,prompt]
+----
+method getHostId hostname
+----
+
+Liefert hostid zu dem angegebenen Hostnamen.
+
+[source,prompt]
+----
+method getHost_hash hostId
+----
+
+Liste der Eigenschaften des angegebenen Rechners.
+
+[source,prompt]
+----
+method getHostname hostId
+----
+
+Liefert hostname zur Host-ID.
+
+[source,prompt]
+----
+method getInstallableLocalBootProductIds_list clientId
+----
+
+Liefert alle Localboot-Produkte, die auf diesem Client installiert werden können.
+
+[source,prompt]
+----
+method getInstallableNetBootProductIds_list clientId
+----
+
+Liefert alle Netboot-Produkte, die auf diesem Client installiert werden können.
+
+[source,prompt]
+----
+method getInstallableProductIds_list clientId
+----
+
+Liefert alle Produkte, die auf diesem Client installiert werden können.
+
+[source,prompt]
+----
+method getInstalledLocalBootProductIds_list hostId
+----
+
+Liefert alle Localboot-Produkte, die auf diesem Client installiert sind.
+
+[source,prompt]
+----
+method getInstalledNetBootProductIds_list hostId
+----
+
+Liefert die Liste der installierten Netboot-Produkte für einen Client oder Server.
+
+[source,prompt]
+----
+method getInstalledProductIds_list hostId
+----
+
+Liefert die Liste der installierten Produkte für einen Client oder Server.
+
+[source,prompt]
+----
+method getIpAddress hostId
+----
+
+Liefert IP-Adresse zur Host-ID.
+
+[source,prompt]
+----
+method getLicenseKey productId, clientId
+----
+
+Liefert einen freien Lizenzkey zu dem angegebenen Produkt bzw. liefert den der 'clientId' zugeordneten Lizenzkey,
+
+[source,prompt]
+----
+method getLicenseKeys_listOfHashes productId
+----
+ 
+Liefert eine Liste der Lizenzkeys für das angegebene Produkt.
+
+[source,prompt]
+----
+method getLocalBootProductIds_list
+----
+
+Liefert alle (z.B. im LDAP-Baum) bekannten Localboot-Produkte.
+
+[source,prompt]
+----
+method getLocalBootProductStates_hash clientIds = []
+----
+
+Liefert für die angegebenen Clients Installationsstatus und {Action-requests} für alle Localboot-Produkte.
+
+[source,prompt]
+----
+method getMacAddresses_list hostId
+----
+
+Liefert die MAC-Adresse zum angegebenen Rechner.
+
+[source,prompt]
+----
+method getNetBootProductIds_list
+----
+
+Liefert Liste der Netboot-Produkte.
+
+[source,prompt]
+----
+method getNetBootProductStates_hash clientIds = []
+----
+
+Liefert für die angegebenen Clients Installationsstatus und {Action-request= für alle Netboot-Produkte.
+
+[source,prompt]
+----
+method getNetworkConfig_hash objectId
+----
+
+Liefert die Netzwerk-spezifischen Konfigurationen für einen Client oder eine Domain.
+
+[source,prompt]
+----
+method getOpsiHostKey hostId
+----
+
+Liefert den pckey zur angegeben Host-ID.
+
+[source,prompt]
+----
+method getPcpatchPassword hostId
+----
+
+Liefert das mit dem 'pckey' von 'hostId' verschlüsselte Passwort des Users 'pcpatch'.
+
+
+[source,prompt]
+----
+method getPossibleMethods_listOfHashes
+----
+
+Liefert die Liste der aufrufbaren Methoden (in etwa so wie in diesem Kapitel beschrieben).
+
+[source,prompt]
+----
+method getPossibleProductActionRequests_list
+----
+
+Liefert die Liste der in opsi prinzipiell zulässigen {Action-Requests}.
+
+[source,prompt]
+----
+method getPossibleProductActions_hash
+----
+
+Liefert zu allen Produkten die möglichen Aktionen ('setup', 'deinstall',... ).
+
+[source,prompt]
+----
+method getPossibleProductActions_list productId=softprod
+----
+
+Liefert zum angegebenen Produkt die möglichen Aktionen ('setup', 'deinstall',...).
+
+[source,prompt]
+----
+method getPossibleProductInstallationStatus_list
+----
+
+Liefert die möglichen Installationsstatus ('installed', 'not_installed',... ).
+
+[source,prompt]
+----
+method getPossibleRequirementTypes_list
+----
+
+Liefert die möglichen Typen von Produktabhängigkeiten ('before', 'after', ... ).
+
+[source,prompt]
+----
+method getProductActionRequests_listOfHashes clientId
+----
+
+Liefert die anstehenden ausführbaren Aktionen für den angegebenen Client.
+
+[source,prompt]
+----
+method getProductDependencies_listOfHashes productId = None
+----
+
+Liefert die bekannten Produktabhängigkeiten (zum angegebenen Produkt).
+
+[source,prompt]
+----
+method getProductIds_list productType = None, hostId = None, installationStatus = None
+----
+
+Liefert die Liste der Produkte, die den angegebenen Kriterien entsprechen.
+
+[source,prompt]
+----
+method getProductInstallationStatus_hash productId, hostId
+----
+
+Liefert den Installationsstatus zum angegebenen Client und Produkt.
+
+[source,prompt]
+----
+method getProductInstallationStatus_listOfHashes hostId
+----
+
+Liefert den Installationsstatus zum angegebenen Client.
+
+[source,prompt]
+----
+method getProductProperties_hash productId, objectId = None
+-----
+
+Liefert die Schalterstellungen ({Product-properties}) zum angegebenen Produkt und Client.
+
+[source,prompt]
+----
+method getProductPropertyDefinitions_hash
+----
+
+Liefert alle bekannten {Product-properties} mit Beschreibung, erlaubten Werten etc..
+
+[source,prompt]
+----
+method getProductPropertyDefinitions_listOfHashes productId
+----
+
+Liefert die {Product-properties} zum angegebenen Produkt mit Beschreibung, erlaubten Werten etc..
+
+[source,prompt]
+----
+method getProductStates_hash clientIds = []
+----
+
+Liefert Installationsstatus und {Action-requests} der einzelnen Produkte (zu den agegebenen Clients).
+
+[source,prompt]
+----
+method getProduct_hash productId
+----
+
+Liefert die Metadaten (Beschreibung, Version,...) zum angegebenen Produkt.
+
+[source,prompt]
+----
+method getProvidedLocalBootProductIds_list serverId
+----
+Liefert die Liste der auf dem angegebenen Server bereitgestellten Localboot-Produkte.
+
+[source,prompt]
+----
+method getProvidedNetBootProductIds_list serverId
+----
+
+Liefert die Liste der auf dem angegebenen Server bereitgestellten Netboot-Produkte.
+
+[source,prompt]
+----
+method getServerId clientId
+----
+
+Liefert den zuständigen {opsi-configserver} zum angegebenen Client.
+
+[source,prompt]
+----
+method getServerIds_list
+----
+
+Liefert die Liste der bekannten {opsi-configserver}.
+
+[source,prompt]
+----
+method getServerProductIds_list
+----
+
+Liste der Server-Produkte.
+
+[source,prompt]
+----
+method getUninstalledProductIds_list hostId
+----
+
+Liefert die deinstallierten Produkte.
+
+[source,prompt]
+----
+method powerOnHost mac
+----
+
+Sendet ein WakeOnLan-Signal an die angegebene MAC.
+
+[source,prompt]
+----
+method setBootimage bootimage, hostId, mac=None
+----
+
+Setzt 'bootimage' als Bootimage beim Start des angegebenen Clients.
+
+[source,prompt]
+----
+method setGeneralConfig config, objectId = None
+----
+
+Setzt für Client oder Domain die GenaralConfig.
+
+[source,prompt]
+----
+method setHostDescription hostId, description
+----
+
+Setzt für einen Client die Beschreibung.
+
+[source,prompt]
+----
+method setHostLastSeen hostId, timestamp
+----
+
+Setzt für einen Client den Zeitstempel für 'LastSeen'.
+
+[source,prompt]
+----
+method setHostNotes hostId, notes
+----
+
+Setzt für einen Client die Notiz-Angaben.
+
+[source,prompt]
+----
+method setMacAddresses hostId, macs
+----
+
+Trägt für einen Client seine MAC-Adresse in die Datenbank ein.
+
+[source,prompt]
+----
+method setNetworkConfig objectId, serverId='', configDrive='', configUrl='', depotDrive='', depotUrl='', utilsDrive='', utilsUrl='', winDomain='', nextBootServiceURL=''
+----
+
+Setzt für einen Client die angegebene Netzwerkdaten für den opsi-client-agent.
+
+[source,prompt]
+----
+method setOpsiHostKey hostId, opsiHostKey
+----
+
+Setzt für einen Rechner den 'pckey'.
+
+[source,prompt]
+----
+method setPXEBootConfiguration hostId *args
+----
+
+Schreibt die Pipe für dne PXE-Boot mit *args in der 'append'-Liste.
+
+[source,prompt]
+----
+method setPcpatchPassword hostId password
+----
+
+Setzt das verschlüsselte (!) 'password' für 'hostId'.
+
+[source,prompt]
+----
+method setProductActionRequest productId, clientId, actionRequest
+----
+
+Setzt für den angegebenen Client und das angegebene Produkt einen {Action-Request}.
+
+[source,prompt]
+----
+method setProductInstallationStatus productId, hostId, installationStatus, policyId="", licenseKey=""
+----
+
+Setzt für den angegebenen Client und das angegebene Produkt einen Installationsstatus.
+
+[source,prompt]
+----
+method setProductProperties productId, properties, objectId = None
+----
+
+Setzt {Product-properties} für das angegebene Produkt (und den angegebenen Client).
+
+[source,prompt]
+----
+method unsetBootimage hostId
+----
+
+Setzt einen Bootimage-Start für den angegebenen Client zurück.
+
+[source,prompt]
+----
+method unsetPXEBootConfiguration hostId
+----
+
+Löscht die PXE-Boot-Pipe.
+
+[source,prompt]
+----
+method unsetProductActionRequest productId, clientId
+----
+
+Setzt einen {Action-request} auf 'none'.
+
+[[opsi-manual-configuration-tools-opsi-admin-backend-extensions]]
+===== Backend-Erweiterungen
+
+Durch die in opsi 4 implementierten Funktionalität des Backend-Extenders 
+können auf der Basis der opsi4-API-Methoden oder des Funktionskerns jederzeit
+zusätzliche Methoden definiert und als API-Erweiterung aufrufbar gemacht werden. 
+
+Das Standard-API-Methoden-Set wird durch den 'opsiconfd' mittels Überlagerung der in den Python-Dateien 
+in '/etc/opsi/backendManager/extend.d' definierten Methoden erstellt. 
+
+Zusätzliche Methoden-Sets mit Aufruf per speziellem Pfad können zudem in Dateien in Unterverzeichnissen dieses
+Verzeichnisses definiert werden. Standardmäßig ist hier ein Set von Methoden, die speziell auf Datenanforderungen
+durch den '{opsi-configed}' zugeschnitten sind, im Verzeichnis '/etc/opsi/backendManager/extend.d/configed' 
+implementiert. Im Web-Interface werden die entsprechenden Methoden (zusammen mit den Standardmethoden) 
+sichtbar, wenn als 'Path' in der Drop-down-Liste 'interface/extend/configed' ausgewählt wird.
+
+Backend-Erweiterungen können auch dazu dienen für spezifische Konfigurationsaufgaben angepasste Zusatzfunktionen zu
+implementieren.
+
+[[opsi-manual-configuration-tools-serverprocesses]]
+=== Serverprozesse: opsiconfd und opsipxeconfd
+
+Der 'opsipxeconfd' dient zur Bereitstellung von 'named pipes' im `tftpboot`-Bereich, 
+welche den Bootvorgang eines PCs über das PXE-Protokoll steuern.
+
+Die zugehörige Konfigurationsdatei ist `/etc/opsi/opsipxeconfd.conf`, die Logdatei 
+`/var/log/opsi/opsipxeconfd.log`.
+
+Der 'opsiconfd' dient zur Bereitstellung der {opsi-server}-API als JSON-Webservice
+und nimmt noch eine Reihe weiterer Aufgaben wahr. 
+
+Dieser Dienst ist damit der zentrale opsi-Dienst. 
+Über ihn wird z.B. sämtliche Kommunikation zwischen den Clients und dem Server abgewickelt.
+
+Von daher ist die Möglichkeit, diesen Prozess und seine Last zu überwachen, ein wichtiges Werkzeug.
+
+[[opsi-manual-configuration-tools-serverprocesses-info]]
+==== 'opsiconfd'-Überwachung: opsiconfd info
+
+Unter der Webadresse https://<opsi-server>:4447/info erhalten Sie grafisch 
+aufbereitete Informationen über den Lastverlauf des 'opsiconfd' der
+letzten Stunde, des letzten Tages, des letzten Monats und des letzten Jahrs sowie weitere tabellarische Informationen.
+
+.opsiconfd info: 'opsiconfd'-Werte der letzten Stunde
+image::../images/opsiconfd-info-hour.png["opsiconfd info: opsiconfd-Werte der letzten Stunde", width="120mm"]
+
+.opsiconfd info: 'opsiconfd'-Werte des letzten Tages
+image::../images/opsiconfd-info-day.png["opsiconfd info: opsiconfd-Werte des letzten Tages", width="120mm"]
+
+
+
+
+
+

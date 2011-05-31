@@ -1,0 +1,223 @@
+opsi Backup Handbuch
+====================
+Erol Ueluekmen <e.ueluekmen@uib.de>
+:Date:      14.03.2011
+:Revision:  1.0
+:toc:
+:numbered:
+:website: http://opsi.org
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-backup_introduction]]
+== Einführung
+
+Wie jedes andere System auch, sollte das opsi-System auch einem Backup unterzogen werden. Da opsi mittlerweile ein zentrales Werkzeug für WIndows-Client-Management, aber auch für Windows-Server-Management darstellt, sollte das opsi gesichert werden.
+Dieses Handbuch soll einen Einblick in die Backup-Strategie von opsi geben und auch auf Themen, wie das zurückschreiben und das "DisasterRecovery" von opsi.
+
+<<<
+
+[[opsi-backup_prerequisits]]
+== Vorbedingungen für ein Backup
+
+Um ein Backup des opsi-Systems an zu legen, gibt es nicht wirklich eine Vorbedingung. Wenn man die zentralen Dateien und Backends des opsi-Systems lokalisiert hat, kann man diese auf diversen Methoden sichern. Die folgende Anleitung soll nicht nur die Frage: "Was soll gesichert werden?" beantworten, sondern auch einen Weg dokumentieren, wie eine Backupstrategie für das opsi-System aussehen könnte.
+
+Das Backupskript sollte als root ausgeführt werden, entweder manuell oder einen root-cronjob, damit man die Konfiguration von opsi lesen kann und auch die Systemkonfiguration feststellen kann. Weiterhin sollte für ein Backup des mysql-Backends das _mysqldump_-Programm installiert sein, dieses findet sich in der regel in den client-Paketen von mysql.
+
+<<<
+
+[[opsi-backup_parts-of-opsi]]
+== Elementare Teile von opsi
+
+Opsi kann man grob in fünf Teile gliedern. Die folgenden fünf Teile sind opsi-Spezifisch und können von System zu System, je nach Konfiguration variieren.
+
+[[opsi-backup_config-part]]
+=== Opsi Konfiguration
+
+Der mit Abstand wichtigste Teil von opsi, ist die Konfiguration. Getreu nach LSB ( Linux Standard Base) befindet sich die Konfiguration von opsi unter /etc/opsi.
+
+Dieses Verzeichnis beinhaltet hauptsächlich die Backend-Konfiguration, die Webservice-Konfiguration und das SSL-Zertifikat für den Webservice. Weiterhin ist hier auch das Backend-Extend untergebracht, die opsipxe-Konfiguration, der opsi-product-updater und auch die modules-Datei, die Ihnen Ihre mitfinanzierten Module freischaltet.
+
+Um später ein volles DisasterRecovery zu verwirklichen, muss das Verzeichnis /etc/opsi gesichert werden.
+
+Die Sicherung hat neben dem DisasterRecovery aber einen weiteren Vorteil, wenn man viele Konfigurationen von opsi geändert hat und das System nicht mehr richtig arbeitet, ist ein Rücksprung auf eine vorherige funktionierende Version meist leichter und schneller, als die Fehlersuche.
+
+[[opsi-backup_backend-parts]]
+=== Opsi Backends
+
+Im Folgende Kapitel werden die Backends von opsi aufgezählt. Diese bilden das Herzstück der opsi-Datenhaltung. Alle Clients, Produkte, Konfigurationen, Statis, etc... sind in der jeweiligen Datenbank abgelegt.
+
+Opsi bietet in der jetzigen Fassung insgesammt vier Datenbackends:
+
+.opsi-Backends
+[options="header"]
+|==========================
+|Backend|Beschreibung
+|file-Backend|Backend auf Dateibasis, momentan der Default bei opsi
+|mysql-Backend|Volle mysql-Backend unterstützung seit opsi 4.0
+|ldap|komplette Datenhaltung in einem LDAP-Verzeichnis
+|univention|angepasstes LDAP Backend für UCS-Systeme
+|==========================
+
+Wenn Sie nicht wissen, welches Backend sie einsetzen, setzen Sie wahrscheinlich das file-Backend ein. opsi ist aber auch dafür ausgelegt, mehrere Backends gleichzeitig an zu setzen. Welche Backends, für welche Funktionen von opsi eingesetzt werden, wird in der _/etc/opsi/backendManager/dispatch.conf_ konfiguriert.
+
+[[opsi-backup_depotfiles-parts]]
+=== Opsi Depotfiles
+
+Die Depotfiles sind deshalb interessant, da Sie die eigentlichen Dateien der zu verteilenden Software enthalten. Die Localboot-Produkte, wie auch die Netboot-Produkte haben Ihre Files jeweils unterhalb von _/opt/pcbin/install_. Da dieses Verzeichnis ein historisches Überbleibsel bildet, ist es sehr wahrscheinlich, dass dieses Verzeichnis an die LSB (Linux Standard Base) angepasst wird.
+
+Je nachdem, wieviel Software auf dem opsi-System vorgehalten wird und wieviele Betriebssystem-Installation inklusive Treibern vorgehalten werden, kann dieses Datenvolumen enorme ausmaße annehmen.
+
+Es verschiedene Ansätze diese Dateien zu sichern. Die einfachste alternative ist das Rsnapshot. Es gibt aber elegantere Lösungen, wie das Verlegen dieser Daten in Redundant ausgelegte Filesysteme auf einem SAN, etc.
+
+[[opsi-backup_workbench-parts]]
+=== Opsi Workbench
+
+Das opsi Workbench, welches auch als gleichnamige Samba-Freigabe im opsi eingesetzt wird, beinhaltet die Stände der eigenen Software-Paketierung. Das Verzeichnis ist standardmäßig unter _/home/opsiproducts_ Wenn dieser Share, wie vorgesehen dafür verwendet wird, um eigene Pakete in verschiedenen Revisionen dort vor zu halten, sollte dieses Verzeichnis auch mit gesichert werden. 
+
+Auch hier bietet sich das Tool rsnapshot an. 
+
+[[opsi-backup_repository-parts]]
+=== Opsi Repository
+
+Das Verzeichnis unter _/var/lib/opsi/repository_ wird dazu verwendet, um opsi-Pakete vor zu halten. Anders als die opsi Workbench, dient es aber nicht dem Paketieren von opsi Paketen, sondern die Opsi-Pakete dir dort abgelegt werden, sollen vorgehalten werden, um eventuell das Syncen auf anderen Servern, oder das Syncen mit dem opsi-product-updater zu vereinfachen.
+
+Diese Dateien sind für ein DesasterRecovery nicht unbedingt nötig, können aber auch mit dem Tool rsnapshot gesichert werden.
+
+[[opsi-backup-cli]]
+== Das `opsi-backup` Programm
+
+Mit dem Kommandozeilenprogramm `opsi-backup` existiert ein Werkzeug, dass die Erstellung und das Wiederherstellen einfacher Backups kompfortabel erledigt.
+Dazu lässt sich `opsi-backup` mit drei grundlegenden Befehlen steuern: +create+, +restore+ und +verify+.
+Die Option +--help+ gibt einen detaillierten Überblick über alle Optionen, die `opsi-backup` akzeptiert.
+Ein mit `opsi-backup` erstelltes Backup ist ein Rohbackup, dass bedeutet, es werden keine Datein auf logischer Ebene gesichert, sondern es werden Sicherungen der in den Backends abgelegten Datein in den entsprechenden Strukturen angefertigt.
+Ein solches Backup lässt sich daher auch nur für eine identische Backendkonfiguration zurückspielen. Zu beachten ist, dass `opsi-backup` keine Sicherung der <<opsi-backup_depotfiles-parts,Depot Dateien>>, der <<opsi-backup_workbench-parts,Workbench Dateien>> sowie der <<opsi-backup_repository-parts, Repository Dateien>> durchführt. Diese Datein sollten daher anderweitig gesichert werden.
+
+CAUTION: Ein Backup, dass mit `opsi-backup` erstellt wird, kann unter anderem Passwörter und PC-Keys enthalten, und sollte daher entsprechend sicher archiviert werden.
+
+[[opsi-backup-create]]
+=== Ein Backup anlegen
+
+Das Anlegen eines neuen opsi Backups erfolgt mit dem Befehl `opsi-backup create`. Wird dieser Befehl ohne weitere Parameter angegeben erstellt das Programm ein Archiv mit allen Daten der Backends an. Der Dateiname wird dabei automatisch generiert.
+[source, prompt]
+----
+opsi-backup create
+----
+
+Es ist auch möglich, den Dateinamen oder das Zielverzeichnis des neuen Backups vorzugeben. Dazu wird einfach ein Dateiname oder ein Zielverzeichnis einfach an den entsprechenden Befehl angehängt. Wird ein Verzeichnis übergeben generiert `opsi-backup` automatisch einen Dateinamen in diesem Verzeichnis.
+Ein durch `opsi-backup` generierter Dateiname hat die Form <hostname>_<opsi-version>_<datum>_<uhrzeit> und ist daher gut zur Archivierung meherere Backups geeignet. Wird ein Dateiname fest forgegeben wird ein älteres Backup mit dem selben Namen durch `opsi-backup` überschrieben.
+[source, prompt]
+----
+opsi-backup create /mnt/backup/opsi_backup.tar.bz2
+opsi-backup create /mnt/backup/
+----
+
+Zusätzlich ermöglicht das +create+ Kommando die Steuerung des Backups mittels der folgenden Optionen:
+
+* +--backends {file,mysql,all}+ +
+Ermöglicht die Steuerung der Backends, die in dem Backup eingeschlossen werden sollen. Diese Option kann mehrfach angegeben werden, um mehrere Backends anzugeben. Die Option `--backends=all` steht für alle Backends und ist die Standardeinstellung.
+Im Moment werden folgende Backends unterstützt: +mysql+, +file+
+[source, prompt]
+----
+opsi-backup create --backends=file --backends=mysql
+opsi-backup create --backends=all
+----
+
+* +--configuration+ +
+Schließt die <<opsi-backup_config-part,Opsi Konfiguration>> in das Backup mit ein. Es bietet sich an, diese Daten mit zu sichern, da das Zurückspielen eines Backends eine funktionierende Konfiguration vorraussetzt.
+[source, prompt]
+----
+opsi-backup create --configuration
+----
+
+* +--dhcp+ +
+Schließt die DHCP Konfiguration in das Backup mit ein. Diese Option ist sinnvoll, wenn der DHCP Dienst auf dem opsi-Server eingerichtet ist.
+[source, prompt]
+----
+opsi-backup create --dhcp
+----
+
+* +-c [{gz,bz2,none}], --compression [{gz,bz2,none}]+ +
+Spezifiziert die Kompressionsmethode, mit der das Archiv komprimiert werden soll. +none+ steht hier für nicht kompromieren, die Standardkompression ist bz2.
+[source, prompt]
+----
+opsi-backup create -c bz2
+----
+
+* +--flush-log+ +
+Im Falle eines MySQL Datenbank Backups ist es sinnvoll, die von mysql im Speicher gehaltenen Daten vorher auf die Festplatte schreiben zu lassen.
+Ist diese Option angegeben wird `opsi-backup` versuchen, diese Operation durchzuführen, allerdings benötigt der entsprechende opsi Benutzer dazu die MySQL Berechtigung http://dev.mysql.com/doc/refman/5.5/en/privileges-provided.html#priv_reload[RELOAD]. Standardmässig wird der opsi Benutzer ohne dieses Recht angelegt!
+Besitzt er diese nicht wird das Backup fehlschlagen. Es wird empfohlen, diese Option einzusetzten, um die konsistenz des MySQL Backups besser gewährleisten zu können..
+[source, prompt]
+----
+opsi-backup create --backends=mysql --no-flush-log
+----
+
+*Beispiel*
+[source, prompt]
+----
+opsi-backup create --dhcp --configuration --backends=all opsi_backup.tar.bz2
+----
+
+[[opsi-backup-archive]]
+==== Backups archivieren
+Von Haus aus bringt `opsi-backup` keine Funktionen zum Archivieren von Backups mit. Der Administrator hat daher sorge zu tragen, dass erzeugte Backups sicher und versioniert ablegt werden.
+Außerdem löscht `opsi-backup` niemals selbstständig ältere Backup Version (außer sie werden mittels +create+ überschrieben). Da `opsi-backup` immer Vollbackups und keine inkrementellen Backups anlegt kann es schnell zu großen Datenmengen kommen.
+Hier muss ebenfalls der Administrator sorge tragen, dass ältere Backups wenn nötig regelmässig gelöscht werden. 
+
+
+[[opsi-backup-verify]]
+=== Ein Backup verifizieren
+Mit dem Befehl `opsi-backup verify` kann das Archiv auf interne Integrität geprüft werden. Diese Prüfung ist keine logische Prüfung der Daten, es handelt sich um eine reine Prüfung auf die Korrektheit im Archiv gespeicherten Daten.
+
+*Beispiel*
+[source, prompt]
+----
+opsi-backup verify opsi_backup.tar.bz2
+----
+
+[[opsi-backup-restore]]
+=== Ein Backup wiederherstellen
+Das Wiederherstellen des Archivs erfolgt mit dem Befehl `opsi-backup restore`. Dabei werden die Backends anhand der aktuellen Konfiguration eingespielt. Es kann also kein reines Backend Backup wiederhergestellt werden, ohne dass eine opsi Konfiguration vorhanden ist.
+Der Befehl `opsi-backup restore` braucht als Parameter das Backup Archiv, aus dem Daten wiederhergestellt werden.
+Für eine Wiederherstellung muss jede Option explizit angegeben werden. Wird keine Option anegegeben führt `opsi-backup restore` standardmässig keine Aktionen aus.
+
+`opsi-backup restore` akzeptiert folgende Optionen:
+
+* +--backends {file,mysql,all}+ +
+Stellt das spezifizierte Backend wieder her. Diese Option kann mehrfach angegeben werden, um mehrere Backends anzugeben. Die Option `--backends=all` steht für alle Backends.
+[source, prompt]
+----
+opsi-backup restore --backends=file --backends=mysql opsi_backup.tar.bz2
+opsi-backup restore --backends=all opsi_backup.tar.bz2
+----
+
+* +--configuration+ +
+Stellt die <<opsi-backup_config-part,Opsi Konfiguration>> wieder her.
+[source, prompt]
+----
+opsi-backup restore --configuration opsi_backup.tar.bz2
+----
+
+* +--dhcp+ +
+Stellt die DHCP Konfiguration wieder her.
+[source, prompt]
+----
+opsi-backup restore --dhcp opsi_backup.tar.bz2
+----
+
+* +-f, --force+ +
+`opsi-backup` führt vor dem wiederherstellen eines Backups eine Sicherheitsprüfung durch, um zu überprüfen, ob die aktuelle opsi Installation mit der Installation des Backups übereinstimmt. Mit dieser Option lässt sich diese Prüfung umgehen.
+[source, prompt]
+----
+opsi-backup restore -f opsi_backup.tar.bz2
+----
+
+*Beispiel*
+[source, prompt]
+----
+opsi-backup restore --dhcp --configuration --backends=all opsi_backup.tar.bz2
+----
+
+

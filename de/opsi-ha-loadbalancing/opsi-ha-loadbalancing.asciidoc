@@ -1,0 +1,138 @@
+﻿//// 
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; Until we found a better license:
+; All rights reserved.
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      10.02.2011
+:Revision:  1.0
+
+= Hochverfügbarkeit und Loadbalancing mit opsi
+
+== Einführung
+
+Durch die Einführung neuer Technologien und Werkzeuge ist es mit opsi 4.0 möglich,
+auch große Infrastrukturen mit mehreren tausend Clients zu beherrschen.
+Installationen dieser Größenordnung stellen besondere Anforderungen an die Server-Hardware und 
+Infrastruktur. Um diesen Anforderungen gerecht zu werden beschreibt diese Dokumentation Techniken,
+mit denen sich opsi in hochverfügbaren und lastintensiven Umgebungen in Betrieb genommen werden kann.
+
+=== Konventionen zu Schrift und Grafiken
+
+Konventionen zu Schrift und Grafiken
+In <spitzen Klammern> werden Namen dargestellt, die im realen Einsatz durch ihre Bedeutung ersetzt
+werden müssen.
+Beispiel: Der Fileshare, auf dem die opsi Softwarepakete liegen, wird <opsi-depot-share> genannt
+und liegt auf einem realen Server z.B. auf /opt/pcbin/install.
+Das Softwarepaket: <opsi-depot-share>/ooffice liegt dann tatsächlich unter
+/opt/pcbin/install/ooffice.
+Beispiele aus Programmcode oder Konfigurationsdateien stehen in Courier-Schrift und sind grau hinterlegt .
+
+----
+depoturl=smb://smbhost/sharename/path
+----
+
+== Voraussetzungen
+
+=== Formale Voraussetzungen
+
+Diese Dokumentation setzt setzt in grundlegendes Verständnis von opsi voraus. 
+Dies betrifft besonders die Themen, die im Rahmen des opsi Handbuchs und der „opsi Getting Started“
+Dokumentation erläutert und beschrieben werden. Darüber hinaus setzt diese Dokumentation ein 
+Grundverständnis von Linux und der Linux Kommandozeile voraus. Die hier beschriebenen Vorgänge
+beziehen sich außerdem auf opsi Server auf der Basis von Debian / Ubuntu Linux.
+Wenn eine anderer Distribution verwendet wird kann es vorkommen,
+dass einige Kommandos oder Befehle von dieser Dokumentation abweichen.
+
+=== Technische Voraussetzungen
+
+Diese Dokumentation setzt voraus, dass auf Serverseite das kofinanzierte Modul „MySQL-Backend“
+und auf Clientseite das kofinanzierte Modul „Dynamische Depotzuweisung“ installiert und
+freigeschaltet sind. Zusätzlich wird vorausgesetzt, dass für die Speicherung der opsi Produktpakete
+ein Netzwerkspeicher, z.B. ein Samba oder Windows Share, zur Verfügung steht.
+
+== Hochverfügbarkeit
+
+=== Prinzip
+
+Hochverfügbarkeit bedeutet im Bezug auf opsi, dass der Service, 
+über den opsi mit den Client-PCs kommuniziert, auch im Fall eines Ausfalls oder Defekts eines
+Configservers für die Clients und den Administrator weiter erreichbar bleibt.
+Hierzu wird ein zweiter, von der opsi-Konfiguration identischer Configserver installiert, 
+welcher im Falle eines Ausfalls des Hauptservers dessen Funktionen übernimmt.
+Diese Technik wird im allgemeinen als Hot-Standby Modul bezeichnet.
+
+// Bild einfügen?
+
+=== Installation von opsi
+
+Vor der Installation des Haupt- und Standby-Servers muss sichergestellt werden,
+dass die notwendigen Dateien, die auf beiden Servern benötigt werden,
+über ein Netzlaufwerk zur Verfügung gestellt werden können. 
+
+Damit dieses share lokal eingebunden werden kann müssen zuerst die entsprechenden Verzeichnisse per Hand angelegt werden:
+
+----
+mkdir -p /etc/opsi
+mkdir -p /opt/pcbin
+mkdir -p /var/lib/opsi
+mkdir -p /home/opsiproducts
+----
+
+Anschließend wird die Datei /etc/fstab entsprechend angepasst.
+Beispiel mit einem NFS-Share:
+
+----
+<nfshost>:/<path> /home/opsiproducts nfs rw                   0       2
+<nfshost>:/<path> /opt/pcbin nfs rw                           0       2
+<nfshost>:/<path> /var/lib/opsi nfs rw                        0       2
+<nfshost>:/<path> /etc/opsi nfs rw                            0       2
+----
+
+Die Installation des Hauptservers nun verläuft im wesentlichen so,
+wie in Kapitel 2 von „opsi Getting Started“ beschrieben wird. 
+Der MySQL Server wird für eine Hochverfügbarkeitslösung jedoch nicht direkt auf dem opsi Server installiert,
+sondern auf einem separaten Datenbankserver. Im Falle eines Ausfalls des Configservers ist die Datenbank
+so weiterhin durch den Standby-Server erreichbar.
+
+Nach der Installation muss der Configserver so eingerichtet, dass alle Daten im MySQL-Backend gespeichert werden.
+Dies geschieht in der Datei /etc/opsi/backendManager/dispatch.conf:
+
+----
+backend_.*         : mysql, opsipxeconfd
+host_.*            : mysql, opsipxeconfd
+productOnClient_.* : mysql, opsipxeconfd
+configState_.*     : mysql, opsipxeconfd
+.*                 : mysql
+----
+
+Auffallend ist hier, dass das DHCP-Backend zur Steuerung der DHCP Konfiguration über opsi nicht aktiviert ist.
+Dies liegt daran, dass es bei einer hochverfügbaren opsi-Installation die Nutzung eines
+externen DHCP Servers unbedingt empfohlen wird. Näheres dazu ist in Kapitel 2.3.3 „Alternative:externer DHCP-Server“
+in der „opsi Getting Started“ Dokumentation beschrieben.
+
+Anschließend wird der externe MySQL-Server anstelle eines lokal installierten Dienstes für die Datenspeicherung konfiguriert.
+Dazu muss der Befehl
+
+----
+opsi-setup --configure-mysql
+----
+
+als Benutzer root ausgeführt werden. 
+In der Eingabemaske müssen dabei die Daten für Localhost und den administrativen Benutzer
+durch die entsprechenden Daten des Datenbankservers ersetzt werden.
+
+Für den Standby-Server verlaufen die Schritte weitestgehend analog. 
+Bei der Installation der opsi Pakete kommt es aufgrund des geteilten Konfigurationsverzeichnisses dazu,
+dass der Installer einige Konfigurationsdateien automatisch ersetzen will. 
+Dies ist bei entsprechender Nachfrage zu verneinen.
+Zusätzlich kann es Aufgrund der mangelnden Berechtigungen zu dem Fehler kommen, 
+dass sich der Standby-Server nicht auf den MySQL Datenbankserver verbinden darf.
+Diese Fehler dürfen ignoriert werden, da der Standby-Server im Fehlerfall die Identität des Hauptservers
+annimmt und damit auch dessen Berechtigungen für die Datenbank übernimmt.
+Da die Konfiguration und das Backend in einem geteilten Bereich liegen ist opsi auf dem 
+Standby-Server bereits vollständig konfiguriert, die entsprechenden Schritte entfallen also.
