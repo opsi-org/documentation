@@ -29,7 +29,7 @@ endif
 
 REFERENCE_LANG := de
 
-LANG := de en
+LANG := de en fr nl
 DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
 FORMATS := html pdf epub
