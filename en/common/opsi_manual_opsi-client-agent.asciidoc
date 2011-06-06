@@ -130,7 +130,7 @@ image::../images/opsiclientd-action-notifier.png["opsiclientd action notifier",w
 
 shutdown notifier::
 Gives information about a requested reboot / shutdown 
-(if shutdown_warning_time > 0)
+(if +shutdown_warning_time+ > 0)
 
 .opsiclientd shutdown notifier
 image::../images/opsiclientd-shutdown-notifier.png["opsiclientd shutdown notifier",width=150]
@@ -143,132 +143,100 @@ The opsi 4.0.1 action notifier has nearly the same functionality like the opsi 4
 
 [[opsi-manual-clientagent-loginblocker]]
 ==== {opsi-login-blocker}
-Der '{opsi-login-blocker}' für NT5 Win2K/WinXP ist als 'GINA' implementiert ('opsigina.dll').
-Diese 'GINA' wartet bis zum Abschluss der '{product-actions}' oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
-Danach wird die Kontrolle an die nächste 'GINA' übergeben (in der Regel an die msgina.dll).
+The '{opsi-login-blocker}' for NT5 Win2K/WinXP is implemented as 'GINA'  ('opsigina.dll').
+This 'GINA' waits until the opsiclientd tells, that all '{product-actions}' are finished or if the opsiclientd is not reachable, until the connection timeout to the opsiclientd is reached (normally 120 seconds). Then the complete control is forwarded to the next 'GINA' which is normally the `msgina.dll`.
 
-Der '{opsi-login-blocker}' für NT6 (Vista/Win7) ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
-Er blockiert alle 'credential provider' bis zum Abschluss der '{product-actions}' oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
+The '{opsi-login-blocker}' for NT6 (Vista/Win7) is implemented as 'credential provider filter' ('OpsiLoginBlocker.dll').
+This 'credential provider filter' blocks all 'credential providers' until the opsiclientd tells, that all '{product-actions}' are finished or if the opsiclientd is not reachable, until the connection timeout to the opsiclientd is reached (normally 120 seconds).
 
 [[opsi-manual-clientagent-event-flow]]
-==== Event-Ablauf
+==== Processing sequence
 
-Der Ablauf der Aktionen, die in einem Event stattfinden, ist vielfältig konfigurierbar.
-Um die Konfigurations-Möglichkeiten zu verstehen, ist ein Verständnis der Ablauf-Logik notwendig.
-Es folgt zunächst ein Überblick über den Ablauf eines "Standard-Events" bei dem der {opsi-configserver} gefragt wird,
-ob Aktionen auszuführen sind (z.B. 'event_gui_startup').
+How the opsiclientd works may be configured in many details. To understand these configuration possibilities, it is necessary to understand the processing sequence. Here a overview of the work flow of a 'standard event' like the 'event_gui_startup'.
 
-.Ablauf eines Standard-Events
-image::../images/eventflowchsrt.png["Abbildung: Ablauf eines Standard-Events",height=400]
+.simplified work flow of a 'standard event'
+image::../images/eventflowchsrt.png["simplified work flow of a 'standard event'",height=400]
 
-Die wichtigsten Parameter wirken hier wie folgt zusammen:
+The most important parameters have the following relations:
 
-. Tritt ein Event ein, wird der +event_notifier_command+ ausgeführt. +
-Nun wird versucht die konfigurierten '{opsi-configserver}' über deren URLs zu erreichen. +
-Konnte nach +user_cancellable_after+ Sekunden keine Verbindung hergestellt werden, so wird im '{opsiclientd-notifier}'
-der Button aktiviert, der das Abbrechen der Verbindungsaufnahme ermöglicht.
-Sobald die Verbindung zum '{opsi-configserver}' hergestellt ist, ist ein Abbrechen nicht mehr möglich. +
-Kann innerhalb von +connection_timeout+ Sekunden keine Verbindung zum '{opsi-configserver}' hergestellt werden,
-so wird das laufende Event mit einem Fehler beendet.
-Soll der User keine Möglichkeit zum Abbrechen haben, muss +user_cancellable_after+ auf einen Wert größer oder gleich +connection_timeout+ gesetzt werden.
+. 1. If a event fires, the +event_notifier_command+ will be started. +
+Now the opsiclientd try to reach the '{opsi-configserver}' 2. using the url address. +
+If after +user_cancellable_after+ seconds there is still no connection established, so the '{opsiclientd-notifier}' will enable a 'Abort' button. If no connection could be established in +connection_timeout+ seconds, the 'opsiclientd' connection process will be aborted and the events ends with a error message. To avoid a user from aborting, set +user_cancellable_after+ = +connection_timeout+ .
 
-TIP: Tritt bei der Verbindungsaufnahme zum '{opsi-configserver}' ein Fehler auf, kann natürlich auch keine Log-Datei
-zum '{opsi-configserver}' übertragen werden.
-Die genaue Fehlerbeschreibung ist jedoch in der `opsiclientd.log` im Log-Verzeichnis auf dem Client festgehalten.
+TIP: If there is a error while connecting to the '{opsi-configserver}' the log of this problem can not be send to the server. But you may find the log at the file `opsiclientd.log` in the log directory (`c:\tmp`) at the client..
 
-. Wird der '{opsi-configserver}' erreicht, wird geprüft, ob Aktionen gesetzt sind.
-Sollen Aktionen ausgeführt werden wird der +action_notifier_command+ ausgeführt. +
-Dieser '{opsiclientd-notifier}' zeigt die Liste der Produkte an, für die Aktionen gesetzt sind und ist +action_warning_time+ Sekunden sichtbar.
-Ist die +action_warning_time+ = 0 (Standard-Wert) wird kein +action_notifier_command+ ausgeführt. +
-Zusätzlich kann dem Anwender ermöglicht werden, das Bearbeiten der Aktionen auf einen späteren Zeitpunkt zu verschieben.
-Die Aktionen können hierbei +action_user_cancelable+ mal verschoben werden. +
-Nach Erreichen der maximalen Abbrüche oder im Fall von +user_cancelable+ = 0 kann der Anwender die Aktionen nicht verhindern. +
-In jedem Fall wird ein Button angezeigt, mit dem die Wartezeit abgebrochen und die Bearbeitung der Aktionen ohne weitere Verzögerung begonnen werden kann.
-Der Hinweis-Text, der im '{opsiclientd-notifier}' erscheint, ist über die Option +action_message+ bzw +action_message[lang]+ konfigurierbar. +
-Innerhalb dieses Textes können die Platzhalter +%action_user_cancelable%+ (Gesamtanzahl der möglichen Abbrüche)
-und +%action_cancel_counter%+ (Anzahl der bereits erfolgten Abbrüche) verwendet werden. +
-Wurden die Aktionen nicht vom User abgebrochen, wird der +action_cancel_counter+ zurückgesetzt und der '{opsi-winst}' startet mit deren Bearbeitung.
+. After a successful connection to the '{opsi-configserver}', the 'opsiclientd' check if there are 'action requests' for this client. If there are 'action requests' and the +action_warning_time+ > 0, the +action_notifier_command+ will be executed. +
+This is noramally '{opsiclientd-notifier}' which shows now the list of 'action requests' for this client for +action_warning_time+ seconds. +
+Is the +action_warning_time+ = 0 (default) the +action_notifier_command+ will not be executed. +
+You may allow the user to suspend the process at this time by setting +action_user_cancelable+ >= 0. The user may suspend the actions eactly +action_user_cancelable+ times. After +action_user_cancelable+ aborts in sequence or if +action_user_cancelable+ = 0 the user gets no possibility to suspend the actions. +
+In every case ther will be a button which allows the user to start the installations without waiting until the conut down of +action_warning_time+ seconds has finished. The by the '{opsiclientd-notifier}' displayed messages may be configurted by the options +action_message+ or +action_message[lang]+ . This messages may contain the placeholders +%action_user_cancelable%+ (total number of allowed suspendings) and +%action_cancel_counter%+ (number of suspends already triggred by the user). +
+If the actions are not suspenden by the user, the +action_cancel_counter+ will be reset and the '{opsi-winst}' will be executed to process the 'action requests'.
 
-. Beendet sich der '{opsi-winst}' mit einer Reboot-/Shutdown-Anforderung so wird geprüft ob ein +shutdown_notifier_command+ gesetzt ist
-und ob sie +shutdown_warning_time+ > 0 ist.
-Sind diese Bedingungen erfüllt, wird der +shutdown_notifier_command+ ausgeführt. +
-Der standardmäßig startende '{opsiclientd-notifier}' verhält sich analog zum '{opsiclientd-notifier}', der die Aktionen ankündigt
-und ist +shutdown_warning_time+ Sekunden sichtbar. +
-Die maximale Anzahl, wie oft ein Reboot/Shutdown vom Benutzer verschoben werden kann, wird hierbei über +shutdown_user_cancelable+ konfiguriert. +
-In jedem Fall bietet der '{opsiclientd-notifier}' die Möglichkeit, den Shutdown/Reboot sofort auszuführen. +
-Bei einem Verschieben der Reboot-/Shutdown-Anforderung durch den Benutzer erscheint der '{opsiclientd-notifier}' nach +shutdown_warning_repetition_time+ Sekunden wieder. +
-Der Hinweis-Text ist über +shutdown_warning_message+ bzw. +shutdown_warning_message[lang]+ konfigurierbar.
-Innerhalb dieses Textes können die Platzhalter +%shutdown_user_cancelable%+ (Gesamtanzahl der möglichen Abbrüche)
-und +%shutdown_cancel_counter%+ (Anzahl der bereits erfolgten Abbrüche) verwendet werden. +
-Nach erfolgtem Shutdown oder Reboot wird der +shutdown_cancel_counter+ zurückgesetzt.
+. If the '{opsi-winst}' terminates with a reboot or shutdown request so the +shutdown_notifier_command+ will be executed if +shutdown_warning_time+ > 0. +
+The now starting +shutdown_notifier_command+ show for +shutdown_warning_time+ seconds a message that the client will be rebooted. If +shutdown_user_cancelable+ > 0 the user may suspend the reboot +shutdown_user_cancelable+ times in sequence. If the user suspends the reboot, the +shutdown_notifier_command+ will be restarted after +shutdown_warning_repetition_time+. The +shutdown_notifier_command+ shows a message which may be configured by +shutdown_warning_message+ or +shutdown_warning_message[lang]+. This message may contain the placeholders  +%shutdown_user_cancelable%+ (total number of allowed suspendings) and +%shutdown_cancel_counter%+ number of suspends already triggred by the user). +
+If the client is rebooted (by the user or the 'opsi-client-agent') the +%shutdown_cancel_counter%+ will be reset.
 
-TIP: Der Ablauf des Event und auch die Aktionen des Benutzers sind in der Timeline auf der Info-Seite des '{opsiclientd}s' sichtbar (siehe <<opsi-manual-clientagent-infopage>>).
+TIP: The sequence of event processing and user actions is visulized in a timeline graphic at the info page of the '{opsiclientd}'. 
 
-.Vollständiges Ablaufdiagramm eines Events
-image::../images/opsiclientd-event-processing-flow.png["Abbildung: Vollständiges Ablaufdiagramm eines Events",height=650]
+////
+(<<opsi-manual-clientagent-infopage>>).
+////
+
+.Complete work flow of a event
+image::../images/opsiclientd-event-processing-flow.png["Complete work flow of a event",height=650]
 
 [[opsi-manual-clientagent-configuration]]
-==== Konfiguration
+==== Configuration
 
 [[opsi-manual-clientagent-configuration-events]]
-===== Konfiguration unterschiedlicher Events
+===== Configuration off different events
 
-Um den vielen unterschiedlichen Situationen gerecht zu werden, in denen der '{opsi-client-agent}' aktiv werden kann, sind die Konfigurations-Möglichkeiten vielfältig. +
-In der Konfiguration des '{opsiclientd}' leitet eine Sektion in der Form +[event_<config-id>]+ eine neue Event-Konfiguration ein. +
-Eine Event-Konfiguration kann über das Setzen der Option +active = false+ deaktiviert werden.
-Existiert zu einem Event-Typ keine Event-Konfiguration (oder sind diese deaktiviert), wird der entsprechende Event-Typ komplett deaktiviert. +
-Es gibt verschiedene Typen von Event-Konfigurationen (+type+).
+To meet the requirements of the various different situations in which the '{opsi-client-agent}' will become active a slightly complex configuration is needed. To reduce the complexity, the configuration file uses something like inheritance. +
+In the '{opsiclientd}' configuration section headers like +[event_<config-id>]+ introduce a new event configuration. A event configuration may be disabled by setting the opstion +active = false+.
 
-* Es gibt 'Event-Konfigurations-Vorlagen' (type = template) +
-Event-Konfigurationen können voneinander "erben". Ist über die Option +super+ die Id einer anderen Event-Konfiguration gesetzt,
-erbt die Event-Konfiguration alle Optionen (bis auf +active+) der Parent-Konfiguration.
-Geerbte Optionen können jedoch überschrieben werden. +
-Das Deaktivieren von Events beeinflusst die Vererbung nicht.
+There are different types of event configurations (+type+).
 
-* Alle weiteren Event-Konfigurationen gelten für einen gewissen Event-Typ (type). +
-Verfügbare Event-Typen sind:
+* There are 'event configuration templates' (type = template) +
+Event configurations may inherit configurations frm a other event. Is the opstion +super+ points t a other event, this events inherits all parameters from this event (beside the parameter +active+). These inherited parameters may now be overridden by parameters in the actual event section. So a event section need only these parameters which are different to the +super+ event. +
+Setting a event to +active = false+ does not change anything in the inheritance process.
+
+* The other event types are: +
   - +gui startup+ +
-Ein Event vom Typ +gui startup+ tritt beim Start des Clients (der GUI) auf. +
-Es ist das gängigste Event und ist in der Standard-Konfiguration aktiv.
+A +gui startup+ event starts while booting the client and loading the 'graphical user interface' (GUI). It is the most used event and set to active in the default configuration.
 
   - +custom+ +
-Event-Konfigurationen vom Typ +custom+ können selbst festlegen, wann ein solches Event erzeugt wird.
-Hierfür kann über die Option +wql+ ein 'WQL'-Ausdruck angegeben werden.
-Sobald dieser 'WQL'-Ausdruck ein Ergebnis liefert, wird ein +custom+-Event mit der jeweiligen Konfiguration gestartet. +
-Wird bei einem +custom+-Event die Option +wql+ leer angegeben, tritt dieses Event praktisch nie auf,
-kann aber über die Webservice-Schnittstelle des '{opsiclientd}' bei Bedarf ausgelöst werden.
+Event configurations of the type +custom+ are fired by +wql+ event. This +wql+ event is defined by the +wql+ statement in the event configuration. If the +wql+ statement is empty the event will never be fired by it self.
 
   - +user login+ +
-Wird ausgelöst, wenn sich ein Benutzer am System anmeldet.
+will be fired at the login of a user
 
   - +timer+ +
-Tritt in festen Intervallen auf (alle +interval+ Sekunden).
+will be fired all +interval+ seconds
 
   - +sync completed+ +
-Wird ausgelöst, wenn die Synchronisation von Konfigurationen (+sync_config_from_server+) oder von Produkten (+cache_products+) erfolgt.
+will be fired if the synchronisation of configurations (+sync_config_from_server+) or products (+cache_products+) is completed.
 
   - +sw on demand+ +
-Tritt auf, wenn ein Benutzer bei Verwendung des 'Software-On-Demand-Moduls' 'Aktionen sofort ausführen' wählt.
+will be fired by the user choosing 'Start actions now' in the 'software-on-demand' web page of the opsiclientd. Will never be fired if 'software-on-Demand' is not used. (Do not puzzle with the push installation via 'on_demand').
 
-* Es gibt 'Preconditions' (Vorbedingungen) +
-'Preconditions' geben bestimmte Systemzustände vor (z.B. ob gerade ein Benutzer am System angemeldet ist).
-In der Konfiguration des '{opsiclientd}' leitet eine Sektion in der Form +[precondition_<precondition-id>]+ die Deklaration einer 'Precondition' ein.
-Eine 'Precondition' ist dann erfüllt, wenn alle angegebenen Optionen erfüllt sind.
-Eine nicht angegebene Option gilt hierbei als erfüllt.
-Mögliche Optionen für 'Preconditions' sind:
-  - +user_logged_in+: ist erfüllt, wenn ein Benutzer am System angemeldet ist.
-  - +config_cached+: ist erfüllt, wenn das Cachen von Konfigurationen abgeschlossen ist (siehe: +sync_config_from_server+).
-  - +products_cached+: ist erfüllt, wenn das Cachen von Produkten abgeschlossen ist (siehe: +cache_products+).
+* There are 'Preconditions' +
+'Preconditions' define special system states (e.g. a user is loged in).
+In the '{opsiclientd}' configuration a section haeder of the form +[precondition_<precondition-id>]+ starts the declaration of a 'Precondition'.
+A 'Precondition' is true, if all declared options are true.
+Eine not declared (but possible) option is assumed as true. +
+Possible options for 'Preconditions' are:
+  - +user_logged_in+: is true if a user is loged in to the system.
+  - +config_cached+: is true if the caching of configuration data is completed (see: +sync_config_from_server+).
+  - +products_cached+: is true if the caching of product files is completed (see: +cache_products+).
 
-* Einer Event-Konfiguration kann eine 'Precondition' zugewiesen werden. +
-Einer Event-Konfiguration kann eine 'Precondition' zugewiesen werden, indem diese bei der Deklaration in geschweiften Klammern angegeben wird (z.B. +[event_on_demand{user_logged_in}]+). +
-Zu einer Event-Konfiguration mit 'Precondition' muss immer eine entsprechende Event-Konfiguration ohne 'Precondition' existieren.
-Existiert z.B. eine Event-Konfiguration +event_on_demand{user_logged_in}+ muss auch die Event-Konfiguration +event_on_demand+ existieren!
-Hierbei erbt die Event-Konfiguration mit 'Precondition' automatisch von der Event-Konfiguration ohne 'Precondition'. +
-Beim Auftreten eines Events wird nun entschieden welche 'Preconditions' erfüllt sind.
-Ist keine der 'Preconditions' erfüllt, gilt die Event-Konfiguration ohne 'Precondition'.
-Ist eine der 'Preconditions' erfüllt, gilt die Event-Konfiguration die mit dieser 'Precondition' verknüpft ist.
-Sind mehrere 'Preconditions' erfüllt, so wird die 'Precondition' bevorzugt, die am genauesten definiert ist (die meisten Optionen besitzt).
+* A 'Precondition' can be assigned to a event configuration. +
+This can be done by giving the 'precondition' in curly brackets at the end of the event configuration section hedaer (e.g. +[event_on_demand{user_logged_in}]+). +
+If there is a 'Precondition' in a event configuration header, there must be a configuration for this event without any 'precondition'.
+Is there for example a event configuration +event_on_demand{user_logged_in}+ there have to be also a event configuration +event_on_demand+ !
+In this case the event configuration with the precondition inherits the parameters from the event configuration without 'precondition'. +
+If the event is fired, at first ist is checked which 'preconditions' are true. If there is no 'prcondition' true, the configuration without 'precondition' is used.
+Is one 'precondition' true, the configuration is used which is bound to this 'precondition'.
+If there are more then one 'preconditions' are true, the event configuration is used which is bound to a 'precondition' declaration which decribes the situation most excatly (has the most opstions).
 
 
 Ein Beispiel zur Erläuterung: +
@@ -788,7 +756,9 @@ Werden Rechner nicht erreicht (z.B. weil sie aus sind), wird für diese Rechner 
 
 Über den '{opsi-configed}' lassen sich Nachrichten an einen oder mehrere Clients versenden.
 
-Siehe dazu Kapitel <<opsi-manual-configuration-tools-opsi-configed-client-editing-send-message>>
+////
+ <<opsi-manual-configuration-tools-opsi-configed-client-editing-send-message>>
+////
 
 Auf der Kommandozeile lässt dich dies ebenfalls mittels '{opsi-admin}' durchführen:
 [source,prompt]
