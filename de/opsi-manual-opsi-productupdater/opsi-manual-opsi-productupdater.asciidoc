@@ -38,17 +38,56 @@ Options:
 
 ----
 
-Die wesentlichen Features sind 'konfigurierbare Repositories' und 'konfigurierbare Aktionen'
-(die Konfigurationseinstellungen werden in der `/etc/opsi/opsi-product-updater.conf` vorgenommen).
+
+Die Konfigurationseinstellungen werden in der `/etc/opsi/opsi-product-updater.conf` vorgenommen.
+
+Dort sind die Einstellungen in verschiedene Sektionen unterglieder. +
+
+Allgemeine Einstellungen 
+
+[source,ini]
+----
+[general]
+; Where to store package files 
+packageDir = /var/lib/opsi/repository 
+;Location of log file 
+logFile = /var/log/opsi/opsi-product-updater.log 
+; Log level 0...9 
+logLevel = 5 
+; set defaulttimeout 
+timeout = 60 
+----
+
+Einstellungen zur Benachrichtigung per eMail
+
+[source,ini]
+----
+[notification]
+; Activate/deactivate eMail notification 
+active = false 
+; SMTP server address 
+smtphost = smtp 
+; SMTP server port
+smtpport = 25 
+; Sender eMail address 
+sender = opsi-product-updater@localhost 
+; Comma separated list of receivers 
+receivers = root@localhost 
+----
+
+Die wesentlichen Features sind 'konfigurierbare Repositories' und 'konfigurierbare Aktionen' und werden im folgenden ausführlicher beschrieben.
+
+
 
 [[opsi-manual-configuration-tools-opsi-productupdater-repositories]]
 ==== Konfigurierbare Repositories 
 
 Repositories sind die Quellen, von denen sich der {opsi-server} die Pakete holt.
+Sie werden in einer Sektion, die mit dem Schlüsselwort `[repository ]` beginnt angegeben.
 
 Grundsätzlich gibt es zwei Arten von Repositories, 'Internet-Repositories' und 'opsi-Server':
 
-*Internet-Repositories* 
+a) *Internet-Repositories* 
 
 Das wichtigste Beispiel ist das uib-Repository mit der URL http://download.uib.de 
 
@@ -62,7 +101,30 @@ Internet-Repositories sind gekennzeichnet durch die Parameter
 
 Bei Bedarf ist auch ein Proxy einzustellen.
 
-*opsi-server*
+Beispiel:
+[source,ini]
+----
+[repository_uib]
+; Activate/deactivate the repository 
+active = true 
+; If the repository is an opsi depot, opsiDepotId should be set 
+; In that case it is not required (but allowed) to set baseUrl, dirs, username and password 
+opsiDepotId =  
+; The base url of a product package repository  
+baseUrl = http://download.uib.de 
+; Comma separated directories to include in search for product packages 
+; Use / if search should be done in baseUrl 
+dirs = opsi4.0/products/localboot, opsi4.0/products/netboot  
+; Comma separated list of regular expressions 
+; If a product package file matches one of these regular expressions it will not be downloaded 
+excludes = ^win.* 
+; Username for connection to repository 
+username = 
+; Password for connection to repository 
+password = 
+----
+
+b) *opsi-server*
 
 Ein Repository hat den Typ 'opsi-server', wenn in der `/etc/opsi/opsi-product-updater.conf` 
 in der Sektion des Repositorys ein Eintrag zum Punkt 
@@ -73,7 +135,38 @@ vorgenommen wird.
 
 In der Regel ist bei einem '{opsi-depotserver}' an diese Steller der zentrale '{configserver}' einzutragen. 
 Damit zieht der Depotserver seine Pakete per Aufruf des 'opsi-product-updater' 
-bzw. automatisiert per Cronjob vom zentralen Server.
+bzw. automatisiert per Cronjob vom zentralen Server. 
+
+Beispiel:
+[source,ini]
+----
+[repository_master]
+active = true 
+opsiDepotId = opsi-depot.domain.local 
+----
+
+Soll beispielsweise ein Firefox-Paket zur Verteilung bereitgestellt werden, muss es auf dem zentralen Server (z.B. opsi-depot.domain.local) installiert werden mit 
+
+[source, prompt]
+----
+opsi-package-manager -d opsi-depot.domain.local -i firefox_4.0-1.opsi 
+----
+
+Mit diesem Befehl wird das Paket in das Repository unter `/var/lib/opsi/repository` geschrieben.
+
+Nur Pakete, die in diesem Verzeichnis liegen, werden auch verteilt.
+
+* Achten Sie beim automatischen Download darauf, immer die Netboot-Produkte zur automatischen Betriebssysteminstallation auszuschließen
+
+Beispiel: 
+[source,ini]
+----
+; If a product package file matches one of these regular expressions it will not be downloaded 
+excludes = ^win.*
+----
+
+Sonst reinstallieren Sie ggf. beim automatischen setup bei Wake on Lan das komplette Betriebssystem neu.
+
 
 [[opsi-manual-configuration-tools-opsi-productupdater-actions]]
 ==== Konfigurierbare Aktionen 
@@ -89,36 +182,97 @@ auf denen dieses Produkt installiert ist, auf 'setup' gesetzt.
 
 * 'onlyDownload': Die Pakete werden nur runtergeladen und ins lokale Repository `/var/lib/opsi/repository` abgelegt, aber nicht installiert. Dieser Schalter macht nur in Verbindung mit 'autoupdate' und 'autoinstall' sinn, nicht aber mit 'autosetup', da die Pakete nicht auf setup gesetzt werden sollten, wenn Sie nicht installiert werden.
 
-Eine weitere zusätzliche Restriktion der Installation der Produkte auf dem Server, gibt die Möglichkeit der Sektion 'installation'. In dieser Sektion kann ein Zeitfenster mit Start- und Endzeitpunkt angegeben werden, der wiederum beeinflusst, ob die Pakete installiert werden oder nicht. Nur wenn der Download der neuen Pakete innerhalb des Zeitfensters geladen wurden, werden Sie auch installiert und bei 'autosetup' auch auf setup gesetzt. Diese Einstellung kann man durch die Option 'exceptProductIds' umgehen. Hier kann eine Kommaseparierte Liste von Produkt-Ids eingetragen werden, die auch installiert werden, auch wenn das Zeitfenster schon geschlossen ist.
+Beispiel:
+[source,ini]
+----
+; AutoInstall will be checked if a product package is found on the repository +
+; and the product is not yet installed on the local depot +
+autoInstall = false +
+; AutoUpdate will be checked if a product is already installed on the local depot +
+; and a more recent product version is found in the repository +
+autoUpdate = true +
+; If autoSetup is set to true, the action request "setup" will be set for every updated product +
+; on all clients of the local depot where the installation status of the product is "installed" +
+autoSetup = false +
+; Set True if you want only Download packages without installation +
+onlyDownload = false +
+----
+
 
 [[opsi-manual-configuration-tools-opsi-productupdater-wol]]
 ==== WakeOnLAN Funktionalität
 
-Zusätzlich ist es möglich, die Aktualisierung 
-der Pakete auf den Clients über einen konfigurierbaren Wake-On-Lan-Mechanismus 
-anzustoßen. 
+Zusätzlich ist es möglich, die Aktualisierung der Pakete auf den Clients über einen konfigurierbaren Wake-On-Lan-Mechanismus anzustoßen. 
 In Verbindung mit dem {opsi-product} 'shutdownwanted' 
-kann dafür gesorgt werden, 
-dass die Clients nacheinander geweckt, die Software verteilt 
-und die Clients danach wieder heruntergefahren werden. 
-Hierdurch kann man seine Clients zum Beispiel 
-außerhalb der Geschäftszeiten mit Updates und Software versorgen 
-und die Anwender können am nächsten Morgen direkt mit der Arbeit beginnen.
+kann dafür gesorgt werden, dass die Clients nacheinander geweckt, die Software verteilt und die Clients danach wieder heruntergefahren werden. 
+Hierdurch kann man seine Clients zum Beispiel außerhalb der Geschäftszeiten mit Updates und Software versorgen und die Anwender können am nächsten Morgen direkt mit der Arbeit beginnen.
 
-Diese Funktionalität hängt ab, wie die Konfiguration des Repository und der Sektion 'installation' gewählt wurde. Wenn die Pakete durch Restriktionen im gewählten Zeitfenster nicht installiert wurden, wird auch kein WakeOnLan ausgeführt. Weiterhin werden nur Clients geweckt, für die mindestens ein Produkt durch den opsi-product-updater auf setup gesetzt wurden.
+Diese Funktionalität wird in der Sektion 'installation' konfiguriert. Wenn die Pakete im definierten Zeitfenster nicht installiert wurden, wird auch kein WakeOnLan ausgeführt. Weiterhin werden nur Clients geweckt, für die mindestens ein Produkt durch den opsi-product-updater auf setup gesetzt wurden.
 
-Auch hier gibt es die Möglichkeit, durch die Konfiguration 'excludeProductIds' in der Sektion 'wol', eine Kommaseparierte Liste von Produkt-Ids zu übergeben, die alleine kein WakeOnLan auslösen.
+Auch hier gibt es die Möglichkeit, durch die Konfiguration 'excludeProductIds' in der Sektion 'wol', eine kommaseparierte Liste von Produkt-Ids zu übergeben, die alleine kein WakeOnLan auslösen.
+
+Beispiel: +
+Installationszeitfenster für Wake on Lan 
+
+[source,ini]
+----
+[installation]
+; If window start AND end are set, installation of the newly downloaded packages 
+; will only be done if the time when all downloads are completed is inside the  time window 
+; Times have to be speciefied in the form HH:MM, i.e. 06:30 
+windowStart = 01:30 
+windowEnd = 05:30 
+; Comma separated list of product ids which will be installed even outside the time window 
+exceptProductIds =  
+----
+
+In dieser Sektion kann ein Zeitfenster mit Start- und Endzeitpunkt angegeben werden, der wiederum beeinflusst, ob die Pakete installiert werden oder nicht. Nur wenn der Download der neuen Pakete innerhalb des Zeitfensters geladen wurden, werden Sie auch installiert und bei 'autosetup' auch auf setup gesetzt. Diese Einstellung kann man durch die Option 'exceptProductIds' umgehen. Hier kann eine kommaseparierte Liste von Produkt-Ids eingetragen werden, die auch installiert werden, auch wenn das Zeitfenster schon geschlossen ist.
+
+Beispiel: +
+Einstellungen für Wake on Lan
+
+[source,ini]
+----
+[wol]
+; If active is set to true, wake on lan will be sent to clients which need to perform actions 
+active = false 
+; Comma separated list of product ids which will not trigger wake on lan 
+excludeProductIds = 
+; Shutdown clients after installation? 
+; Before you set this to true please asure that the product shutdownwanted is installed on the depot 
+shutdownWanted = true 
+; Gap in seconds between wake ups 
+startGap = 10 
+----
 
 [[opsi-manual-configuration-tools-opsi-productupdater-extended-functions]]
 ==== Erweiterte Funktionen
 
 Für eine Multidepot-Umgebung, bei der zum Beispiel der Configserver als Repository konfiguriert wird (über die Konfiguration 'opsiDepotId') gibt es erweiterte Funktionen.
 
-Im Normalfall versucht der opsi-product-updater die Eigschaften vom Depot für ein Produkt vorher aus zu lesen, um Sie beim Upgrade von opsi-Paketen bei zu behalten. Besonders in großen Umgebungen, mit vielen Depotservern (die sich alle über den opsi-product-updater vom Configserver synchronisieren), kann es sinnvoll sein die Product-Properties vom Configserver auf die untergeordneten Depots zu replizieren. Dafür gibt es einen Mechanismus im opsi-product-updater, der dafür sorgt, dass man die diese zentralen Konfigurationen, bis auf den Client durchsetzen kann.
+Im Normalfall versucht der opsi-product-updater die Eigenschaften vom Depot für ein Produkt vorher auszulesen, um Sie beim Upgrade von opsi-Paketen beizubehalten. Besonders in großen Umgebungen, mit vielen Depotservern (die sich alle über den opsi-product-updater vom Configserver synchronisieren), kann es sinnvoll sein die Product-Properties vom Configserver auf die untergeordneten Depots zu replizieren. Dafür gibt es einen Mechanismus im opsi-product-updater, der dafür sorgt, dass man diese zentralen Konfigurationen, bis auf den Client durchsetzen kann.
 
 Folgende Konfigurationen stehen zur Verfügung:
 
 * 'inheritProductProperties': Die Einstellungen der Produkt-Eigenschaften werden nicht vom lokalen opsiDepot eingesammelt, sondern werden vom Repository abgefragt und bei der Installation des opsi-Pakets mit übernommen.
 * 'purgeClientProperties': Mit dieser Option kann man die Produkt-Eigentschaften, die für das betreffende opsi-Paket an den Clients des lokalen opsiDepots gesetzt wurden löschen. Würde man dies nicht tun, würden die Einstellungen, die vom Repository repliziert wurden, nicht an den Clients ankommen, die eigene Einstellungen gesetzt haben.
-* 'excludeInheritProductProperties': Mit dieser Option kann man die zwei oben genannten Optionen für einzelne Produkte abschalten. Diese Einstellung wird als Kommaseparierte Liste von Produkt-Ids vorgenommen.
+* 'excludeInheritProductProperties': Mit dieser Option kann man die zwei oben genannten Optionen für einzelne Produkte abschalten. Diese Einstellung wird als kommaseparierte Liste von Produkt-Ids vorgenommen.
+
+Beispiel: +
+[source,ini]
+----
+[repository_master]
+active = true 
+opsiDepotId = opsi-depot.domain.local 
+autoInstall = true 
+autoUpdate = true 
+autoSetup = true 
+; This Option takes the properties from Repository and inherit these on the depot as Serverdefaults 
+inheritProductProperties = true 
+; This Option deletes the ProductProperties from all Clients, so that the depotdefault will set 
+purgeClientProperties = true 
+; Comma separated list of excluded productIds, that will not inherit ProductProperties 
+excludeInheritProductProperties =  
+excludes = ^win.* 
+----
 
