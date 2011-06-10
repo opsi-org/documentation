@@ -1,0 +1,187 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; Until we found a better license:
+; All rights reserved.
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      01.05.2011
+:Revision:  4.0.1
+:toclevels: 6
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+opsi-401-releasenotes-upgrade-manual
+====================================
+
+
+[[opsi-401-release-manual-introduction]]
+== Introduction
+
+This documentation is not written for starting with opsi, use the 'opsi-getting-started manual' instead.
+
+Opsi 4.0.1 is a minor release respectively a 'feature pack'. This means that nothing is fundamental changed and most things are new add-ons.
+
+*This means, that there are nothing special to do for a upgrade* At least there are some recommended tasks to do after the upgrade.
+
+This manual should:
+* give you information about the new features in opsi 4.0.1
+* tell you what to do after you finished the upgrade
+* give informations about known bugs
+* announce the 'end of life' of opsi 3
+
+For more detailed information to opsi 4.0 refer to the opsi-manual-v401-en.
+
+[[opsi-401-release-manual-whats-new]]
+== What is new in opsi 4.0.1
+
+[[opsi-401-release-manual-whats-new-overview]]
+=== Overview
+
+Here are a summary of the new features of opsi 4.0.1:
+
+
+* opsi WAN/VPN-Extension to integrate Clients behind slow connections.
+
+** Locale caching of the installation files.
+
+** Locale caching of the installation meta data.
+
+** Download the installation data as background process with dynamical bandwidth, so the user will not be disturbed.
+
+** The data download may be interrupted any time and will not restart but continue the download as soon as possible.
+
+** Installation using the local cache - no network connection is required.
+
+** Using alternative the smb/cifs or the https/webdav protocol to download the required files to the local cache.
+** Possibility to use https/webdav also for the OS installation.
+** {opsiclientd} info page for visualization of the {opsiclientd} activity.
+** This is a co-funding project, which means you have to buy it until all project costs are earned.
+
+* dynamic depot selection:
+
+** In a multi location / multi depot environment, a client is now able to detect which depot is the best to load the required software from.
+** This is a co-funding project, which means you have to buy it until all project costs are earned.
+
+* Software on Demand
+
+** You may assign products to a product group 'Software on Demand'.
+** Users may choose software from this group for installation by opsi on their client. This is done using a local website which is produced by the {opsiclientd}.
+
+*  opsi management interface ({opsi-configed}) enhancements 
+
+** Depot property editor.
+** Interactive GUI language selection.
+** Interactive query and display which clients are on-line.
+** A pseudo client group which contains automatically all clients with a installation result: 'failed'.
+** Possibility to use product groups.
+** Which columns are visible in the {opsi-configed} may now be stored at the server.
+** Clients may now selected using a search field.
+** License management: At the crystal tab 'Reconciliation' are now only clients are shown, which have a entry in the table.
+** You may select clients by the criteria, if a product is on a lower version than it is available on the server.
+** You may change the log level while running the configed.
+** The license management now takes multiple occurrences of software inventory patterns that are assigned to one license pool only as one installation of this software. This means that if for example a license pool 'office2010' is assigned to 10 different software inventory patterns, only one installation will be counted even if we find all 10 pattern on a single client.
+
+* New Windows NT6 netboot products (Boot-Partition, System-Partition, enhanced driver integration)
+* Configuration of the name resolution in the new configuration file  `/etc/opsi/backends/hostcontrol.conf`
+
+* Configuration of directed broadcasts in the new configuration file `/etc/opsi/backends/hostcontrol.conf`
+
+* New 'opsi-client-agent' with enhanced configuration and enhanced notifier
+
+* The password for 'root' in the opsi-linux-bootimage may be now set via 'opsi-linux-bootimage.append' host parameter `pwh=<password-hash>`
+
+* A authentication of the {opsi-server} at the client is now possible
+
+[[opsi-401-release-manual-whats-new-mustread]]
+=== What you must read
+
+At the opsi-manual the chapters:
+
+* Tool: Management Interface: {opsi-configed}
+* opsi-client-agent
+* Dynamical depot selection
+* WAN Extension
+* Software on Demand
+* HostControl-Backend
+* Netboot products: Parametrization of the opsi-linux-bootimage
+
+At this manual:
+<<opsi-401-release-manual-recommended>>
+
+[[opsi-401-release-manual-upgrade]]
+== Upgrade of a opsi 4.0 environment to opsi 4.0.1
+
+opsi 4.0.1 is more a 'Feature Pack' than a minor release. Most parts of this release are extensions and there are only a few minor changes. Therefore there is nothing special to do in order to get this upgrade. All new packages will go to the opsi 4.0 repository. You will get all new packages by a normal update of your server and a call of the opsi-product-updater. 
+
+[[opsi-401-release-manual-recommended]]
+== Recommended tasks after the upgrade
+
+[[opsi-401-release-manual-recommended-customize-nt6unattendxml]]
+=== NT6 netboot products customization unattend.xml 
+
+The opsi 4.0.1 Windows NT6 netboot products requires a new `custom/unattend.xml`. Save and replace your `custom/unattend.xml` with the new template `opsi/unattend.xml.template`.
+
+For details see Section 'Directory opsi / custom' at the opsi-getting-started manual.
+
+[[opsi-401-release-manual-recommended-depotreadonly]]
+=== Security: Depot share read-only
+For security reasons the depot share should only be read only. A depot share which is not read only, may be infected by a virus while installing software to a infected client and spread the virus after wards via opsi.
+
+The recommended way to do this is since opsi 4.0.1:
+
+Run at all '{opsi-server}s' (also at the '{opsi-depotserver}s') the following commands:
+
+[source,prompt]
+----
+opsi-setup --auto-configure-samba
+----
+
+This command creates a new samba share 'opsi_depot' which is read only. This share points to the directory `/var/lib/opsi/depot`. According to the Linux distribution this directory will be a symbolic link to the `/opt/pcbin/install` directory.
+
+In order to tell all clients to use the new share, you have to run the following script at the '{opsi-configserver}':
+
+[source,prompt]
+----
+for depot in $(opsi-admin -dS method host_getIdents unicode "{\"type\":\"OpsiDepotserver\"}"); do
+   echo "Depot: $depot"
+   depot_remote=$(opsi-admin -dS method host_getObjects [] "{\"id\":\"$depot\"}" | grep "depotRemoteUrl=" | cut -d "=" -f2)
+   depot_local=$(opsi-admin -dS method host_getObjects [] "{\"id\":\"$depot\"}" | grep "depotLocalUrl=" | cut -d "=" -f2)
+   depot_remote_new=$(echo $depot_remote | sed "s|/opt_pcbin/install|/opsi_depot|")
+   depot_local_new=$(echo $depot_local | sed "s|/opt/pcbin/install|/var/lib/opsi/depot|")
+   servertype=$(opsi-admin -dS method host_getObjects [] "{\"id\":\"$depot\"}" | grep "type=" | cut -d "=" -f2)
+   opsi-admin -d method host_updateObjects "{\"type\":\"$servertype\",\"id\":\"$depot\",\"depotLocalUrl\":\"$depot_local_new\",\"depotRemoteUrl\":\"$depot_remote_new\"}"
+done
+opsi-admin -d method config_createUnicode  opsiclientd.action_processor.remote_dir "path to action processor" "\\opsi-winst\\files\\opsi-winst" "\\opsi-winst\\files\\opsi-winst"
+----
+
+[[opsi-401-release-manual-recommended-deployclient]]
+=== Deploy the new opsi-client-agent
+You should install the new opsi-client-agent on all your clients soon. This avoids the risk of communication problems between client and server at future updates.
+
+[[opsi-401-release-manual-known-bug]]
+== Known bugs
+
+* No known bugs at the moment
+
+[[opsi-401-release-manual-end-of-support]]
+== Announcement of the end of support for opsi 3
+
+With opsi 4.0.1 we announce know 9 month after the release of the new stable opsi 4, the end of support for opsi 3 for the 1. July 2011.
+
+In concrete:
+
+* We will not check any new packages for functionality in a opsi 3 environment.
+
+* New packages may have a topical opsi 4 client-agent as precondition.
+
+* There will be no fixes for opsi 3 anymore.
+
+* uib will no more maintain a opsi 3 test environment. So any opsi 3 Support call will take a longer time and will be therefore more expensive. 
+
+* We strongly recommend to upgrade all opsi 3 installations before the 1. July 2011 to opsi 4.
+
