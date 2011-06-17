@@ -18,7 +18,7 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-netboot-products]]
 == Netboot products
 
-[[opsi-manual-netboot-bootimage-parameterization]]
+[[opsi-manual-netboot-bootimage-parametrization]]
 === Parameteters for the opsi linux boot image
 
 The opsi linux boot image has some parameters which may be used to change the behaviour of the boot image. You will try this if the opsi linux boot images do not run properly with the standard parameters on your hardware (e.g. black screen). +
@@ -152,72 +152,73 @@ To initiate the re-installation of a certain PC, a loadable file is prepared for
 Based on the information the 'pxelinux.0' got from the 'named pipe', the actual bootimage is loaded from the opsi depot server via tftp. The bootimage is based on a linux kernel (/tftpboot/linux/install) within an appropriate initrd file system (/tftpboot/linux/miniroot.gz) and has a size of approximately 65 MB.
 
 [[opsi-manual-netboot-unattended-CD]]
-==== PC-Client bootet von CD
+==== Boot from CD
+Similar to the tftp boot via PXE-bootprom, the installation boot image can be booted from the opsi bootcd.
 
-Analog zu dem Bootvorgang per tftp mit Hilfe des PXE-bootproms kann das Installationsbootimage auch direkt von der opsi-bootcd geladen werden.
+This might be recommended under the following conditions:
 
-Diese Möglichkeit bietet sich bei folgenden Voraussetzungen an:
+* the client has no PXE bootprom;
+* there is no dhcp;
+* there is a dhcp but it isn't allowed to configure any client data and the hardware addresses of the clients are unknown;
+* there is a dhcp but it isn't configured for this demand.
 
-* der Client verfügt über kein PXE;
-* es gibt kein dhcp;
-* es gibt dhcp aber es sollen dort keine Einträge zu den Clients gemacht werden und die Hardwareadressen der Clients sind nicht bekannt;
-* es gibt dhcp aber dieses ist nicht korrekt konfigurierbar
+According to different situations, several information has to be provided for the CD boot image by interactive input. The most simple case is to provide no further information. Eventually the clients hostname can be passed by 'hn=<hostname>'. Using the option 'ASK_CONF=1' several parameters can be queried. Pressing 'F1' at the CD prompt shows the syntax.
 
-Entsprechend der unterschiedlichen Situationen müssen dem Bootimage auf der CD unterschiedlich viele Informationen interaktiv bereitgestellt werden. Im einfachsten Fall müssen überhaupt keine Angaben gemacht werden.
-
-Lesen Sie hierzu auch das Kapitel 'Anlegen eines neuen opsi-Clients mit Hilfe der opsi-client-bootcd' in Getting-Started Handbuch.
+Please read the chapter 'Create a new client using the opsi-client-bootcd' at the opsi-getting-started manual.
 
 [[opsi-manual-netboot-unattended-reinst]]
-==== Das Linux Installationsbootimage bereitet die Reinstallation vor
+==== The linux bootimage prepares for reinstallation
 
-Das Bootimage startet eine erneute dhcp-Anfrage und konfiguriert sich entsprechend sein Netzwerkinterface. Danach werden über den '{opsi-webservice}' die Konfigurationsdaten für diesen Client geladen.
-
-.Ueber PXE-Boot geladenes Bootimage bereitet Festplatte zur Betriebssysteminstallation vor
-image::../images/netboot-pxeos.png[width=300]
-
-Ergänzt wird dieses Informationspaket durch Angaben aus der dhcp-Antwort (z.B. wer ist der tftp-Server) sowie mit über den Webservice ermittelte Informationen. Die gesammelten Informationen werden für die Weiterverarbeitung durch das eigentliche Installationsskript bereitgestellt.
-
-Nun wird das Passwort des Installations-Users pcpatch mit Hilfe des übergebenen Schlüssels entschlüsselt und der angegebene Installationsshare gemountet. Jetzt kann das auf dem gemounteten Share liegende Installationsskript für das zu installierende Betriebssystem gestartet werden. Die Abläufe in diesem Skript sind abhängig von dem zu installierenden Betriebssystem. Im Folgenden werden beispielhaft die Abläufe für eine Windows-XP-Installation skizziert.
-
-*Vorbereitung der Festplatte:* Auf der Platte wird eine 6 GB große FAT32 Partition angelegt, formatiert und bootfähig gemacht.
-
-*Kopieren der Installationsdateien:* Die Dateien für die Installation des Betriebssystems werden von dem Installationsshare des Servers (z.B. /opt/pcbin/install/winxppro/i386) auf die lokale Platte kopiert. Das Gleiche gilt für das Setup-Programm des '{opsi-client-agent}'s zur Einrichtung der automatischen Softwareverteilung auf dem PC.
-
-*Einpflegen der Konfigurationsinformationen:* Unter den auf die lokale Platte kopierten Dateien finden sich auch Konfigurations- und Steuerdateien, die Platzhalter enthalten. Durch ein spezielles Skript (patcha) werden diese durch entsprechende Parameter aus dem Informationspaket ersetzt (gepatcht), welches das Bootimage zuvor aus Konfigurationsdateien und dhcp-Antwort bereitgestellt hat. Ein Beispiel für eine zu patchende Datei ist die unattend.txt. Sie steuert das „unbeaufsichtigte“ Installieren von Windows 2003/XP.
-
-*Reboot vorbereiten:* Der 'Bootloader' wird so konfiguriert, dass beim nächsten Boot der Rechner via 'ntloader' in das Windows Setup-Programm startet. Der Aufruf ist dabei mit der Option versehen, die gepatchte unattend.txt als Steuerdatei zu verwenden.
+The bootimage again performs a dhcp request and configures the network interface according to the perceived information. Afterwards the configuration data for the client will be loaded via '{opsi-webservice}'.
 
 
-*Reboot:* Da in `/tftpboot/linux/pxelinux.cfg` nun keine PC-spezifische Datei mehr vorhanden ist, wird in Stufe 1 des PXE-Boots der Befehl hdboot aus der Datei default geladen. Damit wird der lokale Bootloader gestartet und die Betriebssysteminstallation gestartet.
+.PXE-Boot loaded with bootimage preparing hard disk for operating system installation
+image::../images/netboot-pxeos.png["PXE-Boot loaded with bootimage preparing hard disk for operating system installation",width=300]
 
-Die beschriebenen Abläufe werden von dem für diese Installation angegebenen Python-Script gesteuert. Hierzu stellt das Bootimage eine Pythonbibliothek bereit, die im gesonderten opsi-bootimage Handbuch beschrieben ist.
+It also holds the information on how to partition the hard disk, what file system to use and which operating system to install. Also it provides the encrypted password to connect the file share.
+
+These information will be combined with some information taken from the dhcp response and then be passed to the installation script for further processing.
+
+Then the password for the user 'pcpatch' will be decrypted with the transferred key to mount the installation share and then call the installation script from the mounted share to start the installation of the operating system. What specific operations the script performs depends on the operating system which is to be installed. Below the steps of a Windows XP installation will be described.
+
+*Prepare the disc*: On the hard disk the bootimage creates a new partition (of size 6 GB), formats it and installs a bootable ntloader kernel.
+
+*Copy the installation file*: The files required for OS installation and the setup files for the opsi-client-agent (which is the opsi software distribution pack) will be copied from the server file share (e.g. `/opt/pcbin/install/winxppro/i386`) to the local hard disk.
+
+*Maintain the configuration informations*: Some of the configuration and control files contain replacement characters, which will be patched before starting the actual installation. With a specified script (patcha-script) the placeholders will be replaced with parameters taken from the information packet, which is built from configuration files and the dhcp-response. For example the file 'unattend.txt', which is the control file for unattended OS Installation, will be patched with specific information like host IP, client IP, client name, workgroup, default gateway etc..
+
+*Prepare Reboot*: Bootrecords will be installed which will start the Windows setup program at the next reboot. The patched 'unattend.txt' is passed to the setup as the control file for unattended installation.
+
+*Reboot*: During the previous boot, the named pipe (which is indicating a request for installation) has been removed by reading it once. So the next PXE boot will load the default netboot response, which executes the command 'hdboot'. The local boot loader will be started and the setup for operating system installation starts.
+
+These steps are controlled by an OS specific python script.
 
 [[opsi-manual-netboot-unattended-os]]
-==== Die Installation von Betriebssystem und opsi-client-agent
+==== Installation of OS and opsi-client-agent
 
-Die Installation des Betriebssystems ist ein unattended Setup wie es von Microsoft vorgesehen ist. Dabei werden die Standardmöglichkeiten der Hardwareerkennung genutzt. Im Gegensatz zu einer normalen Installation von CD können auf der Installations-Partition schon aktualisierte Treiber und Servicepacks eingepflegt werden, damit diese schon direkt bei der Erstinstallation verwendet werden.
+The OS installation is based on the Microsoft unattended setup. Part of this is the standard hardware detection. In addition to the possibilities given during an installation from non-OEM or slipstreamed installation media, drivers and patches (i.e. service packs) can be installed during the initial installation, making the separate installation of drivers obsolete.
 
-Zu einer unattended Installation gehört die Möglichkeit, nach Abschluss der eigentlichen Betriebssysteminstallation automatisch noch weitere Installationen starten zu können. Dieser Mechanismus wird genutzt, um das Setup des '{opsi-client-agent}'s auszuführen und damit die automatische Softwareverteilung einzubinden. In der Registry wird eingetragen, dass sich der Rechner immer noch im Reinstallationsmodus befindet.
+One feature of the unattended installation is the possibility to initiate additional installations after the main installation is finished. This mechanism is used to install the opsi-client-agent, which implements the automatized software distribution system. An entry in the registry marks the machine as being still in the 'reinstallation-mode'.
 
-Nach dem abschließenden Reboot starten nun vor einem Login die opsi-Programme
-zur Softwareverteilung. Diese Software erkennt anhand der Registry den Reinstallationsmodus. Dieser Modus hat hier zur Folge, dass alle Softwarepakete, für welche der Installationsstatus 'installed' oder die angeforderte Aktion 'setup/update' ist, nun installiert werden. Auf diese Weise werden sämtlich Pakete, die vor der Reinstallation des Betriebssystems auf diesem PC waren, automatisch wieder eingespielt. Erst nach Abschluss aller Installationen wird der Reinstallationsmodus zum Standard-Bootmodus zurückgeschaltet. (Im Gegensatz zum Reinstallationsmodus, werden im Standard-Bootmodus nur Pakete installiert, bei denen die Angeforderte Aktion 'setup/update' ist.)
-Damit ist der PC fertig installiert.
+The final reboot leads to starting the opsi-client-agent service for software distribution prior to the first user login. Based on the value of the aforementioned registry key the opsi-client-agent switches into 'reinstallation-mode'. Therefore, regarding the configuration status of each software packet, each packet which is marked as action status ”setup” or installation status ”installed” within the configuration of that client will be installed. After all the designated client software has been installed, the reinstallation process is finished and the internal status is switched back from 'reinstallation-mode' to 'standard-mode'. In 'standard-mode' only software packages that are marked as action status ”setup” will be installed.
 
 [[opsi-manual-netboot-unattended-patcha]]
-==== Funktionsweise des patcha Programms
+==== How the patcha program works
 
-Wie oben erläutert werden vom Bootimage (genauer gesagt vom Programm
-`/usr/local/bin/master.py`) die Konfigurationsinformationen aus dem '{opsi-webservice}' und dhcp gesammelt, um sie dann in entsprechende andere Konfigurationsdateien wie z.B. die `unattended.txt` einzupflegen. Das Einpflegen übernimmt das Programm `/usr/local/bin/patcha`.
+As mentioned above the information collected from dhcp and opsi-webservice will be used to patch some configuration files as e.g. 'unattend.txt'. The program used for patching is the script '/user/local/bin/patcha'.
 
-Das Skript gleicht anhand eines Suchmusters '#@flagname(*)#' eine Konfigurationsdatei mit den Einträgen aus einer anderen Datei (hier cmdline) ab, die Einträge der Art "Flagname=Wert" enthalten muss und patcht diese bei Übereinstimmung des Suchmusters. Das Suchmuster kann nach dem Flagnamen einen "*" enthalten und muß einen oder beliebig viele "#" als Abschluß enthalten. Default wird `/proc/cmdline benutzt`.
-Wenn man `patcha` ohne irgendwelche Optionen und ohne Dateiübergabe aufruft,
-werden die "Flagname=Wert"-Paare aus der `/proc/cmdline` ausgegeben.
+This script replaces patterns like '#@flagname(*)#' in a file with values taken as 'flagname=value' from a control file (default input is '/proc/cmdline'). In the files that have to be patched, the search and replace pattern must start with '#@', might have an optional '*' after the flagname and must have one or more trailing '#'.
 
-Wenn man `patcha <dateiname>` eingibt, patcht er die Datei mittels der `/proc/cmdline`.
+So by calling 'patcha <filename>' the file '<filename>' will be patched with information taken from '/proc/cmdline'.
 
-Eine andere cmdline als /proc/cmdline, gibt man mit `patcha -f <andere_cmdline>` mit. Ohne zusätzlich mitgegebenen Dateinamen werden die Werte der andere_cmdline
-ausgegeben, mit Dateiname wird die Datei mit den Werten aus andere_cmdline
-gepatcht.
+Calling 'patcha' without any parameters will show all the 'flagname=value' entries from '/proc/cmdline'.
+
+A different input file ('another_cmdline') can be passed to 'patcha':
+ `patcha -f another_cmdline` +
+Without any other parameter 'patcha' will show the information taken from 'another_cmdline'. This input file must have 'cmdline'syntax, which means to be entries like '<flagname>=<value>' separated by space.
+
+`patcha -f another_cmdline patchfile` +
+This will patch 'patchfile' with substitutions taken from 'another_cmdline'. 
 
 [source,prompt]
 ----
@@ -232,10 +233,13 @@ If option not given key value pairs from kernel cmdline are used
 ----
 `patcha` patcht nur einen Tag pro Zeile.
 
-Der Platzhalter wird auf die Länge des zu ersetzenden Wertes getrimmt bzw erweitert und dann ersetzt. D.h unabhängig von der Länge des Platzhalters wird dieser durch den Wert ersetzt. Anhängende Zeichen bleiben anhängend. +
-Beispiel:
+Caveat: patch a patches only the first pattern of each line.
 
-Mit der Datei
+Each pattern will be expanded (or reduced) to the length of the value to be replaced with and then replaced. Trailing chars will not be affected.
+
+Examples: 
+
+With the input file 'try.in'
 
 [source,prompt]
 ----
@@ -243,7 +247,7 @@ cat try.in
 tag1=hallohallohallo1 tag2=t2
 ----
 
-und der Datei
+and the file 'patch.me' to be patched:
 
 [source,prompt]
 ----
@@ -260,7 +264,7 @@ cat patch.me
 <#@tag2*#######><#@tag1#>
 ----
 
-ergibt
+the result will be:
 
 [source,prompt]
 ----
@@ -279,92 +283,84 @@ cat patch.me
 ----
 
 [[opsi-manual-netboot-unattended-products]]
-==== Aufbau der Produkte zur unattended Installation
+==== Structure of the unattended installation products
 
-Die Informationen zum 'Aufbau der Produkte zur unattended Installation' finden Sie im Handbuch opsi-getting-started.
+The information about the 'Structure of the unattended installation products' you will find in the opsi-getting-started manual.
 
 [[opsi-manual-netboot-unattended-driver]]
-==== Vereinfachte Treiberintegration in die automatische Windowsinstallation
+==== Simplified driver integration with symlinks
 
-Die Informationen zum 'Vereinfachte Treiberintegration in die automatische
-Windowsinstallation' finden Sie im Handbuch opsi-getting-started.
+The information about the 'Simplified driver integration with symlinks' you will find in the opsi-getting-started manual.
 
 [[opsi-manual-netboot-nt6]]
-=== Hinweise zu den NT6 Netbootprodukten (Vista / Win7 / 2008)
+=== Some hints to the NT6 netboot products (Vista / Win7 / 2008)
 
-Die Netbootprodukte zur Installation von NT6 Betriebssystemen enthalten eine Fülle von Produktproperties, welche in Ihrer Funktion in der Folge erläutert werden sollen:
+The netboot products for the installation of the operating systems of the NT6 familiy, contain a lot of properties which will be described below.
 
-.NT6 Productproperties
-image::../images/netboot-win-nt6-properties.png["NT6 Productproperties",width=200]
+.NT6 product properties
+image::../images/netboot-win-nt6-properties.png["NT6 product properties",width=200]
 
-additional_drivers:: Liste von Verzeichnissen unterhalb von `<productid>\drivers\drivers\additional`. Alle Treiberverzeichnisse unterhalb der angegebenen Verzeichnisse werden unabhängig von der automatischen Treibererkennung zusätzlich in die Installation mit eingebunden.
+additional_drivers:: One or more directories below `<productid>\drivers\drivers\additional`. All driver directories below the given directories will be integrated. If there is here a driver for a found device, no other driver will be integrated by the automatic driver integration.
 
-askbeforeinst:: Soll vor Beginn der Installation gefragt werden.
+askbeforeinst:: Should there be a confirmation dialog before start installing,
 
-boot_partition_label:: Label der 'boot_partition' (Bitlocker Partion)
+boot_partition_label:: Label of the 'boot_partition' (Bitlocker partion)
 
-boot_partition_letter:: Laufwerksbuchstabe der 'boot_partition' (Bitlocker Partion)
+boot_partition_letter:: Drive letter of the 'boot_partition' (Bitlocker Partion)
 
-boot_partition_size:: Größe der 'boot_partition' (Bitlocker Partion). 0 = keine Erstellen
+boot_partition_size:: Size of the 'boot_partition' (Bitlocker Partion). 0 = create no partition
 
-data_partition_label:: Label der Datenpartition, wenn eine erstellt wird.
+data_partition_label:: Label of the data partion (if created)
 
-data_partition_letter:: Laufwerksbuchstabe der Datenpartition, wenn eine erstellt wird.
+data_partition_letter:: Drive letter of the data partion (if created)
 
-fullname:: Vollständiger Name des Lizenznehmers wie er der Installation übergeben wird.
+fullname:: Full name of the license holder, which is given to the setup program
 
-imagename:: Name der Variante des Betriebssystems das zu installieren ist.
+imagename:: Name of the operating system variant
 
-.NT6 Imagenames
-image::../images/netboot-win-nt6-properties-imagenames.png["NT6 Imagenames",width=200]
+.NT6 image names
+image::../images/netboot-win-nt6-properties-imagenames.png["NT6 image names",width=200]
 
-orgname:: Vollständiger Name der Firma / Organisation des Lizenznehmers wie er der Installation übergeben wird.
+orgname:: Name of the company or organisation of license holder, which is given to the setup program
 
-productkey:: Lizenzschlüssel zur Installation. Wird nur ausgewertet wenn der Hostparameter `license-management.use` auf 'false' steht. Ansonsten wird der Lizenzschlüssel aus dem Lizenzmanagement geholt.
+productkey:: License key for the installation. Is only used if the 'host parameter' `license-management.use` is set to 'false'. If it set to 'True' the license key will be get from the license management module.
 
-system_keyboard_layout:: Sprachauswahl für die Tastatur.
+system_keyboard_layout:: Select keyboard language
 
-.Sprachauswahl für die Tastatur
-image::../images/netboot-win-nt6-properties-keyboards.png["Sprachauswahl für die Tastatur",width=200]
+.Select keyboard language
+image::../images/netboot-win-nt6-properties-keyboards.png["Select keyboard language",width=200]
 
-system_language:: Sprachauswahl für das System.
+system_language:: Select system language
 
-system_timezone:: Zeitzoneneinstellung
+system_timezone:: Select time zone
 
-windows_partition_label:: Label der Partition (Festplatte C:) auf die das Betriebssystem installiert werden soll.
+windows_partition_label:: Label of the system partion (c:)
 
-windows_partition_size:: Größe der Partition (Festplatte C:) auf die das Betriebssystem installiert werden soll. Die Angabe kann in Prozent der Festplatte oder in absoluten Zahlen (G=Gigabyte) erfolgen. Wird ein anderer Wert als 100% gewählt, so wird auf dem verbleibenden Rest der Fasplatte eine 'data_partition' angelegt.
+windows_partition_size:: Size of the system partion (c:). The size may be given as percent of the harddisk size or as absolut size (G=Gigabyte). If you choose a other value the '100%', the rest will be used as 'data_partition'.
 
-.Größe der C: Partition
-image::../images/netboot-win-nt6-properties-winpartionsize.png["Größe der C: Partition",width=200]
+.Size of the system partion
+image::../images/netboot-win-nt6-properties-winpartionsize.png["Size of the system partion",width=200]
 
-winpenetworkmode:: Soll die Betriebssysteminstallation über den gemounteten Netzwerkshare vom PE aus erfolgen (true) oder sollen alle Installationsdateien vorher auf die Festplatte kopiert werden (false).
-
-
+winpenetworkmode:: If 'true' the PE tries to mount the depot share and start the operating system setup from the share (faster). If 'false' all installation files will be copied to the hard disk and the installtion starts from the local disk (slower).
 
 [[opsi-manual-netboot-ntfs-image]]
-=== Ntfs-images (write + restore)
+=== Ntfs image (write and restore)
 
-Mit den Produkten 'ntfs-write-image' und 'ntfs-restore-image' können Sie Abbilder von Partitionen sichern bzw. wiederherstellen. Ziel bzw. Quelle der Imagedatei müssen auf dem '{opsi-depotserver}' liegen und werden per ssh (user pcpatch) erreicht und im Produktproperty angegeben.
-
-Entsprechende Produkte zum Sichern und Wiederherstellen von NTFS-Partitionen gibt es auch auf der opsi-clientbootcd und sind in einem gesonderten Manual beschrieben.
+The products 'ntfs-write-image' and 'ntfs-restore-image' are utilities to save and restore client partition images. Target (and source) for the image file has to be on the opsi depot server and will be transferred per ssh (user pcpatch) as specified as an product property.
 
 [[opsi-manual-netboot-memtest]]
 === memtest
 
-Das Produkt 'memtest' dient dazu einen Memory-Test des Clients durchzuführen.
+The product 'memtest' is a utility to perform a client memory test.
 
 [[opsi-manual-netboot-hwinvent]]
 === hwinvent
 
-Das Produkt 'hwinvent' dient dazu eine Hardwareinventariserung des Clients
-durchzuführen.
+This product delivers a hardware inventory of the client.
 
 [[opsi-manual-netboot-wipedisk]]
 === wipedisk
 
-Das Produkt 'wipedisk' überschreibt die gesamte Festplatte (partion=0) oder
-einzelne Partitionen mit unterschiedlichen Mustern. Die Anzahl der Schreibvorgänge wird über das {product-property} 'iterations' gesteuert (1-25).
-
+The product 'wipedisk' overwrites the complete hard disk (partion=0) or several partitions with different patterns. The number of consecutive write operations to perform is specified as the {product-property 'iterations' (1-25).
 
 
