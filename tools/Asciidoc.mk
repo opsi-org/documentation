@@ -95,13 +95,13 @@ epub: $(addsuffix .epub,$(DOCS))
 					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
 					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'\
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
-					echo "INFO: Documdent $@ built successfully in flavor $(F) for language $(L)"; \
+					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
 				else	\
-					echo "ERROR: Documdent $@ could not be build for language $(L)";	\
+					echo "ERROR: Document $@ could not be build for language $(L)";	\
 				fi	\
 				;	\
 			else									\
-				echo "ERROR: Documdent $@ does not exist for language $(L)";	\
+				echo "ERROR: Document $@ does not exist for language $(L)";	\
 			fi									\
 			;									\
 		)	\
