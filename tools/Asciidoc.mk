@@ -89,11 +89,15 @@ epub: $(addsuffix .epub,$(DOCS))
 %:
 	@$(foreach L,$(LANG),\
 		$(foreach F,$(FORMAT), \
+			if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
+				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
+			fi;	\
 			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
 				mkdir -p $(DEST_DIR)/$(F)/$(L)/$(basename $@);					\
 				if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
 					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
-					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'\
+					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
+					"$$XSLT_FILE"							\
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
 					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
 				else	\
