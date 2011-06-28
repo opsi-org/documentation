@@ -91,6 +91,8 @@ epub: $(addsuffix .epub,$(DOCS))
 		$(foreach F,$(FORMAT), \
 			if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
 				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
+			else	\
+				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/common.xsl"	;\
 			fi;	\
 			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
 				mkdir -p $(DEST_DIR)/$(F)/$(L)/$(basename $@);					\
