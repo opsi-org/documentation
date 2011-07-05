@@ -55,6 +55,18 @@ und auf Clientseite das kofinanzierte Modul „Dynamische Depotzuweisung“ inst
 freigeschaltet sind. Zusätzlich wird vorausgesetzt, dass für die Speicherung der opsi Produktpakete
 ein Netzwerkspeicher, z.B. ein Samba oder Windows Share, zur Verfügung steht.
 
+Für den Betrieb einer Failover opsi Installation sind mindestens zwei Server notwending,
+die auf physikalisch getrennter Hardware betrieben werden. Um eine möglichst störungsfreie und zuverlässige
+Überwachung der Maschinen untereinander zu gewährleisten ist es Sinnvoll, diese mit einer separaten Netzwerkkarte
+nur für die Failover-Überwachung auszustatten und die Server direkt mit einem Crossover Kabel zu vernetzen.
+Alternativ oder ergänzend dazu bietet sich auch eine Nullmodem Verbindung an.
+
+Für die Netzwerkkonfiguration muss ein zusätzlicher virtueller Hostname und eine virtuelle IP-Adresse
+eingerichtet werden, die über DNS korrekt auflösbar sind. Die IP-Adresse wechselt im Fall eines Failovers
+den Server, sodass über den virtuellen Hostnamen immer ein funktionierender opsi-Server errecht werden kann.
+
+image::../images/opsi-ha-failover-cluster.png["Diagramm eines opsi Failover Clusters", width=350]
+
 == Hochverfügbarkeit
 
 === Prinzip
@@ -93,6 +105,14 @@ Beispiel mit einem NFS-Share:
 <nfshost>:/<path> /etc/opsi nfs rw                            0       2
 ----
 
+Damit wir opsi von vorne herein so einrichten, dass es direkt nur dem virtuellen Hostnamen arbeitet,
+muss dieser in die Datei `/etc/opsi/global.conf` eingetragen werden.
+
+----
+[global]
+hostname = server.opsi.org
+----
+
 Die Installation des Hauptservers nun verläuft im wesentlichen so,
 wie in Kapitel 2 von „opsi Getting Started“ beschrieben wird. 
 Der MySQL Server wird für eine Hochverfügbarkeitslösung jedoch nicht direkt auf dem opsi Server installiert,
@@ -116,6 +136,7 @@ externen DHCP Servers unbedingt empfohlen wird. Näheres dazu ist in Kapitel 2.3
 in der „opsi Getting Started“ Dokumentation beschrieben.
 
 Anschließend wird der externe MySQL-Server anstelle eines lokal installierten Dienstes für die Datenspeicherung konfiguriert.
+Vergewissern Sie sich an dieser Stelle, dass eine entsprechende `modules` Datei auf dem Server eingespielt wurde.
 Dazu muss der Befehl
 
 ----
@@ -130,9 +151,93 @@ Für den Standby-Server verlaufen die Schritte weitestgehend analog.
 Bei der Installation der opsi Pakete kommt es aufgrund des geteilten Konfigurationsverzeichnisses dazu,
 dass der Installer einige Konfigurationsdateien automatisch ersetzen will. 
 Dies ist bei entsprechender Nachfrage zu verneinen.
+
 Zusätzlich kann es Aufgrund der mangelnden Berechtigungen zu dem Fehler kommen, 
 dass sich der Standby-Server nicht auf den MySQL Datenbankserver verbinden darf.
 Diese Fehler dürfen ignoriert werden, da der Standby-Server im Fehlerfall die Identität des Hauptservers
 annimmt und damit auch dessen Berechtigungen für die Datenbank übernimmt.
+
+Zu beachten ist, das Passwörter, sofern verlangt, aus allen Servern identisch gesetzt werden.
+Dies gilt insbesondere auch für das Passwort des Benutzers \'pcpatch\', der in Kapitel 2.2.4
+des opsi-getting-started Handbuchs beschrieben wird.
+
 Da die Konfiguration und das Backend in einem geteilten Bereich liegen ist opsi auf dem 
 Standby-Server bereits vollständig konfiguriert, die entsprechenden Schritte entfallen also.
+
+Da Headtbeat nun für das starten bzw stoppen der opsi Dienste zuständig sein soll ist es nötig,
+das Start-/Stop-Verhalten diese Dienste auf beiden Servern standardmässig zu deaktivieren.
+
+----
+/etc/init.d/opsiconfd stop
+/etc/init.d/opsipxeconfd stop
+update-rc.d -f opsiconfd remove
+update-rc.d -f opsipxeconfd remove
+----
+
+=== Installation und Konfiguration von Heartbeat
+
+Unter Heartbeat versteht man einen Dienst, über den sich zwei oder mehrere Server gegenseitig ihren
+"Gesundheitszustand" signalisieren. Bleibt das Signal eines Server aus kann so der andere dessen Aufgaben
+übernehmen. Im Falle von opsi beschränkt sich diese Anleitung auf das Starten des opsiconfd sowie des
+opsipxeconfd sowie die Übernahme der virtuellen IP Adresse.
+
+Zuerst muss dazu der Heartbeat Dienst auf beiden Servern installiert werden.
+
+----
+sudo apt-get install heartbeat
+----
+
+Damit Heartbeat weiß, welche Rechner es über welche Interfaces überwachen soll, muss zunächst die Konfigurationsdatei
+`/etc/ha.d/ha.cf` angelegt werden. Ein tyisches Beispiel für eine Failover Konfiguration über eine seaprate Netzwerkkarte kann z.B. so aussehen:
+
+----
+keepalive 2                  #Intervall zwischen zwei Heartbeat anfragen in Sekunden.
+deadtime 5                   # Timeout Zet bevor der Standby Server einspringt
+ping <private-ip-address>    # IP Adresse des Servers, der zu überwachen ist
+udpport 694                  # Port, auf dem nach Heartbeat Signalen gelauscht werden soll
+bcast <private-ha-interface> # Netzwerkkarte, über die Heartbeat mit anderen Servern kommunizieren soll
+node <dns-name-of-server-1>  # Hostname des ersten Knotens im Failover Cluster
+node <dns-name-of-server-2>  # Hostname des zweiten Knotens im Failover Cluster
+auto_failback on             # Gibt an, dass automatisch ein Failover gestartet werden soll
+----
+
+Als nächstes wird festgelegt, was passieren soll, wenn Heartbeat einen Failover feststellt.
+Dazu werden die notwendigen Direktiven in die Datei `/etc/ha.d/haressources` eingetragen. Diese Datei _muss_ auf allen Knoten im Cluster absolut identisch sein.
+
+----
+<dns-name-of-server-1> IPaddr::<virtual-ip-address>/<netmask>/<public interface> opsiconfd opsipxeconfd
+----
+
+Diese Direktive sagt aus, dass im Falle eines versagens von node1 dieser Server die IP-Addresse `<virtual-ip-address>` mit der Netzmaske `<netmask>` für das Interface `<public interface>` übernehmen soll 
+und dass die beiden Dienste opsiconfd und opsipxeconfd gestartet werden sollen.
+Beispiel:
+
+----
+node1 IPaddr::192.168.0.100/24/eth0 opsiconfd opsipxeconfd
+----
+
+Um die Sicherheit des Heartbeat Dienstes zu erhöhen und um Manipulationen vorzubeugen kann es außerdem sinnvoll sein, die Heartbeat Signale mit einem Passwort zu schützen.
+Dazu genügt ein Eintrag in der Konfigurationsdatei `/etc/ha.d/authkeys` auf beiden Servern:
+
+----
+auth 1
+1 sha1 GeheimesPasswort
+----
+
+Die Dateiberechtingungen für die Datei `/etc/ha.d/authkeys` müssen aus Sicherheitsgründen auf +600+ gesetzt werden, sonst verweigert Heartbeat den Diesnt.
+
+Um den Cluster gegen Probleme mit dem DNS abzusichern kann es außerdem sinnvoll sein, die DNS Namen der Server in die Datei `/etc/hosts` einzutragen, z.B.:
+
+----
+192.168.0.1 	node1.opsi.org node1
+192.168.0.2	node2.opsi.org node2
+192.168.0.100	server.opsi.org server
+----
+
+Nun muss noch der Heartbeat Dienst auf beiden Servern neu gestartet werden.
+
+----
+/etc/init.d/heartbeat restart
+----
+
+
