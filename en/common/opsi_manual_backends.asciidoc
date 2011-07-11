@@ -355,47 +355,51 @@ opsi-setup --set-rights
 [[opsi-manual-backends-hostcontrol]]
 === HostControl backend
 
-Das HostControl-Backend speichert keine Konfigurationsdaten, sondern dient der Steuerung von opsi-Clients.
-Hierzu gehören beispielsweise das Starten von Clients per Wake-On-LAN oder das Senden von Steuerungsbefehlen an den opsi-client-agent.
+The HostControl backend does not store any information. It is a special backend to control the opsi clients.
 
-Die Konfiguration des HostControl-Backends wird in der Konfigurationsdatei `/etc/opsi/backends/hostcontrol.conf` vorgenommen. Konfigurations-Optionen sind hierbei:
+Typical tasks are to send Wake-On-Lan Signals and send control signals to the '{opsi-client-agent}'.
+
+The HostControl backend is configured by the configuration file `/etc/opsi/backends/hostcontrol.conf`. Configuration options are here:
 
 * +opsiclientdPort+: +
-Netzwerk-Port für die Verbindungsaufnahme zu einem {opsi-client-agent}.
+Network port to contact the {opsi-client-agent}.
 
 * +hostRpcTimeout+: +
-Timeout (in Sekunden) bei der Verbindungsaufnahme zu einem {opsi-client-agent}.
+Timeout (in seconds) connecting a {opsi-client-agent}.
 
 * +resolveHostAddress+: +
-Steht diese Option auf +True+, wird bei einem Verbindungsaufbau vom {opsi-server} zu einem {opsi-client} die IP-Adresse des Clients bevorzugt über die Namensauflösung ermittelt.
-Um die im Backend von opsi hinterlegte IP-Adresse zu bevorzugen ist die Option auf +False+ zu setzen.
+This option controls wether the name resolution of a opsi-client address is primary done by the opsi database or by the name resolution of the operating system of the '{opsi-server}'.
+If this option is +True+, the '{opsi-server}' tries at first to get the IP-Address of a '{opsi-client}' to get by the name resolution of the operating system (DNS, /etc/hosts) and if this fails the opsi database is used.
+To use the opsi database at first, you have to set this option to +False+.
 
 * +maxConnections+: +
-Maximale Anzahl simultaner Verbindungen zu {opsi-client-agent}s.
+Maximal number of concurrent connections to '{opsi-client-agent}s'.
 
 * +broadcastAddresses+: +
-Liste von Broadcast-Adressen für das Versenden von Wake-On-LAN-Broadcasts.
+List of broadcast addresses used to send Wake-On-Lan broadcasts. 
 
 
 [[opsi-manual-backends-convert]]
 === Konvertierung zwischen Backends
-Der Befehl `opsi-convert` dient zum Konvertieren der opsi-Konfigurationsdaten zwischen verschiedenen Backends. Das Ziel oder Quelle kann auf verschieden Arten bestimmt werden:
 
-* Backendnamen: +
-Durch Angabe des Namen wird ein entsprechendes Backend auf dem aktuellen Server angegeben. So konvertiert  `opsi-convert file mysql` auf dem aktuellen Server vom '{file-Backend}' zum '{mysql-Backend}'.
+The command `opsi-convert` converts the opsi configuration files from one backend to another. The target or the source can be assigned in different ways:
 
-* Service-Adresse +
-Durch Angaben von Serviceadressen kann ein Server z.B. auch Remote angesprochen werden. Die Service Adresse hat die Form +
-https://<username>@<ipadresse>:4447/rpc 
-Nach den Passwörtern wird gefragt. +
-Beispiel:
+
+* Backend name: +
+A backend on the current server can be addressed with just the backend name.  The command `opsi-convert file mysql` converts the data base of the current server from '{file-Backend}' to the '{mysql-Backend}'.
+
+* Service address +
+Providing a full qualified service address allows access to a remote servers data base (after passing the users password). The service address looks like:
+https://<username>@<ipadresse>:4447/rpc
+You will be asked for the passwords. +
+The conversion command looks like that:
 [source,prompt]
 ----
 opsi-convert -s -l /tmp/log https://uib@192.168.2.162:4447/rpc \   https://opsi@192.168.2.42:4447/rpc
 ----
 
-* Konfigurationsverzeichnis +
-Durch Angabe von Konfigurationsverzeichnissen für die entsprechende Backendmanagerkonfiguration können Quelle bzw. Ziel sehr detailliert beschrieben werden.
+* Configuration directories +
+With a declaration of a configuration directory for the specified backend manager configuration source or target can be described in detail.
 
 [source,prompt]
 ----
@@ -421,17 +425,19 @@ Options:
 [[opsi-manual-backends-bootfiles]]
 === Bootdateien
 
-Unter `/tftpboot/linux` finden sich die Bootdateien, die im Zusammenspiel mit den PXE-Bootproms benötigt werden.
+`/tftpboot/linux` contains the boot files needed for the system start with the PXE boot proms.
 
 [[opsi-manual-backends-securing-shares]]
 === Absicherung der Shares über verschlüsselte Passwörter
 
-Der '{opsi-client-agent}' greift auf die vom '{opsi-server}' zur Verfügung gestellten Shares zu, um die dort liegende Software zu installieren zu können.
+The '{opsi-client-agent}' accesses the shares provided by the '{opsi-server}' to get the software which have to be installed at the client.
 
-Hierzu wird der System-User 'pcpatch' verwendet. Die Absicherung dieser Shares und damit der Authentifizierungs­daten des Users pcpatch sind wichtig für die:
-* allgemeine Systemsicherheit und Datenintegrität
-* Absicherung der potenziell lizenzpflichtigen Softwarepakete gegen missbräuchliche Nutzung
+The mount of these shares is done by using the user 'pcpatch'. That these shares are not public and have to be mounted using a password is important for:
+* general system security and data integrity
+* meet the license agreements of special software packets
 
-Um dem '{opsi-client-agent}' ein Zugriff auf die Authentifizierungsdaten zu ermöglichen, wird für jeden Client bei seiner Erzeugung in opsi ein spezifischer Schlüssel ('{opsi-host-key}') erzeugt. Dieser Schlüssel wird zum einen (beim '{file-Backend}') in der Datei `/etc/opsi/pckeys` abgelegt und zum anderen dem PC bei der Reinstallation übergeben. Der übergebene Schlüssel wird im Rahmen der der Installation des '{opsi-client-agent}' in der Datei `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` so abgelegt, dass nur Administratoren Zugriff darauf haben. Ebenso hat auf dem '{opsi-server}' nur root und Mitglieder der Gruppe 'opsiadmin' Zugriff auf die Datei `/etc/opsi/pckeys`. Auf diese Weise verfügt jeder PC über einen Schlüssel, der nur dem PC und dem '{opsi-server}' bekannt ist und der gegenüber dem Zugriff durch normale Anwender geschützt ist. Mit diesem Schlüssel wird das aktuelle Passwort des system users 'pcpatch' auf dem '{opsi-server}' verschlüsselt und im Backend abgelegt. Dieses verschlüsselte Passwort wird vom Client bei jeder Aktivierung des '{opsi-client-agent}' neu gelesen, so dass eine Änderung des 'pcpatch' Passwortes jederzeit möglich ist und der Client auf verschlüsseltem Wege das veränderte Passwort erfährt.
+To give the client task '{opsi-client-agent}'  access to authentication data, the server creates a specific key ('{opsi-host-key}') when creating a client.   erzeugt. This key is stored (at the '{file-Backend}') in the file   `/etc/opsi/pckeys` and is passed to the PC with the (re)installation request. The '{opsi-client-agent}' will store this key in the local file  `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` 
+during system installation (access rights limited to the administrators). Also, on the server, the file `/etc/pckeys` is only accessible by the user 'root' and members of the group 'opsiadmin'. This way every PC has got an unique key only known to the client itself and the '{opsi-server}', not accessible by client standard users. The key is used to encrypt the password of the user 'pcpatch'. The encrypted password will be transferred to the client at boot time via webservice. Hence the servers 'pcpatch' password can be changed any time. The new encrypted password will be sent to every client at the next reboot.
+
 
 
