@@ -1,4 +1,4 @@
-//// 
+﻿//// 
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; Until we found a better license:
@@ -21,55 +21,65 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-multidepot-concept]]
 === Concept
 
-Supporting multiple depotshares in opsi aims at the following targets:
+Supporting multiple depot shares in opsi aims at the following targets:
 
 * central configuration data storage and configuration management
+
 * providing the software depots on local servers
+
 * automated deployment of software packages from the central server to the local depots
 
 Accordingly, it is implemented:
 
-* All configuration data is stored on the central opsi-config-server
-* All clients connect to this config-server in order to request their configuration data. The configuration data comprise the information on method and target of the depot-server connection.
-* All installable software is stored on depot-servers.
-* The depot-servers have as well an opsipxeconfd running by which they provide bootimages to clients via PXE/tftp.
-* opsi-package-manager. A program to (de-)install opsi packages on one ore more depot-servers.
-* The opsi packages are copied via webdav protocol to the depot-servers and are installed from the opsiconfd via a webservice call.
-* opsi-configed supports the management of multiple depots.
+* All configuration data is stored on the central '{opsi-configserver}'.
+
+* All clients connect to this '{opsi-configserver}' in order to request their configuration data. The configuration data comprise the information on method and target of the '{opsi-depotserver}' connection.
+
+* All installable software is stored on '{opsi-depotserver}s'.
+
+* The '{opsi-depotserver}s' have as well an `opsipxeconfd` running by which they provide boot-images to clients via PXE/tftp.
+
+* `opsi-package-manager` +
+A program to (de-)install opsi packages on one ore more '{opsi-depotserver}s'.
+
+* The opsi packages are copied via webdav protocol to the '{opsi-depotserver}s' and are installed from the opsiconfd via a web service call.
+
+* '{opsi-configed}' supports the management of multiple depots.
+
 * Clients connected to different depots can be managed in one bundle if the involved depots are synchronized (have all product packages in identical versions).
 
 The following schema gives a more detailed view on the communication between the components of a opsi multi depot share environment.
 
-.Scheme: opsi-config server without attached depot server (single location)
+.Scheme: opsi config server without attached depot server (single location)
 image::../images/multidepot-without.png["Scheme: opsi-config server without attached depot server",width=400]
 
-.Scheme: opsi-config server with attached depot server (multi location)
+.Scheme: opsi config server with attached depot server (multi location)
 image::../images/multidepot-with.png["Scheme: opsi-config server with attached depot server",width=400]
 
 [[opsi-manual-multidepot-installation]]
-===Creating a (slave) depot-servers
+=== Creating a (slave) depot-servers
 
 In order to create a '{opsi-depotserver}' you have to install a standard '{opsi-server}'. This '{opsi-server}' can be configured to act as '{opsi-depotserver}' by calling the script `opsi-setup --register-depot` at that server which should be become the '{opsi-depotserver}'. Because this script does not only reconfigure the local server, but also registers this server as '{opsi-depotserver}' with the central '{opsi-configserver}', username and password of a member of the 'opsiadmin' group have to be supplied here.
+
 Example: +
 'svmdepotde.svm.local' will be reconfigured as '{opsi-depotserver}' and registered at the '{opsi-configserver}' 'sepiella.svm.local':
 [source,prompt]
 ----
 svmdepotde:~# opsi-setup --register-depot
 ----
-Now you will be prompted 
-Nun erscheint die Maske zu dem '{opsi-configserver}' an dem sich dieser Server als '{opsi-depotserver}' anmelden soll. Diese Anmeldung muss mit einem user autorisiert werden der auf dem '{opsi-configserver}' Mitglied in der Gruppe 'opsiadmin' ist.
+Now you will be prompted for the '{opsi-configserver}' you want to connect to in order to make the server you are working on to a '{opsi-depotserver}' at the selected '{opsi-configserver}'. To do this you have to give user name and password of a member of the group 'opsiadmin' at the '{opsi-configserver}'.
 
-.opsi-setup --register-depot : Enter opsiadmin Account for the '{opsi-configserver}'
+.opsi-setup --register-depot : Enter opsiadmin account for the '{opsi-configserver}'
 image::../images/opsi-setup-registerdepot-configserver.png["opsi-setup-registerdepot-1",width=400]
 
-Nun erscheint die Maske der Depotserver Settings.
+Now the '{opsi-depotserver}' settings will be displayed and may be changed.
 
-Im Normalfall müssen Sie hier nichts ändern.
+Normally you do not have to change anything.
 
-.opsi-setup --register-depot : Maske Depot Settings
+.opsi-setup --register-depot : depot settings
 image::../images/opsi-setup-registerdepot-depotsettings.png["opsi-setup-registerdepot-2",width=400]
 
-Nach dieser Eingabe der Daten erfolgt die eigentliche Konfiguration:
+After the data input is completed the configuration process will start:
 [source,prompt]
 ----
 [5] [Apr 06 12:32:19] Getting current system config (opsi-setup|70)
@@ -107,26 +117,26 @@ Nach dieser Eingabe der Daten erfolgt die eigentliche Konfiguration:
 ----
 
 [[opsi-manual-multidepot-packages]]
-=== Paketmanagement auf mehreren Depots
-siehe auch: +
+=== package management with multiple depots
+see also: +
 <<opsi-manual-configuration-tools-opsi-package-manager>> +
 <<opsi-manual-configuration-tools-opsi-productupdater>>
 
-Zur Verwaltung der Pakete auf mehreren '{opsi-depotserver}' kennt der `opsi-packet-manager` die Optionen `-d` bzw. `--depots` mit denen die '{opsi-depotserver}' angegeben werden können auf denen ein Paket installiert bzw. deinstalliert werden soll. Mit dem Schlüsselwort 'ALL' kann auf alle bekannten Depots verwiesen werden. Bei einer Installation mit der Option `-d` wird das Paket zunächst in das Verzeichnis `/var/lib/opsi/repository` des '{opsi-depotserver}' hochgeladen und dann von dort aus installiert.
+In or to manage opsi-packages with different '{opsi-depotserver}' the `opsi-packet-manager` got the option `-d` ( or `--depot`). With this option you can give the target '{opsi-depotserver}' for the installation. Using the keyword 'ALL' the opsi package will be copied to `/var/lib/opsi/repository` on all known '{opsi-depotserver}s' and then installed via a web service call.
 
-Wird `-d` nicht angegeben, so wird nur das lokale Depot behandelt und das Paket ohne upload nach `/var/lib/opsi/repository` installiert.
+If you don't give the option `-d`, the opsi package will be only installed on the local server (without upload to `/var/lib/opsi/repository`).
 
-Beispiel: +
-Installiere das Paket softprod_1.0-5.opsi auf allen Depots:
+Example: +
+Install the package +softprod_1.0-5.opsi+ on all known '{opsi-depotserver}s':
 [source,prompt]
 ----
 opsi-package-manager -d ALL -i softprod_1.0-5.opsi
 ----
 
-Um die Differenzen zwischen Depots angezeigt zu bekommen wird die Option `-D` (bzw. `--differences`) verwendet.
+In order to get information's about what are the differences between depots you may call `opsi-packet-manager` with the option `-D` (or `--differences`).
 
-Beispiel: +
-Unterschiede zwischen den bekannten Depots bezüglich des Produktes mshotfix
+Example: +
+Show the differences between all known depots regarding the product +mshotfix+
 [source,prompt]
 ----
 opsi-package-manager -D -d ALL mshotfix
