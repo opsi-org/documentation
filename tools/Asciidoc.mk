@@ -103,7 +103,7 @@ epub: $(addsuffix .epub,$(DOCS))
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
 					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
 				else	\
-					echo "ERROR: Document $@ could not be build for language $(L)";	\
+					echo "ERROR: Document $@ could not be built for language $(L)";	\
 				fi	\
 				;	\
 			else									\
