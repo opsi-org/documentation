@@ -1,3 +1,11 @@
+Dependencies
+============
+
+Building the opsi manuals requires the following software to be installed on your system:
+
+* asciidoc >= 8.6.3
+* dblatex  >= 0.3
+
 How to build an opsi manual
 ==========================
 
