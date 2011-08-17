@@ -2591,6 +2591,88 @@ Ein Unattended- oder Silent-Setup ist daher immer die bessere Lösung.
 Sehr gut kann auch eine Kombination aus beiden Ansätzen funktionieren:
 Das Silent-Setup übernimmt die eigentliche Installation und ein AutoIt-Skript fängt bekannte Sonderbedingungen ab.
 
+Wenn das Ausführen von Installationen in der opsi-client-agent Konfiguration auf einen anderen Desktop verlegt wird oder der Desktop gesperrt wird, haben verschiedene autoit Funktionen Probleme.
+
+Daher sollten in '{opsi-winst}' Skripten die folgenden Funktionen gemieden werden:
+
+* winwait()
+
+* winactivate()
+
+* Send()
+
+Das sind leider genau die 3 am meisten verwendeten.
+
+*winwait()* +
+kann ersetzt werden durch +
+winexists() +
+in der folgenden Weise (gleich noch mit 30 Sekunden timeout):
+[source,configfile]
+----
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+----
+
+*Send()* +
+sollte durch +
+controlsend() bzw. controlclick() +
+ersetzt werden. +
+Dabei muss mit der `Au3info.exe` die 'ControlId' ermittelt werden. Bitte die numerische 'ControlId' verwenden, andere Varianten scheinen Probleme zu machen:
+[source,configfile]
+----
+ControlClick("Setup", "", 1)
+----
+
+Hier ein Auszug aus dem aktuelle jedit script. +
+In diesem wird dann noch eine Logdatei angelegt, die mit folgenden Befehlen in die Logdatei des '{opsi-winst}' integriert wird:
+[source,winst]
+----
+setloglevel=7
+set $resultlist$ = loadTextFile("c:\tmp\au3.log")
+setloglevel=6
+----
+
+Das Beispiel:
+[source,configfile]
+----
+[ExecWith_autoit_confirm]
+; exact title match
+Opt("WinTitleMatchMode", 3)
+$mylog = FileOpen("C:\tmp\au3.log", 2)
+FileWriteLine($mylog,"auto-it started - waiting for the window")
+; do not use winwait(), it will fail on other desktops than current
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    FileWriteLine($mylog,"winexists result (1=exists): " & $exists )
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+FileWriteLine($mylog,"window detected - sending answer")
+; say no
+$result = ControlClick("Setup", "", 1)
+FileWriteLine($mylog,"answer sended: result (1=success) : " & $result)
+FileClose($mylog)
+Sleep(500)
+;and good bye
+Exit
+----
+
+siehe auch: +
+http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
+http://www.autoitscript.com/autoit3/docs/ +
+http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
+http://www.autoitscript.com/autoit3/docs/functions.htm
+
+
+
+
 [[opsi-getting-started-softwintegration-tutorial-analyse-and-repackage]]
 ===== Analyse und Neu-Paketieren
 
@@ -2671,7 +2753,7 @@ wie es im nächsten Abschnitt beschrieben ist.
 
 Wurde ein Produkt mit den Winst-Funktionen installiert oder gibt es keine Deinstallation vom Hersteller,
 so muss ein eigenes Winst-Skript zu Deinstallation geschrieben werden.
-Um den Programmierer bei dieser Arbeit zu unterstützen stellt der {opsi-winst} einige Funktionen bereit,
+Um den Programmierer bei dieser Arbeit zu unterstützen stellt der '{opsi-winst}' einige Funktionen bereit,
 die speziell bei der Deinstallation notwendig oder hilfreich sind.
 Es soll an dieser Stelle nur ein kurzer Überblick gegeben werden,
 eine genaue Beschreibung der Befehle und deren Parameter findet sich im {opsi-winst}-Handbuch.

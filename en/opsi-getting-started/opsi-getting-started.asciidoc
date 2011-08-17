@@ -2558,6 +2558,85 @@ The user can interfere with the installation if the mouse and keyboard are not d
 A combination of both might do a good job: +
 The 'silent'-setup does the main installation and the AutoIt script handles special conditions that might occur.
 
+If you use the possibility in opsi to run the installations on a other desktop than the current desktop or if the current desktop is locked you will find some autoit functions which do not work properly under these conditions.
+
+Therefore you should avoid the use of the following autoit commands in '{opsi-winst}' scripts:
+
+* winwait()
+
+* winactivate()
+
+* Send()
+
+Because these commands are widly used, we need substitudes:
+
+*winwait()* +
+may be replaced by +
+winexists() +
+in the following way (with tha additional functionality of 30 seconds timeout):
+[source,configfile]
+----
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+----
+
+*Send()* +
+should be replaced by +
+controlsend() bzw. controlclick() +
+Therefore you should use the `Au3info.exe` to get the 'ControlId' you need in this commands. Please use the numerical 'ControlId', the other variants seems to work not properly:
+[source,configfile]
+----
+ControlClick("Setup", "", 1)
+----
+
+Here a part of our jedit installation script as example. +
+In this script we produce also a log file from the autoit activities, which may be integrated in the '{opsi-winst}' log file by the following commands:
+[source,winst]
+----
+setloglevel=7
+set $resultlist$ = loadTextFile("c:\tmp\au3.log")
+setloglevel=6
+----
+
+The example:
+[source,configfile]
+----
+[ExecWith_autoit_confirm]
+; exact title match
+Opt("WinTitleMatchMode", 3)
+$mylog = FileOpen("C:\tmp\au3.log", 2)
+FileWriteLine($mylog,"auto-it started - waiting for the window")
+; do not use winwait(), it will fail on other desktops than current
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    FileWriteLine($mylog,"winexists result (1=exists): " & $exists )
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+FileWriteLine($mylog,"window detected - sending answer")
+; say no
+$result = ControlClick("Setup", "", 1)
+FileWriteLine($mylog,"answer sended: result (1=success) : " & $result)
+FileClose($mylog)
+Sleep(500)
+;and good bye
+Exit
+----
+
+see also: +
+http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
+http://www.autoitscript.com/autoit3/docs/ +
+http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
+http://www.autoitscript.com/autoit3/docs/functions.htm
+
+
 [[opsi-getting-started-softwintegration-tutorial-analyse-and-repackage]]
 ===== Analyze and repackage
 
@@ -2801,7 +2880,7 @@ After defining a product dependency you will be asked whether to create another 
 
 NOTE: The installation sequence results from a combination of product dependencies and product priorities. For details how this is done and what you can configure see at the opsi-manual.
 
-. A(nother) product property to create?
+.A(nother) product property to create?
 image::../images/newprod-new-property.png["Screenshot:  A(nother) product property to create?",width=400]
 
 If you answer 'Yes' you will have to describe the product properties.
