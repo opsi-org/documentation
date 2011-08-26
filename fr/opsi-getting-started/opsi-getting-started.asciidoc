@@ -2558,6 +2558,85 @@ L'utilisateur peut interférer avec l'installation si la souris et le clavier ne
 Une combinaison des deux pourrait faire un bon travail: +
 La configuration 'silent' fait le travail principale et AutoIt-script gère les conditions particulières qui pourraient survenir.
 
+Si dans OPSI vous utilisez la possibilité d'exécuter l'installation sur un bureau autre que le bureau actuel ou si le bureau actuel est verrouillé, vous trouverez quelques fonctions autoit qui ne ne fonctionnera pas correctement dans ces conditions.
+
+Donc vous devez éviter l'utilisation des commandes autoit suivantes dans les scripts '{opsi-winst}':
+
+* winwait()
+
+* winactivate()
+
+* Send()
+
+Comme ces commandes sont largement utilisés, nous avons besoin de substituts:
+
+*winwait()* +
+peut être remplacé par +
+winexists() +
+de la façon suivante (avec la fonctionnalité supplémentaire de 30 secondes de timeout):
+[source,configfile]
+----
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+----
+
+*Send()* +
+peut être remplacé par +
+controlsend() ou controlclick() +
+Donc vous devez utiliser `Au3info.exe` pour obtenir le 'ControlId' dont vous avez besoin dans cette commandes. S'il vous plaît utilisez le 'ControlId' numérique, les autres variantes semble ne fonctionner pas correctement:
+[source,configfile]
+----
+ControlClick("Setup", "", 1)
+----
+
+Voici une partie de notre script d'installation de jedit comme exemple. +
+Dans ce script, nous produisons également un fichier journal des activités AutoIt, qui peuvent être intégrées dans le fichier journal de '{opsi-winst}' par les commandes suivantes:
+[source,winst]
+----
+setloglevel=7
+set $resultlist$ = loadTextFile("c:\tmp\au3.log")
+setloglevel=6
+----
+
+Exemple:
+[source,configfile]
+----
+[ExecWith_autoit_confirm]
+; exact title match
+Opt("WinTitleMatchMode", 3)
+$mylog = FileOpen("C:\tmp\au3.log", 2)
+FileWriteLine($mylog,"auto-it started - waiting for the window")
+; do not use winwait(), it will fail on other desktops than current
+$seconds = 0
+$exists = 0
+While ($seconds <= 30) and ($exists = 0)
+    $exists = WinExists("Setup")
+    FileWriteLine($mylog,"winexists result (1=exists): " & $exists )
+    $seconds = $seconds + 1
+    sleep(1000)
+WEnd
+FileWriteLine($mylog,"window detected - sending answer")
+; say no
+$result = ControlClick("Setup", "", 1)
+FileWriteLine($mylog,"answer sended: result (1=success) : " & $result)
+FileClose($mylog)
+Sleep(500)
+;and good bye
+Exit
+----
+
+voir aussi: +
+http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
+http://www.autoitscript.com/autoit3/docs/ +
+http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
+http://www.autoitscript.com/autoit3/docs/functions.htm
+
+
 [[opsi-getting-started-softwintegration-tutorial-analyse-and-repackage]]
 ===== Analyser et reconditionner
 
