@@ -3160,19 +3160,20 @@ For selecting a set of elements any kind of information can be used:
 In wInst, selection based on criteria (1) to (3) and (7) is implemented
 
 [[opsi-winst-xmlpatch-search-options]]
-==== Optionen zur Bestimmung eines Sets von Elementen
+==== Options for Selection a Set of Elements
 
-Vor jeder weiteren Operation muss das Set von Elementen bzw. von Hauptknoten bestimmt werden, auf die sich die Operation beziehen soll. Das Set wird Schritt für Schritt ermittelt, indem ausgehend von der Dokumentenwurzel  Pfade gebildet werden, die jeweils über akzeptierte nachgeordnete Elemente laufen. Die letzten Elemente der Pfade bilden dann das ausgewählte Set.
 
-Der '{opsi-winst}' Befehl hierfür lautet
+Before any operation on the contents of a XML file the precise set of elements has to be determined on which it will be operated. The set is constructed step by step by defining the allowed paths through the XML tree. The finally remaining end points of the paths define the selected set.
+
+The basic  wInst command is
 
 *  `OpenNodeSet`
 
-Für die Festlegung der akzeptierten Pfade existiert eine ausführliche und eine Kurzsyntax.
+There two formats for defining the allowed paths a short and a long format .
 
-.Ausführliche Syntax
+.Explicit Syntax
 
-Die ausführliche Syntax für die Beschreibung eines Elemente-Sets bzw. einer Knoten-Menge ist in der folgenden Variante eines Beispiels zu sehen (vgl. Kochbuch, <<opsi-winst-cookbook-patchxml,Kapitel "XML-Datei patchen">>):
+The more explicit syntax may be seen in the following example (for a more complex example <<opsi-winst-cookbook-patchxml>>):
 [source,winst]
 ----
 openNodeSet
@@ -3187,19 +3188,19 @@ openNodeSet
 end
 ----
 
-.Kurzsyntax
+.Short Syntax
 
-Das gleiche Nodeset beschreibt folgende Kurzsyntax (muss in einer Zeile des Skripts untergebracht werden):
+The same node set is given by the line:
 [source,winst]
 ----
 openNodeSet 'define /handler value="doc"/application /'
 ----
 
-In dieser Syntax separieren die Schrägstriche die Schritte innerhalb der Baumstruktur, welche in einer Syntax angegeben werden, die ausführlicher als eine eigene Beschreibung ist.
+In this syntax, the slash separates the steps into to the tree structure which are denoted in the more explicit syntax each by an own description.
 
-.Selektion nach Text-Inhalten (nur ausführliche Syntax)
+.Selecting by Textual Content (only for explicit syntax)
 
-Die ausführliche Syntax erlaubt auch die Selektion nach Text-Inhalten eines Tags:
+Given the explicit syntax we may select elements by the textual content of elements:
 [source,winst]
 ----
 openNodeSet
@@ -3216,17 +3217,17 @@ openNodeSet
 end
 ----
 
-.Parametrisierung der Suchstrategie
+.Parametrizing Search Strategy
 
-Bei den bislang aufgeführten Beschreibungen eines Elemente-Sets bleiben allerdings eine ganze Reihe von Fragen offen.
+In the exemplary descriptions of XML tree traversals there remain several questions.
 
-* Soll ein Element akzeptiert werden, wenn der Elementname und die aufgeführten Attribute passen, aber weitere Attribute existieren? 
+* Shall an element be accepted if the element name and the listed attributes match but other attributes exist?
 
-* Soll die Beschreibung im Ergebnis eindeutig sein, d.h. genau ein Element liefern? Und wenn doch die Beschreibung des Pfades auf mehrere Elemente passt, muss dann möglicherweise von einer nicht korrekten Konfigurationsdatei ausgegangen werden? 
+* Is the search meant to give one single result value, that is should the resulting element set have no more than one element (and otherwise, the XML file is to considered as erroneous)?
 
-* Soll umgekehrt auf jeden Fall ein passendes Element erzeugt werden, wenn keines existiert?
+* Conversely, is it meant that a traversal shall at any rate lead to some result,  i.e. do we have to create the element if no matching element exists? 
 
-Zur Regelung dieser Fragen kann die OpenNodeSet-Anweisung parametrisiert werden. Bei den nachfolgend genannten Parametern überdecken „stärkere“ Einstellungen „schwächere“, z.B. ersetzt eine Fehlermeldung eine ansonsten geforderte Warnung. Die angegebenen booleschen Werte sind die Default-Werte:
+To answer these questions explicitly there are parameters for the OpenNodeSet command. The following lines show the default settings which can be varied by  changing the Boolean values:
 [source,winst]
 ----
   - error_when_no_node_existing false
@@ -3237,109 +3238,112 @@ Zur Regelung dieser Fragen kann die OpenNodeSet-Anweisung parametrisiert werden.
   - attributes_strict false
 ----
 
-Bei Verwendung der Kurzsyntax der OpenNodeSet-Anweisung muss die Parametrisierung vorausgehen und gilt für alle Ebenen des XML-Baumes. In der ausführlichen Syntax kann sie auch direkt nach der OpenNodeSet-Anweisung erfolgen oder für jede Ebene neu gesetzt werden. Sinnvoll kann letzteres vor allem für die Einstellung der Option „create when node not existing“ (Erstellung von Knoten, wenn es keine gibt) sein.
+With short syntax, parametrizing precedes the OpenNodeSet command and holds for all levels of the XML tree. With the explicit syntax the parameters may be set directly after the  OpenNodeSet command or be newly set for each level. In particular the option „create when node not existing“ may be set for some levels but not for all.
 
 [[opsi-winst-xmlpatch-actions]]
-==== Patch-Aktionen
+==== Patch Actions
 
-Auf der mit OpenNodeSet geöffneten bzw. erzeugten Knotenmenge arbeiten nachfolgende Patch-Anweisungen. Es existieren solche:
+There exists a bundle of commands which operate on a selected element set
 
-* zum Setzen und Löschen von Attributen,
+* for setting and removing attributes
 
-* zum Entfernen von Elementen und
+* for removing elements
 
-* zum Setzen von Text.
+* for text setting..
 
+In detail:
 
-*  `SetAttribute` "Attributname" value="Attributwert" +
-setzt in jedem Element des aktuellen Knoten- bzw. Elementsets das Attribut auf den genannten Wert. Wenn das Attribut nicht vorhanden ist wird es erzeugt. +
-Beispiel: +
+*  `SetAttribute` "attribute name" value="attribute value" +
+sets the specified attribute for each element in the opened set to the specified value. In the attribute does not exist it will be created. + 
+Example: 
 `SetAttribute "name" value="OpenOffice Writer"`
 
-*  `AddAttribute` "Attributname" value="Attributwert" +
-setzt das Attribut dagegen nur auf Attributwert, wenn es vorher nicht existiert, ein vorhandenes Attribut behält seinen Wert. Z.B. würde die Anweisung +
+On the contrary, the command +
+
+*  `AddAttribute` "attribute name" value="attribute value" +
+sets  the specified attribute only to the specified value if it does not exists beforehand. An existing attribute keeps its value. E.g. the command +
 `AddAttribute "name" value="OpenOffice Writer"` +
-eine vorher vorhandene Festlegung auf ein anderes Programm nicht überschreiben.
+would not overwrite the value if there was named another program before.
 
-*  `DeleteAttribute` "Attributname" +
-wird das betreffende Attribut von jedem Element der aktuellen Knotenmenge entfernt.
+By +
+*  `DeleteAttribute` "attribute name" +
+we remove the specified attribute from each element of the selected element set.
 
-*  `DeleteElement` "Elementname" +
-entfernt das Element, dessen Hauptknoten den (Tag-) Namen "Elementname" hat, samt Unterknoten aus der aktuellen Knoten- oder Elementmenge. 
+The command +
+*  `DeleteElement` "element name" +
+removes all elements with main node name (tag name) element name from the opened element set. 
 
-Schließlich existieren zwei Anweisungen zum Setzen bzw. Hinzufügen von Textinhalten eines Elements. 
-Die beiden Anweisungen lauten 
+Finally there exist two commands for setting resp. adding text nodes.:
 
 *  `SetText` "Text"
 
-und
+and
 
 *  `AddText` "Text"
 
-Z.B. wird, wenn das betreffende Element in der geöffneten Elementmenge liegt, durch die Anweisung +
+E. g.  +
 `SetText "rtf"` +
-aus + 
+transforms the element  + 
 '<fileExtensions>doc<fileExtensions>' +
-das Element +
+into  +
 '<fileExtensions>rtf<fileExtensions>'
 
-Mit +
+By +
 `SetText ""` +
-wird der Text komplett entfernt.
+we remove the text node completely.
 
+The variant +
 `AddText "rtf"` +
-setzt analog wie bei anderen Add-Anweisungen den Text, sofern kein Text vorhanden ist -  existierender Text bleibt unberührt.
+sets the text only if there was no text node given. 
 
 [[opsi-winst-xmlpatch-return]]
-==== Rückgaben an das aufrufende Programm
+==== Returning Lists to the Caller
 
-Eine XMLPatch-Sektion kann angewiesen werden, String-Listen an das rufende Programm zurückzugeben. 
+A  XMLPatch section may return the retrieved informations to the calling primary section. The result always is a String list, and to get it, the call must done via the String list function `getReturnListFromSection`. E.g. we may have the following String list setting in an Actions section where we use a  XMLPatch_mime section
 
-Dazu muss sie in einer primären Sektion mit der String-Listen-Anweisung `getReturnListFromSection` aufgerufen werden. Die Anweisung kann in einem String-Listen-Ausdruck verwendet werden, z.B. das Ergebnis einer String-Listen-Variable zugewiesen werden. So kann in der XMLPatch_mime-Sektion stehen:
 [source,winst]
 ----
 DefStringList $list1$
 set $list1$=getReturnListFromSection ('XMLPatch_mime "c:\mimetypes.rdf"')
 ----
 
-Eine Return-Anweisung in der XMLPatch-Sektion regelt, welche Zeilen die XMLPatch-Sektion als Inhalt der String-Liste ermittelt:
+Inside the XMLPatch section we have `return` commands that determine the content of returned String list:
 
 *  `return elements`+ 
-Bewirkt, dass die ausgewählten Elemente komplett (Elementname und Attribute) ausgegeben werden.
+fills the selected elements completely (element name and attributes) into the return list.
 
 *  `return attributes` + 
-Erzeugt eine Liste der Attribute.
+produces a list of the attributes.
 
 *  `return elementnames` + 
-Listet die Elementnamen. 
+produces a list of the element names.
 
 *  `return attributenames`
-Produziert eine Liste der Attributnamen.
+gives a list only of the attribute names.
 
 *  `return text` +
-Listet die textlichen Inhalte der selektierten Elemente.
+list all textual content of the selected elements.
 
 *  `return counting` +
-Liefert eine Listenstruktur mit summarischen Informationen: In Zeile 0 steht die Anzahl aller ausgewählten Elemente, in Zeile 1 die Zahl aller Attribute. 
+gives a report with numerical informations: line 0 contains the number of selected elements, line 1 the number of attributes.
 
 [[opsi-winst-xmlpatch-examples]]
-==== Beispiele
+==== Examples
 
-Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
-und dort den Bereich '$Flag_winst_xml$ = "on"'
+For further examples see the product '{opsi-winst}-test'
+expecially the sector with '$Flag_winst_xml$ = "on"'
 
 
 [[opsi-winst-progman]]
-=== ProgmanGroups-Sektionen
+=== ProgmanGroups Sections
 
-Dieser Sektionstyp ist abgekündigt.
+This section type is deprecated.
 
 [[opsi-winst-winbatch]]
-=== WinBatch-Sektionen
+=== WinBatch-Sections
 
-In einer WinBatch-Sektion kann jedes Windows-Programm als Anweisung verwendet werden. Wie auch aus dem Windows Explorer heraus können Daten-Dateien, die mit einem Programm verknüpft sind, direkt aufgerufen werden. 
-
-Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
+In a WinBatch section any windows executable can be started. This includes that – as from Windows explorer –  a file of any type for which a program is registered can be directly called.
+E.g, we may start some existing setup program by the following line in a WinBatch section +
 [source,winst]
 ----
 [winbatch_install]
@@ -3347,38 +3351,37 @@ Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
 ----
 
 [[opsi-winst-winbatch-params]]
-==== Aufrufparameter (Modifier)
+==== Call Parameter (Modifier)
 
-Durch die Parameter des WinBatch-Aufrufs wird festgelegt, wie sich '{opsi-winst}' gegenüber den in der WinBatch-Sektion gestarteten Programmen verhält.
+There a several parameters of the  WinBatch call which determine if (or how long) wInst shall be wait for the started programs returning.
 
 *  `/WaitOnClose` +
-Default +
-{opsi-winst} wartet die Selbstbeendigung des angestoßenen Prozesses ab. Dieses Verhalten kann mit dem Parameter auch explizit definiert werden. 
+Is the default +
+wInst waits for every initiated process to come back. 
 
 *  `/LetThemGo` +
-Verschiebt den aufgerufenen Prozess in den Hintergrund und wartet *nicht* auf dessen Beendigung;
-d.h. das sofort die nächste Zeile der WinBatch-Sektion bzw. die nächste Zeile des übergeordneten Programms abgearbeitet werden.
+This is the contrary to `/WaitOnClose`. It is used if wInst shall proceed while the started processes run in their own threads.
 
-*  `/WaitSeconds` [AnzahlSekunden] +
-Die Parametrisierung /WaitSeconds [AnzahlSekunden] modifiziert das Verhalten dahingehend, dass '{opsi-winst}' jeweils erst nach [AnzahlSekunden] die Skriptbearbeitung fortsetzt. Die angegebene Zeit stoppt '{opsi-winst}' auf jeden Fall. In der Default-Einstellung wird zusätzlich auf das Ende der angestoßenen Prozesse gewartet. Ist letzteres nicht gewünscht, so kann der Parameter mit dem Parameter /LetThemGo kombiniert werden.
 
-*  `/WaitForWindowAppearing` [Fenstertitel] +
-bzw. +
-`/WaitForWindowVanish` [Fenstertitel] +
-Abgekündigt. Verwenden Sie `/WaitForProcessEnding` +
-Im 1. Fall wartet '{opsi-winst}' solange, bis ein Prozess, der sich durch ein mit [Fenstertitel] benanntes Fenster kenntlich macht, gestartet ist. Im 2. Fall wartet '{opsi-winst}' bis ein, mit [Fenstertitel] benanntes, Fenster auf dem Desktop erst einmal erscheint und dann auch wieder geschlossen wird. Auf diese Weise kann unter geeigneten Umständen geprüft werden, ob sekundäre, indirekt gestartete Prozesse sich beendet haben.
-+
-CAUTION: Diese Befehle erkennen nur Fenster von 32 Bit-Programmen.
+*  `/WaitSeconds` [number of seconds] +
 
+If we do the call with parameter /WaitSeconds [number of seconds] then wInst is waiting the specified time before proceeding. In the default configuration we additionally wait for the started programs returning.  If we combine the parameter with the option  /LetThemGo then wInst continues processing when the waiting time is finished.
+
+*  `/WaitForWindowAppearing` [window title] +
+resp. +
+`/WaitForWindowVanish` [window title] +
+Both are deprecated. Please use `/WaitForProcessEnding` +
+
+The first option means that  wInst waits until any process lets pop up a window with title window title. With the second option  wInst is waiting as long as  a certain window (1) appeared on the desktop and (2) disappeared again. +
+CAUTION: These options only know windows of 32-bit programms
  
 *  `/WaitForProcessEnding` <program name> +
-Wartet darauf, das sich der Prozess mit dem Namen <program name> beendet. +
-Kann und sollte mit `/TimeOutSeconds` kombiniert werden.
+Waits for the ending of the process with the name <program name>. +
+Should be combined with `/TimeOutSeconds`.
 
 *  `/TimeOutSeconds` <seconds> +
-Bricht eine Wartebedingung nach Ablauf von <seconds> ab, auch wenn die Wartebedingung noch nicht erfüllt ist. +
-Beispiel: 
-+
+A timeout setting. After <seconds> the process will be canceled . +
+Example: +
 [source,winst]
 ----
 Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
@@ -3387,40 +3390,43 @@ Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
 ----
 
 *  `getLastExitCode` +
-Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch Sektion aus.
+The String function getLastExitCode gives access to the ExitCode – or ErrorLevel – of the last process call in the preceding WinBatch section.
 
 [[opsi-winst-winbatch-examples]]
-==== Beispiele
+==== Examples
 
-Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
-und dort den Bereich '$Flag_winst_winbatch$ = "on"'
+For further examples see the product '{opsi-winst}-test'
+expecially the sector with '$Flag_winst_winbatch$ = "on"'
 
 [[opsi-winst-dosbatch]]
-=== DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sektionen
+=== DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sections
 
-DOSBatch-Sektionen (auch ShellBatch genannt) sollen in erster Linie dazu dienen, vorhandene Kommandozeilenroutinen für bestimmte Zwecke zu nutzen. '{opsi-winst}' wartet auf die Beendigung des DOS-Batch, bevor die nächste Sektion des Skripts abgearbeitet wird. 
+Via DOSBatch (also called  ShellBatch) sections a wInst script uses Windows shell scripts for tasks which cannot be fulfilled by internal commands or for which already a batch script solution exists.
 
-Eine DosBatch-Sektion wird bei der Abarbeitung des Skripts in eine temporäre Batch-Datei '_winst.bat' umgewandelt. Da die Datei in 'c:\tmp' angelegt wird, muss dieses Verzeichnis existieren und zugänglich sein. Die Batch-Datei wird dann in einem Kommando-Fenster mit cmd.exe als Kommando-Interpreter ausgeführt. Dies erklärt warum in einer DosBatch Sektion alle Windows Shell Kommandos verwendet werden können. 
+'{opsi-winst}' waits until the DOS-batch ends, before it is proceeding with the next script-section.   
+ 
+A DOSBatch section is simply processed by writing the lines of the sections into  the file _winst.bat in  c:\tmp and then calling this file in the context of  a cmd.exe shell. This explains that a DosBatch section may contain all Windows shell commands can be used. 
 
-Gegenüber dem Aufruf einer cmd-Datei per Winbatch-Sektion bietet die DosBatch Sektionen drei Vorteile:
 
-* In der Sektion vorhandene '{opsi-winst}' Variablen oder Konstanten werden vor der Ausführung durch Ihren Inhalt ersetzt und können so unkompliziert verwendet werden.
+Compared with calling a cmd-file in a WinBatch section, the DOSBatch section 
+presents certain advantages: +
 
-* Die Ausgaben des Aufrufs werden in der Logdatei abgespeichert.
+* '{opsi-winst}' variables or constants in the section can be easily used because they will be substituted before execution. 
 
-* Die Ausgaben des Aufrufs können einer String-Liste übergeben und weiterverarbeitet werden.
+* The output of the scripts is written to the log file.
 
-Der Sektionstyp DOSInAnIcon oder ShellInAnIcon ist identisch mit der betreffenden DOSBatch Syntax und ausführenden Methoden. Allerdings wird das aufgerufenen Fenster minimiert dargestellt.
+* The output of the shell commands can be captured by using the String list function.
 
-CAUTION: Verwenden Sie keine Kommandos, die auf Eingaben warten.
+The section type DOSInAnIcon or ShellInAnIcon is identical to DOSBatch regarding syntax and execution method but has a different appearance: +
+For DOSInAnIcon, a shell process is created with view set to minimized. That has the consequence that it is executed "in an icon". No command window appears, user interaction is suppressed.
+
+CAUTION: Don't use commands that wait for user interaction.
 
 [[opsi-winst-dosbatch-params]]
-==== Aufrufparameter
+==== Parameter
 
-Parameter des Aufrufs der DosBatch-Sektion in der Actions-Sektion werden unmittelbar als Parameter der Batch-Datei interpretiert. 
-
-Zum Beispiel bewirken die Anweisungen in Actions-Sektionen bzw. der Sektion
-DosBatch_1 :
+Parameters of  a  DosBatch section are directly passed as quasi command line parameters to the Windows shell script. + 
+E. g.  we may call DosBatch_1 in Actions section to get a "Hello World" from the DOS echo command:
 [source,winst]
 ----
 [Actions]
@@ -3432,32 +3438,34 @@ echo %1 %2 %3 %4
 pause
 ----
 
-die Ausführung des Dos-Batch-Befehls echo mit Parametern "Hello" und "World".
+the execution of the Dos-Batch command echo with parameters "Hello" and "World".
 
 [[opsi-winst-dosbatch-catchout]]
-==== Einfangen der Ausgaben
+==== Catch the output
 
-Sollen die Ausgaben, die von Befehlen einer DosBatch-Sektion kommen, aufgefangen werden, so geschieht dies mittels `getOutStreamFromSection ()` aus der Haupt-Sektion des {opsi-winst}-Skripts (siehe <<opsi-winst-stringlist-getstring,Kapitel "(Wieder-) Gewinnen von Einzelstrings aus String-Listen">>). 
+The output of the shell commands can be captured by using the string list function `getOutStreamFromSection()` from the {opsi-winst}-scripts main-section
+see also: +
+<<opsi-winst-stringlist-getstring>>). 
 
-Sollen die zurückgegebenen Strings weiterverarbeitet werden, so wird dringend geraten, vor den Befehlszeilen ein '@'-Zeichen zu verwenden bzw. die Kommandos mit '@echo off' zu beginnen. Dies unterdrückt die Ausgabe der Befehlszeile selbst, die je nach System anders formatiert sein kann. 
+If the return list shall be evaluated programmatically it is advised to use the '@' prefix of commands. Such we suppress the repetition of the command line in the output which may different formats dependent on system configurations. 
 
 [[opsi-winst-dosbatch-examples]]
-==== Beispiele
+==== Examples
 
-Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
-und dort den Bereich '$Flag_winst_dos$ = "on"'
+For further examples see the product '{opsi-winst}-test'
+and there look at '$Flag_winst_dos$ = "on"'
 
 [[opsi-winst-registry]]
-=== Registry-Sektionen
+=== Registry-Sections
 
-Diese Funktion ist nur unter Windows verfügbar.
+Of course, this section type is only available for Windows.
 
-Registry-Sektionen dienen dem Erzeugen und Patchen von Einträgen in der Windows-Registrierdatenbank, wobei die Eintragungen mit dem {opsi-winst}-üblichen Detaillierungsgrad protokolliert werden. 
+By a Registry section call we can create, patch and delete entries in the Windows registry. As usual, wInst logs every operation in detail as long as logging is not turned off. 
 
 [[opsi-winst-registry-examples]]
-==== Beispiele
+==== Examples
 
-Man kann eine Registry-Variable setzen indem man die Sektion mit Registry_TestPatch aufruft, wo sie dann wie folgt angegeben ist
+Let us set some registry variables by a call to the section  Registry_TestPatch where the section is given by
 [source,winst]
 ----
 [Registry_TestPatch]
@@ -3466,41 +3474,42 @@ set "Testvar1"  = "c:\rutils;%Systemroot%\hey"
 set "Testvar2" = REG_DWORD:0001
 ----
 
-Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
-und dort den Bereich '$Flag_subregistry$ = "on"'
+For further examples see the product '{opsi-winst}-test'
+and there look at '$Flag_subregistry$ = "on"'
 
 [[opsi-winst-registry-params]]
-==== Aufrufparameter
+==== Call Parameters
 
-* Die Standardform der Registry-Sektionen ist unparametrisiert. Dies genügt, weil auf dem Windows-PC nur eine einzige Registrierdatenbank gibt und somit das globale Ziel der Bearbeitung feststeht.
+* The standard call of a Registry section has no parameters. This is sufficient as long as the operations aim at the standard registry of a Windows system and all entries can be defined using a globally defined registry path.
 
 *  `/AllNTUserDats` +
-Es gibt jedoch die Möglichkeit, dass die Patches einer Registry-Sektion automatisch für "alle NT User", entsprechend den verschiedenen User-Zweigen der Registry, vorgenommen werden. Das entsprechende Verfahren bei der Abarbeitung der Sektion wird mit dem Parameter `/AllNTUserDats` aufgerufen.
+wInst also offers that the patch commands of a Registry section are automatically executed "for all users" which are locally defined. I.e. the patches are made for all user branches of the local registry. This interpretation of the section is evoked by the parameter  /AllNTUserDats
 
-Außerdem kontrollieren Parameter mit welchen syntaktische Varianten Registry-Sektionen angefordert werden kann:
+Further parameters control which syntactical variant of the Registry section shall be valid:
 
 *  `/regedit` +
-Wird das Registry-Kommando mit dem Parameter `/regedit` verwendet, so kann der Export eines Registry-Teilzweiges mit dem Programm, der mit dem gewöhnlichen Windows-Registry-Editor regedit erstellt wurde, direkt als Eingabedatei für Registry dienen (vgl. Abschnitt  <<opsi-winst-registry-regedit,"Registry-Sektionen im Regedit-Format">>).
+The parameter `/regedit` declares that the syntax corresponds the export file syntax of the Windows Registry Editor regedit. Such, the lines of a regedit export file may directly be used as a Registry resp. the file itself can serve as an external section (see <<opsi-winst-registry-regedit>>).
 
 *  `/addReg` +
-Eine weitere Variante des Registry-Aufrufs dient dazu, die Patch-Anweisungen für die Registry zu verarbeiten, die im inf-Datei-Standard erstellt sind. Zur Kennzeichnung dient der Parameter /addReg (in Anlehnung an die entsprechende Abschnittsbezeichnung in einer inf-Datei)(vgl. Abschnitt <<opsi-winst-registry-addreg,"Registry-Sektionen im AddReg-Format">>).
+Similarly, the parameter  /addReg declares that the Registry section syntax is that of an inf-file (as used e.g. for driver installations)
+(see <<opsi-winst-registry-addreg>>).
 
-Diese nicht '{opsi-winst}' spezifischen syntaktischen Varianten sind im Handbuch nicht beschrieben, da sie normalerweise automatisch generiert werden.
+These not wInst specific syntactical variants are not defined in this manual since they usually will be generated programmatically.
 
-Weiterhin gibt es die Aufrufparameter,
+There are also the Options:
 
 *  `/32Bit` +
 *  `/64Bit` +
 *  `/SysNative` +
 
-welche auf 64 Bit-Systemen das Schreiben in den 32 Bit- bzw. 64 Bit-Zweig der Registry beeinflusst (siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>).
+which manipulate the 'registry write redirection' on 64 Bit systems. (see <<opsi-winst-64bit>>).
 
 [[opsi-winst-registry-commands]]
-==== Kommandos
+==== Commands
 
-Die Syntax der Defaultform einer Registry-Sektion ist an der Kommandosyntax anderer Patchoperationen des '{opsi-winst}' orientiert.
+The default syntax of a Registry section is oriented at the command syntax of other patch operations in wInst.
 
-Es existieren die Anweisungen:
+There exist the following commands:
 
 *  `OpenKey`
 
@@ -3523,74 +3532,71 @@ Es existieren die Anweisungen:
 *  `Flushkey`
 
 
-Im Detail:
+In detail:
 
-*  `OpenKey` <Registryschlüssel> +
-Öffnet den bezeichneten Schlüssel in der Registry zum Lesen (und wenn der eingeloggte User über die erforderlichen Rechte verfügt zum Schreiben); existiert der Schlüssel noch nicht, wird er erzeugt.
+*  `OpenKey` <registry key> +
+opens the specified key for reading and (if the user has the necessary privileges) for writing. If the key does not exist it will be created.
 
-Registry-Schlüssel sind ja hierarchisch organisierte Einträge Registrierungsdatenbank. Die hierarchische Organisation drückt sich in der mehrstufigen Benennung aus: Für die oberste (Root-) Ebene können standardmäßig insbesondere die "high keys" 'HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS' und 'HKEY_CURRENT_CONFIG' verwendet werden. Gebräuchliche Abkürzungen sind 'HKCR, HKCU, HKLM' und 'HKU'.
+The registry key is denoted by a registry path name. Under regular circumstances it starts with one of the "high keys" which build the top level of the registry tree data structure (above the "root" ). These are:
+'HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS, HKEY_CURRENT_CONFIG'  which may optionally be written as 'HKCR, HKCU, HKLM, HKU'. 
 
-In der '{opsi-winst}' Syntax bei den Registry-Pfaden werden die weiteren folgenden Ebenen jeweils durch einen Backslash getrennt.
+In  wInst syntax of the registry path name, the elements of a path are separated by single backslashs.
 
-Alle anderen Kommandos arbeiten mit einem geöffneten Registry-Key.
+All other commands operate on an opened registry key.
 
-*  `Set` <Varname> = <Value> +
-setzt die durch <Varname> bezeichnete Registry-Variable auf den Wert <Value>, wobei es sich sowohl bei <Varname> als auch bei <Value> um Strings handelt, die in Anführungszeichen eingeschlossen sind. Existiert die Variable noch nicht, wird sie erzeugt. Es gibt auch den Leerstring als Variablenname; dieser entspricht dem "(Standard)"-Eintrag im  Registry-Schlüssel.
+*  `Set` <varname> = <value> +
+sets the registry variable  <varname> to value  <value>.
+<varname> as well as  <value> are strings and have to be enclosed in citations marks. A non-existing variable will be created. 
+The empty variable "" denotes the standard entry of a registry key.
 
-Soll eine Registry-Variable erzeugt oder gesetzt werden, die nicht den Defaulttyp "Registry-String" (REG_SZ), muss die erweiterte Form der Set-Anweisung verwendet werden:
+If some registry variable shall be created or set which has not the default type Registry-String (REG_SZ) we have to use the extended variant of the `Set` command:
 
-*  `Set` <Varname> = <Registrytyp>:<Value> + 
-Setzt die durch <Varname> bezeichnete Registry-Variable auf den Wert <Value> des Typs <Registrytyp>. Es werden folgende Registry-Typen interpretiert:
+*  `Set` <varname> = <registry type>:<value> + 
+sets the registry variable  <varname> to value  <value> of type <registry type>.  The following registry types are supported:
 
-'REG_SZ'::: (String)
+'REG_SZ'::: (string)
 
-'REG_EXPAND_SZ'::: (ein String, der vom System zu expandierende Teilstrings wie %Systemroot% enthält)
+'REG_EXPAND_SZ'::: (a string containing substrings which the operating system shall expand e.g.)
 
-'REG_DWORD'::: (ganzzahlige Werte)
+'REG_DWORD'::: (integer values)
 
-'REG_BINARY'::: (binäre Werte, in zweistelligen Hexadezimalen, d.h. 00 01 02 .. 0F  10 .., notiert)
+'REG_BINARY'::: (binary values usually given as two-digit hex numbers  00 01 02 .. 0F  10 .., notiert)
 
-'REG_MULTI_SZ'::: (Arrays von String-Werten, die in {opsi-winst}-Syntax durch das Zeichen "|" getrennt werden;
-+
-Beispiel für REG_MULTI_SZ:
+'REG_MULTI_SZ'::: (string value arrays, in wInst we have to use "|" as separator) +
+An example for setting a  REG_MULTI_SZ: +
 [source,winst]
 ----
 set "myVariable" = REG_MULTI_SZ:"A|BC|de"
 ----
 
-Wenn ein Multi-String zunächst zusammengestellt werden soll, kann dies zeilenweise in einer Datei geschehen, die man dann mit Hilfe der Anweisung GetMultiSZFromFile (s.u.) einliest. 
+To construct a multistring we may put the strings as lines in a file and read it using  `GetMultiSZFromFile` (cf. below). 
 
-*  `Add` <Varname> = <Value>
+*  `Add` <varname> = <value>
 +
-bzw.
+resp.
 +
-`Add` <Varname> = <Registrytyp> <Value> +
-arbeitet analog zu Set mit dem Unterschied, dass nur Variablen hinzugefügt, Einträge für bestehende Variablen nicht verändert werden.
+`Add` <varname> = <registry type> <value> +
+are analogous to the `Set` commands with the difference that entries are only added but values of existing variables not changed.
 
-*  `Supp` <Varname> <Listenzeichen> <Supplement> +
-Dieses Kommando liest den String-Wert der Variablen <varname>, einer Liste aus Werten, die separiert werden durch <Listenzeichen> und den String <supplement> zu dieser Liste (wenn sie noch nicht enthalten sind), aus. Wenn  <supplement> die <separator> enthält, können mit diesen Listenzeichen die Einträge in einzelne Strings unterteilt werden und die Prozedur wird für jeden Teilstring angewendet.
+*  `Supp` <varname> <list separator> <supplement> +
+This command interprets the string value of variable  <varname>, a list of values separated by <list separator> and adds the string <supplement> to this list (if it not already contained). If  <supplement> contains the <listset_user_Rhino.reg separator> it is split into single strings, and the procedure is applied to each single string. +
+A typical use is adding entries to a path variable (which is defined in the registry). +
+`Supp` keeps the original string variant (REG_EXPAND_SZ or REG_SZ). +
+
+Example: +
+The environment Path is determined by the value for the variable Path as defined inside the registry key
 +
-Eine typische Verwendung ist der Eintrag zu einer Pfadvariablen, die in der Registry definiert ist. 
+'KEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
 +
-Supp behält den ursprünglichen Stringtyp (REG_EXPAND_SZ bzw. REG_SZ) bei.
-+
-Beispiel:
-+
-Der allgemeine Systempfad wird festgelegt durch den Eintrag der Variable Path im Registrierschlüssel
-+
-'KEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environmen'
-+
-Wenn dieser Schlüssel mit OpenKey geöffnet ist, kann mit der Anweisung
+To add some entries to the path definition we have to get access to this key via an  OpenKey. Then we can apply e.g.
 +
 `supp "Path" ; "C:\utils;%JAVABIN%"`
 +
-der Pfad ergänzt werden, um die Einträge '"C:\utils"' sowie '"%JAVABIN%"'.
+in order to supplement the path by '"C:\utils"' and '"%JAVABIN%"'.
 +
-(Weil der Registry-Eintrag für den Systempfad den Datentyp REG_EXPAND_SZ hat, expandiert Windows %JAVABIN% automatisch zum entsprechenden Verzeichnisnamen, falls %JAVABIN% ebenfalls als Variable definiert ist).
+(Windows expands  %JAVABIN% to the correct path name if  %JAVABIN% exists as variable and the String is a REG_EXPAND_SZ.)
 +
-Unter Win2k ist das Phänomen zu beobachten, dass sich der path-Eintrag nur per Skript auslesen (und dann patchen) lässt, wenn vor dem Lesen ein Wert gesetzt wird.
-+
-Der alten Wert von Path wird aus der Umgebungsvariable auslesen, wieder in die Registry zurückgeschrieben und dann ist es möglich mit der Registry-Variablen zu arbeiten.
+Whom read the old value of Path from the environment variable, write this value to the registry value - and are then able to work with the registry variable:
 +
 [source,winst]
 ----
@@ -3605,33 +3611,34 @@ set "Path"="$Path$"
 supp "Path"; "c:\orawin\bin"
 ----
 +
-CAUTION: Nach dem Patchen des Registry-Path enthält die Umgebungsvariable Path den veränderten Wert erst nach einem Reboot.
+CAUTION: The environment variable gets a changed value after a reboot.
 
-*  `GetMultiSZFromFile` <Dateiname> +
-Liest eine Datei zeilenweise in einen Multistring ein.
+*  `GetMultiSZFromFile` <varname> <filename> +
+reads the lines of a file and puts them together building a Multistring.
 
 *  `SaveValueToFile` <varname> <filename> +
-Exportiert die genannten Werte (String oder MultiSZ) in die Datei <filename> 
+exports the referred (String or MultiSZ) value as file <filename> lines (each String forming a line).
 
 *  `DeleteVar` <Varname> +
-Löscht den Eintrag mit Bezeichnung <Varname> aus dem geöffneten Schlüssel.
+removes the entry  with variable <varname> from the opened key.
 
 *  `DeleteKey` <Registryschlüssel> +
-Löscht den Registry-Key rekursiv samt aller Unterschlüssel und den enthaltenen Registry-Variablen und -Werten. Zur Syntax, in der der Registrierschlüssel angegeben wird, vgl. OpenKey. 
+deletes the registry key recursively including all subkeys and contained variables. The registry key is defined as for OpenKey.
 +
-Beispiel:
+Example:
 +
 [source,winst]
 ----
-[Registry_KeyLoeschen]
+[Registry_Keydel]
 deletekey [HKCU\Environment\subkey1]
 ----
 
-*  `ReconstructFrom` <Dateiname> +
-(abgekündigt)
+*  `ReconstructFrom` <filename> +
+(deprecated)
 
 *  `FlushKey` +
-Sorgt dafür, dass die Einträge des Schlüssels nicht mehr nur im Speicher gehalten, sondern auf die Platte gespeichert werden (geschieht automatisch beim Schließen eines Keys, insbesondere beim Verlassen einer Registry-Sektion).
+ensures that all entries of a key are saved on hard drive, not only in memory (is automatically done when closing a key, therefore in particular when a registry section is left).
+
 
 [[opsi-winst-registry-allntuser]]
 ==== Registry-Sektionen, die `alle NTUser.dat` patchen
