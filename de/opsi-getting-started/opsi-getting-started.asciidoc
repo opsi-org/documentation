@@ -1395,44 +1395,92 @@ Sie können das ISO brennen oder z.B. mit Deamon Tools mounten und dann installi
 
 Die Befehle für 32- und 64-Bit sind nahezu identisch, nur müssen die Einträge *<ARCH>* mit entweder *x86* , *amd64* oder *ia64* ersetzt werden.
 
-. Erstellen einer WinPE Umgebung: +
+* Erstellen einer WinPE Umgebung: +
 Als Administrator die Eingabeaufforderung starten (Start => Programme => Zubehör =>mit rechter Maustaste auf "Eingabeaufforderung" => Ausführen als ... => Administrator) und folgenden Befehl eingeben:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
 ----
 
-. Image bearbeiten: +
+* Image bearbeiten: +
 Als Administrator die Eingabeaufforderung starten und folgenden Befehl eingeben:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
 ----
 
-Nächstes Kommando:
+* Nächstes Kommando:
 [source,prompt]
 ----
 echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
 ----
 (Hinweis: `c:\opsi\startnet.cmd` wird vom opsi-linuxbootimage in der `setup.py` erstellt nebst dem oben entfernten wpeinit-Aufruf).
 
-Nächstes Kommando:
+* Nächstes Kommando:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
 ----
 
-Nächstes Kommando:
+* Nächstes Kommando:
 [source,prompt]
 ----
 move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
 ----
 
-. Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/opt/pcbin/install/win7/` bzw. `/opt/pcbin/install/win2008` kopieren, Rechte anpassen (z.B.):
+* Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/opt/pcbin/install/win7/` bzw. `/opt/pcbin/install/win2008` kopieren. +
+Rechte anpassen (z.B.):
 [source,prompt]
 ----
 opsi-setup --set-rights /opt/pcbin/install/win7/winpe
 ----
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-extendpe]]
+===== Erweiterung eines PE
+
+Manchmal ist es sehr nützlich, dass Windows PE zu erweitern. Besonders bei Dell-Hardware gibt es spezielle Netzwerk- und Storage-Treiber, die speziell für den PE-Einsatz empfohlen werden. Folgende Anleitung beschreibt, wie man ein PE mit Treibern erweitern kann. Diese Anleitung funktioniert nur mit Windows 7. (Windows Vista beinhaltet nicht das benötige dism - Deployment Image Servicing and Management.)  Weiterhin setzt diese Anleitung vorraus, dass die Schritte im vorigen Kapitel zum erstellen des PE ausgeführt wurden. 
+
+NOTE: Windows Automated Installation Kit wird für folgende Schritte nicht benötigt.
+
+Herunterladen von Dell-PE-Treibersammlung. Bitte beachten, dass für Windows 7 die WINPE 3.0 Treiber benötigt werden. Die heruntergeladene CAB-Datei muss nun lokal ausgepackt werden. Dies kann man mit 7zip oder aber mit dem Kommandozeilentool expand erledigen. Für die Übersichtlichkeit wird empfohlen ein Verzeichnis wie zum Beispiel dell-driver auf C: an zu legen und die CAB-Datei dort aus zu packen.
+
+* Nun wird zunächst das Image untersucht. Als Administrator die Eingabeaufforderung starten (Start => Programme => Zubehör =>mit rechter Maustaste auf "Eingabeaufforderung" => Ausführen als ... => Administrator) und folgenden Befehl eingeben:
+[source,prompt]
+----
+dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
+----
+
+Aus der Ausgabe des Befehls braucht man für den nächsten Schritt den Index. Da in der Regel ein winpe aus einem einzigen Image besteht, sollte in der Regel der Index 1 immer funktioneren.
+
+* Mit folgendem Befehl wird das Image gemountet:
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* Nun wird das PE mit den dafür ausgepackten Treibern erweitert:
+[source,prompt]
+----
+dism /Image:C:\winpe\mount  /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
+----
+
+Für 32-Bit muss das `x64` durch `x86` ersetzt werden. Die Driver-CAB von Dell beinhaltet die Treiber für beide Architekturen.
+
+NOTE: Wenn man nur einen Treiber integrieren möchte, kann man die Option `/Recurse` weglassen und statt ein Verzeichniss direkt die inf-Datei des Treibers angeben. Weiterhin ist es möglich mit dem Parameter `/ForceUnsigned` auch nicht signierte Treiber in ein PE zu integrieren.
+
+* Zum Schluss wird das Image wieder ausgehängt und die Änderungen übernommen:
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/opt/pcbin/install/win7/` bzw. `/opt/pcbin/install/win2008` kopieren. + 
+Rechte anpassen (z.B.):
+[source,prompt]
+----
+opsi-setup --set-rights /opt/pcbin/install/win7/winpe
+----
+
 
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-unattend]]
 ===== unattend.xml

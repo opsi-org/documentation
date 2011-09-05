@@ -1428,41 +1428,86 @@ What you get is a ISO file, which may be burned to CD or mounted by a virtual ma
 
 Console commands for creating a Windows PE in 32- or 64-bit versions are nearly the same, except for the *<ARCH>* entries below. These have to be set to either *x86* , *amd64* or *ia64*.
 
-. Creating an environment: +
+* Creating an environment: +
 Start a terminal as administrator (Start => Programs => Accessories => right click on „Command Prompt“ => Run as… => Administrator) and run the following command:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
 ----
 
-. Prepare Image for opsi: +
+* Prepare Image for opsi: +
 Start a terminal as administrator and run the following command (in one line):
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
 ----
 
-next command (again in one line):
+* next command (again in one line):
 [source,prompt]
 ----
 echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
 ----
 (Remark: The file `startnet.cmd` will be created by the opsi linux boot image by executing the script `setup.py`. The `startnet.cmd` contains the call to wpeinit.)
 
-next command (again in one line):
+* next command (again in one line):
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
 ----
 
-next command (again in one line):
+* next command (again in one line):
 [source,prompt]
 ----
 move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
 ----
 
-. Copy the directory `C:\winpe\ISO` with the target name `winpe` to `/opt/pcbin/install/win7/` respectively `/opt/pcbin/install/win2008`.
+* Copy the directory `C:\winpe\ISO` with the target name `winpe` to `/opt/pcbin/install/win7/` respectively `/opt/pcbin/install/win2008`. +
+Adjust the file access rights (e.g.): 
+[source,prompt]
+----
+opsi-setup --set-rights /opt/pcbin/install/win7/winpe
+----
 
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-extendpe]]
+===== Extending a PE
+
+In some cases it is useful to extend a PE. Especially by using Dell-Hardware. Dell provides special network and storage drivers for using in PE. These instruction only works with Windows 7. (Windows Vista don't inherits needed dism - Deployment Image Servicing and Management.) These instruction have the precondition, that you have followed the chapter "Creating a PE".
+
+NOTE: Windows Automated Installation Kit is not needed for following instructions.
+
+First you have to download Dell-PE-drivers from the Dell-Website. You need for Windows 7 the WINPE 3.0 Drivers from Dell. The downloaded CAB-File must be extracted to localdisk. These can be done with 7zip or the commandlinetool expand. For reasons of clarity it is recommended to create a directory "dell-driver" on localdisk and extract the CAB-File in this directory.
+
+* To determine the needed index number from the image you can scan the image. Normally a PE-image is a one-image-file, so you can use the index 1, but it is better to check these first. Start a terminal as administrator (Start => Programs => Accessories => right click on „Command Prompt“ => Run as… => Administrator) and run the following command:
+[source,prompt]
+----
+dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
+----
+
+In the output from these command you can see, which images are included in the imagefile.
+
+* The next command mounts the image for modification:
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* To integrate the extraced drivers in the mounted image you need to execute this command:
+[source,prompt]
+----
+dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
+----
+
+If the architecture is 32Bit, the `x64` must be replaced with `x86`. The Driver-CAB from Dell inherits drivers for both architectures.
+
+NOTE: If only one driver have to be integrated, leave the option `/Recurse` away and point the driver-inf-File directly instead of the driver-directory. With the option `/ForceUnsigned` it is possible to integrate unsigned drivers to the image.
+
+* At least the image must be unmounted and the changes have to be commited:
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Copy the directory `C:\winpe\ISO` with the target name `winpe` to `/opt/pcbin/install/win7/` respectively `/opt/pcbin/install/win2008`. +
 Adjust the file access rights (e.g.): 
 [source,prompt]
 ----
