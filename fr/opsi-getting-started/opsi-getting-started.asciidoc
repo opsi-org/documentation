@@ -1428,41 +1428,86 @@ Ce que vous obtenez est un fichier ISO, qui pourra être gravés sur CD ou mont�
 
 Les commandes pour créer un Windows PE dans la version 32- or 64-bit sont presque les mêmes, sauf pour les entrées *<ARCH>* ci-dessous. Ceux-ci doivent être soit *x86* , *amd64* ou *ia64*.
 
-. Créer un environnement: +
+* Créer un environnement: +
 Ouvrez un terminal en tant qu'administrateur (Start => Programs => Accessories => clic droit sur „Command Prompt“ => Run as… => Administrator) et exécutez la commande suivante:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
 ----
 
-. Préparer l'image pour opsi: +
+* Préparer l'image pour opsi: +
 Ouvrez un terminal en tant qu'administrateur et exécutez la commande suivante (sur une seule ligne):
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
 ----
 
-commande suivante (de nouveau dans une seule ligne):
+* commande suivante (de nouveau dans une seule ligne):
 [source,prompt]
 ----
 echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
 ----
 (Remarque: Le fichier `startnet.cmd` sera créé par l'image de démarrage linux de OPSI en exécutant le script `setup.py`. Le fichier `startnet.cmd` contient l'appel pour wpeinit.)
 
-commande suivante (de nouveau dans une seule ligne):
+* commande suivante (de nouveau dans une seule ligne):
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
 ----
 
-commande suivante (de nouveau dans une seule ligne):
+* commande suivante (de nouveau dans une seule ligne):
 [source,prompt]
 ----
 move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
 ----
 
-. Copiez le répertoire `C:\winpe\ISO` avec les nom de destination `winpe` dans `/opt/pcbin/install/win7/` respectivement `/opt/pcbin/install/win2008`.
+* Copiez le répertoire `C:\winpe\ISO` avec les nom de destination `winpe` dans `/opt/pcbin/install/win7/` respectivement `/opt/pcbin/install/win2008`.
+Régler les droits d'accès au fichier (par exemple):
+[source,prompt]
+----
+opsi-setup --set-rights /opt/pcbin/install/win7/winpe
+----
 
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-extendpe]]
+===== Extension d'un PE
+
+Dans certains cas, il est utile de étendre un PE. Surtout en utilisant du matériel Dell. Dell fournit des pilotes réseaux et stockage spéciaux pour l'utilisation en PE. Ces instructions ne fonctionne qu'avec Windows 7. (Windows Vista ne hérite pas le nécessaire dims- Deployment Image Servicing and Management.) Ces instructions ont la condition préalable, que vous avez suivi le chapitre "Créer un PE".
+
+NOTE: Windows Automated Installation Kit n'est pas nécessaire pour les instructions suivantes.
+
+D'abord vous devez télécharger les Dell-PE-drivers à partir du site web de Dell. Vous avez besoin pour Windows 7 des pilotes WINPE 3.0 de Dell. Le fichier CAB téléchargé doit être extrait sur le disque local. Ceux-ci peut être fait avec 7zip ou l'expansion commandlinetool. Pour des raisons de clarté, il est recommandé de créer un répertoire "dell-driver" sur le disque local et extraire le fichier CAB dans ce répertoire.
+
+* Pour déterminer le numéro d'index nécessaire de l'image vous pouvez scanner l'image. Normalement, une image PE est un seul fichier, vous pouvez donc utiliser l'indice 1, mais il est préférable de vérifier d'abord. Démarrer un terminal en tant qu'administrateur (Start => Programs => Accessories => clic droit sur „Command Prompt“ => Run as… => Administrator) et exécutez la commande suivante:
+[source,prompt]
+----
+dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
+----
+
+Dans la sortie de cette commande, vous pouvez voir, quelles images sont incluses dans le fichier image.
+
+* La commande suivante monte l'image pour la modification:
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* Pour intégrer les pilotes extraits dans l'image montée, vous devez exécuter cette commande:
+[source,prompt]
+----
+dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
+----
+
+Si l'architecture est 32Bit, le `x64` doit être remplacé par `x86`. Le pilote-CAB de Dell hérite des pilotes pour les deux architectures.
+
+NOTE: Si un seul pilote doit être intégré, laissez l'option `/Recurse` à l'écart et pointez le fichier inf du pilote directement au lieu du répertoire du pilote. Avec l'option `/ForceUnsigned` il est possible d'intégrer des pilotes non signés à l'image.
+
+* Pour finir, l'image doit être démonté et les changements doivent être commités:
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Copiez le répertoire `C:\winpe\ISO` avec le nom `winpe` dans `/opt/pcbin/install/win7/` respectivement `/opt/pcbin/install/win2008`. +
 Réglez les droits d'accès du fichier (par exemple): 
 [source,prompt]
 ----
