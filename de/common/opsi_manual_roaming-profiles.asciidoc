@@ -66,20 +66,14 @@ Im Rahmen des User Logins wird der '{opsi-winst}' gestartet aber in einem Spezie
 * Ausführen der Scripte mit administrativen Rechten aber im Userkontext +
 Domain Login Scripte werden vom User mit user Rechten ausgeführt. Die opsi 'userLoginScripte' werden vom '{opsi-winst}' ausgeführt, welcher mit administrativen Rechten läuft. Gleichzeitig begibt sich der '{opsi-winst}' aber in den Kontext des Users der sich eingelogged hat, so dass die Manipulation der Profile mit den selben Befehlen durchgeführt werden kann, wie in einem Domain Loginscript.
 
-* Beschränkung der auszuführenden Scripte auf die tatsächlich notwendigen: +
-Logged sich ein Anwender auf einer Maschine ein, so wird ermittelt für welche Produkte gleichzeitig die folgenden Bedinungen erfüllt sind: +
-** das Produkt ist auf dem aktuellen Rechner erfolgreich (last result = success) installiert (lastaction = setup) oder deinstalliert (lastaction = uninstall) worden. +
-** für das Produkt gibt es eine UserLoginScript +
- +
-Nur wenn beide Bedingunen zutreffen, wird das 'userLoginScript' auch ausgeführt.
 
 [[opsi-manual-roamingprofiles-winst]]
 === Neue und erweiterte '{opsi-winst}' Funktionen
  
-* Aufrufparameter `/loginscripts` +
-Wird der '{opsi-winst}' im opsi-service Kontext mit dem zusätzlichen Parameter '/loginscripts' aufgerufen, so hat das im wesentlichen folgende Auswirkungen:
+* Aufrufparameter `/allloginscripts` +
+Wird der '{opsi-winst}' im opsi-service Kontext mit dem zusätzlichen Parameter '/allloginscripts' aufgerufen, so hat das im wesentlichen folgende Auswirkungen:
 
-** Es werden die Produkte ermittelt welche ein 'userLoginScript' haben und gleichzeitig auf der aktuellen Maschine installiert oder deinstalliert worden sind. Nur für diese Produkte werden die 'userLoginScripte' ausgeführt.
+** Es werden die Produkte ermittelt welche ein 'userLoginScript' haben. Nur für diese Produkte werden die 'userLoginScripte' ausgeführt.
 
 ** Es wird der user der sich eingelogged hat ermittelt und dafür gesorgt, dass die Konstanten zum aktuellen User wie z.B. +%CurrentAppdataDir%+ auf die entsprechenden Verzeichnisse des eingeloggten user zeigen. Ebenso werden Registry Operationen (`Registry` Sektionen und `GetRegistryString`) welche sich auf +HKCU+ beziehen, so ausgeführt, das die Daten aus dem Registryzweig des Users kommen.
 
@@ -90,18 +84,21 @@ Der Aufrufparameter `/silent` sorgt dafür, das während der Scriptabarbeitung d
 Um innerhalb eines Scriptes zu unterscheiden in welchem Modus das Script gerade ausgeführt wird, liefert die Funktion `GetScriptMode` drei mögliche Werte zurück:
 ** 'Machine' +
 Das Script wird *nicht* als 'userLoginScript' ausgeführt (sondern z.B. als setup oder uninstall Script).
-** 'LoginSetup' +
-Das Script wird als 'userLoginScript' ausgeführt und zwar weil das entsprechende Produkt den Reportstatus 'success (setup)' hat, also zuletzt erfolgreich auf dieser Maschine installiert wurde.
-** 'LoginUninstall' +
-Das Script wird als 'userLoginScript' ausgeführt und zwar weil das entsprechende Produkt den Reportstatus 'success (uninstall)' hat, also zuletzt erfolgreich auf dieser Maschine deinstalliert wurde.
+** 'Login' +
+Das Script wird als 'userLoginScript' ausgeführt.
 
 * Registry Sektionen +
 ** Registry Sektionen welche auf 'HKCU' bzw. 'HKEY_CURRENT_USER' arbeiten werden lim Loginscript mode so ausgeführt, dass die Änderungen im Zweig des eingeloggten users landen. Entsprechendes gilt für die Funktionen `GetRegistryStringValue*`.
 ** Registry Sektionen welche im Normalen Modus ('Machine') mit dem Modifier '/AllNtUserDats' aufgerufen werden, dürfen jetzt in der `openkey` Anweisung den Root 'HKCU' bzw. 'HKEY_CURRENT_USER' enthalten. Dies ermöglicht es die selbe Registry Sektion in den unterschiedlichen Modi auszuführen.
 
+* Vermeidung unnötiger Läufe: +
+Mit den Befehl `saveVersionToProfile` kann im aktuelle Profil hinterlegt werden, das das userLoginscript zu diesem Produkt in dieser Version gelaufen ist. Mit der Stringfunktion `readVersionFromProfile` bzw. der boolschen Funktion `scriptWasExecutedBefore` kann überprüft werden ob das userLoginscript zu diesem Produkt in dieser Version schonmal zuvor gelaufen ist und eine erneute ausführung unnötig ist. Weiterhin liefert die Stringlistenfunktion `getProductMap` eine Infomap aus der entnommen werden kann ob das aktulelle Produkt installiert oder deinstalliert usw. ist.
+
 * Logging +
 Die Logs von userLoginScripten werden geschrieben nach: +
-`c:\opsi.org\log\<login user name>_login.log`
+`c:\opsi.org\log\<login user name>_login.log` +
+Diese Logdateien werden auch an den opsi-server übertragen. Dabei wird eine neue Logdatei an eine existierende angehängt. Der opsi-server sorgt dafür, dass diese Dateien in der Größe beschränkt bleiben (max. 5 MB). Auf dem opsi server liegen diese logs unter +/var/log/opsi/userlogin/<clientid>.log+ +
+Im opsi Managementinterface (opsi-configed) werden diese Logs in einem zusätzliche Untertab in dem Tab 'Logdateien' angezeigt.
 
 [[opsi-manual-roamingprofiles-scripts]]
 === Beispiele von Userloginscripten
@@ -155,13 +152,13 @@ Als nächstes zeigen wir ein Beispiel welches das erste erweitert um die Möglic
 [Actions]
 Message "Example Profile Patch ...."
 
-if GetScriptMode = "LoginSetup"
+if getValue("installationstate", getProductMap) = "installed"
 	comment "Product is installed"
 	Files_profile_copy
 	Registry_currentuser_set
 endif
 
-if GetScriptMode = "LoginUninstall"
+if getValue("lastactionrequest", getProductMap) = "uninstall"
 	comment "Product was uninstalled"
 	Files_profile_del
 	Registry_currentuser_del
@@ -219,8 +216,8 @@ if GetScriptMode = "Machine"
 	Files_profile_copy /AllNtUserProfiles
 endif
 
-if GetScriptMode = "LoginSetup"
-	comment "Product is installed"
+if GetScriptMode = "Login"
+	comment "login part"
 	Files_profile_copy
 	Registry_currentuser_set
 endif
@@ -253,7 +250,7 @@ if GetScriptMode = "Machine"
 	Files_profile_del /AllNtUserProfiles
 endif
 
-if (GetScriptMode = "LoginSetup") or (GetScriptMode = "LoginUninstall") 
+if GetScriptMode = "Login" 
 	comment "The profile part ..."
 	Files_profile_del
 	Registry_currentuser_del
@@ -269,36 +266,20 @@ del -s -f "%UserProfileDir%\Appdata\ACME"
 deletekey [HKCU\Software\ACME]
 ----
 
-Nun eine Variante, welche sich in der Registry merkt ob das Skript für dieses Produkt in dieser Version und diesen User schon mal ausgeführt wurde.
+Nun eine Variante, welche sich im Profil merkt ob das Skript für dieses Produkt in dieser Version und diesen User schon mal ausgeführt wurde.
 
 [source,winst]
 ----
 [Actions]
-DefVar $mytmpreg$
-DefVar $myScriptMode$
 Message "Example Profile Patch ...."
 
-set $mytmpreg$ = "HKCU\Software\opsi.org\loginscripts"
-set $myScriptMode$ = GetScriptMode
-
 comment "Did we run this script before ?"
-if not ("%installingProdVersion%" = GetRegistryStringValue32("["+$mytmpreg$+"\\"+$myScriptMode$+"] %installingProdName%"))
-
-	comment "loginscript was not run yet "
-	
-	if $myScriptMode$ = "LoginSetup"
-		comment "Product is installed"
-		Files_profile_copy
-		Registry_currentuser_set
-	endif
-
-	if $myScriptMode$ = "LoginUninstall"
-		comment "Product was uninstalled"
-		Files_profile_del
-		Registry_currentuser_del
-	endif
-	
-	Registry_mark_run
+if not (scriptWasExecutedBefore)
+	comment "loginscript was not run yet "	
+	Files_profile_copy
+	Registry_currentuser_set
+	comment "set version stamp in profile ..."
+	saveVersionToProfile
 endif
 
 [Files_profile_copy]
@@ -307,16 +288,6 @@ copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
-
-[Files_profile_del]
-del -s -f "%CurrentAppdataDir%\ACME"
-
-[Registry_currentuser_del]
-deletekey [HKCU\Software\ACME]
-
-[Registry_mark_run]
-openkey [$mytmpreg$\$myScriptMode$]
-set "%installingProdName%" = "%installingProdVersion%"
 ----
 
 
@@ -325,19 +296,19 @@ set "%installingProdName%" = "%installingProdVersion%"
 [[opsi-manual-roamingprofiles-configuration]]
 === Konfiguration
 
-Um die Roaming Profiles Erweiterung zu nutzen muss in der Konfiguration des opsiclientd das Loginevent aktiviert werden und dann der '{opsi-winst}' mit dem ergänzenden Parameter '/loginscripts' gestartet werden. 
+Um die Roaming Profiles Erweiterung zu nutzen muss in der Konfiguration des opsiclientd das Loginevent aktiviert werden und dann der '{opsi-winst}' mit dem ergänzenden Parameter '/allloginscripts' gestartet werden. 
 
 [source, prompt]
 ----
 opsi-admin -d method config_createBool opsiclientd.event_user_login.active "user_login active" true
-opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /loginscripts"
+opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /allloginscripts"
 ----
 
 Als weiterer '{opsi-winst}' Parameter kann zusätzlich auch noch der Parameter '/silent' verwendet werden, welcher die Anzeige des '{opsi-winst}' Fensters unterbindet.
 
 [source, prompt]
 ----
-opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /loginscripts /silent"
+opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /allloginscripts /silent"
 ----
 
 
