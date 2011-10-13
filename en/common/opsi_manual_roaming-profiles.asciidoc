@@ -51,51 +51,56 @@ Technical precondions are opsi 4.0.1 with the following package and product vers
 [[opsi-manual-roamingprofiles-introduction]]
 === Introduction
 
-Der '{opsi-winst}' verfügt über eine Reihe von speziellen Befehlen um Modifikationen in Profilen vorzunehmen. Diese Arbeiten aber auf den lokalen Profilen und sind beim Einsatz von 'Roaming Profiles' weitgehend nutzlos.
-Mit der opsi Erweiterung für 'Roaming Profiles' wird nun eine Möglichkeit geschaffen auch hier Veränderungen an den Profilen vorzunehmen.
-Dies geschieht in dem beim Userlogin der '{opsi-winst}' gestartet wird um spezielle 'userLoginScripte' auszuführen. 
+The '{opsi-winst}' has some special commands to manipulate profiles. These commands act at the local stored profiles. If you are using 'Roaming Profiles' this feature of the '{opsi-winst}' does not help you because all modifications at the profiles will be overwritten by the server stored profile while login.
+
+The opsi extension for 'Roamin Profiles' gives you the possibility to do the needed Profile manipulation after the login of the user, at the correct profile. This is done by starting the '{opsi-winst}' after the user login again and run some special 'userLoginScripts'.
+
 
 [[opsi-manual-roamingprofiles-concept]]
-=== Konzept
+=== Concept
 
-Wenn die Profile nicht bei der Installation der Software gleich mit gepatcht werden können, muss zwischen dem 'Maschinen Teil' und dem 'Profil Teil' der Installation deutlicher unterschieden werden. Die kann sowohl innerhalb eines Scriptes geschehen als auch durch die Auslagerung des 'Profil Teils' in ein eigenes Script. Vielerorts passiert dies auch jetzt schon, in dem die 'Profil Teile' im Rahmen eines Domain Login Scripts ausgeführt werden.
+If you can't do the profile manipulation while installing the software on the machin, you have to separate the 'machine part' of the software installation from the 'profile part'. This can be done inside of a script and also by putting the 'profile part' into a separate script. Many admins still use the second idea by integrating 'profile parts' into a domain login script.
 
-Je nach Praxis liegen daher die 'Profil Teile' von opsi-Produkten als Bestandteil der opsi-scripte zur Installation und Deinstalltion vor, als auch als Bestandteil eines Domain Loginscriptes. Ziel dieser Erweiterung ist es, beide Varianten möglichst einfach in den neuen Mechanismus integrieren zu können.
+According to the method you use the 'profile part' of your opsi products are part of the opsi installation scripts for installation and deinstallation or they are separated for example as part of the domain login scripts. +
+The goal of this opsi extension is to provide the possibillity to integrate both variants of scripts easily.
 
-Die Kernkonzepte dieser opsi Erweiterung sind:
+The core concepts of this opsi extension are:
 
-* Ausführen spezieller UserLogin Scripte beim Login des users +
-Im Rahmen des User Logins wird der '{opsi-winst}' gestartet aber in einem Speziellem Modus ausgeführt in dem nur bei den Produkten hinterlegte 'userLoginScripte' ausgeführt werden.
+* Executing special 'userLoginScripts' scripts at the user login +
+At the user login the opsiclientd uses the 'event_user_login' to startup the '{opsi-winst}' in a special login script mode. In this special mode the '{opsi-winst}' executes only the 'userLoginScripts' which are assigned to the opsi products. 
 
-* Ausführen der Scripte mit administrativen Rechten aber im Userkontext +
-Domain Login Scripte werden vom User mit user Rechten ausgeführt. Die opsi 'userLoginScripte' werden vom '{opsi-winst}' ausgeführt, welcher mit administrativen Rechten läuft. Gleichzeitig begibt sich der '{opsi-winst}' aber in den Kontext des Users der sich eingelogged hat, so dass die Manipulation der Profile mit den selben Befehlen durchgeführt werden kann, wie in einem Domain Loginscript.
+* Executing these scripts with adminitrative priviliges inside the context of the logged in user +
+Domain login scripts may be used to execute 'profile parts'. But they run only with user priviliges. opsi 'userLoginScripts' run with adminitrative priviliges. They run with these high priviliges in the user context, so that is easy to manipulate file and registry parts of the profile using the same commands you may use in a domain login script. 
 
-Einschränkungen:
+*  Executing these scripts inside of the opsi service context +
+The opsi 'userLoginScripts' run inside the opsi service context, so that they know all details about at which opsi product name, version and package version they are just working. They have the complete access to product properties and other information that can be requested by opsi service calls.
 
-* Die 'userLoginScripte' werden auch bei der Verwendung der opsi-WAN-Erweiterung nicht aus dem lokalen Cache geladen, sondern online. 
+Restrictions:
+
+* The opsi 'userLoginScripts' will be always executed online and not from a local cache. Even if your client runs with the opsi WAN extension.
 
 
 [[opsi-manual-roamingprofiles-winst]]
-=== Neue und erweiterte '{opsi-winst}' Funktionen
+=== New and extended '{opsi-winst}' functions
  
-* Aufrufparameter `/allloginscripts` +
-Wird der '{opsi-winst}' im opsi-service Kontext mit dem zusätzlichen Parameter '/allloginscripts' aufgerufen, so hat das im wesentlichen folgende Auswirkungen:
+* Command line parameter `/allloginscripts` +
+If you are calling '{opsi-winst}' in the opsi service context with the additional parameter '/allloginscripts' this will lead to the following actions:
 
-** Es werden die Produkte ermittelt welche ein 'userLoginScript' haben. Nur für diese Produkte werden die 'userLoginScripte' ausgeführt.
+** All products which have a 'userLoginScript' will be detected. Only for these products will be the 'userLoginScripts' executed.
 
-** Es wird der user der sich eingelogged hat ermittelt und dafür gesorgt, dass die Konstanten zum aktuellen User wie z.B. +%CurrentAppdataDir%+ auf die entsprechenden Verzeichnisse des eingeloggten user zeigen. Ebenso werden Registry Operationen (`Registry` Sektionen und `GetRegistryString`) welche sich auf +HKCU+ beziehen, so ausgeführt, das die Daten aus dem Registryzweig des Users kommen.
+** The logged in user will be identified. All global constants to user specific directories like +%CurrentAppdataDir%+ will be directed to the directories of the loggedin user. Also the registry operatoins  (`Registry` sections and `GetRegistryString`) which going to +HKCU+ will be executed in a way that they read or write to the current_user hive of the loggedin user.
 
-* Aufrufparameter `/silent` +
-Der Aufrufparameter `/silent` sorgt dafür, das während der Scriptabarbeitung das Fenster des '{opsi-winst}' nicht angezeigt wird.
+* Command line parameter `/silent` +
+The command line parameter `/silent` switchs of the '{opsi-winst}' standard window in order to not disturb the user.
 
-* Funktion `GetScriptMode` +
-Um innerhalb eines Scriptes zu unterscheiden in welchem Modus das Script gerade ausgeführt wird, liefert die Funktion `GetScriptMode` drei mögliche Werte zurück:
+* Function `GetScriptMode` +
+In order to detected if a script runs as 'userLoginScript' or for example as installation script the function `GetScriptMode` gives you two possible values:
 ** 'Machine' +
-Das Script wird *nicht* als 'userLoginScript' ausgeführt (sondern z.B. als setup oder uninstall Script).
+The script is  *not* executed as 'userLoginScript' (but e.g. as setup or uninstall script).
 ** 'Login' +
-Das Script wird als 'userLoginScript' ausgeführt.
+The script is executed as 'userLoginScript'.
 
-* Registry Sektionen +
+* Registry sections +
 ** Registry Sektionen welche auf 'HKCU' bzw. 'HKEY_CURRENT_USER' arbeiten werden lim Loginscript mode so ausgeführt, dass die Änderungen im Zweig des eingeloggten users landen. Entsprechendes gilt für die Funktionen `GetRegistryStringValue*`.
 ** Registry Sektionen welche im Normalen Modus ('Machine') mit dem Modifier '/AllNtUserDats' aufgerufen werden, dürfen jetzt in der `openkey` Anweisung den Root 'HKCU' bzw. 'HKEY_CURRENT_USER' enthalten. Dies ermöglicht es die selbe Registry Sektion in den unterschiedlichen Modi auszuführen.
 
@@ -121,12 +126,12 @@ Ein sehr einfaches allgemeines Beispiel:
 Message "Example Profile Patch ...."
 
 Files_profile_copy
-Registry_current_user
+Registry_currentuser_set
 
 [Files_profile_copy]
 copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
 
-[Registry_current_user]
+[Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
 ----
