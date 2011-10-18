@@ -1,0 +1,152 @@
+//// 
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; Until we found a better license:
+; All rights reserved.
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      26.01.2011
+:Revision:  4.0
+:toclevels: 6
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-server]]
+== opsi-server
+
+[[opsi-manual-server-overview]]
+===  Overview
+
+The functionality of a '{opsi-server}' may be installed on many different kind of linux distributions.
+
+There are two different roles which a opsi-server can play: 
+
+* '{opsi-configserver}' +
+The '{opsi-configserver}' has the central data storage and provides the access to this data via the 'opsi web service'. A '{opsi-configserver}' normally has additiona the role '{opsi-depotserver}'. 
+
+* '{opsi-depotserver}' +
+The '{opsi-depotserver}' has no configuration data storage. The '{opsi-depotserver}' hold the installation files at a share and provides the PXE/tftpboot services for the netboot products.
+
+The hardware requirements are low. The opsi-server can also run as a virtual instance, e.g. vmware® (www.vmware.com). 
+
+
+[[opsi-manual-server-installation]]
+===  Installation and initial operation
+
+Installation and start-up of the {opsi-server} is described in the opsi 'getting started' manual.
+
+[[opsi-manual-server-samba]]
+===  Samba Configuration
+
+The opsi depot server provides network shares holding the configuration information and the software packets. These shares can be mounted by the clients. For Windows Clients the shares are provided by SAMBA (version 3.x).
+
+To configure your samba according to the needs of opsi (or to repair) call:
+[source,prompt]
+----
+opsi-setup --auto-configure-samba
+----
+
+After every change of the samba configuration, you have to reload your samba  (`/etc/init.d/samba reload`).
+
+[[opsi-manual-server-opsiconfd]]
+===  The daemon opsiconfd
+The 'opsiconfd' is the central opsi daemon (service).
+The 'opsiconfd' provides the 'opsi web service' and does a lot things more.
+The 'opsiconfd' is configured by `/etc/opsi/opsiconfd.conf`.
+
+[[opsi-manual-server-accounts]]
+===  Required administrative user accounts and groups
+
+* User 'opsiconfd' +
+The daemon 'opsiconfd' runs as this user.
+
+* User 'pcpatch' +
+This user is be used by the '{opsi-client-agent}' to mount the 'depotshare'.
+This user has normally the uid 992.
+You may set the password for this user by +
+`opsi-admin -d task setPcpatchPassword`.
+
+* Group 'pcpatch' +
+The group 'pcpatch' has write permission on many files and youll need to be in this group in order to build and install 'opsi products'.
+
+* Group 'opsiadmin' +
+Members of the group 'opsiadmin' are permitted to connect the opsi-webservice and can use for instance the 'opsi-configed' configuration editor. Therefor all opsi administrators should be members of the group 'pcpatch'.
+
+A user can join group 'opsiadmin' by: 'addgroup <user> opsiadmin'.
+
+[[opsi-manual-server-shares]]
+===  needed shares
+
+* 'Depotshare' with installation files ('opt_pcbin') +
+The depot share provides all the software-packets which are installable by the client task 'opsi-winst'. The default directory for the software packets is the directory '/opt/pcbin/install'. In this directory each software packet has its own sub directory named as the software packet. These sub directories contain the packet-specific installation scripts and files.
+
+TIP: The directory `/opt/pcbin/install` will be replaced by the (LSB conform) directory `/var/lib/opsi/depot`. The share 'opt_pcbin' will be replaced by the read-only share 'opsi_depot'.
+
+* The directory to build pacages ('opsi_workbench') +
+At /home/opsiproducts you will find the area to create new packages and from where you should install packages with the opsi-package-manager.
+
+* Share with the configuration files of the file backend (opsi_config) +
+At /var/lib/opsi you will find the file backend configuration files.
+
+[[opsi-manual-server-problem_management]]
+===  problem management
+
+If you have incidents by using opsi, you should check the following list or rather execute the following commands. Experience has shown that the combination of the commands in this chapter fix the most incidents.
+
+* Check accessibility and load of 'opsi-webservice': +
+Call URL: https://<server-ip>:4447/info with your browser. If you can not connect, continue with next step. If you can connect: check the load of 'opsi-webservice' and check the freespace on disk (scroll down in the info-page).
+
+* Check that the daemons are running and restart them:
+[source,prompt]
+----
+ps -ef | grep opsiconfd
+ps -ef | grep opsipxeconfd
+/etc/init.d/opsiconfd restart
+/etc/init.d/opsipxeconfd restart
+----
+
+* Initialize the configuration
+[source,prompt]
+----
+opsi-setup --init-current-config
+----
+
+* Set the rights for opsi-relevant files and directories:
+[source,prompt]
+----
+opsi-setup --set-rights
+----
+
+* Cleanup backend
+[source,prompt]
+----
+opsi-setup --cleanup-backend
+----
+
+* Check that samba is running:
+[source,prompt]
+----
+ps -ef | grep mbd
+----
+It have to run at least one nmbd and one smbd process. +
+To restart samba:
+[source,prompt]
+----
+/etc/init.d/samba restart
+----
+or
+[source,prompt]
+----
+service nmbd restart
+service smbd restart
+----
+
+* Set the pcpatch-password:
+[source,prompt]
+----
+opsi-admin -d task setPcpatchPassword
+----
