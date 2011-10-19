@@ -15,7 +15,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      28.09.2011
+:Date:      19.10.2011
 :Revision:  4.0.1
 :doctype:		book
 
@@ -24,7 +24,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst Handbuch (4.11.1.6)
+opsi-winst Handbuch (4.11.2)
 ==============================
 
 
@@ -414,12 +414,18 @@ Gegenwärtig sind folgende Konstanten definiert:
 
 `%CurrentSendToDir%`
 
+`%CurrentProfileDir%`  //since 4.11.2.1
+
 [[opsi-winst-global-const-list-allntuser]]
 ===== /AllNtUserProfiles Verzeichnis Konstanten
 
 `%UserProfileDir%` : 'c:\Documents and Settings\%USERNAME%'
 
 Diese Konstante wird nur innerhalb von 'Files'-Sektionen, die mit der Option `/AllNtUserProfiles` aufgerufen werden, interpretiert. Sie wird dann der Reihe nach belegt mit dem Namen des Profil-Verzeichnisses der, verschiedenen auf dem System, existierenden Nutzer.
+
+`%CurrentProfileDir%`  // since 4.11.2.1 +
+kann statt `%UserProfileDir%` verwendet werden um `Files`-Sektionen zu erzeugen die sich genauso auch in 'userLoginScripten' verwenden lassen.
+
 
 [[opsi-winst-global-const-list-winst]]
 ==== '{opsi-winst}' Pfad und Verzeichnisse
@@ -1094,6 +1100,14 @@ Liefert einen leeren String, wenn kein passender String gefunden wird.
 
 *  `Trim(`<string>`)` +
 Schneidet Leerzeichen am Anfang und Ende des <string> ab.
+
+* `lower(`<string>`)` +
+liefert <string> in Kleinbuchstaben
+
+* `unquote(`<string>,<quote-string>`)`  //since 4.11.2.1 +
+Wenn <string> mit dem Anführungszeichen <quote-string> versehen ist so liefert diese Funktion <string> ohne Anführungszeichen +
+Von <quote-string> wird nur das erste Zeichen berücksichtigt, wobe führende Whitespaces ignoriert werden.
+
 
 *  `HexStrToDecStr(`<string>`)` +
 wandelt einen String mit einem hexadezimalen Zahlwert in einen String mit dem entsprechenden decimalen Wert um. Enthält der Eingabe String führende Zeichen wie '0x' oder '$' werden diese ignoriert. +
@@ -1834,6 +1848,58 @@ Die Funktion GetLocaleInfoMap ersetzt die ältere GetLocaleInfo, da diese Werte 
 *  `getLocaleInfo` +
 (abgekündigt): Bitte `GetLocaleInfoMap` verwenden.
 
+* `getProductMap` // since 4.11.2.1 +
+liefert eine info map über das opsi product welches gerade installiert wird. +
+Di Funktion arbeitet nur korrekt, wenn '{opsi-winst}' im opsi service mode aufgerufen wird. +
+keys sind: id, name, description, advice, productversion, packageversion, priority, installationstate, lastactionrequest, lastactionresult, installedversion, installedpackage, installedmodificationtime
+
+
+Beispiel:
+[source,winst]
+----
+set $INST_Resultlist$ = getProductMap
+set $string1$ = getValue("id", $INST_Resultlist$)
+----
+
+liefert z.B. folgenden log:
+[source,winst]
+----
+Set  $INST_Resultlist$ = getProductMap
+    retrieving strings from getProductMap [switch to loglevel 7 for debugging]
+        (string   0)id=opsi-winst-test
+        (string   1)name=opsi-winst test
+        (string   2)description=Test  and example script for opsi-winst
+        (string   3)advice=
+        (string   4)productversion=4.11.2
+        (string   5)packageversion=1
+        (string   6)priority=0
+        (string   7)installationstate=unknown
+        (string   8)lastactionrequest=setup
+        (string   9)lastactionresult=successful
+        (string  10)installedversion=4.11.2
+        (string  11)installedpackage=1
+        (string  12)installedmodificationtime=
+        
+
+Set  $string1$ = getValue("id", $INST_Resultlist$)
+    retrieving strings from $INST_Resultlist$ [switch to loglevel 7 for debugging]
+        (string   0)id=opsi-winst-test
+        (string   1)name=opsi-winst test
+        (string   2)description=Test  and example script for opsi-winst
+        (string   3)advice=
+        (string   4)productversion=4.11.2
+        (string   5)packageversion=1
+        (string   6)priority=0
+        (string   7)installationstate=unknown
+        (string   8)lastactionrequest=setup
+        (string   9)lastactionresult=successful
+        (string  10)installedversion=4.11.2
+        (string  11)installedpackage=1
+        (string  12)installedmodificationtime=
+        
+  The value of the variable "$string1$" is now: "opsi-winst-test"
+----  
+
 [[opsi-winst-stringlist-create-by-value]]
 ==== Erzeugung von String-Listen aus vorgegebenen String-Werten
 
@@ -1909,6 +1975,11 @@ Diese Funktion versucht eine String-Liste <list> als eine Liste aus Zeilen der F
 auszulesen. +
 Dazu sucht die Funktion die erste Zeile, wo der String-Key vor dem Gleicheitszeichen erscheint und gibt den Rest der Zeile zurück (der String, der nach dem Gleicheitszeichen folgt). Wenn es keinen passende Zeile gibt, wird der Wert 'NULL' zurückgegeben. +
 Die Funktion ist z.B. notwendig für die Nutzung von `getLocaleInfoMap` und `getFileVersionMap` String list Funktionen (vgl. Abschnitt <<opsi-winst-stringlist-maps>>).
+
+* `getValueBySeparator(`<key string>,<separator string>,<hash string list> `)` //since 4.11.2.1 +
+arbeitet wie `getValue` aber der Trenner zwischen 'key' und 'value' (<separator string>) muss angegeben werden so das mit maps gearbeitet werden kann wie +
+'key:value' 
+
 
 Die pseudo-integer Funktion 
 *  `count (`<list>`)` +
@@ -2050,6 +2121,44 @@ Beispiel :
 killtask "winword.exe"
 ----
 
+*   `sleepSeconds` <Integer> +
+unterbricht die Programmausführung für <Integer> Sekunden.
+
+*   `markTime` +
+Setzt einen Zeitstempel für die Systemlaufzeit und zeichnet diese auf.
+
+*  `diffTime` +
+Zeichnet die vergangene Zeit seit der letzten aufgezeichneten Zeit (`marktime`) auf.
+
+
+[[opsi-winst-commands-logging]]
+=== Kommandos zur Steuerung des Logging
+
+*  `comment` <STRINGAUSDRUCK> +
+bzw. +
+`comment` = <Zeichensequenz> +
+wird einfach der Wert des String-Ausdrucks (bzw. Zeichensequenz) als Kommentar in die Protokolldatei eingefügt.
+
+*  `LogError` <STRINGAUSDRUCK> +
+oder +
+`LogError` = <Zeichensequenz> +
+Fügt eine zusätzlich Fehlermeldungen in der Protokolldatei ein und erhöht den Fehlerzähler um eins.
+
+*  `LogWarning` <STRINGAUSDRUCK> +
+oder +
+`LogWarning` = <Zeichensequenz> +
+Fügt eine zusätzlich Warnmeldungen in der Protokolldatei ein und erhöht den Warnungszähler um eins.
+
+* `includelog` <file name> <tail size>   //since 4.11.2.1 +
+Fügt die Datei <file name> in den aktuellen ein. Dabei werden nur die letzten <tail size> Zeilen und nicht die komplette Logdatei eingfügt. Wenn Sie ein anderes Programm (z.B. ein setup programm) starten das eine Logdatei produziert, können Sie mit diesem Begfehl die Informationen aus dieser Logdatei in den Log des '{opsi-winst}' übernehmen. +
+Beispiel: 
+[source,winst]
+----
+includelog "%Scriptpath%\test-files\10lines.txt" "5"
+----
+
+
+
 [[opsi-winst-commands-information]]
 === Anweisungen für Information und Interaktion
 
@@ -2082,20 +2191,6 @@ Beispiel:
 ShowBitmap "%scriptpath%\" + $ProduktName$ + ".bmp"  "$ProduktName$"
 ----
 
-*  `comment` <STRINGAUSDRUCK> +
-bzw. +
-`comment` = <Zeichensequenz> +
-wird einfach der Wert des String-Ausdrucks (bzw. Zeichensequenz) als Kommentar in die Protokolldatei eingefügt.
-
-*  `LogError` <STRINGAUSDRUCK> +
-oder +
-`LogError` = <Zeichensequenz> +
-Fügt eine zusätzlich Fehlermeldungen in der Protokolldatei ein und erhöht den Fehlerzähler um eins.
-
-*  `LogWarning` <STRINGAUSDRUCK> +
-oder +
-`LogWarning` = <Zeichensequenz> +
-Fügt eine zusätzlich Warnmeldungen in der Protokolldatei ein und erhöht den Warnungszähler um eins.
 
 *  `Pause` <STRINGAUSDRUCK> +
 bzw. +
@@ -2107,14 +2202,39 @@ bzw. +
 `stop` = <Zeichensequenz> +
 der STRINGAUSDRUCK (bzw. Zeichensequenz, die möglicherweise auch leer ist) wird angezeigt und um Bestätigung gebeten, dass der Programmablauf abgebrochen werden soll. 
 
-*   `sleepSeconds` <Integer> +
-unterbricht die Programmausführung für <Integer> Sekunden.
+[[opsi-winst-commands-loginscripts]]
+=== Commands for userLoginScripts / Roaming Profile Support
 
-*   `markTime` +
-Setzt einen Zeitstempel für die Systemlaufzeit und zeichnet diese auf.
+NOTE: Die opsi Erweiterung 'Roaming Profile Support' ist derzeit (19.10.2011) ein Kofinanzierungsprojekt. Dies Bedeutet, dass es nicht frei ist, sondern käuflich erworben werden muss um es zu verwenden.
 
-*  `diffTime` +
-Zeichnet die vergangene Zeit seit der letzten aufgezeichneten Zeit (`marktime`) auf.
+* `GetScriptMode`   //since 4.11.2.1 +
+liefert eines der beiden Werte 'Machine','Login': +
+** 'Machine' - das Script läuft *nicht* als 'userLoginScript'
+** 'Login' - das Script läuft als 'userLoginScript'
+
+* `GetUserSID(`<Windows Username>`)`
+
+* `GetLoggedInUser`   //since 4.11.1.2
+
+* `GetUsercontext`   //since 4.11.1.2 +
+liefert den Namen des Users in dessen Kontext der '{opsi-winst}' gerade läuft.
+
+* `saveVersionToProfile` //since 4.11.2.1 +
+speichert +productversion+-+packageversion+ die im lokalen Profil +
+Diese Funktion ist gedacht für 'userLoginScripts'. +
+Diese Funktion kann in Kombination mit `readVersionFromProfile` verwendet werden um festzustellen ob ein Script schonmal gelaufen ist. Es speichert im Lokalen Profil (in der Datei "%CurrentAppdataDir%\.opsi.org\userLoginScripts.ini"), dass das 'userLoginScript' für dieses opsi product in dieser product version und package version für den aktuellen user ausgefürt wurde. Sieh auch  `scriptWasExecutedBefore`
+
+* `readVersionFromProfile` //since 4.11.2.1 +
+liefert einen string mit +productversion+-+packageversion+ für das aktuelle opsi produkt der aus dem lokalen Profil ausgelesen wird. Siehe auch: `saveVersionToProfile` +
+Diese Funktion ist gedacht für 'userLoginScripts'.
+
+* `scriptWasExecutedBefore` //since 4.11.2.1 +
+Mit dieser boolschen Funktion kann überprüft werden, ob das 'userLoginScript' zu diesem Produkt in dieser Version schon mal zuvor gelaufen ist und eine erneute Ausführung unnötig ist. Dazu liest diese Funktion zunächst einen evtl. vorhandenen Versionsstempel vom Profil ein (wie das mit `readVersionFromProfile` möglich ist) und vergleicht diesen mit der aktuell laufenden Version. Aus dem Vergleich ergibt sich der Rückgabewert (wahr/falsch). Danach werden noch die aktuellen Werte in das Profil zurückgeschrieben (wie das mit `saveVersionToProfile` möglich ist). Somit benötigen Sie nur diese eine Funktion in einer `if` Anweisung, um zu prüfen ob das Script schon mal gelaufen ist.
+
+* `isLoginScript`    //since 4.11.2.1 +
+Diese boolsche Funktion liefert 'true' wenn das aktuelle Script als 'userLoginScript' läuft. SIehe auch: `GetScriptMode`
+
+
 
 [[opsi-winst-commands-if-else]]
 === Bedingungsanweisungen (if-Anweisungen)
@@ -2509,7 +2629,7 @@ Beide Varianten bedeuten: +
 Die betreffende Files-Sektion wird je einmal für jeden NT-User ausgeführt. 
 Bei Kopieraktionen in dieser Files-Sektion wird automatisch ein User-spezifisches Verzeichnis als Zielverzeichnis eingesetzt. 
 
-Für alle anderen Aktionen steht eine Variable `%UserProfileDir%` zur Verfügung, mit der Verzeichnisnamen konstruiert werden können.
+Für alle anderen Aktionen steht eine Variable `%UserProfileDir%` oder seit  '{opsi-winst}' version 4.11.2 `%CurrentProfileDir%` zur Verfügung, mit der Verzeichnisnamen konstruiert werden können.
 
 Das User-spezifische Verzeichnis ist im Fall von `/AllNTUserProfiles` das User-Profilverzeichnis. Im Fall von `/AllNTUserSendTo` wird der Pfad zum User-spezifischen SendTo-Ordner vorgegeben (der dazu dient, im Windows-Explorer Kontextmenü-Verknüpfungen vorzugeben).
 
@@ -2518,12 +2638,19 @@ Die genaue Regel, nach der Zielpfade für copy-Anweisungen automatisch gebildet 
 . Folgt auf die Angabe der zu kopierenden Quelldateien gar keine Zielverzeichnisangabe, so werden die Dateien direkt in das betreffende User-spezifische Verzeichnis kopiert. Der Befehl lautet einfach +
 `copy` <Quelldatei> +
 Dies ist gleichbedeutend mit +
-`copy` <Quelldatei> '"%UserProfileDir%\"'
+`copy` <Quelldatei> '"%UserProfileDir%"' +
+oder seit 4.11.2 +
+`copy <source file(s)> "%CurrentProfileDir%"`
+
 
 . Wenn außer den zu kopierenden Quelldateien ein Kopierziel 'targetdir' spezifiziert ist, dieses Ziel jedoch keinen absoluten Pfad (beginnend mit Laufwerksname oder mit "\") darstellt, dann wird die Zielangabe als Unterverzeichnisname des User-spezifischen Verzeichnisses interpretiert und der Zielverzeichnisname dementsprechend konstruiert. D.h. man schreibt +
 `copy` <Quelldateien> 'targetdir' 
 und das wird interpretiert wie: +
-`copy` <Quelldatei> '"%UserProfileDir%\targetdir"'
+`copy` <Quelldatei> '"%UserProfileDir%\targetdir"' +
+oder seit 4.11.2 +
+`copy <source file(s)> "%CurrentProfileDir%\targetdir"`
+
+Die Verwendung von `%CurrentProfileDir%` hat den Vorteil, das die selbe 'Files' Sektion mit `/AllNTUserProfiles` verwendet werden kann wenn das Script nicht als 'userLoginScript' (in 'Machine' script mode) läuft und ohne `/AllNTUserProfiles` wenn das Script als 'userLoginScript' läuft (in 'Login' script mode).
 
 . Enthält der copy-Befehl Quelldateien und einen absoluten Zielpfad targetdir, so wird dieser statische Zielpfad verwendet.
 
@@ -2613,13 +2740,23 @@ CAUTION: Der Befehl +
 `delete -s c:\opsi` +
 Bedeutet nicht lösche das Verzeichnis 'c:\opsi' rekursiv, sondern lösche ab 'c:\' rekursiv alle Dateien namens 'opsi' (und führt damit evtl. zum kompletten Durchsuchen der Festplatte). Zum rekursiven Löschen von 'c:\opsi' verwenden Sie das Kommando: +
 `delete -s c:\opsi\` +
-Durch den angehängen Backslash ist deutlich, dass Sie ein Verzeichnis meinen.
+Durch den angehängen Backslash ist deutlich, dass Sie ein Verzeichnis meinen. +
+*Es ist sicherer das Kommando `del` stattdessen zu verwenden*
 
 **  `f` ->  force +
 Erzwingt ("force") das Löschen auch von read-only-Dateien.
 
 **  `d [n]` ->  date +
 Dateien werden nur gelöscht, sofern sie mindestens n Tage alt sind. Default für n ist 1.
+
+* `del` [Options] <path[/mask]]   //since 4.11.2.1 +
+Arbeitet wie `delete` aber bei +
+`del -s -f c:\not-exists` +
+wenn +c:\not-exists+ nicht existiert wird nicht das komplette +c:\+ nach +not-exits+  durchsucht.
+
+Beispiel (*Der anhängende Backslash darf weggelassen werden*): +
+`del -sf c:\delete_this_dir`
+
 
 *  `SourcePath` = <Quelldirectory> +
 Festlegung des Verzeichnisses <Quelldirectory> als Vorgabe-Quelldirectory für in der betreffenden Sektion folgende Copy- sowie (!) Delete-Aktionen.
@@ -3357,7 +3494,7 @@ Dieser Sektionstyp ist abgekündigt.
 [[opsi-winst-winbatch]]
 === WinBatch-Sektionen
 
-In einer WinBatch-Sektion kann jedes Windows-Programm als Anweisung verwendet werden. Wie auch aus dem Windows Explorer heraus können Daten-Dateien, die mit einem Programm verknüpft sind, direkt aufgerufen werden. 
+In einer WinBatch-Sektion kann jedes Windows-Programm als Anweisung verwendet werden. 
 
 Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
 [source,winst]
@@ -3365,6 +3502,8 @@ Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
 [winbatch_install]
 "%scriptpath%\setup.exe"
 ----
+
+Es ist abgekündigt (aber noch unterstützt) wie auch aus dem Windows Explorer heraus Daten-Dateien, die mit einem Programm verknüpft sind, direkt aufzurufen. Wenn Sie das tun bekommen Sie eine deprecated Warnung.
 
 [[opsi-winst-winbatch-params]]
 ==== Aufrufparameter (Modifier)
@@ -3697,6 +3836,22 @@ openkey [Software\ORL\WinVNC3]
 set "FileTransferEnabled"=reg_dword:0x00000000
 ----
 
+Seit '{opsi-winst}' version 4.11.2 darf man den root key 'HKEY_CURRENT_USER' beim `openkey` Kommando mitgeben. +
+Beispiel:
+[source,winst]
+----
+[Registry_AllUsers]
+openkey [HKEY_CURRENT_USER\Software\ORL\WinVNC3]
+set "FileTransferEnabled"=reg_dword:0x00000000
+----
+
+Das hat folgende Vorteile:
+
+* Der Syntax ist leichter verständlich
+
+* Die selbe Registry Sektion kan mit '/AllNtuserdats' und in einem 'userLoginScript' verwendet werden.
+
+
 [[opsi-winst-registry-regedit]]
 ==== Registry-Sektionen im Regedit-Format
 
@@ -3799,6 +3954,10 @@ Wenn keine Verbindungsparameter angegeben und auch die Option „interactive“ 
 
 *  `/preloginservice` + 
 neu gestartet werden kann.
+
+* `/opsiclientd` //since 4.11.2.1 +
+ruft den Webservice des lokalen opsiclientd.  
+
 
 [[opsi-winst-opsiservicecall-syntax]]
 ==== Sektionsformat
