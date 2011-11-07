@@ -49,8 +49,8 @@ Technische Voraussetzungen sind opsi 4.0.1 mit den Paketständen:
 === Einführung
 
 Der '{opsi-winst}' verfügt über eine Reihe von speziellen Befehlen um Modifikationen in Profilen vorzunehmen. Diese Arbeiten aber auf den lokalen Profilen und sind beim Einsatz von 'Roaming Profiles' weitgehend nutzlos.
-Mit der opsi Erweiterung 'Roaming Profile Support' wird nun eine Möglichkeit geschaffen auch hier Veränderungen an den Profilen vorzunehmen.
-Dies geschieht in dem beim User login der '{opsi-winst}' gestartet wird um spezielle 'userLoginScripte' auszuführen. 
+Mit der opsi Erweiterung 'User Profile Management' wird nun eine Möglichkeit geschaffen auch hier Veränderungen an den Profilen vorzunehmen.
+Dies geschieht in dem beim User Login der '{opsi-winst}' gestartet wird um spezielle 'userLoginScripte' auszuführen. 
 
 [[opsi-manual-userprofile-concept]]
 === Konzept
@@ -94,6 +94,13 @@ Um innerhalb eines Scriptes zu unterscheiden in welchem Modus das Script gerade 
 Das Script wird *nicht* als 'userLoginScript' ausgeführt (sondern z.B. als setup oder uninstall Script).
 ** 'Login' +
 Das Script wird als 'userLoginScript' ausgeführt.
+
+* Neue primäre Sektion +ProfileActions+ +
+diese neue Sektion kann dazu dienen um Aktionen auf Userprofilen zusammenzufassen. Dabei kann ein Syntax verwendet werden, der es ermöglicht, diese Sektion sowohl als Bestandteil eines normalen Loginscripts als auch als 'userLoginScript' zu nutzen. Dazu wird diese primäre Sektion auf unterschiedliche Art ausgewertet, je nachdem ob das script im Machine mode oder Login mode (also als userLoginScript) läuft.
+** 'Login' +
+Läuft ein Script als 'userLoginScript' und enthält eine Sektion +ProfileActions+, so wird die Scriptabarbeitung bei dieser Sektion gestartet (und nicht bei +Actions+).
+** 'Machine' +
+Läuft ein Script als normales Installationsscript, so kann die Sektion +ProfileActions+ ähnlich einer 'Sub'-Sektion als Untersektion aufgerufen werden. Für die Abarbeitung dieser Sektion gilt: Für alle 'Registry'-Sektions Aufrufe ist implizit '/AllNtUserDats' gesetzt. Für alle 'Files'-Sektions Aufrufe ist implizit '/AllNtUserProfiles' gesetzt.
 
 * Registry Sektionen +
 ** Registry Sektionen welche auf 'HKCU' bzw. 'HKEY_CURRENT_USER' arbeiten, werden im Loginscript Mode so ausgeführt, dass die Änderungen im Zweig des eingeloggten users landen. Entsprechendes gilt für die Funktionen `GetRegistryStringValue*`.
@@ -236,7 +243,7 @@ endif
 "%ScriptPath%\setup.exe" /sp- /silent /norestart
 
 [Files_profile_copy]
-copy "%Scriptpath%\profiles\*.*" "%UserProfileDir%\Appdata\ACME"
+copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
 
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
@@ -270,10 +277,50 @@ endif
 "$UninstallProgram$" /silent /norestart
 
 [Files_profile_del]
-del -s -f "%UserProfileDir%\Appdata\ACME"
+del -s -f "%CurrentProfileDir%\Appdata\ACME"
 
 [Registry_currentuser_del]
 deletekey [HKCU\Software\ACME]
+----
+
+Nun ein Beispiel welches eine Variante des vorherigen Beispiels ist. Dabei wird der code durch die Verwendung der neuen primären  Sektion +ProfileActions+ vereinfacht und das Script ist sowohl als Installationsscript als auch als 'userLoginScript' verwendbar.
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.2"
+
+DefVar $ProductId$  
+DefVar $InstallDir$
+
+Set $ProductId$       = "ACME"
+Set $InstallDir$      = "%ProgramFiles32Dir%\ACME"
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\\" + $ProductId$ + ".png" $ProductId$
+
+Message "Installing " + $ProductId$ + " ..."
+
+comment "Start setup program"
+Winbatch_install
+
+comment "Patch the local Profiles ..."
+ProfileActions
+
+[ProfileActions]
+comment "login part"
+Files_profile_copy
+Registry_currentuser_set
+
+[Winbatch_install]
+"%ScriptPath%\setup.exe" /sp- /silent /norestart
+
+[Files_profile_copy]
+copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
+
+[Registry_currentuser_set]
+openkey [HKCU\Software\ACME]
+set "show_greeting_window" = "no"
 ----
 
 Nun eine Variante, welche sich im Profil merkt ob das Skript für dieses Produkt in dieser Version und diesen User schon mal ausgeführt wurde.
