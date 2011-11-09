@@ -21,11 +21,11 @@
 
 include::../common/opsi_terms.asciidoc[]
 
-[[opsi-manual-roamingprofiles]]
-== opsi extension for Roaming Profiles
+[[opsi-manual-userprofile]]
+== opsi extension 'Roaming Profile Support'
 
 
-[[opsi-manual-roamingprofiles-preconditions]]
+[[opsi-manual-userprofile-preconditions]]
 === Preconditions for the extension
 
 This extension is at the moment a co-funding project which means that until the complete development costs are payed by co-funders, they are only allowed to use by the co-funders or for evaluation purposes. If we have earned the development cost we will give these modules for everybody for free. +
@@ -49,7 +49,7 @@ Technical preconditions are opsi 4.0.1 with the following package and product ve
 |==========================
 
 
-[[opsi-manual-roamingprofiles-introduction]]
+[[opsi-manual-userprofile-introduction]]
 === Introduction
 
 The '{opsi-winst}' has some special commands to manipulate profiles. These commands act at the local stored profiles. If you are using 'Roaming Profiles' this feature of the '{opsi-winst}' does not help you because all modifications at the profiles will be overwritten by the server stored profile while login.
@@ -57,7 +57,7 @@ The '{opsi-winst}' has some special commands to manipulate profiles. These comma
 The opsi extension for 'Roaming Profiles' gives you the possibility to do the needed profile manipulation after the login of the user, at the correct profile. This is done by starting the '{opsi-winst}' after the user login again and run some special 'userLoginScripts'.
 
 
-[[opsi-manual-roamingprofiles-concept]]
+[[opsi-manual-userprofile-concept]]
 === Concept
 
 If you can't do the profile manipulation while installing the software on the machine, you have to separate the 'machine part' of the software installation from the 'profile part'. This can be done inside of a script and also by putting the 'profile part' into a separate script. Many admins still use the second idea by integrating 'profile parts' into a domain login script.
@@ -81,7 +81,7 @@ Restrictions:
 * The opsi 'userLoginScripts' will be always executed online and not from a local cache. Even if your client runs with the opsi WAN extension.
 
 
-[[opsi-manual-roamingprofiles-winst]]
+[[opsi-manual-userprofile-winst]]
 === New and extended '{opsi-winst}' functions
  
 * Command line parameter `/allloginscripts` +
@@ -101,6 +101,13 @@ The script is  *not* executed as 'userLoginScript' (but e.g. as setup or uninsta
 ** 'Login' +
 The script is executed as 'userLoginScript'.
 
+* New primary section +ProfileActions+ +
+This section may be used to the place for calling user profile manipulations. Here a syntax may be used, which make it possible to use this section as a part of a installation script and as a 'userLoginScript' as well. Therefore this primary section will be interpreted in different ways according to the fact if it is called at 'Machine' mode or at 'Login' mode (as 'userLoginScript'):
+** 'Login' +
+If a script is running as 'userLoginScript' and there is a section  +ProfileActions+ in the script, the script interpretation will start at the +ProfleActions+ section (and not at the +Actions+ section, which will be ignored).
+** 'Machine' +
+If a script is running as normal istallation script, you may call the section +ProfileActions+ as a sub section. But in difference to a normal sub section it has some special rules: For every called 'Registry' section the modifier '/AllNtUserDats' is implicit set. gesetzt. For every called 'Files' section the modifier '/AllNtUserProfiles' is implicit set.
+
 * Registry sections +
 ** Registry sections which should work on the 'HKCU' or 'HKEY_CURRENT_USER' hive in the `openkey` command, will be executed in login script mode ('Login') in a way, that all changes will be made in the registry hive of the logged-in user. The same applies to the functions `GetRegistryStringValue*`.
 ** Registry sections which are called at the normal mode ('Machine') with the modifier '/AllNtUserDats', may now contain 'HKCU' resp.. 'HKEY_CURRENT_USER' at the `openkey` command. This gives you the possibility to use the same registry sections in both modes.
@@ -116,7 +123,7 @@ This log file will be transmitted to the server. At the server they will be stor
 This log file is handled in append mode. This means new logs will appended to a existing log file of this client. To avoid to large log files, the size of the log files are limited by the server to a maximal size of 5 MB. +
 You may display these log files at the opsi management interface (opsi-configed) at the tab 'Log files' in the sub tab 'userlogin'.
 
-[[opsi-manual-roamingprofiles-scripts]]
+[[opsi-manual-userprofile-scripts]]
 === Examples of userLoginScripts
 
 We are starting with examples that are build in a way that they also may used in a domain login script.
@@ -167,17 +174,14 @@ At the next example (which simply extends the first example) we show how you may
 ----
 [Actions]
 Message "Example Profile Patch ...."
-DefStringlist $mymap$
 
-set $mymap$ = getProductMap
-
-if getValue("installationstate", $mymap$) = "installed"
+if getValue("installationstate", getProductMap) = "installed"
 	comment "Product is installed"
 	Files_profile_copy
 	Registry_currentuser_set
 endif
 
-if getValue("lastactionrequest", $mymap$) = "uninstall"
+if getValue("lastactionrequest", getProductMap) = "uninstall"
 	comment "Product was uninstalled"
 	Files_profile_del
 	Registry_currentuser_del
@@ -246,7 +250,7 @@ endif
 "%ScriptPath%\setup.exe" /sp- /silent /norestart
 
 [Files_profile_copy]
-copy "%Scriptpath%\profiles\*.*" "%UserProfileDir%\Appdata\ACME"
+copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
 
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
@@ -265,7 +269,8 @@ if GetScriptMode = "Machine"
 		comment "Uninstall program found, starting uninstall"
 		Winbatch_uninstall
 	endif
-	; does not work: Registry_currentuser_del /AllNtUserDats
+	; does also work since 4.11.2.1: 
+	Registry_currentuser_del /AllNtUserDats
 	Files_profile_del /AllNtUserProfiles
 endif
 
@@ -279,10 +284,50 @@ endif
 "$UninstallProgram$" /silent /norestart
 
 [Files_profile_del]
-del -s -f "%UserProfileDir%\Appdata\ACME"
+del -s -f "%CurrentProfileDir%\Appdata\ACME"
 
 [Registry_currentuser_del]
 deletekey [HKCU\Software\ACME]
+----
+
+Now a variant which is variant of the example before. It makes use of the new primary section +ProfileAction+. This makes the script shorter and it may be still used as installation script and as 'userLoginScript' as well.
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.2"
+
+DefVar $ProductId$  
+DefVar $InstallDir$
+
+Set $ProductId$       = "ACME"
+Set $InstallDir$      = "%ProgramFiles32Dir%\ACME"
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\\" + $ProductId$ + ".png" $ProductId$
+
+Message "Installing " + $ProductId$ + " ..."
+
+comment "Start setup program"
+Winbatch_install
+
+comment "Patch the local Profiles ..."
+ProfileActions
+
+[ProfileActions]
+comment "if this script is executed as userLoginScript only this part will be executed"
+Files_profile_copy
+Registry_currentuser_set
+
+[Winbatch_install]
+"%ScriptPath%\setup.exe" /sp- /silent /norestart
+
+[Files_profile_copy]
+copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
+
+[Registry_currentuser_set]
+openkey [HKCU\Software\ACME]
+set "show_greeting_window" = "no"
 ----
 
 Now a variant which reminds, if this script (for this product, in this version and this package version) was executed before for this profile.
@@ -310,7 +355,7 @@ set "show_greeting_window" = "no"
 
 
 
-[[opsi-manual-roamingprofiles-configuration]]
+[[opsi-manual-userprofile-configuration]]
 === Configuration
 
 In order to use the opsi 'Roaming Profile' extension, you have to activate the 'event_user_login' at the opsiclientd configuration. At the configuration of this event the action_processor ('{opsi-winst}') should be started with the additional parameter '/allloginscripts'. Last not least should the '{opsi-winst}' winst run as user SYSTEM in order to have the possibility to enter the context of the logged-in user.
@@ -321,7 +366,7 @@ This configuration you may do at the command line with the following commands:
 ----
 opsi-admin -d method config_createBool opsiclientd.event_user_login.active "user_login active" true
 
-opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /allloginscripts"
+opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /sessionid %service_session% /allloginscripts"
 
 opsi-admin -d method config_createUnicode opsiclientd.action_processor.run_as_user "action_processor run_as_user" "SYSTEM"
 ----
@@ -330,12 +375,12 @@ As additional action_processor ('{opsi-winst}') parameter you may use '/silent',
 
 [source, prompt]
 ----
-opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /allloginscripts /silent"
+opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /sessionid %service_session% /allloginscripts /silent"
 ----
 
 These configurations you will also see (and modify) at the opsi management interface (opsi-configed) at the tab 'Host parameters' at the client or server configuration-
 
-[[opsi-manual-roamingprofiles-notification]]
+[[opsi-manual-userprofile-notification]]
 === Notification
 
 If you have activated the 'event_user_login' (as described above), you will see after every login the user_login_notifier:
