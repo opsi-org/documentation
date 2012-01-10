@@ -15,7 +15,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      28.09.2011
+:Date:      05.10.2011
 :Revision:  4.0.1
 :doctype:	book
 
@@ -24,14 +24,11 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst Manual (4.11.1.6)
+opsi-winst Manual (4.11.2)
 ============================
 
 // Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
-
-
-
 
 
 [[opsi-winst-introduction]]
@@ -56,7 +53,7 @@ Une installation du logiciel qui est décrit par un script '{opsi-winst}' et ex�
 
 * Le registre de Windows peut être patché pour tous les utilisateurs existant sur un poste de travail (y compris l'utilisateur par défaut, qui est utilisé comme prototype pour d'autres utilisateurs).
 
-* Il y a une syntaxe sophistiquée pour un patch intégré de fichiers de configuration XML.
+* Il y a une syntaxe sophistiquée pour un patch intégré des fichiers de configuration XML.
 
 
 [[opsi-winst-cliparams]]
@@ -92,8 +89,10 @@ Il y a les suivants schémas syntaxique:
      [`/clientid` <nom du client>] +
      [`/username` <nom d'utilisateur>] +
      [`/password` <mot de passe>] +
+     [`/sessionid` <id de la session>] +
      [`/logfile` <fichier journal>] +
-     [`/usercontext` <[domaine\]nom d'utilisateur> ] +
+     [`/allloginscripts`]  +
+     [`/silent`]  +
      [`/parameter` <chaîne de paramètres>]
    
 Quelques explications:
@@ -101,8 +100,6 @@ Quelques explications:
 * Le nom par defaut du fichier de log est `c:\tmp\instlog.txt`
 
 * La chaîne de paramètres, qui se caractérise par l'option `/parameter`, est accessible pour chaque script appelé de '{opsi-winst}' (via la fonction de chaîne `ParamStr`).
-
-* Lorsqu'il est appelé avec l'option `/usercontext` '{opsi-winst}' peut faire des configurations pour un utilisateur connecté précisé (en particulier dans un Windows Terminal Server ou d'un contexte de profil itinérant).
 
 
 Explications pour (2) et (3) :
@@ -114,6 +111,12 @@ Explications pour (2) et (3) :
 Explications pour (4):
 
 * La valeur par défaut pour `clientid` est le nom d'ordinateur complet
+
+* Quand il est appellé avec l'option `/allloginscripts` '{opsi-winst}' fait les configurations pour l'utilisateur de la session currante (particulierment dans un contexte de profils Itinerants). C'est un'option en co-financement - vous devez l'acheter pour pouvoir l'utiliser. +
+Regardez le manuel d'opsi pôur plus d'information sur  'Le Support des Profils Itinerants'.
+
+* By option `/silent` event the batch surface is suppressed.
+
 
 Le mode non interactif est implicite.
      
@@ -256,6 +259,8 @@ Le lecteur humain ainsi qu'un logiciel interprète, doivent savoir à partir de 
 
 L'exécution d'un script '{opsi-winst}' commence sur les sections [Initial] et [Actions] (dans cet ordre). Toutes les autres sections sont appelés comme sous-programmes de ces deux sections. Ce processus n'est récursif que pour les sous-sections: Sub-sections ont la même syntaxe que les sections Initial et Actions et peuvent contenir des appels à des sous-routines supplémentaires.
 
+NOTE: Si un script est executé comme 'userLoginScript' et contient une section [ProfileActions], l'interpretation du script demarrera à la section `ProfleActions`.
+
 Cela donne la raison de faire la distinction entre les sous-programmes primaire et secondaire:
 
 Les sections de contrôle primaire ou générale comprennent 
@@ -265,6 +270,8 @@ Les sections de contrôle primaire ou générale comprennent
 * la section *Actions* (doit suivre la section *Initial*), et 
 
 * *Sub* sections (de 0 à n sous-programmes appelés par la section *Actions* qui sont des extensions syntaxiques et logiques de la section d'appel).
+
+* la section *ProfileActions*, qui sera interpretée de differents façons selon le mode du script (Machine/Login).
 
 La logique procédurale du script est déterminé par la séquence d'appels dans ces sections. 
 
@@ -334,7 +341,7 @@ Il existe les types suivants de variables ou de constantes:
 * Constantes texte global, constantes courtes, +
 contiennent des valeurs qui sont présents par le programme '{opsi-winst}' et ne peuvent être changé dans un script. Avant d'interpréter le script, '{opsi-winst}' remplace chaque occurrence du nom de constante avec sa valeur dans l'ensemble du script (substitution textuelle). +
 Un exemple permettra de clarifier cela: +
-La constante `%ScriptPath%` est le nom prédéfini de l'endroit où '{opsi-winst}', trouve et de lit le script qu'il exécute. Cet emplacement peut être, par exemple,  `p:\product`. Puis nous devons écrire +
+La constante `%ScriptPath%` est le nom prédéfini de l'endroit où '{opsi-winst}', trouve et lit le script qu'il exécute. Cet emplacement peut être, par exemple,  `p:\product`. Puis nous devons écrire +
 `"%ScriptPath%"` +
 dans le script lorsque l'on veut faire obtenir la valeur +
 `"p:\product"`. +
@@ -427,12 +434,17 @@ En ce moment les constantes suivantes sont fournie:
 
 `%CurrentSendToDir%`
 
+`%CurrentProfileDir%`  //depuis 4.11.2.1
+
 [[opsi-winst-global-const-list-allntuser]]
 ===== Répertoire constantes /AllNtUserProfiles
 
 Dans les sections 'Files' qui sont appelés avec l'option `/AllNtUserProfiles` il y a une pseudo variable  +
 `%UserProfileDir%` +
 Lorsque la section est exécutée pour chaque utilisateur qui existe sur un poste de travail cette variable représente le nom du répertoire du profil de l'utilisateur venons de traiter. 
+
+`%CurrentProfileDir%`  // depuis 4.11.2.1 +
+doit etre utilisé à la place de `%UserProfileDir%` pour avoir les `Files`-sections utilisable aussi pour 'userLoginScripts'.
 
 [[opsi-winst-global-const-list-winst]]
 ==== Chemins de opsi-winst
@@ -574,7 +586,7 @@ Comme il est approprié pour une variable, il peut prendre en une seule valeur l
 
 <Valeur> désigne toute expression (valeur de chaîne). 
 
-Exemple (Par Exemple voir <<opsi-winst-string>>):
+Exemples (Par Exemples voir <<opsi-winst-string>>):
 
 [source,winst]
 ----
@@ -2082,11 +2094,11 @@ killtask "winword.exe"
 *   `Message` <expression chaîne> +
 bzw. +
 `Message` = <séquence de caractères> +
-permet à '{opsi-winst}'  d'afficher la valeur de l'expression de chaîne respectivement la séquence de caractères dans la fenêtre batch dans la ligne d'information en haut. Le texte est maintenu aussi longtemps qu'aucune nouveau `message` est fixé. +
+lets  '{opsi-winst}'  display the value of the String expression resp. the  sequence of chars in the batch window in the top information line. Le texte est maintenu aussi longtemps qu'aucune nouveau `message` est fixé. +
 Exemple:
 [source,winst]
 ----
-Message "Installation de "+$productid$
+Message "Installation von "+$productid$
 ----
 
 *  `ShowMessageFile` <nom de fichier> +
@@ -2098,7 +2110,7 @@ ShowMessageFile "p:\login\day.msg"
 on peut réaliser un "Message du jour".
 
 *  `ShowBitMap` [<nom de l'image>] [<inscription>] +
-place l'image nommée <nom de l'image> (dans le format BMP, JPEG ou PNG, de taille 160x160 pixel) et montre l'inscription. + 
+place l'image dénotée par <nom de l'image> (dans le format BMP, JPEG ou PNG, de taille 160x160 pixel) et montre l'inscription. + 
 <nom de l'image> et <inscription> sont des expressions de chaîne. +
 Exemple: +
 [source,winst]
@@ -2107,7 +2119,7 @@ ShowBitmap "%scriptpath%\" + $ProductId$ + ".png"  "$ProductId$"
 ----
 
 *  `comment` <chaîne> ou `comment` = <const chaîne> +
-écrit la valeur de l'expression de chaîne respectivement la séquence de caractères dans le fichier journal.
+writes the value of the String expression resp. the sequence of  characters into the log file.
 
 * `LogError` <chaîne> ou `LogError` = <const chaîne> +
 écrit des messages d'erreur supplémentaire dans le fichier journal et incrémente le compteur d'erreurs d'un.
@@ -2284,82 +2296,82 @@ Files_copy_XP
 WinBatch_SetupXP
 ----
 
-Généralement, il y a trois façons de placer les instructions mentionnées:
+Generally, there are three ways to place the referred instructions:
 
-* La cible la plus commune d'un sous-programme appel une autre section intérieure dans le fichier de script où la déclaration d'appel est placé (comme dans l'exemple).
+* The most common target of a sub program call is some other internal section in the very script file where the calling statement is placed (as in the example).
 
-* Nous pouvons mettre les instructions mentionnées dans un autre fichier qui sert une section externe.
+* We may put the referred instructions into another file which serves as an external section.
 
-* Toute liste de chaînes peuvent être utilisés comme liste d'instructions pour un appel de sous-programme.
+* Any String list can be used as list of instructions for a sub program call.
 
-Nous décrivons la syntaxe des appels sous-programme en détail:
+We describe the syntax of sub program calls in detail:
 
 [[opsi-winst-commands-subcall-components]]
-==== Syntaxe de la procédure d'appel
+==== Syntax of Procedure Calling
 
-Formellement, la syntaxe peut être donnée par +
+Formally, the syntax can be given by +
 '<proc. type>(<proc. name> | <External proc. file> | <String list function> )'
 
-Cette expression peut être complétée par un ou plusieurs paramètres (Type de procédure dépendante). 
+This expression may supplemented by one ore ore parameters (procedure type dependent). 
 
-Cela signifie: Un appel de procédure se compose de trois parties principales.
+That means: A procedure call consists of three main parts.
 
-La première partie est le spécificateur de type sous-programme. +
-Exemples de noms de type sont 'Sub' (nous appelons une procédure de type 'Sub' qui est à nouveau une section primaire) ou 'Files' et 'WinBatch' (appels des sections spéciales du secondaire). L'aperçu complet des types existants de sous-programme est donné à <<opsi-winst-commands-subcall>>.
+The first part is the subprogram type specifier. +
+Examples of type names are 'Sub' (we call a procedure of type sub that is a again a primary section) or 'Files' and 'WinBatch' (calls of special secondary sections). The complete overview of the existing sub program types is given at <<opsi-winst-commands-subcall>>.
 
-La deuxième partie détermine où et comment les lignes de sous-programme se retrouvent.
+The second part determines where and how the lines of sub program are to be found.
 
-. Le sous-programme est une séquence de lignes situées dans le script exécutés '{opsi-winst}' comme une autre section interne. Ensuite, un nom (constitué à partir des lettres, des chiffres et des caractères spéciaux) doit être annexée au spécificateur de type (sans espace) afin de former un nom de section unique. +
+. The subprogram is a sequence of lines situated in the executed '{opsi-winst}' script as another internal section. Then a name (constituted from letters, digits, and some special characters) has to be appended to the type specifier (without space) in order to form an unique section name. +
 `sub_install_winXP` +
-ou +
+or +
 `files_copy_winXP` +
-Les noms de section sont indépendants comme n'importe quelle autre chaîne. 
+Section names are case independent as any other string. 
 
-. Si le spécificateur de type est unique une expression de la liste chaîne ou une expression chaîne est attendue. Si l'expression suivant le spécificateur de type ne peut être résolu comme une expression liste de chaînes (cf. cas (3)) il est supposé être une expression chaîne. La chaîne est alors interprétée comme un nom de fichier. '{opsi-winst}' essaie d'ouvrir le fichier comme un fichier texte et interprète ses lignes comme une section externe du type spécifié. +
-Par exemple: +
+. If the type specifier stands alone a String list expression or a String expression is expected. If the expression following the type specifier cannot be resolved as a String list expression (cf. case (3)) it is assumed to be a String expression. The string is then interpreted as a file name. '{opsi-winst}' tries to open the file as a text file and interprets its lines as an external section of the specified type. +
+E.g. +
 `sub "p:\install\opsiutils\mainroutine.ins"`
-essayé d'exécuter des lignes de programme principal .ins comme des déclarations d'un paragraphe. 
+tries to execute the lines of mainroutine.ins as statements of a sub section. 
 
-. Si l'expression suive un spécificateur de type pur la section est résoluble comme une expression de la liste de chaînes les lignes de la liste sont interprétés comme des états de la section. +
-Ce mécanisme peut par exemple être utilisée pour charger un fichier qui a le format Unicode et ensuite la traiter par les mécanismes habituels
+. If the expression following a pure section type specifier is resolvable as a String list expression the lines of the list are interpreted as the statements of the section. +
+This mechanism can e.g. be used to load a file that has unicode format and then treat it by the usual mechanisms
 [source,winst]
 ----
 registry loadUnicodeTextFile("%scriptpath%/opsiorgkey.reg") /regedit
 ----
 
-Syntaxiquement, cette ligne est composée de trois parties principales: +
-* `registry`, l'énoncé de base, en précisant le type de section, +
-* `loadUnicodeTextFile(...)`, une expression de la liste Chaîne spécifiant la façon d'obtenir les lignes d'un REEE section du Registre. son substitut. +
-* `/regedit`, paramétrage de l'appel de registre. 
+Syntactically, this line is composed of three main parts: +
+* `registry`, the core statement specifying the section type, +
+* `loadUnicodeTextFile(...)`, a String list expression specifying how to get the lines of a registry section resp. its surrogate. +
+* `/regedit`, parametrizing the registry call. 
 
-Dans cet exemple, le paramètre d'appel donne déjà un exemple pour la troisième partie d'un appel du paragraphe:
+In this example, the call parameter already gives an example for the third part of a subsection call:
 
-La troisième partie d'un appel de procédure comprend le type des options spécifiques à la police. 
+The third part of a procedure call comprises type specific call options. 
 
-Pour une référence des options d'achat voir les descriptions des appels dans la section <<opsi-winst-secsections>>.
+For a reference of the call options cf. the descriptions of the section calls in <<opsi-winst-secsections>>.
 
 [[opsi-winst-commands-reboot]]
-=== Contrôle du redémarrage
+=== Controlling Reboot
 
-La commande `ExitWindows` est utilisé pour contrôler les redémarrages , l'arrêt et des actions similaires qui devrait avoir lieu après que '{opsi-winst}' lui-même est terminée. Le nom de la commande et le fait qu'il n'y ait pas 'ExitWindows' sans modificateur a des raisons historiques: Travaillant sous Windows 3.1 vous pouvez quitter les fenêtres pour revenir au niveau de DOS.
+The command `ExitWindows` is used to control reboots , shutdown and similar actions which should take place after the '{opsi-winst}' it self is terminated. The name of the command and the fact that there is no 'ExitWindows' without modifier has histrical reasons: Working on Windows 3.1 you could exit windows to go back to the DOS level.
 
 * `ExitWindows /RebootWanted` +
-OBSOLETE: une demande de redémarrage est enregistré qui devrait être exécuté lorsque toutes les demandes d'installations sont traitées, et le dernier script est terminé. +
-En fait, cette commande est maintenant traitée comme un `ExitWindows /Reboot` (car, autrement, une installation pourrait échouer parce qu'un produit nécessaire n'est pas encore complètement installé).
+DEPRECATED: a reboot request is registered which should be executed when all installations requests are treated, and the last script has finished. +
+In fact, this command is now treated as an `ExitWindows /Reboot` (since otherwise an installation could fail because a required product is not yet completely installed).
 
 * `ExitWindows /Reboot` +
-déclenche le redémarrage après que '{opsi-winst}' a terminé le script actuellement traité.
+triggers the reboot after '{opsi-winst}' has finished the currently treated script.
 
 * `ExitWindows /ImmediateReboot` +
-rompt l'exécution normale d'un script n'importe où dedans le script. Lorsque cette commande est appelée '{opsi-winst}' fonctionne aussi directement que possible jusqu'au bout impliquant l'appel système ExitWindows. Dans le contexte d'un opsi-client-agent installé il est garanti que après le redémarrage '{opsi-winst}' fonctionne à nouveau dans le script qui a avorté. Par conséquent, le script doit prendre les dispositions que l'exécution se poursuit après le point où il a été laissé le tour avant (sinon on peut obtenir une boucle infinie ...) Voir l'exemple dans cette section.
+breaks the normal execution of a script anywhere inside it. When this command is called '{opsi-winst}' runs as directly as possible to its end entailing the system ExitWindows call. In the context of an installed opsi-client-agent it is guaranteed that after rebooting '{opsi-winst}' runs again into the script that was aborted. Therefore, the script has to take provisions that the execution continues after the point where it was left the turn before (otherwise we may get an infinite loop ...) Cf. the example in this section.
 
 * `ExitWindows /ImmediateLogout` +
-L'exécution normale d'un script coupe au moment de l'appel, et '{opsi-winst}' s'arrête. Ce comportement est nécessaire si un utilisateur automatisé se connecte pour un autre utilisateur(voir <<opsi-winst-cookbook-local-admin>>).
+The normal execution of a script breaks at the point of the call, and the '{opsi-winst}' stops running. This behaviour is needed if an automated user log in for some other user shall take place (cf. <<opsi-winst-cookbook-local-admin>>).
 
 * `ExitWindows /ShutdownWanted` +
-définit un indicateur dans le Registre que le PC s'arrête lorsque toutes les demandes d'installations sont traitées, et le dernier script est terminé. 
+sets a flag in the registry that the PC shuts down when all installations requests are treated, and the last script has finished. 
 
-La manière dont des drapeaux peuvent être établies pour s'assurer que le script ne fonctionne pas dans une boucle infinie quand `ExitWindows /ImmediateReboot` est appelé, on la démontre par le fragment de code suivant:
+How flags may be set to ensure that the script does not run into an infinite loop when `ExitWindows /ImmediateReboot` is called we demonstrate by the following code fragment:
 [source,winst]
 ----
 DefVar $OS$
@@ -2414,16 +2426,16 @@ set "RebootFlag" = "$Flag$"
 ----
 
 [[opsi-winst-commands-isfatalerror]]
-=== Suivi des installations qui ont échoué
+=== Keeping Track of Failed Installations
 
-Si une installation ne réussit pas ce produit doit être signalé au serveur.
+If a product installation fails this should be sinaled to the server.
 
-Selon le fait qu'il n'y a pas d'automatisme pour détecter une installation qui a échoué cela doit être fait par un script de commandes. 
+According to the fact that there is no automatism to detect a failed installation this have to be done by script commands. 
 
-Pour indiquer dans un script '{opsi-winst}' que l'installation est échouénous devons appeler la déclaration: +
+To indicate in a '{opsi-winst}' script that the installation is failed we have to call the statement: +
 `isFatalError` +
-Si cette déclaration est appelé '{opsi-winst}' arrête l'exécution normale du script et définit le résultat à 'failed' (sinon, il est à 'success'). +
-Par exemple , un "erreur fatale" doit être déclenchée s'il n'y a pas beaucoup d'espace libre comme il est nécessaire pour l'installation: 
+If this statement is called '{opsi-winst}' stops the normal execution of the script and sets the product result to 'failed' (otherwise it is 'success'). +
+E. g. , a "fatal error" shall be triggered if there is as much space left as it is needed for an installation: 
 [source,winst]
 ----
 DefVar $SpaceNeeded$"
@@ -2445,19 +2457,19 @@ if not(HasMinimumSpace ("%SYSTEMDRIVE%", $SpaceNeeded$))
  endif
 ----
 
-Il est également possible de déclarer +
+It is also possible to state +
 `isFatalError` +
-selon le nombre d'erreurs qui sont survenues dans quelques parties critique d'un script d'installation. Pour ce faire, on initialise le compteur d'erreurs par la commande +
+depending on the number of errors which occured in some critical part of an installation script. In order to do this we initialize the error counting by the command +
 * `markErrorNumber` +
-Le nombre d'erreurs d'exécution qui se produisent après avoir réglé le compteur peut être consultée par la fonction du nombre évalué +
+The number of execution errors which occur after setting the counter can be queried by the the number valued function +
 * `errorsOccuredSinceMark` +
-Nous pouvons évaluer le résultat dans une condition de comparaison numérique (que n'est encore mis pas en œuvre pour cette expression). Par exemple nous pouvons dire +
+We can evaluate the result in a numerical comparison condition (that as yet is only implemented for this expression). E. g. we may state +
 * `if errorsOccuredSinceMark > 0` +
-et on peut, si cela semble logique, alors déclarer +
+and may, if this seems to make sense, then state +
 `isFatalError` +
-Pour augmenter le nombre d'erreurs compté en fonction de certaines circonstances (qui ne produisent pas directement d'erreur) nous pouvons utiliser la déclaration `logError`. 
+For increasing the number of counted errors depending on certain circumstances (that do not directly produce an error) we may use the `logError` statement. 
 
-Nous pouvons tester cette hypothèse par l'exemple du script suivant:
+We may test this by the following script example:
 [source,winst]
 ----
 markErrorNumber
