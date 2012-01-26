@@ -87,8 +87,13 @@ see also: +
 http://en.wikipedia.org/wiki/Hostname
 
 * *correct name resolution for the server* +
-Execute the following command and check the result: +
-`getent hosts $(hostname -f)` +
+Execute the following command and check the result:
++
+[source,prompt]
+----
+getent hosts $(hostname -f)
+----
++
 The result should look like the following example: +
 '192.168.1.1 server.domain.tld server' +
 The result has the scheme: +
@@ -310,7 +315,7 @@ opsi need a installed samba:
 aptitude install samba samba-common smbclient smbfs samba-doc
 ----
 
-If you want to use MySQL as Backend e.g. for Inventory and license management, you will need the mysql-server as well:
+Now you should install the mysql-server in order to use it as Backend e.g. for Inventory and license management. (The use of the mysql Backend for inventory data is free):
 [source,prompt]
 ----
 aptitude install mysql-server
@@ -425,6 +430,7 @@ Execute the following commands in order to install opsi at your server:
 [source,prompt]
 ----
 aptitude update
+aptitude safe-upgrade
 aptitude remove tftpd
 update-inetd --remove tftpd
 aptitude install opsi-atftpd
@@ -438,7 +444,9 @@ During the installation of the opsiconfd you will be asked for information for a
 
 During the {opsi-server} installation you have to allow the patching of the files `dhcpd.conf` and `smb.conf`. Answer the question with 'yes'. Also you will be asked for a password for the user 'pcpatch'. Set a new password and please consider chapter 'Change of passwords'.
 
-If you like to run the opsi management interface '{opsi-configed}' directly at the server, you need to install the Java Runtime Environment from Sun/Oracle. In order to install these packages you have to go on like this:
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
+
+If you like to run the opsi management interface '{opsi-configed}' directly at the server, you need to install a Java Runtime Environment. from Sun/Oracle. In order to install these packages you have to go on like this:
 
 .Debian:
 At the file `/etc/apt/sources.list` add the branches +non-free+ and +contrib+ to your repositories.
@@ -454,17 +462,6 @@ deb-src http://security.debian.org/ lenny/updates main non-free contrib
 ----
 NOTE: If your running 'squeeze' the repositories have to be 'squeeze' instead of 'lenny'.
 
-.Ubuntu:
-At the file `/etc/apt/sources.list` add the branch +partner+ to your repositories.
-
-The result may look like this:
-[source,configfile]
-----
-deb http://archive.canonical.com/ubuntu/ maverick partner
-----
-NOTE: If your running 'lucid' the repositories have to be 'lucid' instead of 'maverick'.
-
-.Debian or Ubuntu:
 To install the Java JRE execute:
 [source,prompt]
 ----
@@ -472,6 +469,25 @@ aptitude update
 aptitude install sun-java6-jre sun-java6-plugin
 ----
 
+.Ubuntu:
+Since Ubuntu has removed the Sun/Oracle JRE from its repositories, we recommend here to use the OpenJDK. This will work fine if you start the opsi-configed as applikcation or via webstart. Running the opsi-configed inside the browser as applet may lead to problems with the OpenJDK 6.
+
+.Ubuntu Lucid, Maverick, Natty: 
+To install the Java JRE execute:
+[source,prompt]
+----
+aptitude update
+aptitude install openjdk-6-jre icedtea-plugin
+----
+
+.Ubuntu Oneric: 
+Since Oneric we recommend to use the version 7 of the OpenJDK.
+To install the Java JRE execute:
+[source,prompt]
+----
+aptitude update
+aptitude install openjdk-7-jre icedtea-plugin
+----
 
 Cause you install opsi on an existing machine we assume of a correct network configuration. So you can go on with <<opsi-getting-started-installation-config-backend>>
 
@@ -489,17 +505,36 @@ The package opsi4ucs-ldap-schema has to be installed on an UCS Master.
 
 The following documentation assumes that opsi is to be installed on an UCS Master.
 
-Check the {opsi-server} entry in `/etc/hosts` or the output of
+Necessary preparations:
+
+* The command
++
+[source,prompt]
+----
+hostname -f
+----
++
+must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
+
+* Check the {opsi-server} entry in `/etc/hosts` or the output of
++
 [source,prompt]
 ----
 getent hosts $(hostname -f)
 ----
-
++
 The result should look like the following example: +
 '192.168.1.1 server.domain.tld server' +
 The result has the scheme: +
 '<IP-Number> <full qualified hostname> <hostname>' +
 If the result looks different (contains eg. '127.0.0.1' or 'localhost') or the full qualified hostname does not contain one or more dots you must correct your name resolution (DNS or `/etc/hosts` file). 
+
+* Samba must be configured
+
+* mysql-server must be installed
+
+* If the machine should also act as DHCP-server, the daemon dhcpd has to be configured and should be up and running
+
 
 Use the following command to activate the UCS unmaintained repositories on your target server:
 [source,prompt]
@@ -528,6 +563,9 @@ aptitude update
 aptitude install opsi4ucs-ldap-schema
 aptitude install opsi4ucs
 ----
+
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
+
 To install opsi on a UCS Backup or Slave, run the following commands:
 
 At first run the following commands at the Master:
@@ -544,6 +582,8 @@ Now run the following commands at your target system:
 aptitude update
 aptitude install opsi4ucs
 ----
+
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
 
 If the server role is something other than UCS Master, it is required to run the join script after the installation.
 [source,prompt]
@@ -566,6 +606,8 @@ slapindex
 
 Since you are installing opsi on an existing machine we assume that the network configuration is correct. You can continue with <<opsi-getting-started-installation-config-backend>>
 
+WARNING: The unix commands that are used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
+
 [[opsi-getting-started-installation-base-opensuse]]
 ==== Installation on openSUSE
 
@@ -581,7 +623,14 @@ uib gmbh strongly recommend for evaluation purpose the usage of the opsi-VM.
 
 Necessary preparations:
 
-* The command `hostname -f` must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
+* The command
++
+[source,prompt]
+----
+hostname -f
+----
++
+must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
 
 * Check the {opsi-server} entry in `/etc/hosts` or the output of
 +
@@ -597,6 +646,8 @@ The result has the scheme: +
 If the result looks different (contains eg. '127.0.0.1' or 'localhost') or the full qualified hostname does not contain one or more dots you must correct your name resolution (DNS or `/etc/hosts` file). 
 
 * Samba must be configured
+
+* mysql-server must be installed
 
 * If the machine should also act as DHCP-server, the daemon dhcpd has to be configured and should be up and running
 
@@ -617,6 +668,8 @@ zypper -v install opsi-depotserver {opsi-configed}
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
 ----
+
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
 
 In case you used a tool like yast or autoyast to help you with your network configuration the tool may have created an entry in your `/etc/hosts` file that has the following pattern:
 [source,configfile]
@@ -654,9 +707,17 @@ First  general notes:
 These packages are tested with openSUSE 11.3. We have no information if opsi 4.0 will work with other versions.
 
 uib gmbh strongly recommend for evaluation purpose the usage of the opsi-VM.
+
 Necessary preparations:
 
-* The command `hostname -f` must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
+* The command
++
+[source,prompt]
+----
+hostname -f
+----
++
+must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
 
 * Check the {opsi-server} entry in `/etc/hosts` or the output of
 +
@@ -672,6 +733,8 @@ The result has the scheme: +
 If the result looks different (contains eg. '127.0.0.1' or 'localhost') or the full qualified hostname does not contain one or more dots you must correct your name resolution (DNS or `/etc/hosts` file). 
 
 * Samba must be configured
+
+* mysql-server must be installed
 
 * If the machine should also act as DHCP-server, the daemon dhcpd has to be configured and should be up and running
 
@@ -693,6 +756,8 @@ zypper -v install opsi-depotserver {opsi-configed}
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
 ----
+
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
 
 In case you used a tool like yast or autoyast to help you with your network configuration the tool may have created an entry in your `/etc/hosts` file that has the following pattern:
 [source,configfile]
@@ -724,7 +789,14 @@ opsi 4.0 is tested and released for RHEL 5.
 
 Necessary preparations:
 
-* The command `hostname -f` must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
+* The command
++
+[source,prompt]
+----
+hostname -f
+----
++
+must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
 
 * Check the {opsi-server} entry in `/etc/hosts` or the output of
 +
@@ -740,6 +812,8 @@ The result has the scheme: +
 If the result looks different (contains eg. '127.0.0.1' or 'localhost') or the full qualified hostname does not contain one or more dots you must correct your name resolution (DNS or `/etc/hosts` file). 
 
 * Samba must be configured
+
+* mysql-server must be installed
 
 * If the machine should also act as DHCP-server, the daemon dhcpd has to be configured and should be up and running
 
@@ -776,6 +850,7 @@ yum install opsi-depotserver {opsi-configed}
 yum install p7zip p7zip-plugins cabextract mysql-server
 ----
 
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
 
 Since you are installing opsi on an existing machine we assume that the network configuration is correct. You can continue with <<opsi-getting-started-installation-config-backend>>
 
@@ -799,7 +874,16 @@ opsi 4.0 is tested and released for CentOS 5.
 
 Necessary preparations:
 
-* The command `hostname -f` must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
+Necessary preparations:
+
+* The command
++
+[source,prompt]
+----
+hostname -f
+----
++
+must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
 
 * Check the {opsi-server} entry in `/etc/hosts` or the output of
 +
@@ -815,6 +899,8 @@ The result has the scheme: +
 If the result looks different (contains eg. '127.0.0.1' or 'localhost') or the full qualified hostname does not contain one or more dots you must correct your name resolution (DNS or `/etc/hosts` file). 
 
 * Samba must be configured
+
+* mysql-server must be installed
 
 * If the machine should also act as DHCP-server, the daemon dhcpd has to be configured and should be up and running
 
@@ -844,6 +930,8 @@ yum install opsi-depotserver {opsi-configed}
 yum install p7zip p7zip-plugins cabextract mysql-server
 ----
 
+During the {opsi-server} installation they may warnings about a missing `/etc/opsi/modules` file which you should ignore.
+
 Since you are installing opsi on an existing machine we assume that the network configuration is correct. You can continue with <<opsi-getting-started-installation-config-backend>>
 
 WARNING: The unix commands that are used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
@@ -872,9 +960,11 @@ aptitude update
 aptitude safe-upgrade
 ----
 
-TIP: If you will be asked during the update to modify the `smb.conf` file, you should accept this question. If you have modified the `smb.conf` before, you should hold the default and make a diff later on both files. If the question is answered with default before you read this advice you can repeat this action from the console on the {opsi-Server} with following command: `opsi-setup --auto-configure-samba`.
-
-TIP: If using the `servervm` and the {opsi-configed} should be callable over the browser from the vm, the java-plugin must be installed. You can do this with the following command: `aptitude install sun-java6-plugin`.
+TIP: If you will be asked during the update to modify the `smb.conf` file, you should accept this question. If you have modified the `smb.conf` before, you should hold the default and make a diff later on both files. If the question is answered with default before you read this advice you can repeat this action from the console on the {opsi-Server} with following command: 
+[source,prompt]
+----
+opsi-setup --auto-configure-samba`.
+----
 
 [[opsi-getting-started-installation-config-backend]]
 ==== Backend Configuration
@@ -884,7 +974,7 @@ opsi supports for storing it's data different backends.
 The most important backends are:
 
 * file (storage in files)
-* ldap (storage in the ldap database)
+* ldap (storage in the ldap database) (depricated)
 * mysql (storage in a MySQL database)
 
 Beside of these main backend, there are some special backends:
@@ -893,7 +983,7 @@ Beside of these main backend, there are some special backends:
 * dhcpd (used for configure and restart the local dhcp service)
 * jsonrpc (to redirect all calls to a other {opsi-server} via JSON RPC)
 
-If you are planning to use the mysql backend (e.g. inventory data), you have to initialize it now. Therefore use the command:
+Now we recommend to initialize the mysql backend in order to use it for e.g. inventory data). Therefore use the command:
 [source,prompt]
 ----
 opsi-setup --configure-mysql
@@ -952,11 +1042,36 @@ Here an example:
 #       .*                 : ldap
 #
 #     mysql and opsipxeconfd only
-backend_.*         : mysql, opsipxeconfd
-host_.*            : mysql, opsipxeconfd
-productOnClient_.* : mysql, opsipxeconfd
-configState_.*     : mysql, opsipxeconfd
-.*                 : mysql
+#       backend_.*         : mysql, opsipxeconfd
+#       host_.*            : mysql, opsipxeconfd
+#       productOnClient_.* : mysql, opsipxeconfd
+#       configState_.*     : mysql, opsipxeconfd
+#       .*                 : mysql
+#
+#
+# Recommended standard configuration of the preinstalled VM
+#    file as main backend, mysql as hw/sw invent 
+#     and license management backend, opsipxeconfd and dhcpd backend:
+#        backend_.*         : file, mysql, opsipxeconfd, dhcpd
+#        host_.*            : file, opsipxeconfd, dhcpd
+#        productOnClient_.* : file, opsipxeconfd
+#        configState_.*     : file, opsipxeconfd
+#        license.*          : mysql
+#        softwareLicense.*  : mysql
+#        audit.*            : mysql
+#        .*                 : file
+#
+# Recommended standard configuration (dhcpd not at the opsi server)
+#    file as main backend, mysql as hw/sw invent 
+#     and license management backend and opsipxeconfd backend:
+backend_.*         : file, mysql, opsipxeconfd
+host_.*            : file, opsipxeconfd
+productOnClient_.* : file, opsipxeconfd
+configState_.*     : file, opsipxeconfd
+license.*          : mysql
+softwareLicense.*  : mysql
+audit.*            : mysql
+.*                 : file
 ----
 
 In this file you will find at the top some explementations and examples. In the lines which are not comments you fill find in the first column the name of the opsi method call (with wildcard \*) and in the second column the list of backends which have to be called. If any method is called the first matching line will be used. The last line (.*) matches all opsi method calls.
@@ -972,6 +1087,9 @@ opsi-setup --set-rights
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
 ----
+
+They may warnings about a missing `/etc/opsi/modules` file which you should ignore.
+
 
 The access rights for calling the opsi methods are configured in  `/etc/opsi/backendManager/acl.conf`.
 
@@ -992,6 +1110,8 @@ opsi-admin -d task setPcpatchPassword
 ==== Checking the java configuration
 
 Administrate the {opsi-server}s and the connected clients with the program '{opsi-configed}'. The program is written in Java and use minimum Java version 6 or version 1.6 (old version count).
+
+Since Ubuntu has removed the Sun/Oracle JRE from its repositories, we recommend here to use the OpenJDK. This will work fine if you start the opsi-configed as applikcation or via webstart. Running the opsi-configed inside the browser as applet may lead to problems with the OpenJDK 6.
 
 To control the Java version call up 
 [source,prompt]
@@ -1014,6 +1134,21 @@ There are 3 alternatives which provide `java'.
 
 Press enter to keep the default[*], or type selection number: 3
 Using `/usr/lib/j2re1.6-sun/bin/java' to provide `java'.
+----
+
+[source,prompt]
+----
+ update-alternatives --config mozilla-javaplugin.so
+There are 2 choices for the alternative mozilla-javaplugin.so (providing /usr/lib/mozilla/plugins/libjavaplugin.so).
+
+  Selection    Path                                                        Priority   Status
+
+* 0            /usr/lib/jvm/java-6-openjdk/jre/lib/amd64/IcedTeaPlugin.so   1061      auto mode
+  1            /usr/lib/jvm/java-6-openjdk/jre/lib/amd64/IcedTeaPlugin.so   1061      manual mode
+  2            /usr/lib/jvm/java-6-sun/jre/lib/amd64/libnpjp2.so            63        manual mode
+
+Press enter to keep the current choice[*], or type selection number: 2
+update-alternatives: using /usr/lib/jvm/java-6-sun/jre/lib/amd64/libnpjp2.so to provide /usr/lib/mozilla/plugins/libjavaplugin.so (mozilla-javaplugin.so) in manual mode.
 ----
 
 [[opsi-getting-started-installation-config-users-and-groups]]
@@ -1141,6 +1276,9 @@ opsi-setup --set-rights
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
 ----
+
+They may warnings about a missing `/etc/opsi/modules` file which you should ignore.
+
 
 [[opsi-getting-started-installation-config-nameresolution]]
 === Configure how to get the clients IP-Address
