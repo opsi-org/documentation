@@ -16,7 +16,7 @@ def rename_docs(path, t, dest):
 			if entry.endswith(t):
 				d = root.split("/")
 				lang = d[d.index(t)+1]
-				shutil.copy(os.path.join(root, entry), os.path.join(dest, "%s.%s" %( "%s-%s"%(entry.rsplit(".",1)[0],lang),t)))
+				shutil.move(os.path.join(root, entry), os.path.join(dest, "%s.%s" %( "%s-%s"%(entry.rsplit(".",1)[0],lang),t)))
 
 if __name__=="__main__":
 	if not len(sys.argv) > 3:
