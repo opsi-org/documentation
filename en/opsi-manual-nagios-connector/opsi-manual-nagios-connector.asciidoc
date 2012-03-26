@@ -18,20 +18,22 @@ include::../common/opsi_terms.asciidoc[]
 = opsi-Nagios-Connector
 
 [[opsi-Nagios-Connector-introduction]]
-== Einführung
+== Introduction
 
-Neben dem Client Management ist das Monitoring der IT-Infragstruktur eine der Kernfunktion in der heutigen IT. opsi ist ein Client-Management Werkzeug. Für das Monitoring gibt es erprobte und bekannte Opensource Lösungen. Daher der Ansatz opsi nicht um ein Monitoring zu erweitern, sondern eine Schnittstelle zu bestehenden Lösungen anzubieten. Mit dieser Erweiterung von opsi, wird eine Schnittstelle für die bekannte Monitoring Lösung Nagios zur Verfügung gestellt. In den folgenden Kapiteln wird der opsi-Nagios-Connector erläutert und Beispielkonfigurationen vorgestellt.
+Beside client managment is monitoring one the central functions in a modern IT service management. With opsi you got a client management tool. For monitoring tasks there are other well known open source solutions. So we build for the monitoring tasks in opsi not a own monitoring tool but a interface to existing solutions. With this opsi extension we provide a connector to Nagios. +
+In the following chapters the design and configuration of the opsi-nagios-connector is explained.
 
-Der opsi-Nagios-Connector ist nicht fest an eine Monitoringsoftware gebunden. Programmiert wurde die Schnittstelle für Nagios/Icinga. Der Einsatz mit anderen Monitoring Lösungen ist denkbar, wird momentan aber weder getestet noch unterstützt.
+The opsi-nagios-Connector isn't stricly bound to Nagios. It is developed vor the use with Nagios and Icinga. It should also work with other Nagios derivates but this is wether tested nor supported.
 
-Die folgende Dokumentation beschreibt wie der opsi-Nagios-Connector aufgebaut ist und wie man ihn konfigurieren muss. Es wird voraussgesetzt, dass eine funktionierende Installation von Nagios bzw. Icinga vorliegt.
+The scope of this manual is the design and configuration of the opsi-Nagios-Connector. It is not a Nagios manual. You will need a running Nagios installation and the knowlege how to run Nagios.
 
 [[opsi-Nagios-Connector-prerequires]]
-== Vorbedingungen
+== Preconditions
 
-Vorrausgesetzt wird eine Nagios Installation in einer aktuellen 3.x Version oder eine Icinga Installation mindestens in der Version 1.6. Der opsi-Nagios-Connector sollte auch mit allen Nagios-Kompatiblen Monitoring-Lösungen benutzbar sein, getestet wird diese opsi Erweiterung allerdings nur gegen Nagios und Icinga. Sollte eine grafische Darstellung der opsiconfd-Performance Werte gewünscht werden, wird zusätzlich noch eine Installation des Addons pnp4nagios benötigt.
+As precondition you need a Nagios installation in the version 3.x or a Icinga Installation in the version 1.6 or higher. +
+For graphical output of performance data a pnp4nagios installation is required.
 
-Für weitere Informationen, siehe unter:
+Further information you will find at:
 
 www.nagios.org
 
@@ -40,112 +42,141 @@ www.icinga.org
 www.pnp4nagios.org
 
 [[opsi-Nagios-Connector-concept]]
-== Konzept
+== Concept
 
-Der opsi-Nagios-Connector besteht haupstächlich aus zwei verschiedenen Komponenten. Im Folgenden werden beide Komponenten erläutert.
+The opsi-Nagios-Connector contains of two core components. At first we will discuss these core components.
 
 [[opsi-Nagios-Connector-concept-webservice]]
-=== opsi-Webservice Erweiterung
+=== opsi web service extension
 
-Eines der Hauptschwerpunkte des opsi-Nagios-Connectors ist eine Erweiterung des opsi-Webservice. Die Webserviceschnittstelle bietet damit die Möglichkeit Checks vom opsi-server anzufordern. Das bedeutet der Nagios Server verwendet die erweiterten Webservicemethoden zum Auslösen und Abfragen von Checks. Der Vorteil dieser Lösung ist, dass die eigentliche Checkausführung im opsi-System ausgeführt wird und somit der Aufwand auf den überwachten Systemen gering bleibt.
+The heart of the opsi-Nagios-Connector are extened features of the opsi web service. These web service extension make it possible to run checks via web service on the opsi server. So the nagios server calls checks via web service, which are executed on the opsi-server and the results come back to the nagios server via opsi web service. Tha advantage of this solution is that there is nearly nothing to do on the monitored opsi server.
 
-Diese Erweiterung stellt eine Sammlung von Checks zur Verfügung, die in einem späteren Kapitel einzeln vorgestellt werden. Hauptsächlich wurden opsi spezifische Checks eingebaut. "Normale" Systemchecks werden nicht über den opsi-Nagios-Connector angeboten und müssen auf konventionelle Weise ausgeführt werden.
+The focus of the opsi web service extension lies on opsi specific checks like e.g. rollout monitoring. For the 'normal' server monitoring you should use still standard check methods. 
 
 [[opsi-Nagios-Connector-concept-opsiclientd]]
-=== opsi-client-agent Erweiterung
+=== opsi-client-agent extension
 
-Ein weiterer Teil des opsi-Nagios-Connectors ist eine Erweiterung des opsi-client-agent. Da in einer opsi-Umgebung jeder Managed-Client einen laufenden opsi-client-agent hat, bietet sich an, diesen als Nagios-Agent zu benutzen. Wichtig bei dieser Erweiterung ist zu Wissen, dass nicht alle Funktionen eines Nagios-Agenten, wie z.B. `NSClient++` implementiert wurden.
-
-Die Möglichkeiten des opsi-client-agent umfassen das Ausführen von plugin Befehlen auf der Kommandozeile und das Zurückliefern der Ergebnisse.
+A other part of the opsi-Nagios-Connector is a extension of the opsi-client-agent. +
+In a opsi environment on every managed client runs a opsi-client-agent. With this extension you may use the opsi-client-agent as nagios agent as well. But in fact not all features of a standard Nagios agent like `NSClient++` are implemented at the opsi-client-agent. You may use the opsi-client-agent to run command line programs and send back the output.
+efern der Ergebnisse.
 ////
 Wenn man nicht alle Funktionen, wie NSCA benötigt, sondern nur ein paar Standard-Checks per Plugin auf den Clients ausführen oder eine Reihe von eigenen Plugins auf den Clients benutzen möchte, kann man den opsi-client-agent dazu verwenden. 
 ////
-Für Situationen in denen erweiterte Funktionen vom Nagios-Agent wie NSCA benötigt werden, wird ein opsi-Paket für die Verteilung und Pflege des `NSClient++` per opsi bereitgestellt.
 
-Der Vorteil der Verwendung des opsi-client-agent ist zum einen, dass kein zusätzlicher Agent benötigt wird und das der Monitoring-Server keine Zugangsdaten vom Client haben muss, da die Checks zum Client alle über den opsiconfd laufen. Dies vereinfacht auch die Konfiguration auf der Monitoring Seite um einiges.
+If you need more features for the client monitoring you should rollout a standard agent like `NSClient++` via opsi.
+
+The advantage of using the opsi-client-agent as nagios agent is, that you don't need a additional agent on the client and that you don't need any access data for the clients at the monitoring server. These data is not needed because all check run via the opsi server. This makes the configuration a lot more easier.
 
 [[opsi-Nagios-Connector-checks]]
-== opsi-Checks
+== opsi-checks
 
-Im folgenden Kapitel werden Zweck und Konfiguration der einzelnen opsi-Checks erklärt. 
+The following chapter explains the goals and configurations of the opsi-checks.
 
 [[opsi-Nagios-Connector-checks-background]]
-=== Hintergrund zum richtigen Verteilen der Checks
+=== Some background information about where to run the checks
 
-In der allgemeinen Monitoring Sprache werden zwischen aktiven und passiven Checks gesprochen. Die Bedeutung besagt, ob Nagios/Icinga die Checks selber auslöst und ausführt (aktiv) oder ob die Hosts die Checks eigenständig ausführen und die Ergebnisse an Nagios/Icinga selbstständig zurückmelden (passiv).
+Monitoring administrators know the difference between active and passive checks. 
 
-Auch bei der opsi-Nagios-Connector-Erweiterung gibt es diese zwei Unterscheidungen. Allerdings werden diese bei opsi als direkte- bzw. indirekte-Checks bezeichnet:
+With the opsi-Nagios-Connector we get a new difference: direct and indirect.
 
-* Direkt: Diese Checks werden auf dem Client ausgeführt und liefern Ergebnisse vom Client an den Monitoring Server.
-* Indirekt: Die Erhebung der Daten, die für diese Art von Checks relevant sind, findet auf Basis von Backend-Daten im opsi-System statt. Diese können von realen Situationen und Zuständen abweichen.
+* direct : +
+The check which collects information about a client runs on that client, get the information direct from the client and sends the information back.
 
-Ein gutes Beispiel für einen inderekten Check ist `check-opsi-client-status`. Dieser Check bezieht sich eigentlich auf einen Client, ausgeführt wird er aber auf dem opsi-Backend. Der Client-Status ist in diesem Fall der Zustand des Clients aus Sicht von opsi. Im Gegensatz dazu wird jeder Check der tatsächlich am Client ausgeführt wird als direkter Check bezeichnet.
+* indirect : +
+The check which collects information about a client runs on the opsi server and get the information from the opsi configuration data which is stored in the opsi backend. So - this information may be different from the actual situation of the client.
 
-Die richtige Verteilung der Checks und damit die richtige Konfiguration erfordert zunächst die Analyse der eigenen opsi-Umgebung. Da opsi sehr flexibel einsetzbar ist, können verschiedene Szenarien auftreten. Hier werden die am häufigsten mit opsi eingesetzten Installationsvarianten abgehandelt. (Für spezielle Installation sollten Sie uns kontaktieren oder direkt über einen bestehenden Supportvertrag Ihre Situation schildern.)
+A good example for a indirect check is the `check-opsi-client-status`. This check gives you for a given client information about pendig action request and reported failures of the opsi software depolyment. So this are information about the client from the opsi servers point of view. Therefore this check runs on the opsi server and is a indirect check. A check which runs on the client is a direct check.
 
-Ein opsi-Server (Standalone Installation): Diese Variante ist die am häufigsten eingesetzten Variante. Bei dieser Installation ist der Configserver auch gleichzeitig der Depotserver und somit werden alle Checks über den opsi-configserver aufgerufen.
+For a correct distribution and configuration of the checks you have to analyze your opsi installation. +
+Acoording to the flexibility of opsi many various opsi configurations are possible. So here we can only explain some typical situations. Of course we will get help for special sitations by our comercial support.
 
-Mehrere opsi-Server mit einer zentralen Administration (Multi-Depot Umgebung): Um bei dieser Art der Installation die Checks richtig zu verteilen muss man als erstes Verstehen, wie eine Multidepot-Umgebung aufgebaut ist:
+only one opsi server: +
+The opsi stand alone installation is the sitation that you will find at the most opsi environments. At this installation the opsi config server functionality is at the same server like the (one and only) opsi depot server functionality. +
+This means to you, that you may ignore if a check has to be run on the config server or the depot server.
+
+opsi with multiple depotservers: +
+If you have a central management of a multi location opsi environment (one config server, multiple depot servers) the sitation is more complicated. So you have to understand the sitation:
+
 
 MULTIDEPOTBILD
 
-Wie im Bild zu erkennen, gibt es nur ein Daten-Backend, welches am opsi-Configserver angesiedelt ist. Jeder Check der gegen das Backend ausgeführt wird muss somit zwangsläufig über den opsi-Configserver. Somit werden alle Checks die an die Depotserver gehen, intern an den Configserver weitergeleitet. Deshalb ist es sinnvoller diese Checks direkt gegen den opsi-Configserver aus zu führen. Eine Ausnahme können die aktiven Checks gegen den opsi-client-agent bilden. Wenn zum Beispiel zwischen den Servern eine Firewall aufgestellt ist, die nur den Port 4447 durchlässt, können Clients an der Aussenstelle eventuell nicht erreicht werden (Standardport 4441). In solchen Fällen kann es nützlich sein den aktiven Check am Depotserver in der Aussenstelle auszuführen.
+As the figure points out there is only one server which have data storage for the configuration data - the data backend. This is the opsi config server. The opsi depot server has no own data storage but a redireted backend. This means that if you ask a depot server for any configuration data, this question will be redireted to the config server. And this leads to the consequence that every check which runs against the opsi data backend will at least run on the config server. So you should address checks that run against the backend always to the config server. Even in the sitation if you are collecting information about clients which are assingned to a depot which is different from the config server and the check is logically part of the check of this depot server.
+
+If you running direct checks you normally also address the config server. You may address the depot server if the clients can't be reached by the opsi config server via port 4441. In this case it is a good idea to address the depot server.
 
 VERTEILTE Checks Bild
 
 [[opsi-Nagios-Connector-checks-plugin]]
 === opsi-check-plugin
 
-Auf dem Nagios Server gibt es nur ein opsi-check-plugin, welches aber eine große Zahl von Checks unterstützt. Deshalb hat dieses Plugin auch ziemlich viele Optionen. Eine Auflistung dieser Optionen wäre der Erläuterung nicht dienlich, deshalb wird an dieser Stelle darauf verzichtet. Die einzelnen Optionen, die benötigt werden oder möglich sind, werden bei den einzelnen Checks erläutert. Das opsi-check-plugin wird aufgerufen mit dem Befehl `check_opsi`. Eine Übersicht der möglichen Optionen erhält man mit dem Parameter -h oder --help. +
-Die folgenden Optionen sind für alle Checks notwendig:
+At the Nagiso server there is only one opsi-check-plugin which provides a wide range of different checks. According to the number of features there is also a big number of command lin options. So - just list all these options won't help you much. Instead the option will be explained in the context of documentation of the possible checks. +
+How ever to get a listing of all options you may call `check_opsi` with the parameters `--help` or `-h`.
 
-.Allgemeine Optionen
+The following general options are needed for every check:
+
+.General Options
 |=======================
-|Optionen|Bezeichnung|Beispiel
-|-H,--host|opsiServer auf dem gecheckt werden soll|configserver.domain.local
-|-P,--port|opsi-Webservice Port|4447 (Default)
-|-u,--username|opsi Monitoring User|monitoring
-|-p,--password|opsi Monitoring Password|monitoring123
-|-t,--task|opsi Checkmethode (Case Sensitive)|
+|Option|Description|Example
+|-H,--host|opsi server which should run the check|configserver.domain.local
+|-P,--port|opsi webservice port|4447 (Default)
+|-u,--username|opsi monitoring user|monitoring
+|-p,--password|opsi monitoring password|monitoring123
+|-t,--task|opsi check method (case sensitive)|
 |=======================
 
-Die oben aufgeführten Paramater müssen immer gesetzt werden. Das nachfolgende Kapitel erläutert als erstes, wie man das opsi-check-plugin manuell aufrufen würde. Wie diese über Nagios/Icinga gesetzt werden, wird im Kapitel der Konfiguration erläutert.
+The following chapter describes how to call the opsi-check-plugin is called on the command line. How you have to configure these calls at your Nagios server is described at the chapter 'configuration'.
 
-Um das check-plugin vom opsi-Nagios-Connector zu installieren, können Sie einfach das opsi-Repository auf dem Nagios-Server eintragen und mit folgendem Befehl das Paket installieren:
+In order to install the opsi-check-plugin on your Nagios server you should add the opsi repository to your server and install the package 'opsi-nagios-plugins'. +
+For example at Debian or Ubuntu with the following commands:
 
 [source,prompt]
 ----
 apt-get install opsi-nagios-plugins
 ----
 
-Momentan gibt es Check-Plugin nur als Debian/Ubuntu-Pakete. Weitere Distributionen sind in Planung. Sollten das Check-Plugin für eine andere Distribution als Debian/Ubuntu benötigen, bitte kontaktieren Sie: info@uib.de. Das Plugin selbst ist in Python geschrieben und sollte auch auf anderen Distributionen laufen. Dieses Paket basiert auf dem Paket: 'nagios-plugins-basic' und installiert entsprechend das Plugin ins Verzeichnis: `/usr/lib/nagios/plugins`. Die Konfiguration der Nagios-Check-Commands wird nicht automatisch angelegt, da dieses Plugin sehr flexibel einsetzbar ist. Deshalb wird dieser Teil im Kapitel über die Konfiguration etwas später näher erläutert. 
+At the moment this package is only aviable for Debian/Ubuntu. Packages for other distribution will follow later. Nevertheless the plugin it self is written in python and should ran at any distribution.
+
+The package bases on the package 'nagios-plugins-basic' and installs the plugin to `/usr/lib/nagios/plugins`. +
+According to the flexibility of the check_plugin there is no automatic configuration.
 
 [[opsi-Nagios-Connector-checks-opsiWebservice]]
-==== Check: opsi-Webservice 
+==== Check: opsi web service 
 
-Mit diesem Check wird der opsi-Webservice-Prozess überwacht. Dieser Check liefert auch Performancewerte. Deshalb sollte dieser Check auf jedem opsi-Server selbst ausgeführt werden, da jeder Opsi-Server seinen eigenen opsiconfd-Prozess hat, der überwacht werden kann bzw. sollte.
+This check monitors the opsi web service process (opsiconfd). This check returns also performance data. You should run this check on every opsi server because every opsi server have a opsiconfd process.
 
 [source,prompt]
 ----
 check_opsi.py -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiWebservice
 ----
 
-Dieser Check liefert in der Regel OK zurück. In folgenden Situationen kann dies Abweichen:
+This check return normally OK. +
+You will get other return values in the following situations:
 
-* Critical: Wenn der Webservice ein Problem hat und nicht richtig antwortet. Weiterhin wird dieser Status zurückgemeldet, wenn die CPU-Last des Prozesses 80% überschreitet oder wenn die prozentuale Wert von RPC-Errors 20% erreicht und übersteigt. (In Bezug auf die gesamten RPCs)
-* Warning: Wenn der Webservice zwar arbeitet, aber Grenzwerte überschreitet: CPU Auslastung höher als 60% aber unter 80% oder wenn der prozentuale Wert der RPC-Errors in Bezug auf die Gesamt-RPC Anzahl höher als 10% aber unter 20% liegt.
-* Unknown: Wenn der Webservice gar nicht erreichbar ist.
+* Critical: +
+** If the opsiconfd is in trouble and can't reply correctly.
+** If the opsiconfd consumes more than 80% of the cpu.
+** If you have a rate of RPC errors of more than 20%.
 
-Info: Die CPU-Werte beziehen sich immer nur auf eine CPU, da ein Prozess auch nur einen Prozessor benutzen kann. Eine Ausnahme bildet hier das Multiprocessing von opsi.
+* Warning: +
+** If the opsiconfd consumes more than 60% (but less than 80%) of the cpu.
+** If you have a rate of RPC errors of more than 10% but less than 20%
+
+* Unknown: +
+The opsi web service could not be reached.
+
+NOTICE:
+The percentage value of the cpu consumption belongs always to one cpu because the opsiconfd only may use one cpu. (This may change with the opsi multi processing extension)
 
 [[opsi-Nagios-Connector-checks-opsiWebservice-pnp4nagios-template]]
-===== Check: opsi-Webservice pnp4nagios-Template
+===== Check: opsi web service pnp4nagios template
 
-Für die Perfomance-Auswertung gibt es ein Template für das pnp4nagios, welches die Werte kombiniert darstellt. Wie man das pnp4nagios installiert, wird hier nicht explizit beschrieben, sondern es wird davon ausgegangen, dass pnp4nagios richtig installiert und konfiguriert wurde. Die notwendige Vorgehensweise kann sich von der hier beschriebenen Lösung unterscheiden, wenn das pnp4nagios mit anderen Pfaden installiert wurde (kann bei selbst kompilierten Installationen vorkommen).
+For the display of performance data there is a template for pnp4nagios which displays the data in a combined way. +
+Here is not described how to install pnp4nagios. We assume that pnp4nagios is installed and configured correctly. The way you have to use to configure our template may differ from the below described way according to your pnp4nagios installation (which may use different path).
 
-Es werden Standard-Templates verwendet, welche für jeden einzelnen Performancewert in eigenes Diagramm darstellen. Um das oben genannte Template mit der kombinierten Ansicht zu verwenden muss man folgendermaßen vorgehen:
+Standard templates dispay for every performance data a own diagram. To create a combined display you have to go the following steps:
 
-Schritt 1: Erstellen Sie unterhalb von: `/etc/pnp4nagios/check_commands` eine Datei mit der Bezeichnung: `check_opsiwebservice.cfg` und folgendem Inhalt:
+Step 1: +
+create at `/etc/pnp4nagios/check_commands` a file named  `check_opsiwebservice.cfg` and insert the following content:
 
 [source,cmd]
 ----
@@ -153,115 +184,141 @@ CUSTOM_TEMPLATE = 0
 DATATYPE = ABSOLUTE,ABSOLUTE,ABSOLUTE,ABSOLUTE,DERIVE,GAUGE,GAUGE,GAUGE
 ----
 
-
-Schritt 2: Legen Sie die Datei `check_opsiwebservice.php` unterhalb von `/usr/share/pnp4nagios/templates` ab. Diese Datei können Sie über svn.opsi.org auschecken.
+Setp 2: +
+change to the directory `/usr/share/pnp4nagios/html/templates` and place there a file `check_opsiwebservice.php` which you check out from svn.opsi.org:
 
 [source,cmd]
 ----
+cd /usr/share/pnp4nagios/html/templates
 svn co https://svn.opsi.org/opsi-pnp4nagios-template/trunk/check_opsiwebservice.php
 ----
 
-Wichtig bei diesen Anpassungen ist, dass die Namen der Dateien genauso heißen wie das check_command in der command-Definition, welches im Nagios für diesen Check konfiguriert wurde. Stimmen die Bezeichnungen nicht überein, wird statt dieses Template ein Standardtemplate von pnp4nagios verwendet.
+Please check that your php file is named exactly like the 'command_name' which is defined at the `/etc/nagios3/conf.d/opsi/opsicommands.cfg`. If the names don't match, a standard template will be used instead our combined template.
 
-Sollte diese Anpassung vorgenommen werden, wenn die ersten Checks für den opsi-webservice schon stattgefunden haben, müssen die schon erstellten RRD-Datenbanken erst mal gelöscht werden, da mit diesen Templates auch die Struktur der RRD-Datenbanken neu konfiguriert werden.
+After installing this template you should delete the RRD data bases which belong to this check (if there any existing). You will find these data bases at `/var/pnp4nagios/perfdata/<host>/` where you should (only) delete the `opsi-webservice.rrd` and `opsi-webservice.xml` files.
 
-In der Regel sind die RRD-Datenbanken unter folgendem Pfad zu finden: `/var/pnp4nagios/perfdata/<host>/`
+If you have configured everything correctly you should now able to see diagrams like the following screenshot.
 
-Dabei reicht es aus alle Dateien die entweder mit opsi-webservice.rrd oder mit opsi-webservice.xml beginnen zu löschen. (Vorsicht: Hier werden auch andere RRD-Datenbanken von anderen Checks für diesen Host angelegt, die nicht unbedingt gelöscht werden sollten.)
 
-Damit das ganze automatisch funktioniert, müssen diese Dateien genauso heißen, wie das check_command vom opsi-Webservice. Der Grund dafür liegt in der Arbeitsweise von pnp4nagios. Sollte also die Konfiguration des opsi-Webservice von dieser Dokumentation abweichen, so müssen auch diese template-Dateien umbenannt werden, da ansonsten pnp4nagios keine richtige Zuordnung treffen kann.
-
-Sollte bis hierhin alles richtig konfiguriert worden sein und die Konfigurations-Schritte im Konfigurationskapitel richtig befolgt worden sein, sollten die Diagramme wie im folgenden Screenshot automatisch generiert werden:
-
-image::../images/pnp4nagios.png["uib-Template für pnp4nagios",width=400]
+image::../images/pnp4nagios.png["uib template for pnp4nagios",width=400]
 
 [[opsi-Nagios-Connector-checks-opsidiskusage]]
 ==== Check: opsi-check-diskusage
 
-Mit diesem Check werden die opsiconfd-Ressourcen auf Füllstand überwacht. Die Folgende Tabelle zeigt, welche Ressourcen damit gemeint sind.
+This check monitors the usage of the resources (directories) which are used by opsi. The following table shows the resource names and the corrosponding directories:
 
 .opsi Ressourcen
 |=======================
-|Ressource|Pfad
+|Ressource name|Path
 |/|/usr/share/opsiconfd/static
 |configed|/usr/lib/configed
 |depot|/opt/pcbin/install
 |repository|/var/lib/opsi/repository
 |=======================
 
-Bitte auch hier beachten, dass nur die Füllstände der Pfade, die für opsi Relevant beim Check berücksichtigt werden. Dieser Check soll keinen allgemeinen DiskUsage-Check ersetzen.
+Please note that this check monitors only opsi relevant data and do replace a general disk usage check for the server.
 
-Mit folgendem Befehl kann man alle Ressourcen gleichzeitig Abfragen:
+The following command retrieves all resources at one time:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDiskUsage
 ----
 
-Zusätzlich zu der normalen Checkvariante gibt es die Möglichkeit nur eine Ressource zu checken. Das folgende Beispiel checkt nur nach der Resource `depot`:
+In addition to this standard variant you may restrict the check to the resource `depot`:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDiskUsage -r depot
 ----
 
-Standardmäßig gibt dieser Check OK zurück und gibt den freien Speicherplatz der Resource oder der Resourcen zurück. Die Einheit ist dabei Gigabyte. Folgende weitere Zustände sind möglich:
+The default result valu of this check is 'OK' and the free space of the resources. The free space is given in Gigabyte. The default values for the 'Warning' and 'Critical' results are:
 
-* WARNING: Wenn eine oder mehrere Resourcen 5GB oder weniger freien Speicherplatz haben.
-* CRITICAL: Wenn eine oder mehrere Resourcen 1GB oder weniger freien Speicherplatz haben.
+* WARNING: If at least one resource have 5GB or less free space.
+* CRITICAL: If at least one resource have 1GB or less free space.
 
-Die oben genannten Werte sind die Standard-Thresholds. Diese können durch zusätzliche Angabe von den Optionen -C und -W bzw. --critical und --warning selber bestimmt werden. Dabei gibt es zwei mögliche Einheiten: 10G bedeutet mindestens 10 Gigabyte freier Speicherplatz, durch diese Angabe wird der Output auch in dieser Datei ausgegeben. Wenn die Thresholds in prozent oder ohne Angaben angegeben werden, wird auch der Output in Prozent generiert. Abschliessend noch ein Beispiel zur Veranschaulichung:
+This are the default tresholds. They may changed by giving other values for 'Warning' with the -W or --warning optionen and for 'Critical' wit the -C or --critical option. With these options you can give the tresholds as Gigabyte (G) and as percent (%) as well. The prodused output uses the same unit which is used to define the tresholds. +
+Finally a example:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDiskUsage -r depot --warning 10% --critical 5%
 ----
 
+[[opsi-Nagios-Connector-checks-result-conditions]]
+==== Result conditions
+
+The result of the following checks is determined by two different states:
+
+* The rollout state of one or more software products: +
+The software rollout state results to: 
+** 'OK' if the software is installed at the in the same product and package version which is aviable at the server and no action request is set.
+** 'Warning' if the software is installed in version that is different to the servers version or if any action request is set.
+** 'Critical' if there is a 'failed' reported by the last action.
+
+* The time since 'last seen': +
+The time since 'last seen' results to:
+** 'OK' if the client has bee seen less or equal then 30 days before.
+** 'Warning' if the client has bee seen more then 30 days before.
+
+
+
 [[opsi-Nagios-Connector-checks-clientstatuscheck]]
 ==== Check: opsi-client-status 
 
-Einer von zwei Schwerpunkten des opsi-Nagios-Connectors ist das Überwachen von Client-Rollouts. Dafür wurde dieser Check konzipiert. Er bezieht sich immer auf einen Client innerhalb von opsi.
+One of the targets of the opsi Nagios connector is the software rollout monitoring by viewing to single clients. This is one of the checks which is designed for this job. More exactly: the 'software rollout' and 'last seen' situation of a certain client ist checked.
 
-Der Status der Produkte auf dem Client entscheidet über das Ergebnis des checks. Auf diese Weise erkennt man schnell, ob eine Produktinstallation auf dem betreffenden Client ansteht oder aktuell ein Problem verursacht hat. Aber nicht der Produktstatus des Clients kann das Checkergebnis beeinflussen, sondern auch wann dieser Client sich das letzte mal am service gemeldet hat. Wenn der Client länger als 30 Tage nicht am Service war, wird der Check mindestens ein Warning als Ergebnis zurückgeben. Dieser Zeitraum kommt vom Microsoft Patchday. Wenn ein Client länger als 30 Tagen von der Softwareverteilung abgeschottet ist, sollte man den Client checken. Auf diese Weise kann man auch Clients im System finden, die schon lange inaktiv sind, die man im normalen Betrieb schnell übersieht.
-
-Dieser Check kann auf verschiedene Weisen durchgeführt werden, die einfachste Variante:
+This check may used in different variants, here is the simplest one, which includes all software packages:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkClientStatus -c opsiclient.domain.local
 ----
 
-Man kann einzelne Produkte anhand Ihre ID von diesem Check ausschliessen. Dies würde zum Beispiel so aussehen:
+As variant it is possible to exclude products from the check. For example:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkClientStatus -c opsiclient.domain.local -x firefox
 ----
 
-Das obige Beispiel schliesst das Produkt firefox aus diesem Check aus, somit würde dieser Check auch ein OK liefern, selbst wenn das Produkt firefox bei dem Client auf failed steht.
+In the example above the product firefox was excluded from the check. So this check would not switch to critical because the last action on firefox reported a failure.
 
 [[opsi-Nagios-Connector-checks-opsiproductstatus]]
 ==== Check: opsi-check-ProductStatus
 
-Der zweite Schwerpunkt des opsi-Nagios-Connectors ist das Überwachung von Software-Rollouts. Mit die wichtigste Aufgabe in einem Software-Verteilungssystem. Sobald eine neue Software, egal ob Standard-Software, oder eigene Software mit opsi Verwaltet, Verteilt und aktuell gehalten wird, muss man den Rollout-Status im Auge behalten.
+A other target of the opsi Nagios connector is the software rollout monitoring by viewing to single product or a group of products.
 
-Durch einige Parameter kann man diesen Check flexibel einsetzen. Um dies besser zu verdeutlichen werden einige Beispielaufrufe aufgeführt und erläutert. Im einfachsten Fall ruft man den Check einfach für ein Produkt auf. Dieser wird als `productId` (opsi-Interner Name) angegeben.
+This checks has many variants and is so very flexible. The bast way to explain these variants are examples.
+
+The simplest variant check one product on all clients. Here you hav to give the product as the opsi `productId`.
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -e firefox
 ----
 
-In einer normalen opsi-Umgebung reicht dieser Aufruf, um den Zustand für das Produkt `firefox` zu überwachen. Die Ausgabe zeigt an, ob alles in Ordnung ist oder wieviele Installationen anstehen (setup), wieviele Clients ein Problem mit diesem Produkt haben (failed) und wieviele Clients nicht die aktuelle Version installiert haben.
+In a simple one server opsi environment, this check is all you need to check the state of the product firefox on every client. +
+You will get the information how many clients are in 'Warning' and in 'Critical' states. 
 
-Dies ist zur Übersicht schon in den meisten Fällen ausreichend, wenn man aber nun genau wissen will, auf welchen Clients, welcher Zustand zu diesem Produkt zu diesem Checkergebnis geführt hat kann man den Befehl im `verbosemode` ausführen:
+To get the information which clients exactly have the problems, you should call the check in the `verbose mode`:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -e firefox -v
 ----
 
-Bei einer Multidepot-Umgebung wird der obige Befehl aber nicht die komplette Umgebung nach diesem Produkt überwachen, sondern nur den Configserver. Wenn man mehrer Depotserver hat, kann man das Depot auch direkt mit angeben:
+A other variant is, that you may exclude a client from the check.
+
+//// produkt muss angegebn werden ?! ////
+[source,prompt]
+----
+check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -e firefox -x client.domain.local
+----
+
+In a opsi environment with multiple depot servers you have to use additional options to check also the clients that are not assigned to the configs servers depot.
+
+Bei einer Multidepot-Umgebung wird der obige Befehl aber nicht die komplette Umgebung nach diesem Produkt überwachen, sondern nur den Configserver. (Oder exacter: Die clients die dem depot auf dem config server zugewiesen sind). Wenn man mehrer Depotserver hat, kann man das Depot auch direkt mit angeben:
 
 [source,prompt]
 ----
@@ -288,12 +345,6 @@ check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -
 
 Dies würde die Produkte für alle Clients der Gruppe `produktivclients` überprüfen. Auch bei den Hostgruppen gilt die Regel, dass Untegruppen dieser Gruppe nicht abgearbeitet werden. Für opsi-Productgroups gilt genauso, wie für opsi-Hostgroups, dass mehrere Gruppen Kommasepariert angegeben werden können.
 
-Abschliessend kann man auch bei diesem Check opsi-Clients ausschliessen:
-
-[source,prompt]
-----
-check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -x client.domain.local
-----
 
 
 
