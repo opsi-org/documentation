@@ -29,6 +29,29 @@ Die folgende Dokumentation beschreibt wie der opsi-Nagios-Connector aufgebaut is
 [[opsi-Nagios-Connector-prerequires]]
 == Vorbedingungen
 
+[[opsi-Nagios-Connector-prerequires-opsi]]
+=== Vorbedingungen bei opsi Server und Client
+
+Dieses Modul ist momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
+zu können. Das bedeutet, das Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de).
+
+Technische Voraussetzungen sind opsi 4.0.1 mit den Paketständen:
+
+.Benötigte Pakete
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-client-agent|>=4.0.1-26
+|opsiconfd|>=4.0.1.11-1
+|python-opsi|>=4.0.1.38-1
+|==========================
+
+[[opsi-Nagios-Connector-prerequires-nagios]]
+=== Vorbedingungen beim Nagios Server
+
+
 Vorrausgesetzt wird eine Nagios Installation in einer aktuellen 3.x Version oder eine Icinga Installation mindestens in der Version 1.6. Der opsi-Nagios-Connector sollte auch mit allen Nagios-Kompatiblen Monitoring-Lösungen benutzbar sein, getestet wird diese opsi Erweiterung allerdings nur gegen Nagios und Icinga. Sollte eine grafische Darstellung der opsiconfd-Performance Werte gewünscht werden, wird zusätzlich noch eine Installation des Addons pnp4nagios benötigt.
 
 Für weitere Informationen, siehe unter:
@@ -85,9 +108,15 @@ Die richtige Verteilung der Checks und damit die richtige Konfiguration erforder
 
 Ein opsi-Server (Standalone Installation): Diese Variante ist die am häufigsten eingesetzten Variante. Bei dieser Installation ist der Configserver auch gleichzeitig der Depotserver und somit werden alle Checks über den opsi-configserver aufgerufen.
 
+.Schema eines standalone opsi-servers
+image::../images/opsi-config-server.png["opsi config server",width=200]
+
+
 Mehrere opsi-Server mit einer zentralen Administration (Multi-Depot Umgebung): Um bei dieser Art der Installation die Checks richtig zu verteilen muss man als erstes Verstehen, wie eine Multidepot-Umgebung aufgebaut ist:
 
-MULTIDEPOTBILD
+.Schema einer opsi multidepot installation
+image::../images/central-config-server.png["opsi multi depot environment",width=200]
+
 
 Wie im Bild zu erkennen, gibt es nur ein Daten-Backend, welches am opsi-Configserver angesiedelt ist. Jeder Check der gegen das Backend ausgeführt wird muss somit zwangsläufig über den opsi-Configserver. Somit werden alle Checks die an die Depotserver gehen, intern an den Configserver weitergeleitet. Deshalb ist es sinnvoller diese Checks direkt gegen den opsi-Configserver aus zu führen. Eine Ausnahme können die aktiven Checks gegen den opsi-client-agent bilden. Wenn zum Beispiel zwischen den Servern eine Firewall aufgestellt ist, die nur den Port 4447 durchlässt, können Clients an der Aussenstelle eventuell nicht erreicht werden (Standardport 4441). In solchen Fällen kann es nützlich sein den aktiven Check am Depotserver in der Aussenstelle auszuführen.
 
@@ -225,6 +254,23 @@ Einer von zwei Schwerpunkten des opsi-Nagios-Connectors ist das Überwachen von 
 
 Der Status der Produkte auf dem Client entscheidet über das Ergebnis des checks. Auf diese Weise erkennt man schnell, ob eine Produktinstallation auf dem betreffenden Client ansteht oder aktuell ein Problem verursacht hat. Aber nicht der Produktstatus des Clients kann das Checkergebnis beeinflussen, sondern auch wann dieser Client sich das letzte mal am service gemeldet hat. Wenn der Client länger als 30 Tage nicht am Service war, wird der Check mindestens ein Warning als Ergebnis zurückgeben. Dieser Zeitraum orientiert sich an der Abfolge der Microsoft Patchdays. Wenn ein Client länger als 30 Tagen von der Softwareverteilung abgeschottet ist, sollte man den Client checken. Auf diese Weise kann man auch Clients im System finden, die schon lange inaktiv sind, die man im normalen Betrieb schnell übersieht.
 
+Die Ergebnisse der Tests werden von folgenden zwei Grundregeln bestimmt:
+
+* Der Software rollout Status ist: +
+** 'OK' +
+wenn die Software auf dem Client in der der selben Produkt- und Paketversion installiert ist, welche auf dem Server liegt und kein 'Action Requset' gesetzt ist.
+** 'Warning' +
+wenn die auf dem Client installierte Software von der Version auf dem Server abweicht oder ein 'Action Request' gesetzt ist.
+** 'Critical' +
+wenn die letzte Aktion für die Software auf dem Client ein 'failed' zurückgeliefert hat.
+
+* Die Zeit seit 'last seen' liefert:
+** 'OK' +
+wenn der Client vor 30 Tagen oder weniger gesehen wurde.
+** 'Warning' +
+wenn der Client vor mehr als 30 Tagen zum letzten mal gesehen wurde.
+
+
 Dieser Check kann auf verschiedene Weisen durchgeführt werden, die einfachste Variante:
 
 [source,prompt]
@@ -245,6 +291,18 @@ Das obige Beispiel schliesst das Produkt firefox aus diesem Check aus, somit wü
 ==== Check: opsi-check-ProductStatus
 
 Der zweite Schwerpunkt des opsi-Nagios-Connectors ist das Überwachung von Software-Rollouts. Mit die wichtigste Aufgabe in einem Software-Verteilungssystem. Sobald eine neue Software, egal ob Standard-Software, oder eigene Software mit opsi Verwaltet, Verteilt und aktuell gehalten wird, muss man den Rollout-Status im Auge behalten.
+
+Das Ergebnis dieser Check wird durch die folgenden Grundregeln bestimmt:
+
+Der Software Rollout Status ist:
+
+* 'OK' +
+wenn die Software auf dem Client in der der selben Produkt- und Paketversion installiert ist, welche auf dem Server liegt und kein 'Action Requset' gesetzt ist.
+* 'Warning' +
+wenn die auf dem Client installierte Software von der Version auf dem Server abweicht oder ein 'Action Request' gesetzt ist.
+* 'Critical' +
+wenn die letzte Aktion für die Software auf dem Client ein 'failed' zurückgeliefert hat.
+
 
 Durch einige Parameter kann man diesen Check flexibel einsetzen. Um dies besser zu verdeutlichen werden einige Beispielaufrufe aufgeführt und erläutert. Im einfachsten Fall ruft man den Check einfach für ein Produkt auf. Dieser wird als `productId` (opsi-Interner Name) angegeben.
 
@@ -278,7 +336,9 @@ Zusätzlich kann man mit diesem Check auch mit opsi-Gruppen arbeiten. Man kann z
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g buchhaltung
 ----
 
-Nun werden alle Produkte, die Mitglieder in dieser Produktgruppe sind über diesen Check überwacht. Die Auswertung dieser Gruppe findet immer während des eigentlichen Checks statt, das bedeutet, man kann über opsi diese Gruppe bearbeiten und beeinflusst somit direkt die Check-Parameter ohne das man die Nagios-Konfiguration anpassen muss. (HINWEIS: Gruppen innerhalb von Gruppen werden nicht beachtet und müssen separat angegeben werden.)
+Nun werden alle Produkte, die Mitglieder in dieser Produktgruppe sind über diesen Check überwacht. Die Auswertung dieser Gruppe findet immer während des eigentlichen Checks statt, das bedeutet, man kann über opsi diese Gruppe bearbeiten und beeinflusst somit direkt die Check-Parameter ohne das man die Nagios-Konfiguration anpassen muss. 
+
+NOTE: Gruppen innerhalb von Gruppen werden nicht beachtet und müssen separat angegeben werden.
 
 Auch die Clients die für diesen Check abgearbeitet werden können beeinflusst werden. Wie vorher schon erwähnt, wird die Clientliste durch Angabe des Depotservers beeinflusst, zusätzlich können opsi-Hostgruppen angegeben werden, die für diesen Check abgearbeitet werden. Dieser Aufruf sieht zum Beispiel wie folgt aus:
 
@@ -287,7 +347,7 @@ Auch die Clients die für diesen Check abgearbeitet werden können beeinflusst w
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g buchhaltung -G produktivclients
 ----
 
-Dies würde die Produkte für alle Clients der Gruppe `produktivclients` überprüfen. Auch bei den Hostgruppen gilt die Regel, dass Untegruppen dieser Gruppe nicht abgearbeitet werden. Für opsi-Productgroups gilt genauso, wie für opsi-Hostgroups, dass mehrere Gruppen Kommasepariert angegeben werden können.
+Dies würde die Produkte der Produktgruppe 'buchhaltung' für alle Clients der Gruppe `produktivclients` überprüfen. Auch bei den Hostgruppen gilt die Regel, dass Untergruppen dieser Gruppe nicht abgearbeitet werden. Für opsi-Productgroups gilt genauso, wie für opsi-Hostgroups, dass mehrere Gruppen Kommasepariert angegeben werden können.
 
 Abschliessend kann man auch bei diesem Check opsi-Clients ausschliessen:
 

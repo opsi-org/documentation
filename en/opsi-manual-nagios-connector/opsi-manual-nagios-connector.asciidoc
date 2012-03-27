@@ -30,6 +30,32 @@ The scope of this manual is the design and configuration of the opsi-Nagios-Conn
 [[opsi-Nagios-Connector-prerequires]]
 == Preconditions
 
+[[opsi-Nagios-Connector-prerequires-opsi]]
+=== Preconditions at the opsi server and client
+
+This extension is at the moment a co-funding project which means that until the complete development costs are payed by co-funders, they are only allowed to use by the co-funders or for evaluation purposes. If we have earned the development cost we will give these modules for everybody for free. +
+see also +
+http://uib.de/en/opsi_cofunding/index.html
+http://www.opsi.org/en/statistics
+
+So as precondition to use this extension you need as first an activation file.
+For evaluation purpose you will get a temporary activation file if you ask for it in a mail at info@uib.de.
+
+Technical preconditions are opsi 4.0.1 with the following package and product versions:
+
+.Needed product and package versions
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-client-agent|>=4.0.1-26
+|opsiconfd|>=4.0.1.11-1
+|python-opsi|>=4.0.1.38-1
+|==========================
+
+[[opsi-Nagios-Connector-prerequires-nagios]]
+=== Preconditions at the Nagios server
+
+
 As precondition you need a Nagios installation in the version 3.x or a Icinga Installation in the version 1.6 or higher. +
 For graphical output of performance data a pnp4nagios installation is required.
 
@@ -94,11 +120,14 @@ only one opsi server: +
 The opsi stand alone installation is the sitation that you will find at the most opsi environments. At this installation the opsi config server functionality is at the same server like the (one and only) opsi depot server functionality. +
 This means to you, that you may ignore if a check has to be run on the config server or the depot server.
 
+.Scheme of a standalone opsi server
+image::../images/opsi-config-server.png["opsi config server",width=200]
+
 opsi with multiple depotservers: +
 If you have a central management of a multi location opsi environment (one config server, multiple depot servers) the sitation is more complicated. So you have to understand the sitation:
 
-
-MULTIDEPOTBILD
+.Scheme opsi multi depot environment
+image::../images/central-config-server.png["opsi multi depot environment",width=200]
 
 As the figure points out there is only one server which have data storage for the configuration data - the data backend. This is the opsi config server. The opsi depot server has no own data storage but a redireted backend. This means that if you ask a depot server for any configuration data, this question will be redireted to the config server. And this leads to the consequence that every check which runs against the opsi data backend will at least run on the config server. So you should address checks that run against the backend always to the config server. Even in the sitation if you are collecting information about clients which are assingned to a depot which is different from the config server and the check is logically part of the check of this depot server.
 
@@ -245,8 +274,10 @@ Finally a example:
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDiskUsage -r depot --warning 10% --critical 5%
 ----
 
-[[opsi-Nagios-Connector-checks-result-conditions]]
-==== Result conditions
+[[opsi-Nagios-Connector-checks-clientstatuscheck]]
+==== Check: opsi-client-status 
+
+One of the targets of the opsi Nagios connector is the software rollout monitoring by viewing to single clients. This is one of the checks which is designed for this job. More exactly: the 'software rollout' and 'last seen' situation of a certain client ist checked.
 
 The result of the following checks is determined by two different states:
 
@@ -261,12 +292,6 @@ The time since 'last seen' results to:
 ** 'OK' if the client has bee seen less or equal then 30 days before.
 ** 'Warning' if the client has bee seen more then 30 days before.
 
-
-
-[[opsi-Nagios-Connector-checks-clientstatuscheck]]
-==== Check: opsi-client-status 
-
-One of the targets of the opsi Nagios connector is the software rollout monitoring by viewing to single clients. This is one of the checks which is designed for this job. More exactly: the 'software rollout' and 'last seen' situation of a certain client ist checked.
 
 This check may used in different variants, here is the simplest one, which includes all software packages:
 
@@ -288,6 +313,14 @@ In the example above the product firefox was excluded from the check. So this ch
 ==== Check: opsi-check-ProductStatus
 
 A other target of the opsi Nagios connector is the software rollout monitoring by viewing to single product or a group of products.
+
+The result of the following checks is determined by the following states:
+
+The software rollout state results to: 
+* 'OK' if the software is installed at the in the same product and package version which is aviable at the server and no action request is set.
+* 'Warning' if the software is installed in version that is different to the servers version or if any action request is set.
+* 'Critical' if there is a 'failed' reported by the last action.
+
 
 This checks has many variants and is so very flexible. The bast way to explain these variants are examples.
 
@@ -316,37 +349,40 @@ A other variant is, that you may exclude a client from the check.
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -e firefox -x client.domain.local
 ----
 
-In a opsi environment with multiple depot servers you have to use additional options to check also the clients that are not assigned to the configs servers depot.
-
-Bei einer Multidepot-Umgebung wird der obige Befehl aber nicht die komplette Umgebung nach diesem Produkt überwachen, sondern nur den Configserver. (Oder exacter: Die clients die dem depot auf dem config server zugewiesen sind). Wenn man mehrer Depotserver hat, kann man das Depot auch direkt mit angeben:
+In a opsi environment with multiple depot servers you have to use additional options to check also the clients that are not assigned to the configs servers depot. If you have multiple depots, you may give the depots name as parameter:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -e firefox -d depotserver.domain.local
 ----
 
-Der Grund dafür ist, dass jeder Depotserver diese Produkt zur Verteilung haben kann. Dies muss nicht überall die selbe Version sein, auch wenn die productId genau die selbe ist. Aus diesem Grund müssen alle Clients anders beurteilt werden, je nachdem an welchem Depot sie registriert sind. Dies hat zusätzlich noch den Vorteil, dass man diesen Check später im Nagios beim Depotserver ansiedeln kann, was zusätzlich die Übersichtlichkeit erhöht. Wenn man nur ein oder zwei Depotserver hat, kann man auch mit der Angabe von `all` alle Depotserver mit einem Check abdecken oder Kommasepariert mehrere Depotserver angeben.
+The reason is, that the version of the software packages may differ between your depots. So every client has to be checked against the versions at the depot where they are assigned to. A advantage is that can place the display of the results to the depot server. +
+You may give instead of the depot servers name the keyword 'all' which means all known depot servers. But this normally make only sense if you have only one or two depots. You may also give a comma separated list of depot servers.
 
-Zusätzlich kann man mit diesem Check auch mit opsi-Gruppen arbeiten. Man kann zum Beispiel eine ganze Produktgruppe mit einem Check abfragen. Wenn man zum Beispiel eine Produktgruppe: `buchhaltung` bildet, kann man mit folgendem Aufruf:
-
-[source,prompt]
-----
-check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g buchhaltung
-----
-
-Nun werden alle Produkte, die Mitglieder in dieser Produktgruppe sind über diesen Check überwacht. Die Auswertung dieser Gruppe findet immer während des eigentlichen Checks statt, das bedeutet, man kann über opsi diese Gruppe bearbeiten und beeinflusst somit direkt die Check-Parameter ohne das man die Nagios-Konfiguration anpassen muss. (HINWEIS: Gruppen innerhalb von Gruppen werden nicht beachtet und müssen separat angegeben werden.)
-
-Auch die Clients die für diesen Check abgearbeitet werden können beeinflusst werden. Wie vorher schon erwähnt, wird die Clientliste durch Angabe des Depotservers beeinflusst, zusätzlich können opsi-Hostgruppen angegeben werden, die für diesen Check abgearbeitet werden. Dieser Aufruf sieht zum Beispiel wie folgt aus:
+A other way to define the checks is to give the name of a opsi groups. So you may check the software rollout state of all products in a given opsi product group. If you have for example a product group 'accounting' you may use the following call:
 
 [source,prompt]
 ----
-check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g buchhaltung -G produktivclients
+check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g accounting
 ----
 
-Dies würde die Produkte für alle Clients der Gruppe `produktivclients` überprüfen. Auch bei den Hostgruppen gilt die Regel, dass Untegruppen dieser Gruppe nicht abgearbeitet werden. Für opsi-Productgroups gilt genauso, wie für opsi-Hostgroups, dass mehrere Gruppen Kommasepariert angegeben werden können.
+Now you will check all products that are Members of the opsi product group 'accounting' byt this single check. Important is to see, that the resolution of the opsi group is done while the check at the opsi server. So you may change the opsi group at the opsi Management interface and so you will change the products that will checked without any changes at the Nagios server.
 
+NOTE: Sub groups (groups in groups) will not be resolved.
 
+In the same way it is possible to define the clients that shold be checked by giving the name of a opsi client group. +
+A example for a client group 'productiveclients':
 
+[source,prompt]
+----
+check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkProductStatus -g accounting -G productiveclients
+----
+
+This would check all products of the product group 'accounting' at all clients of the client group 'productiveclients'. 
+
+NOTE: Sub groups (groups in groups) will not be resolved.
+
+NOTE: You may also give a comma separated list of opsi groups
 
 [[opsi-Nagios-Connector-checks-opsidepotsync]]
 ==== Check: opsi-check-Depotsync 
