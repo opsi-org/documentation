@@ -385,57 +385,72 @@ NOTE: Sub groups (groups in groups) will not be resolved.
 NOTE: You may also give a comma separated list of opsi groups
 
 [[opsi-Nagios-Connector-checks-opsidepotsync]]
-==== Check: opsi-check-Depotsync 
+==== Check: opsi-check-depotsync 
 
-Gerade in einer Mutlidepotumgebung ist es wichtig, die Depotserver auf Synchronität zu überwachen. Entscheidend ist bei diesem Check die Software- und Paketversion der installierten Produkte. Manchmal ist eine differentierter Einsatz der opsi-Produkte auf Depotservern gewünscht, birgt aber die Gefahr, dass bei einem Umzug von einem Client, von einem Depot zum anderen, inkonsistenzen in der Datenbank enstehen können. Um dieser Problematik entgegen zu wirken, wird empfohlen die opsi-Pakete auf den Depotservern so synchron wie möglich zu halten.
+If you are using multiple opsi depots the monitoring of synchronity is important. Even if yor depots are for good reasons not completly synchron, they should be synchron as much as possible to avoid problems by moving a client from one depot to another.
 
-Standardmäßig liefert dieser Check OK zurück, sollte eine Differenz festgestellt werden, wird der Status: WARNING zurückgegeben. Dieser Check ist ein klassischer Check, der auf dem Configserver ausgeführt werden sollte, da alle Informationen zu diesem Check nur im Backend auf dem opsi-Configserver zu finden sind.
+This check monitors if your depots are synchron according to product ids, product versions and package versions.
 
-Als nächstes folgen ein paar Anwendungsmöglichkeiten dieses Checks:
+This check returns:
+
+* 'OK' +
+If all is in sync.
+* 'Warning' +
+If there is any difference
+
+You should run this check always on the config server because all the data come from the backend of the config server.
+
+Here are some examples.
+
+The base variant:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus
 ----
 
-Dies ist dies Basis-Variante und äquivalent zu folgendem Aufruf:
+This base variant is equivalent to the following call:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus -d all
 ----
 
-Ohne konkrete Angabe von Depotserver werden die Produkt-Listen aller Depot-Server miteinander verglichen. Um eine bessere Übersichtlichkeit zu schaffen, sollte man diesen Check auf zwei Depotserver reduzieren und lieber auf mehrere Checks verteilen. Dies erreicht man durch direkte Angabe der Depotserver:
+So if you don't give the depots which are have to be checked, all known depots will be checked. If you have a lot of depots the interpratation of the result is complicated, so it is a good idea to define a lot of single checks where the depots are given as comma seperated list:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus -d configserver.domain.local,depotserver.domain.local
 ----
 
-Mit diesem Aufruf werden alle Produkte verglichen, die auf beiden Depotservern installiert sind. Sollte ein Produkt auf einem Depotserver gar nicht installiert sein, hat dies keine Auswerkungen auf das Check-Resultat. DIes kann man ändern, indem man diesem Check den "strictmode" Schalter setzt:
+With this check you compare all products, that are installed *on both* depots. Any product which is installed only on one of the depot is ignored and will not effect the result.
+
+If you want to include products which are not installed on all checked depots, you have to use the `strictmode` switch:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus -d configserver.domain.local,depotserver.domain.local --strictmode
 ----
 
-Nun werden auch Produkte angezeigt, die auf einem Depotserver nicht installiert sind. Um ein bestimmtes Produkt oder bestimmte Produkte nicht mit zu checken, weil man zum Beispiel will dass diese Produkte in verschiedenen Versionen eingesetzt werden, kann man diese Produkte von diesem Check ausschliessen:
+Now also differences about missing products will be seen.
+
+If you like to exclude a product from the check (perhaps because this product should be in different versions on different depots) you may do this by using the `-x` option. Here you may also use a comma seperated list:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus -d configserver.domain.local,depotserver.domain.local --strictmode -x firefox,thunderbird
 ----
 
-Dieser Check würde auch dann ein OK zurückgeben, wenn das firefox und das thunderbird-Paket nicht überall Synchron eingesetzt werden.
+This check will not warn if the products 'firefox' or 'thunderbird' or not in sync.
 
-Ein weitere Einsatzmöglichkeit ist, dass nur eine Auswahl von Produkten auf Synchronität überwacht werden können. Dies kann man durch:
+Instead of excluding products you may give a explicit list of products that has to been checked:
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkOpsiDepotSyncStatus -d configserver.domain.local,depotserver.domain.local --strictmode -e firefox,thunderbird
 ----
 
-So werden nur firefox und thunderbird Produkte auf Synchronität überwacht. Bei diesem Check sollte der `strictmode` gesetzt sein, damit man auch erkennt, wenn die gewünschten Produkte auf Depotservern nicht installiert sind.
+In this case *only* 'firefox' and 'thunderbird' will be checked. We recommend to use this check variant with `strictmode` to see if one of the products is missing.
 
 
 [source,prompt]
@@ -444,28 +459,39 @@ So werden nur firefox und thunderbird Produkte auf Synchronität überwacht. Bei
 ----
 
 [[opsi-Nagios-Connector-checks-pluginOnClient]]
-==== Check: Pugin über OpsiClientd checken
+==== Check: nagios client plugin check via opsiclientd
 
-Dieser Check führt ein Check-Plugin auf dem Client direkt aus und fängt die Ausgabe ein. 
+This check gives you a easy possibility to integrate checks that collects the data direct on the client with a minimum of configuration work.
 
-Diese Erweiterung soll keinen Ersatz für einen richtigen Nagiosagent bieten, sonderne eine alternative bieten. Man kann diese Erweiterung Einsetzen, wenn man Plugins auf dem opsi-Client checken will. Die eingesetzten Plugins müssen der sogenannten: `Nagios plug-in development guidelines` entsprechen. (Weitere Infos unter: http://nagiosplug.sourceforge.net/developer-guidelines.html)
+So this check tells the opsiclientd which is running at the opsi client to run a command, fetch the output and send it back.
 
-Um ein Plugin ausführen zu können, muss man das Plugin erst einmal auf den Clients verteilen. Dies sollte man über ein opsi-Paket lösen. Der Ablageort für die Plugins auf dem Client ist im ersten momentan egal, da man den Pfad beim Checken mit angeben muss. Allerdings sollte man die Plugins nicht einzeln verteilen, sondern in einem Verzeichnis zusammenführen, damit das Aktualisieren und Pflegen der Plugins einfacher wird. Weiterhin sollte man auch Sicherheitstechnisch im Hinterkopf behalten, dass die Plugins im Systemkontext des opsiclientd-Services aufgerufen werden. Normale Anwender sollten auf dieses Verzeichnis keinen Zugang haben.
+This extension is not intended to be a complete replacement of a full featured Windows Nagios agent. It is only a light weight alternative.
 
-Es gibt Diverse Plugins, die es schon vorgefertigt im Internet runter zu laden gibt. Eine mögliche Anlaufstelle ist (http://exchange.nagios.org/)
+The plugins which the opsiclientd may call must be compatible to the `Nagios plug-in development guidelines`. (More details at: http://nagiosplug.sourceforge.net/developer-guidelines.html ).
 
-Im folgenden wird davon ausgegangen, dass unter C:\opsi.org\nagiosplugins\ das Plugin check_win_disk.exe vom Paket nagioscol (http://sourceforge.net/projects/nagiosplugincol/) abgelegt wurde.
+In order to run such a plugin on the client, it has to be installed at the client. This problem you will solve by deploying it as an opsi package. The path where the plugin is installed at client doen't matter because you have to give the complete path at check definition. We recommend to install all plugins in one directory to ease the maintenance of the plugins at the client.
+
+For security reasons you should make sure that non privileged users have no write access to the plugins, because they will be executed from the opsiclientd with 'system' priviliges.
+
+There are lot of ready to use plugins at the internet. One important address to look is: +
+http://exchange.nagios.org/
+
+In the following we assume that your plugins are installed at `C:\opsi.org\nagiosplugins\` and we will find ther the plugin `check_win_disk.exe` out of the package 'nagioscol' from +
+http://sourceforge.net/projects/nagiosplugincol/
 
 [source,prompt]
 ----
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkPluginOnClient --plugin "C:\opsi.org\nagiosplugincol\check_win_disk.exe C:" -c client.domain.local
 ----
 
-Dieser Aufruf checkt auf dem Client `client.domain.local` das Plugin check_win_disk.exe und übergibt diesem den Parameter `C:`. Dies bedeutet, dass das Laufwerk C auf dem Client gecheckt wird. Die Ausgabe und der Rückgabewert dieses Plugins, wird direkt richtig ausgewertet und für Nagios verarbeitbar weitergereicht.
+This call checks the client `client.domain.local`. At the client the plugin `check_win_disk.exe` is called with the parameter `C:`. This means, that the hard drive with the letter 'C' should be checked. The output and the result value of the plugin will be fetched by the opsiclientd and will be given back to the Nagios server (via the opsi server) in a for Nagios correct format.
 
-Ein besonderes Feature ist das beibehalten von Zuständen. Diese Implementation ist aus der Problemstellung entstanden, dass Clients nicht wie Server durchlaufen, sondern in der Regel nur einen bestimmten Zeitraum eingeschaltet sind. Man kann den Check auf Nagios-Seite zwar mit sogenannten `Timeperiods` eingrenzen, aber in der Praxis ist so ein vorgehen nicht praktikabel, da man zum Beispiel auch bei Urlaub von Anwendern flexibel reagieren müsste. Dies würde eine ständige Konfigurationsarbeit nach sich ziehen. Wenn man darauf verzichtet, wird der Status ständig geändert, auch wenn ein aufgetretenes Problem noch gar nicht gelöst ist. Deshalb kann man den letzten bekannten Status an opsi Übergeben. Sollte der Client nicht erreichbar sein, wird dieser letzte bekannte Status zurückgegeben. Ein Critical-Zustand zum Beispiel, bleibt in diesem Falle auch auf Critical stehen und wechselt nicht auf Unknown, was rein logisch aber richtig wäre.
+Another special feature is to hold the last check results, even if the client is not reachable.
 
-Um dieses Feature später mit Nagios zu verwenden kann man die Nagios-Makros: $SERVICESTATEID$ und $SERVICEOUTPUT$ verwenden.
+This feature was implemented according to the fact that desktop clients not alwas are running like servers, but the most time in their life are usally switched off. Normally Nagios will show for switched off clients the result 'Unknown'. In fact the most problems on the monitored clients will not disapear by just switching them off and on again. So the information that a client had a problem before it was switched off may be a essential information for the system administrator. (You may try to solve this problem by using `Timeperiods` at the Nagios configuration, but we think that this is not flexible enough and leads to a permanent configuration work). So this opsi extension give you the possibility to give back the last real check results if the client is not reachable right now.
+
+In order to use this feature, you have to use the Nagios macros `$SERVICESTATEID$` and `$SERVICEOUTPUT$`. `$SERVICESTATEID$` gives the last result value and should be passed to the `-s` Option. `$SERVICEOUTPUT$` gives the last output line and should be passed to the `-o` Option. So check can give these last values instead of 'Unknown' if the client is not reachable.
+
 
 [source,prompt]
 ----
@@ -473,26 +499,31 @@ check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -
 ----
 
 [[opsi-Nagios-Connector-configuration]]
-== opsi Monitoring Konfiguration
+== opsi monitoring configuration
 
-Dieses Kapitel widmet sich der Konfiguration der Schnittstelle von opsi und dem Nagios-Server. Die Konfigurationen in diesem Kapitel, besonders die auf dem Nagios-Server sollen als Empfehlungen gelten sind aber nicht die einzigen Lösungen. 
-Hier wird nur die Konfiguration mit einem Nagios-Server beschrieben. Mit einem Icinga-Server sollte, mit Ausnahme von ein paar Pfaden, die Konfiguration ziemlich genauso funktionieren. Andere Derivate auf Nagios Basis sollten funktionieren, wurden aber nicht getestet.
+This chapte focusses on the configuration that have to been made for a working interface between the opsi and the Nagios server. Just see this as a recommendation, there will be  a lot of other ways to do the job.
+
+This description uses a Nagios server as monitoring server. On a Icinga server it should work very similar but you have to change some path entries. It should also work on other Nagios derivates, but this is not tested.
 
 [[opsi-Nagios-Connector-configuration-User]]
-=== opsi Monitoring User
+=== opsi monitoring user
 
-In der Regel wird im Monitoring-Bereich viel mit IP-Freischaltungen als Sicherheit gearbeitet. Da aber dieser Mechanismus nicht wirklich einen Schutz bietet, wurde beim opsi-Nagios-Connector darauf verzichtet. Aus diesem Grund wird das ganze per Benutzer und Passwort geschützt. Diesen User als opsi-admin einzurichten, würde aber auch hier zu viele Rechte freischalten, da dieser User nur für diese Schnittstelle von nöten ist und auch die Benutzbarkeit auf diesen Bereich eingeschränkt werden soll, wird der User nur intern in opsi eingerichtet. Folgender Befehl legt den User an:
+In monitoring environments you will often find that the access is just resticted by IP numbers. Because of the lack of security of this solution we decided to work with a real user / password security in this opsi extension.
+
+Using the opsi standard group `opsiadmin` would give the Nagios more rights tha needed. So you have to create a own opsi user for the opsi nagios connector.
+
+In the following example a user named 'monitoring' with the password 'monitoring123' is created for opsi:
 
 [source, prompt]
 ----
 opsi-admin -d method user_setCredentials monitoring monitoring123
 ----
 
-Dieser Befehl legt den User: monitoring mit dem Passwort monitoring123 an. Der User wird in der /etc/opsi/passwd angelegt und ist auch kein User, mit dem man sich an der Shell anmelden könnte. 
+The created user 'monitoring' will be stored with its encrypted password at the `/etc/opsi/passwd` and is not a user which may be used to login at a shell. In fact it is no real unix user.
 
-Bei einer Multidepot-Umgebung muss man diesen User nur auf dem Configserver ereugen.
+You have to create this user only on your config server, even if you have multiple depots.
 
-Beim nagios-Server kann man dieses Passwort vor den CGI-Skripten maskieren, indem man einen Eintrag in der /etc/nagios3/ressource.cfg vornimmt. Dieser sieht zum Beispiel so aus:
+At your Nagios server you should mask the user and password by making an entry at the `/etc/nagios3/ressource.cfg`. This should look for example like this:
 
 [source, prompt]
 ----
@@ -500,13 +531,14 @@ $USER2$=monitoring
 $USER3$=monitoring123
 ----
 
-
-Die Zahl hinter USER kann varieren. Wenn diese Datei vorher nicht genutzt wurde, sollte in der Regel nur das $USER1$ belegt sein. Diese Konfiguration dient als Grundlage für die weiteren Konfigurationen.
+The number behind '$USER' may vary. If this configuration was not used before, there should be only `$USER1$` be used. According to what you are using here, you might have to change the other examples in this manual.
 
 [[opsi-Nagios-Connector-configuration-template]]
-=== Nagios Templates
+=== Nagios templates
 
-Es gibt diverse Templates für diverse Objekte im Nagios. Dies ist eine Standard-Nagios Funktionalität, die hier nicht näher beschrieben wird. Diese Funktionalität kann man sich für opsi zu nutze machen, um sich später bei der Konfiguration die Arbeit zu vereinfachen.
+There are a lot of templates for different objects at Nagios. This is a standard at Nagios which is not described here. But we are using this functionality to make the configuration for opsi much easier.
+
+
 
 Da die meisten Checks auf den Configserver ausgeführt werden, sollte man sich als erstes ein Template für die opsi-Server und ein Template für die opsi-Clients schreiben. Da es in einer Multidepot-Umgebung nur einen Configserver geben kann, kann man direkt diesen ins Template mit übernehmen. Dies erreicht man am einfachsten über eine Custom-Variable. Diese erkennt man daran, dass Sie mit einem `_` beginnen. Es wird in das Template für den opsi-Server und für die opsi-Clients folgendes zusätzliche in das Template eingetragen:
 
