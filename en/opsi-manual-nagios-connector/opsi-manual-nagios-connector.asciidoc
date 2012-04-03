@@ -533,41 +533,47 @@ $USER3$=monitoring123
 
 The number behind '$USER' may vary. If this configuration was not used before, there should be only `$USER1$` be used. According to what you are using here, you might have to change the other examples in this manual.
 
+[[opsi-Nagios-Connector-configuration-directory]]
+=== opsi Nagios-Connector configuration directory
+
+To make the maintainance of the Nagios configuration easier, we recommend to put all 'opsi nagios connector' related configuration files in one seperated place. +
+So just create below `/etc/nagios3/conf.d` a new directory named `opsi` for these configurations.
+
+The configuration files we will place in this directory are:
+
+* Nagios Template: `opsitemplates.cfg`
+* Hostgroups: `opsihostgroups.cfg`
+* Server Hosts: `<full name of the server>.cfg`
+* Commands: `opsicommands.cfg`
+* Contacts: `opsicontacts.cfg`
+* Services: `opsiservices.cfg`
+
+All the client configuration files we recommend to put in subdirectory of this place. Therefore you create below `/etc/nagios3/conf.d/opsi` another directory named `clients`.
+
 [[opsi-Nagios-Connector-configuration-template]]
-=== Nagios templates
+=== Nagios template:  `opsitemplates.cfg`
 
-There are a lot of templates for different objects at Nagios. This is a standard at Nagios which is not described here. But we are using this functionality to make the configuration for opsi much easier.
+Using templates is a standard functionality of Nagios which will not explained here. Tha main advantage is that it makes the single configuration files smaller and easier to read (and write). 
 
+Inside of the templates we use some Nagios 'custom variables' for often used values. According to the fact, taht the most checks have to run on the opsi config server, we will define the name and port of the config server as such a 'custom variable':
 
-
-Da die meisten Checks auf den Configserver ausgeführt werden, sollte man sich als erstes ein Template für die opsi-Server und ein Template für die opsi-Clients schreiben. Da es in einer Multidepot-Umgebung nur einen Configserver geben kann, kann man direkt diesen ins Template mit übernehmen. Dies erreicht man am einfachsten über eine Custom-Variable. Diese erkennt man daran, dass Sie mit einem `_` beginnen. Es wird in das Template für den opsi-Server und für die opsi-Clients folgendes zusätzliche in das Template eingetragen:
-
-[source,prompt]
+[source,opsifiles]
 ----
 _configserver           configserver.domain.local
 _configserverurl        4447
 ----
+You will find this below in the template definitions. +
+These 'custom variables' may later on be referenced by the Nagios macros: `$_HOSTCONFIGSERVER$` und `$_HOSTCONFIGSERVERPORT$`. (These macros have leading 'HOST' in their name, because they are defined inside of a host definition).
 
-Auf diese beiden `custum Variablen` kann man später einfach mit dem Nagios-Makro: `$_HOSTCONFIGSERVER$` und `$_HOSTCONFIGSERVERPORT$`, verweisen. HOST muss vorangeführt werden, da diese Custum-Variablen in einer Hostdefinition vorgenommen wurden. Weitere Informationen zu Custom-Variablen entnehmen Sie bitte der Nagios-Dokumentation. Da diese beiden Konfigurationen im Template vorgenommen werden müssen, gelten Sie für jede Hostdefinition, die später von diesen Templates erben. Aber dazu später mehr.
+For more details on variable and macro take look at your Nagios documentation.
 
-Um nun die Templates an zu legen sollte man unterhalb von: `/etc/nagios3/conf.d` als erstes ein Verzeichnis `opsi` erstellen. Dies macht die Konfiguration später Übersichtlicher, da alle Konfigurationen die den opsi-Nagios-Connector betreffen gebündelt auf dem Server abgelegt sind. In diesem Verzeichnis erstellt man die Datei und benennt Sie auch direkt so, dass man später erkennt, was genau hier Konfiguriert werden soll: `opsitemplates.cfg`. Nun kann man diese Datei noch mit Inhalt füllen. Zunächst die Opsi-Server:
+Now the first file we create in `/etc/nagios3/conf.d/opsi` is the template definition file `opsitemplates.cfg`.
 
-[source,ini]
+This file may hold different templates. Every template is created according to the following patter (wich contains comments for better understanding):
+[source, opsifiles]
 ----
-
-----
-
-die Standardmäßig geplant sind. Es gibt ein paar Templates, die dennoch erstellt werden sollten, diese werden hier kurz erläutert und sollen einen Einblick dazu geben, zur Besseren Verständlichkeit wurden die Kommentare zu den einzelnen Einstellungen nicht gelöscht.
-
-Die folgenden Einstellungen sind in der Regel in der Datei /etc/nagios3/templates.cfg zu erledigen.
-
-Zunächst sollte ein neues Template-Objekt für die Opsi-Clients erstellt werden:
-
-[source, prompt]
-----
-#OPSI-Clients
 define host{
-        name                            opsiclient    ; The name of this host template
+        name                    opsihost-tmp    ; The name of this host template
         notifications_enabled           1       ; Host notifications are enabled
         event_handler_enabled           1       ; Host event handler is enabled
         flap_detection_enabled          1       ; Flap detection is enabled
@@ -584,18 +590,105 @@ define host{
         icon_image                      opsi/opsi-client.png
         }
 ----
+NOTE:
+* The optional option icon_image may poit to an image with relative path below: `/usr/share/nagios3/htdocs/images/logos/`.
+* Optional you may give a own 'contact_group', which have to be defined as contact object, for example in the file `opsicontacts.cfg`.
 
-Hauptsächlich sollte dieses Template erstellt werden aus folgenden Gründen:
 
-* Da die Clients in der Regel nicht durchlaufen, sollte die Option: "check command	check-host-alive" nicht gesetzt wird. Somit werden die Clients als Pending angezeigt und nicht als Offline.
-* Optional kann durch die Option icon_image ein Image gesetzt werden, dieser muss relativ zum Pfad: /usr/share/nagios3/htdocs/images/logos/ angegeben werden.
-* Optional kann auch eine eigene contact_group angegeben werden, die allerdings als Contact-Object in der contacts.cfg angelegt sein muss.
+Now we recommend to create templates for the folling objects
 
-Nach dem selben Prinzip kann auch ein Template für opsi-Server erstellt werden. Auf ein weiteres Template-Beispiel wird verzichtet, da die Templates sich sehr ähneln.
+* opsi server
+* opsi client
+* opsi service
+* and 2 templates for pnp4nagios (host-pnp / srv-pnp)
 
-Wenn pnp4nagios für die grafische Darstellung von den Performancedaten für den Opsi-Webservice eingesetzt werden, sollten noch folgende zwei Objekte als Template angleget werden:
+Let's start with the example of the opsi server template:
+[source,opsifiles]
+----
+define host{
+        name                            opsi-server-tmpl
+        notifications_enabled           1
+        event_handler_enabled           1
+        flap_detection_enabled          1
+        failure_prediction_enabled      1
+        process_perf_data               1
+        retain_status_information       1
+        retain_nonstatus_information    1
+                check_command                   check-host-alive
+                max_check_attempts              10
+                notification_interval           0
+                notification_period             24x7
+                notification_options            d,u,r
+                contact_groups                  admins,opsiadmins
+        _configserver                   configserver.domain.local
+        _configserverport               4447
+        register                        0
+        icon_image                      opsi/opsi-client.png
+        }
+----
 
-[source,prompt]
+You just have to change 'configserver.domain.local' to your config server name. Also you may change the 'contact_groups' to your needs.
+
+The next part of the file `opsitemplates.cfg` is the template for the clients:
+[source,opsifiles]
+----
+define host{
+        name                            opsi-client-tmpl
+        notifications_enabled           1
+        event_handler_enabled           1
+        flap_detection_enabled          1
+        failure_prediction_enabled      1
+        process_perf_data               1
+        retain_status_information       1
+        retain_nonstatus_information    1
+                max_check_attempts              10
+                notification_interval           0
+                notification_period             24x7
+                notification_options            d,u,r
+                contact_groups                  admins,opsiadmins
+        _configserver                   configserver.domain.local
+        _configserverport               4447
+        register                        0
+        icon_image                      opsi/opsi-client.png
+        }
+----
+The Option "check command	check-host-alive" should be not set here because the clients are not always running. In effect the clients will be displayed as 'pending' instead of 'offline'. 
+
+You just have to change 'configserver.domain.local' to your config server name. Also you may change the 'contact_groups' to your needs.
+
+The next part of the file `opsitemplates.cfg` is the template for the opsi-services:
+[source,opsifiles]
+----
+define service{
+        name                            opsi-service-tmpl
+        active_checks_enabled           1
+        passive_checks_enabled          1
+        parallelize_check               1
+        obsess_over_service             1
+        check_freshness                 0
+        notifications_enabled           1
+        event_handler_enabled           1
+        flap_detection_enabled          1
+        failure_prediction_enabled      1
+        process_perf_data               1
+        retain_status_information       1
+        retain_nonstatus_information    1
+                notification_interval           0
+                is_volatile                     0
+                check_period                    24x7
+                normal_check_interval           5
+                retry_check_interval            1
+                max_check_attempts              4
+                notification_period             24x7
+                notification_options            w,u,c,r
+                contact_groups                  admins,opsiadmins
+        register                        0
+        }
+----
+
+If you are using pnp4nagios for the graphic displa of performance data you will need two other templates in the file `opsitemplates.cfg`:
+
+[source,opsifiles]
 ----
 define host {
    name       host-pnp
@@ -610,14 +703,14 @@ define service {
 }
 ----
 
-[[opsi-Nagios-Connector-configuration-hostobjects]]
-=== opsi-Server und opsi-Clients
+[[opsi-Nagios-Connector-configuration-hostobjects-groups]]
+=== opsi hostgroup:  `opsihostgroups.cfg`
 
-Um die Übersichtlichkeit zu wahren, sollte unterhalb von `/etc/nagios3/conf.d` ein Verzeichnis opsi erstellt werden. Somit bleiben die opsi-Infrastruktur betreffenden Konfigurationen an einer Stelle gekapselt.
+The nest step is to define the hostgroups. This helps to structure the display of the results as well as the service definitions.
 
-Als nächstes sollten folgende Hostgruppen erstellt werden. Dies dient zum einen der besseren Übersicht auf der Weboberfläche und hiltf beim konfigurieren der Services. Dafür sollte eine Datei Namens opsihostgroups.cfg mit folgendem Inhalt erstellt werden:
+So create a file named `opsihostgroups.cfg` wit the following content:
 
-[source,prompt]
+[source,opsifiles]
 ----
 define hostgroup {
         hostgroup_name  opsi-clients
@@ -627,12 +720,19 @@ define hostgroup {
 define hostgroup {
         hostgroup_name  opsi-server
         alias           OPSI-Server
+        members         <config server name>, <depotserver name>
 }
 ----
+Do not forget to edit the 'member' line.
 
-Als nächstes sollten die opsi-Server konfiguriert werden. Dies kann jeweils in einer eigenen Datei wie zum Beispiel configserver.domain.local.cfg oder eine Datei mit allen opsi-Host wie opsihost.cfg. Der Inhalt sollte für opsiserver folgendermaßen aussehen:
+[[opsi-Nagios-Connector-configuration-hostobjects-server]]
+=== opsi server:  `<full name of the server>.cfg`
 
-[source,prompt]
+The next step is to create for every opsi server you are running a own configuration file. This file should be named based on the pattern `<full name of the server>.cfg`. For example `configserver.domain.local.cfg`. +
+(You may also create one file (e.g. `opsihost.cfg` with all server definitions). +
+The content should look like this:
+
+[source,opsifiles]
 ----
 define host{
         use				opsiserver
@@ -651,13 +751,16 @@ define host{
         }
 ----
 
-Folgende Erläuterungen zu den Werte:
-* use bezeichnet welches Template benutzt wird.
-* hostgroups gibt an, welcher Hostgruppe der Server angehört.
+Explenatation of the entries:
+* 'use' references to the used template
+* 'hostgroups' tells us to which hostgroup this server belongs.
 
-Die opsi-Clients sollten mindestens folgendermaßen definiert werden:
+[[opsi-Nagios-Connector-configuration-hostobjects-clients]]
+=== opsi Clients:  `clients/<full name of the client>.cfg`
 
-[source,prompt]
+The opsi client configurations should be placed in a own subdirectory. They shoud be defined like this:
+
+[source,opsifiles]
 ----
 define host{
         use				opsiclient
@@ -665,73 +768,262 @@ define host{
         hostgroups		opsi-clients
         alias				opsi client
         address			client.domain.local
-        _depot_id			configserver.domain.local
+        _depotid			depotserver.domain.local
         }
 ----
 
-Die Clientkonfiguration bedient sich einer Sonderfunktion von Nagios. Die Option `_depot_id`
-ist eine sogenannte Benutzerdefinierte Variable, die als Makro `$_depot_id$` benutzt werden kann. Dies ist nötig da die meisten Checks über den Configserver ausgeführt werden.
+This client configuration uses again a 'custom variable': `_depotid`. This 'custom variable' may be referenced by the macro `$_HOSTDEPOTID$`. +
+The usage is optional. If a client may be not connected by the opsi configuration server directly, you will here write down frm which depot server the client can be contacted.
 
-[[opsi-Nagios-Connector-configuration-commands]]
-=== opsi Check-Kommandos Konfiguration
-
-Die oben beschriebenen Check-Kommandos müssen nun mit den bis bisherigen Kommandos konfiguriert werden. Dafür solle eine Datei mit dem Namen opsicheckcommands.cfg erstellt werden. Hier wird eine Bespielkonfiguration angegeben, je nach dem welche Funktionen Sie auf welche Weise verwenden wollen, müssen Sie diese Einstellungen nach eigenem Ermessen modizieren.
-
-Als erstes wird der Aufbau Anhand eines Beispiels erläutert:
+To make it easier to create the configuration files for your large number of opsi clients, you may run the following script on your opsi configuration server:
 
 [source,prompt]
+----
+#!/usr/bin/env python
+
+from OPSI.Backend.BackendManager import *
+
+template = '''
+define host {
+        use             opsi-client-tmpl
+        host_name       %hostId%
+        hostgroups      opsi-clients
+        alias           %hostId%
+        address         %hostId%
+        }
+'''
+
+backend = BackendManager(
+             dispatchConfigFile = u'/etc/opsi/backendManager/dispatch.conf',
+             backendConfigDir   = u'/etc/opsi/backends',
+             extensionConfigDir = u'/etc/opsi/backendManager/extend.d',
+                        )
+
+
+hosts = backend.host_getObjects(type="OpsiClient")
+
+for host in hosts:
+        filename = "%s.cfg" % host.id
+        entry = template.replace("%hostId%",host.id)
+        f = open(filename, 'w')
+        f.write(entry)
+        f.close()
+----
+
+
+[[opsi-Nagios-Connector-configuration-commands]]
+=== opsi command configuration:  `opsicommands.cfg`
+
+Now we have to define which of the check commands, which are described before, we want to use. You should do this in a file named `opsicommands.cfg`. +
+This is just an example which you may change to your needs:
+
+First let us explain the structure of the entries:
+
+[source,opsifiles]
 ----
 define command{
         command_name	check_opsi_clientstatus
-        command_line		$USER1$/check_opsi.py -H $_HOSTDEPOT_ID$ -u $USER2$ -p $USER3$ -P 4447 -t checkClientStatus -c $HOSTADDRESS$
+        command_line		$USER1$/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkClientStatus -c $HOSTADDRESS$
         }
 ----
 
-Der `command_name` dient zur Referenzierung der weiteren Konfiguration. In der Option `command_line` werden die Konfigurationen  und das Check-Kommando als erstes vereint.
+The `command_name` will be used by other configuration files. The option `command_line` defines the command and all used arguments.
 
-Nach diesem Prinzip baut man nun die ganze Datei auf:
+Based on this pattern we create now the file `opsicommands.cfg`:
 
-[source,prompt]
+[source,opsifiles]
 ----
-define command{
-        command_name    check_opsi_clientstatus
-        command_line    $USER1$/check_opsi.py -H $_HOSTDEPOT_ID$ -p 4447 -t checkClientStatus -c $HOSTADDRESS$
-        }
-define command{
-        command_name    check_opsi_productStatus
-        command_line    $USER1$/check_opsi.py -H $HOSTADDRESS$ -p 4447 -P $ARG1$ -t checkProductStatus
-        }
-define command{
-        command_name    check_opsi_productStatus_detailed
-        command_line    $USER1$/check_opsi.py -H $HOSTADDRESS$ -p 4447 -P $ARG1$ -t checkProductStatus -v
-        }
-define command{
-        command_name    check_opsi_productStatus_group
-        command_line    $USER1$/check_opsi.py -H $HOSTADDRESS$ -p 4447 -g $ARG1$ -t checkProductStatus -v -d $HOSTADDRESS$
-        }
-define command{
-        command_name    check_opsi_pluginonclient
-        command_line    $USER1$/check_opsi.py -H $_HOSTDEPOT_ID$ -p 4447 -t checkPluginOnClient -c $HOSTADDRESS$ --plugin $ARG1$
-}
-define command{
-        command_name    check_opsi_pluginonclient_withState
-        command_line    $USER1$/check_opsi.py -H $_HOSTDEPOT_ID$ -p 4447 -t checkPluginOnClient -c $HOSTADDRESS$ --plugin $ARG1$ -s $RG2$ -o $ARG3$
-}
-
 define command {
         command_name    check_opsiwebservice
-        command_line    $USER1$/check_opsi_webservice.py -H $HOSTADDRESS
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $HOSTADDRESS$ -P 4447 -u $USER2$ -p $USER3$ -t checkOpsiWebservice
 }
-
 define command {
-        command_name    check_opsi_depotsync
-        command_line    $USER1$/check_opsi.py -H $HOSTADDRESS$ -p 4447 -t checkDepotSyncStatus -d $ARG1$
+        command_name    check_opsidiskusage
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $HOSTADDRESS$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkOpsiDiskUsage
 }
-
 define command {
-        command_name    check_opsi_depotsync_withexclude
-        command_line    $USER1$/check_opsi.py -H $HOSTADDRESS$ -p 4447 -t checkDepotSyncStatus -d $ARG1$ -x $ARG2$
+        command_name    check_opsiclientstatus
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkClientStatus -c $HOSTADDRESS$
 }
+define command {
+        command_name    check_opsiproductstatus
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkProductStatus -e $ARG1$ -d $HOSTADDRESS$ -v
+}
+define command {
+        command_name    check_opsiproductStatus_withGroups
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkProductStatus -g $ARG1$ -G $ARG2$ -d "all"
+}
+define command {
+        command_name    check_opsiproductStatus_withGroups_long
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkProductStatus -g $ARG1$ -G $ARG2$ -v -d "all"
+}
+define command {
+        command_name    check_opsidepotsync
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkDepotSyncStatus -d $ARG1$
+}
+define command {
+        command_name    check_opsidepotsync_long
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkDepotSyncStatus -d $ARG1$ -v
+}
+define command {
+        command_name    check_opsidepotsync_strict
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkDepotSyncStatus -d $ARG1$ --strict
+}
+define command {
+        command_name    check_opsidepotsync_strict_long
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkDepotSyncStatus -d $ARG1$ --strict -v
+}
+define command {
+        command_name    check_opsipluginon_client
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkPluginOnClient -c $HOSTADDRESS$ --plugin $ARG1$
+}
+define command {
+        command_name    check_opsipluginon_client_with_states
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTCONFIGSERVER$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkPluginOnClient -c $HOSTADDRESS$ --plugin $ARG1$ -s $SERVICESTATEID$ -o "$SERVICEOUTPUT$"
+}
+define command {
+        command_name    check_opsipluginon_client_from_depot
+        command_line    /usr/lib/nagios/plugins/check_opsi -H $_HOSTDEPOTID$ -P $_HOSTCONFIGSERVERPORT$ -u $USER2$ -p $USER3$ -t checkPluginOnClient -c $HOSTADDRESS$ --plugin $ARG1$
+}
+----
+
+[[opsi-Nagios-Connector-configuration-contacts]]
+=== Kontakte:  `opsicontacts.cfg`
+
+This define the contacts which will get notifications.
+
+[source,opsifiles]
+----
+define contact{
+        contact_name                    adminuser
+        alias                           Opsi
+        service_notification_period     24x7
+        host_notification_period        24x7
+        service_notification_options    w,u,c,r
+        host_notification_options       d,r
+        service_notification_commands   notify-service-by-email
+        host_notification_commands      notify-host-by-email
+        email                           root@localhost
+        }
+define contactgroup{
+        contactgroup_name       opsiadmins
+        alias                   Opsi Administrators
+        members                 adminuser
+        }
+----
+You should replace 'adminuser' by one or more real users.
+
+[[opsi-Nagios-Connector-configuration-services]]
+=== Services:  `opsiservices.cfg`
+
+Finally we define with the 'services' what the Nagios server have to monitor and to display. This definition are using the definition of the other configuration file above like templates, commands und hostgroups or hosts.
+
+As first part we define the services which give us informations about the servers. One of these is the check if the depots are in sync, which is here down against 'all' known depots.
+
+[source,opsifiles]
+----
+#OPSI-Services
+define service{
+        use                             opsi-service-tmpl,srv-pnp
+        hostgroup_name                  opsi-server
+        service_description             opsi-webservice
+        check_command                   check_opsiwebservice
+        check_interval                  1
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-diskusage
+        check_command                   check_opsidiskusage
+        check_interval                  1
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-depotsyncstatus-longoutput
+        check_command                   check_opsidepotsync_long!all
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-depotsyncstatus-strict-longoutput
+        check_command                   check_opsidepotsync_strict_long!all
+        check_interval                  10
+        }
+----
+
+The next part is the monitoring of the software rollout. In one check a concrete opsi product 'opsi-client-agent' is mentioned. In two other check are refernced on a opsi product group 'opsiessentials' and opsi client group 'productiveclients'.
+
+[source,opsifiles]
+----
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-clients
+        service_description             opsi-clientstatus
+        check_command                   check_opsiclientstatus
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-productstatus-opsiclientagent
+        check_command                   check_opsiproductstatus!opsi-client-agent
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-productstatus-opsiessentials-group
+        check_command                   check_opsiproductStatus_withGroups!opsiessentials!productiveclients
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-productstatus-opsiessentials-group-longoutput
+        check_command                   check_opsiproductStatus_withGroups_long!opsiessentials!productiveclients
+        check_interval                  10
+        }
+----
+
+In the third and last part of the file, the checks which are should run directly on the clients ('direct checks') are defined. +
+These checks are (for example) not assinged to hostgroups but to singel hosts or lists of hosts ('client.domain.local','depotclient.domain.local').
+
+Some description:
+
+* 'opsi-direct-checkpluginonclient' +
+runs a normal 'direct' check on the client and results to 'unknown' if the client is offline. +
+At this check the config server trys to reach the client directly.
+
+* 'opsi-direct-checkpluginonclient-with-servicestate' +
+is equal to 'opsi-direct-checkpluginonclient', but returns the last valid result if the client is offline (instead of 'unknown')
+* 'opsi-direct-checkpluginonclient-from-depot' +
+is equal to 'opsi-direct-checkpluginonclient', but the client will be conneted by the server which is given in the host configuration as '_depotid'.
+
+[source,opsifiles]
+----
+define service{
+        use                             opsi-service-tmpl
+        host_name                       client.domain.local,depotclient.domain.local
+        service_description             opsi-direct-checkpluginonclient
+        check_command                   check_opsipluginon_client!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        host_name                       client.domain.local
+        service_description             opsi-direct-checkpluginonclient-with-servicestate
+        check_command                   check_opsipluginon_client_with_states!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
+        check_interval                  10
+        }
+define service{
+        use                             opsi-service-tmpl
+        host_name                       depotclient.domain.local
+        service_description             opsi-direct-checkpluginonclient-from-depot
+        check_command                   check_opsipluginon_client_from_depot!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
+        check_interval                  10
+        }
 ----
 
 
