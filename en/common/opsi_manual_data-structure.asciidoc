@@ -1,0 +1,1000 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      05.04.2012
+:Revision:  4.0.1
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-api-datastructure-opsi4]]
+== Web service / API methods since opsi 4.0
+
+[[opsi-manual-api-datastructure-opsi4-overview]]
+=== Overview
+
+
+In opsi 4 the data structure of all backends and the web service methods are completely new designed. 
+
+The new design is object / database oriented. 
+A Object has some properties. 
+
+As a example let us have a look at the object 'product'. A object of the type 'product' which describes the product 'javavm' may look like this:
+
+[source, configfile]
+----
+"ident": "javavm;1.6.0.20;2"
+"id": "javavm"
+"description": "Java 1.6"
+"changelog": ""
+"advice": ""
+"userLoginScript": ""
+"name": "SunJavaRuntimeEnvironment"
+"priority": 0
+"packageVersion": "2"
+"productVersion": "1.6.0.20"
+"windowsSoftwareIds": None
+"productClassIds": None
+"type": "LocalbootProduct"
+"licenseRequired": False
+"setupScript": "javavm.ins"
+"updateScript": ""
+"uninstallScript": "deljvm.ins"
+"alwaysScript": ""
+"onceScript": ""
+"customScript": ""
+----
+Every object has a set of operators which ćan be used to work with this obect. Most time these operators are:
+
+* 'getObjects' (returns the objects)
+* 'getHashes' (Variant, which delivers for performance reasons the backend objects readonly. For a large count of objects this method is much faster then calling 'getObjects')
+* 'create'  (create one object comfortable)
+* 'createObjects' (create one or more objects)
+* 'delete' (delete one object)
+* 'deleteObjects' (delete one or more objects)
+* 'getIdents' (returns the object id's)
+* 'insertObject' (create a new object)
+* 'updateObject' (update a object, if the object doesn't exists it will be created)
+* 'updateObjects' (update a bundle of objects)
+
+The method names are concatenated:
+
+'<object name>_<operation>'
+
+According to this naming rule, these new methods are easily to difference from the old 'legacy' opsi 3 methods, which almost start with 'get', 'set' or 'create'.
+
+The 'getObjects' methods have two optional parameters:
+
+* 'attributes'
+* 'filter'
+
+The 'attributes' parameter is used query only for some properties of an object. If you are using attributes the returned object has all attribute keys, but only values the attribute you asked for and for all attributes which are used to identify this object. All other attributes have the value 'none'.
+
+For Example you will get by calling the method 'product_getObjects' with 'attributes:["name"]' for the product 'javavm':
+
+[source, configfile]
+----
+"onceScript": None,
+"ident": "javavm;1.6.0.20;2",
+"windowsSoftwareIds": None,
+"description": None,
+"setupScript": None,
+"changelog": None,
+"customScript": None,
+"advice": None,
+"uninstallScript": None,
+"userLoginScript": None,
+"name": "Sun Java Runtime Environment",
+"priority": None,
+"packageVersion": "2",
+"productVersion": "1.6.0.20",
+"updateScript": None,
+"productClassIds": None,
+"alwaysScript": None,
+"type": "LocalbootProduct",
+"id": "javavm",
+"licenseRequired": None
+----
+
+If you like to not ask for attributes but want to use the second parameter 'filter' you have to give as attribute parameter '[]'.
+
+The parameter filter is used to define which objects you want to get. For example if you are using the filter '{ "id":"javavm" }' on the method  'product_getObjects' you will get only the object(s) which describe the product 'javavm'.
+
+If you are using methods which expecting one ore more objects, these objects have to be given as JSON objects or as array of JSON objects. 
+
+The most important objects are:
+
+* 'auditHardwareOnHost' (client specific hardware information)
+* 'auditHardware' (client independent hardware information)
+* 'auditSoftwareOnClient' (client specific software information)
+* 'auditSoftware' (client independent software information)
+* 'auditSoftwareToLicensePool' (license management)
+* 'configState' (administration of client host parameters)
+* 'config' (administration of host parameter defaults)
+* 'group' (group administration)
+* 'host'  (server and clients)
+* 'licenseContract' (license management)
+* 'licenseOnClient' (license management)
+* 'licensePool' (license management)
+* 'objectToGroup' (group administration)
+* 'productDependency' (product dependencies)
+* 'productOnClient' (client specific information to a product e.g. installation state)
+* 'productOnDepot' (depot specific information to a product)
+* 'productPropertyState' (depot or client specific product property settings)
+* 'productProperty' (definition of product properties)
+* 'product' (product meta data)
+* 'softwareLicenseToLicensePool' (license management)
+* 'softwareLicense' (license management)
+
+
+In addition to the described objects and methods there are some more for special operations.
+
+This design:
+
+* is created for fast transmitting information about a lot of clients
+* filter data by a unified syntax
+* allows to check all input for correct synatx
+
+According to these facts we get a increased stability and performance.
+
+[[opsi-manual-api-datastructure-opsi4-storage]]
+=== The data storage objects
+
+[[opsi-manual-api-datastructure-opsi4-storage-host]]
+==== 'host'  (server and clients)
+
+Example for a OpsiClient:
+
+[source,opsiconfig]
+----
+ method host_getObjects [] {"id":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "xpclient.vmnat.local",
+          "description" : "",
+          "created" : "2012-03-22 12:13:52",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.101",
+          "notes" : "Created by opsi-deploy-client-agent at Wed, 24 Aug 2011 10:24:36",
+          "oneTimePassword" : "",
+          "lastSeen" : "2012-03-30 16:20:04",
+          "hardwareAddress" : "00:0c:29:35:70:a7",
+          "opsiHostKey" : "1234567890abcef1234567890abcdef",
+          "type" : "OpsiClient",
+          "id" : "xpclient.vmnat.local"
+          }
+]
+----
+
+Most of these data are displayed in the 'clients' tab of the opsi-configed.
+
+Possible types are:
+
+* 'OpsiClient'
+* 'OpsiConfigserver' (which means implicit this is also a 'OpsiDepotserver')
+* 'OpsiDepotserver'
+
+The server type have different and additional data.
+
+Example for a server:
+
+[source,opsiconfig]
+----
+ method host_getObjects [] {"id":"sepiolina.vmnat.local"}
+[
+          {
+          "masterDepotId" : null,
+          "ident" : "sepiolina.vmnat.local",
+          "networkAddress" : "172.16.166.0/255.255.255.128",
+          "description" : "",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.1",
+          "repositoryRemoteUrl" : "webdavs://sepiolina.vmnat.local:4447/repository",
+          "depotLocalUrl" : "file:///var/lib/opsi/depot",
+          "isMasterDepot" : true,
+          "notes" : "",
+          "hardwareAddress" : null,
+          "maxBandwidth" : 0,
+          "repositoryLocalUrl" : "file:///var/lib/opsi/repository",
+          "opsiHostKey" : "1234567890abcef1234567890abcdef",
+          "type" : "OpsiConfigserver",
+          "id" : "sepiolina.vmnat.local",
+          "depotWebdavUrl" : "webdavs://sepiolina:4447/depot",
+          "depotRemoteUrl" : "smb://sepiolina/opsi_depot"
+          }
+]
+----
+Most of these data are displayed in the 'depot configuration' of the opsi-configed.
+
+[[opsi-manual-api-datastructure-opsi4-storage-group]]
+==== 'group' (group administration)
+
+Describes groups and their hierarchical structure.
+
+Example for a group objects:
+
+[source,opsiconfig]
+----
+ method group_getObjects
+ [
+       {
+          "ident" : "sub2",
+          "description" : "sub2",
+          "notes" : "",
+          "parentGroupId" : null,
+          "type" : "HostGroup",
+          "id" : "sub2"
+          },
+          {
+          "ident" : "subsub",
+          "description" : "subsub",
+          "notes" : "",
+          "parentGroupId" : "sub2",
+          "type" : "HostGroup",
+          "id" : "subsub"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-storage-objectToGroup]]
+==== 'objectToGroup' (group administration)
+
+Describes the membership of an object in a group.
+
+There are 'Hostgroups' and 'Productgroups'
+
+Example for a objectToGroup objects:
+
+[source,opsiconfig]
+----
+ method objectToGroup_getObjects
+[
+         {
+          "groupType" : "HostGroup",
+          "ident" : "HostGroup;sub2;win7.vmnat.local",
+          "type" : "ObjectToGroup",
+          "groupId" : "sub2",
+          "objectId" : "win7.vmnat.local"
+          },
+          {
+          "groupType" : "HostGroup",
+          "ident" : "HostGroup;subsub;win7x64.vmnat.local",
+          "type" : "ObjectToGroup",
+          "groupId" : "subsub",
+          "objectId" : "win7x64.vmnat.local"
+          },
+        {
+          "groupType" : "ProductGroup",
+          "ident" : "ProductGroup;opsiessentials;opsi-client-agent",
+          "type" : "ObjectToGroup",
+          "groupId" : "opsiessentials",
+          "objectId" : "opsi-client-agent"
+          },
+          {
+          "groupType" : "ProductGroup",
+          "ident" : "ProductGroup;opsiessentials;opsi-winst",
+          "type" : "ObjectToGroup",
+          "groupId" : "opsiessentials",
+          "objectId" : "opsi-winst"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-storage-product]]
+==== 'product' (product meta data)
+
+Describes the meta data of a product which are defined while creating the package.
+
+Example for a product object:
+
+[source,opsiconfig]
+----
+ method product_getObjects [] {"id":"jedit","productVersion":"4.5"}
+[
+          {
+          "onceScript" : "",
+          "ident" : "jedit;4.5;3",
+          "windowsSoftwareIds" :
+                    [
+
+                    ],
+          "description" : "jEdit with opsi-winst Syntax-Highlighting",
+          "setupScript" : "setup.ins",
+          "changelog" : "",
+          "customScript" : "",
+          "advice" : "",
+          "uninstallScript" : "uninstall.ins",
+          "userLoginScript" : "",
+          "name" : "jEdit programmer's text editor",
+          "priority" : 0,
+          "packageVersion" : "3",
+          "productVersion" : "4.5",
+          "updateScript" : "update.ins",
+          "productClassIds" :
+                    [
+
+                    ],
+          "alwaysScript" : "",
+          "type" : "LocalbootProduct",
+          "id" : "jedit",
+          "licenseRequired" : false
+          }
+]
+----
+NOTE: If you have multiple depot server, you may have different versions of one product.
+
+The entries 'productClassIds' and 'windowsSoftwareIds' are not used right now.
+
+[[opsi-manual-api-datastructure-opsi4-storage-productProperty]]
+==== 'productProperty' (definition of product properties)
+
+Describes the properties of a product which are defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method productProperty_getObjects [] {"productId":"jedit","productVersion":"4.5"}
+[
+          {
+          "ident" : "jedit;4.5;3;start_server",
+          "description" : "Should the jedit derver started at every startup ?",
+          "editable" : false,
+          "defaultValues" :
+                    [
+                    false
+                    ],
+          "multiValue" : false,
+          "productVersion" : "4.5",
+          "possibleValues" :
+                    [
+                    false,
+                    true
+                    ],
+          "packageVersion" : "3",
+          "type" : "BoolProductProperty",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          }
+]
+----
+NOTE: The real default values are stored in the context of the depot in a productPropertyState object.
+
+[[opsi-manual-api-datastructure-opsi4-storage-productPropertyState]]
+==== 'productPropertyState' (depot or client specific product property settings)
+
+Describes: +
+* the default value of a product property on a give depot
+properties of a product which are defined while creating the package.
+* the client specific settings of product properies.
+
+Example for a productPropertyState objects:
+
+[source,opsiconfig]
+----
+ method productPropertyState_getObjects [] {"productId":"jedit"}
+[
+          {
+          "ident" : "jedit;start_server;sepiolina.vmnat.local",
+          "objectId" : "sepiolina.vmnat.local",
+          "values" :
+                    [
+                    false
+                    ],
+          "type" : "ProductPropertyState",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          },
+         {
+          "ident" : "jedit;start_server;xpclient.vmnat.local",
+          "objectId" : "xpclient.vmnat.local",
+          "values" :
+                    [
+                    true
+                    ],
+          "type" : "ProductPropertyState",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          }
+
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-productDependency]]
+==== 'productDependency' (product dependencies)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productDependency object:
+
+[source,opsiconfig]
+----
+method productDependency_getObjects [] {"productId":"jedit","productVersion":"4.5"}
+[
+          {
+          "ident" : "jedit;4.5;3;setup;javavm",
+          "productAction" : "setup",
+          "requiredPackageVersion" : null,
+          "requirementType" : "before",
+          "requiredInstallationStatus" : "installed",
+          "productVersion" : "4.5",
+          "requiredProductId" : "javavm",
+          "requiredAction" : null,
+          "requiredProductVersion" : null,
+          "type" : "ProductDependency",
+          "packageVersion" : "3",
+          "productId" : "jedit"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-storage-productOnClient]]
+==== 'productOnClient' (client specific information to a product e.g. installation state)
+
+Describes which products in which versions are installed on which client..
+
+Example for a productOnClient object:
+
+[source,opsiconfig]
+----
+ method productOnClient_getObjects [] {"productId":"jedit","clientId":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "jedit;LocalbootProduct;xpclient.vmnat.local",
+          "actionProgress" : "",
+          "actionResult" : "successful",
+          "clientId" : "xpclient.vmnat.local",
+          "modificationTime" : "2012-03-30 15:49:04",
+          "actionRequest" : "none",
+          "targetConfiguration" : "installed",
+          "productVersion" : "4.5",
+          "productType" : "LocalbootProduct",
+          "lastAction" : "setup",
+          "packageVersion" : "3",
+          "actionSequence" : -1,
+          "type" : "ProductOnClient",
+          "installationStatus" : "installed",
+          "productId" : "jedit"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-storage-productOnDepot]]
+==== 'productOnDepot' (depot specific information to a product)
+
+Describes which product is installed in which version on a given depot..
+
+Example for a productOnDepot objects:
+
+[source,opsiconfig]
+----
+ method productOnDepot_getObjects [] {"productId":"jedit"}
+[
+          {
+          "ident" : "jedit;LocalbootProduct;4.4.1;2;depotserver.vmnat.local",
+          "locked" : false,
+          "productVersion" : "4.4.1",
+          "productType" : "LocalbootProduct",
+          "depotId" : "depotserver.vmnat.local",
+          "type" : "ProductOnDepot",
+          "packageVersion" : "2",
+          "productId" : "jedit"
+          },
+          {
+          "ident" : "jedit;LocalbootProduct;4.5;3;sepiolina.vmnat.local",
+          "locked" : false,
+          "productVersion" : "4.5",
+          "productType" : "LocalbootProduct",
+          "depotId" : "sepiolina.vmnat.local",
+          "type" : "ProductOnDepot",
+          "packageVersion" : "3",
+          "productId" : "jedit"
+          }
+]
+----
+NOTE: If you have multiple depot server, you may have different versions of one product.
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-config]]
+==== 'config' (administration of host parameter defaults)
+
+Describes the 'Hostparameter' of the opsi-configeds 'Server configuration'.
+
+Example for a config object:
+
+[source,opsiconfig]
+----
+ method config_getObjects [] {"id":"opsiclientd.event_gui_startup.active"}
+[
+          {
+          "ident" : "opsiclientd.event_gui_startup.active",
+          "description" : "gui_startup active",
+          "defaultValues" :
+                    [
+                    true
+                    ],
+          "editable" : false,
+          "multiValue" : false,
+          "possibleValues" :
+                    [
+                    false,
+                    true
+                    ],
+          "type" : "BoolConfig",
+          "id" : "opsiclientd.event_gui_startup.active"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-storage-configState]]
+==== 'configState' (administration of client host parameters)
+
+Describes the 'Hostparameter' of the opsi-configeds 'client configuration'.
+
+Example for a configState object:
+
+[source,opsiconfig]
+----
+ method configState_getObjects [] {"configId":"opsiclientd.event_gui_startup.active"}
+[
+          {
+          "configId" : "opsiclientd.event_gui_startup.active",
+          "ident" : "opsiclientd.event_gui_startup.active;wanclient.vmnat.local",
+          "values" :
+                    [
+                    false
+                    ],
+          "objectId" : "wanclient.vmnat.local",
+          "type" : "ConfigState"
+          }
+]
+----
+NOTE: A 'configState' object can not be created without a existing 'config' object to which it references.
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-auditHardwareOnHost]]
+==== 'auditHardwareOnHost' (client specific hardware information)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method auditHardwareOnHost_getObjects [] {"hostId":"xpclient.vmnat.local","hardwareClass":"NETWORK_CONTROLLER","ipAddress":"172.16.166.101"}
+[
+          {
+          "vendorId" : "1022",
+          "macAddress" : "00:0C:29:35:70:A7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 1,
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "ipEnabled" : "True",
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-03-30 15:48:15",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceId" : "2000",
+          "autoSense" : null,
+          "netConnectionStatus" : "Connected",
+          "maxSpeed" : null,
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "serialNumber" : null,
+          "lastseen" : "2012-03-30 15:48:15",
+          "model" : null,
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : "Ethernet 802.3"
+          },
+          {
+          "vendorId" : "1022",
+          "macAddress" : "00:0C:29:35:70:A7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 0,
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "ipEnabled" : "True",
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-03-08 14:26:14",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "VMware, Inc.",
+          "description" : "VMware Accelerated AMD PCNet Adapter",
+          "subsystemDeviceId" : "1022",
+          "deviceId" : "2000",
+          "autoSense" : null,
+          "netConnectionStatus" : "Connected",
+          "maxSpeed" : null,
+          "name" : "VMware Accelerated AMD PCNet Adapter",
+          "serialNumber" : null,
+          "lastseen" : "2012-03-10 14:47:15",
+          "model" : null,
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : "Ethernet 802.3"
+          },
+   {
+          "vendorId" : "1022",
+          "macAddress" : "00:0c:29:35:70:a7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 0,
+          "deviceType" : null,
+          "subsystemVendorId" : "1022",
+          "ipEnabled" : null,
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-02-29 15:43:21",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "Advanced Micro Devices [AMD]",
+          "description" : "Ethernet interface",
+          "subsystemDeviceId" : "2000",
+          "deviceId" : "2000",
+          "autoSense" : "",
+          "netConnectionStatus" : "yes",
+          "maxSpeed" : null,
+          "name" : "79c970 [PCnet32 LANCE]",
+          "serialNumber" : "00:0c:29:35:70:a7",
+          "lastseen" : "2012-03-30 14:58:30",
+          "model" : "79c970 [PCnet32 LANCE]",
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : ""
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-auditHardware]]
+==== 'auditHardware' (client independent hardware information)
+
+Describes the detected hardware types (independed from client specific values). The idea is that you will see here only one entry for a network card which is used in all your computers. +
+Unfortunally in reality this idea doesn't work as you might think.
+
+Example for a auditHardware object:
+
+[source,opsiconfig]
+----
+ method auditHardware_getObjects [] {"hardwareClass":"NETWORK_CONTROLLER","vendorId":"1022"}
+[
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices [AMD]",
+          "name" : "79c970 [PCnet32 LANCE]",
+          "subsystemDeviceId" : "2000",
+          "deviceType" : null,
+          "subsystemVendorId" : "1022",
+          "autoSense" : "",
+          "model" : "79c970 [PCnet32 LANCE]",
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "",
+          "description" : "Ethernet interface"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "VMware, Inc.",
+          "name" : "VMware Accelerated AMD PCNet Adapter",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "VMware Accelerated AMD PCNet Adapter"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+  {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : null,
+          "subsystemDeviceId" : "2000",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "1022",
+          "autoSense" : null,
+          "model" : "",
+          "revision" : null,
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : null,
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+(....)
+[
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-auditSoftwareOnClient]]
+==== 'auditSoftwareOnClient' (client specific software information)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method auditSoftwareOnClient_getObjects  [] {"name":"jEdit 4.5.0","clientId":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "jEdit 4.5.0;4.5.0;;;x86;xpclient.vmnat.local",
+          "licenseKey" : "",
+          "name" : "jEdit 4.5.0",
+          "uninstallString" : "\\\"C:\\\\Programme\\\\jEdit\\\\unins000.exe\\\"",
+          "usageFrequency" : -1,
+          "clientId" : "xpclient.vmnat.local",
+          "lastUsed" : "0000-00-00 00:00:00",
+          "subVersion" : "",
+          "language" : "",
+          "state" : 1,
+          "version" : "4.5.0",
+          "lastseen" : "2012-03-30 16:19:55",
+          "binaryName" : "",
+          "type" : "AuditSoftwareOnClient",
+          "firstseen" : "2012-03-30 16:19:55",
+          "architecture" : "x86"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-auditSoftware]]
+==== 'auditSoftware' (client independent software information)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method auditSoftware_getObjects  [] {"name":"jEdit 4.5.0"}
+[
+          {
+          "windowsDisplayVersion" : "4.5.0",
+          "ident" : "jEdit 4.5.0;4.5.0;;;x64",
+          "name" : "jEdit 4.5.0",
+          "windowsSoftwareId" : "jedit_is1",
+          "windowsDisplayName" : "jEdit 4.5.0",
+          "installSize" : -1,
+          "subVersion" : "",
+          "language" : "",
+          "version" : "4.5.0",
+          "architecture" : "x64",
+          "type" : "AuditSoftware"
+          },
+          {
+          "windowsDisplayVersion" : "4.5.0",
+          "ident" : "jEdit 4.5.0;4.5.0;;;x86",
+          "name" : "jEdit 4.5.0",
+          "windowsSoftwareId" : "jedit_is1",
+          "windowsDisplayName" : "jEdit 4.5.0",
+          "installSize" : -1,
+          "subVersion" : "",
+          "language" : "",
+          "version" : "4.5.0",
+          "architecture" : "x86",
+          "type" : "AuditSoftware"
+          }
+]
+
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-auditSoftwareToLicensePool]]
+==== 'auditSoftwareToLicensePool' (license management)
+
+Describes which license pools are assinged to which 'auditSoftware' patterns.
+
+Example for a auditSoftwareToLicensePool object:
+
+[source,opsiconfig]
+----
+ method auditSoftwareToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
+[
+          {
+          "ident" : "Windows 7 Professional N;6.1;00376-165;de-DE;x64;win7-msdn-prof",
+          "name" : "Windows 7 Professional N",
+          "language" : "de-DE",
+          "subVersion" : "00376-165",
+          "licensePoolId" : "win7-msdn-prof",
+          "version" : "6.1",
+          "architecture" : "x64",
+          "type" : "AuditSoftwareToLicensePool"
+          },
+          {
+          "ident" : "Windows 7 Professional N;6.1;00376-165;de-DE;x86;win7-msdn-prof",
+          "name" : "Windows 7 Professional N",
+          "language" : "de-DE",
+          "subVersion" : "00376-165",
+          "licensePoolId" : "win7-msdn-prof",
+          "version" : "6.1",
+          "architecture" : "x86",
+          "type" : "AuditSoftwareToLicensePool"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-softwareLicenseToLicensePool]]
+==== 'softwareLicenseToLicensePool' (license management)
+
+Describes which 'softwareLicenseId' is assinged to which 'licensePoolId'.
+
+Example for a softwareLicenseToLicensePool object:
+
+[source,opsiconfig]
+----
+method softwareLicenseToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
+[
+          {
+          "licensePoolId" : "win7-msdn-prof",
+          "softwareLicenseId" : "uib-msdn-win7-vol",
+          "ident" : "uib-msdn-win7-vol;win7-msdn-prof",
+          "licenseKey" : "12345-12345-12345-12345-3dbv6",
+          "type" : "SoftwareLicenseToLicensePool"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-softwareLicense]]
+==== 'softwareLicense' (license management)
+
+Describes the existing software licenses and their meta data.
+
+Example for a softwareLicense object:
+
+[source,opsiconfig]
+----
+ method softwareLicense_getObjects [] {"id":"uib-msdn-win7-vol"}
+[
+          {
+          "ident" : "uib-msdn-win7-vol;msdn-uib",
+          "maxInstallations" : 0,
+          "boundToHost" : null,
+          "expirationDate" : "0000-00-00 00:00:00",
+          "licenseContractId" : "msdn-uib",
+          "type" : "VolumeSoftwareLicense",
+          "id" : "uib-msdn-win7-vol"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-licenseContract]]
+==== 'licenseContract' (license management)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method licenseContract_getObjects [] {"id":"msdn-uib"}
+[
+          {
+          "ident" : "msdn-uib",
+          "description" : "",
+          "conclusionDate" : "2011-04-22 00:00:00",
+          "notificationDate" : "0000-00-00 00:00:00",
+          "notes" : "",
+          "expirationDate" : "0000-00-00 00:00:00",
+          "partner" : "Microsoft",
+          "type" : "LicenseContract",
+          "id" : "msdn-uib"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-licenseOnClient]]
+==== 'licenseOnClient' (license management)
+
+Describes the dependencies of a product to another product as it is defined while creating the package.
+
+Example for a productProperty object:
+
+[source,opsiconfig]
+----
+ method licenseOnClient_getObjects  [] {"clientId":"win7client.vmnat.local"}
+[
+          {
+          "softwareLicenseId" : "uib-msdn-win7-vol",
+          "ident" : "uib-msdn-win7-vol;win7-msdn-prof;win7client.vmnat.local",
+          "licenseKey" : "12345-12345-12345-12345-3dbv6",
+          "notes" : "",
+          "clientId" : "win7client.vmnat.local",
+          "licensePoolId" : "win7-msdn-prof",
+          "type" : "LicenseOnClient"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-storage-licensePool]]
+==== 'licensePool' (license management)
+
+Describes the licensepool and to which opsi product the license pool is assinged.
+
+Example for a licensePool object:
+
+[source,opsiconfig]
+----
+ method licensePool_getObjects [] {"id":"win7-msdn-prof"}
+[
+          {
+          "ident" : "win7-msdn-prof",
+          "type" : "LicensePool",
+          "description" : "MSDN Keys",
+          "productIds" :
+                    [
+                    "win7",
+                    "win7-x64"
+                    ],
+          "id" : "win7-msdn-prof"
+          }
+]
+----
+
+
+[[opsi-manual-api-datastructure-opsi4-special]]
+=== The special objects
+
+
