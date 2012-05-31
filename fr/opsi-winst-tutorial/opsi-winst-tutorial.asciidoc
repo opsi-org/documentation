@@ -1,0 +1,246 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      06.04.2012
+:Revision:  1.0.0
+:doctype:		book
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+
+
+= opsi-winst Tutorial (1.0.0)
+
+
+
+// Include common opsi copyright
+include::../common/opsi_manual_copyright.asciidoc[]
+
+
+
+[[opsi-winst-introduction]]
+== Introduction
+
+This tutorial should help you to learn some advanced features (e.g. string lists) of the opsi-winst script language.
+
+Before we start some hints:
+
+* you should always use opsi script constants if they aplicable. For example use '%system%' instead of 'c:\windows\system32'.
+
+* You shold use the opsi-winst manuals for further description of the mentioned script commands:
+** `opsi-winst manual`
+** `opsi-winst reference card`
+
+* You should use the opsi product 'opsi-winst-test' as a running reference script which is calling (nearly) every opsi-winst command.
+
+[[opsi-winst-lections]]
+== Creating opsi-winst scripts
+You may use every text editor. We recommend to use the jedit editor with integrated opsi-winst syntax highlighting.
+
+For testing opsi-winst scripts it is a good idea to run them from an interactive started opsi-winst. (see: getting-started for more details)
+
+[[opsi-winst-lection1]]
+=== 1. Lection
+In the first lection you should just list all files of your `c:\windows\system32` directory.
+
+You should use the following opsi-winst functions:
+
+* `DosInAnIcon`
+
+[[opsi-winst-lection2]]
+=== 2. Lection
+Extend your script of the first lection by assingning the output of your `DosInAnIcon` call to a string list
+
+You should use the following opsi-winst functions:
+
+* `DefStringlist`
+* `getOutStreamFromSection`
+* `setloglevel = 7`
+
+[[opsi-winst-lection3]]
+=== 3. Lection
+You should determine the number of dll files in your `c:\windows\system32` and write this number to the log file.
+
+Extend your script of the second lection by extracting from your file list a new list which contains only the dll files and count them.
+
+You should use the following opsi-winst functions:
+
+* `getListContaining`
+* `count`
+* `comment`
+
+[[opsi-winst-lection4]]
+=== 4. Lection
+
+Is there a `kernel32.dll` at your `c:\windows\system32` and which size has it ?
+
+Extend your script of the third lection by extracting from your file list a new string which contains only the directory listing entry of the `kernel32.dll`. Then extract the size entry from this string.
+
+You should use the following opsi-winst functions:
+
+* `TakeFirstStringContaining`
+* `SplitStringOnWhiteSpace`
+* `TakeString`
+
+
+[[opsi-winst-lection5]]
+=== 5. Lection
+Which `kernel32.dll` is bigger the 32Bit or the 64Bit variant ?
+
+Extend your script of the fourth lection by running in different mode for the 32 Bit and 64 Bit part.
+
+You should use the following opsi-winst functions:
+
+* `DosInAnIcon winst /64bit`
+
+
+== Solutions
+
+=== Solution Lection 1
+[source,winst]
+----
+[Actions]
+comment "Show all Systemfiles"
+DosInAnIcon_Dir
+
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir
+-----
+
+=== Solution Lection 2
+[source,winst]
+----
+[Actions]
+DefStringList $list1$
+
+comment "Show all Systemfiles"
+comment "Output from DosInAnIcon is assingned to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+		
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir
+-----
+
+=== Solution Lection 3
+[source,winst]
+----
+[Actions]
+setloglevel = 7
+DefVar $DLLCount$
+DefStringList $list1$
+
+	
+comment "Show all Systemfiles"
+comment "Output from DosInAnIcon is setting to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+;getListContaining(<list>,<search string>)
+;get a partial list with all strings that match <search string>	
+comment "list with only DDL-Files"
+set $list1$ = getlistContaining ($list1$,".dll")
+comment "Number of DDL-Files"
+set $DLLCount$ = count ($list1$)
+comment "Number of DLL-Files: " + $DLLCount$
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+-----
+
+=== Solution Lection 4
+[source,winst]
+----
+[Actions]
+setloglevel = 7
+DefVar $dirline$
+
+DefStringList $list1$
+
+comment "Show all Systemfiles"
+;DosInAnIcon_Dir
+comment "Output from DosInAnIcon is setting to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+;set $list64$ = getOutStreamFromSection ("DosInAnIcon_Dir winst /64bit")
+comment "get string kernel32.dll"
+set $dirline$ = takeFirstStringContaining ($list1$,"kernel32.dll")
+if $dirline$ = ""
+ 	comment "Kernel32.dll not exist"
+else
+	set $list1$ = splitStringOnWhiteSpace($dirline$)
+	set $dirline$ = takeString (2,$list1$)
+	comment "Size of Kernel32.dll: "+$dirline$+" B"
+endif
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+-----
+
+=== Solution Lection 5
+[source,winst]
+----
+[Actions]
+setloglevel = 7
+DefVar $dirline$
+DefVar $dirline64$
+DefStringList $list32$
+DefStringList $list64$
+
+;search for 32 Bit-Version 
+comment "Output from DosInAnIcon is setting to a list"
+set $list32$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+	comment "get string kernel32.dll"
+set $dirline$ = takeFirstStringContaining ($list32$,"kernel32.dll")
+if $dirline$ = ""
+	comment "Kernel32.dll not exist"
+else
+	set $list32$ = splitStringOnWhiteSpace($dirline$)
+	set $dirline$ = takeString (2,$list32$)
+	comment "Size of 32Bit Kernel32.dll: "+$dirline$+" B"
+endif
+
+;search for 64 Bit-Version
+set $list64$ = getOutStreamFromSection ("DosInAnIcon_Dir winst /64bit")
+comment "get string kernel32.dll"
+set $dirline64$ = takeFirstStringContaining ($list64$,"kernel32.dll")
+if $dirline64$ = ""
+	comment "Kernel32.dll not exist"
+else
+	set $list64$ = splitStringOnWhiteSpace($dirline64$)
+	set $dirline64$ = takeString (2,$list64$)
+		comment "Size of 64 Bit Kernel32.dll: "+$dirline64$+" B"
+endif
+
+if $dirline64$ > $dirline$
+	Comment "The 64Bit-Version is " + $dirline64$ + " Byte is larger than the 32Bit-Version with " + $dirline$ + " Byte"
+else
+	Comment "The 32Bit-Version ist " + $dirline$ + " Byte is larger than the 64Bit-Version with " + $dirline64$ + " Byte"
+endif
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+-----
+
