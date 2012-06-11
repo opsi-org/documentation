@@ -653,11 +653,12 @@ WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich au
 [[opsi-getting-started-installation-base-opensuse]]
 ==== Installation unter openSUSE
 
-opsi 4.0 ist getestet und freigegeben für openSUSE 11.3
+Bitte beachten:
 
-Zunächst ein paar allgemeine Hinweise:
+* opsi 4.0 ist getestet und freigegeben für openSUSE 11.3 und openSUSE 12.1.
 
-* Diese Pakete sind getestet unter openSUSE 11.3. Zu anderen Versionen können wir keine Aussagen machen.
+* Die Unterstützung für openSUSE 11.3 ist abgekündigt.
+
 * Zu Evaluierung von opsi empfiehlt die uib gmbh weiterhin dringend die Verwendung der opsi-VM.
 
 Notwendige Vorbereitungen:
@@ -680,17 +681,29 @@ getent hosts $(hostname -f)
 +
 muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die Clients verbinden sollen. Gibt der Befehl die Adresse '127.0.0.1' oder '127.0.0.2' aus, muss die Datei '/etc/hosts' korrigiert werden.
 
-* Samba muss konfiguriert sein.
+* Samba muss installiert und konfiguriert sein.
 
-* mysql-server sollte installiert sein
+* mysql-server muss installiert sein.
+
+* p7zip p7zip-plugins cabextract muss installiert sein.
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
 
 Hinzufügen des opsi-SUSE-Repositories per zypper:
 
+*openSUSE 11.3:*
+
 [source,prompt]
 ----
 zypper ar –refresh http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/openSUSE_11.3/home:uibmz:opsi:opsi40.repo
+zypper mr -p 50 home_uibmz_opsi_opsi40
+----
+
+*openSUSE 12.1:*
+
+[source,prompt]
+----
+zypper ar –refresh http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/openSUSE_12.1/home:uibmz:opsi:opsi40.repo
 zypper mr -p 50 home_uibmz_opsi_opsi40
 ----
 
@@ -796,10 +809,11 @@ WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich au
 ==== Installation auf einem RedHat Enterprise Linux (RHEL)
 
 Bitte beachten:
-* Die RHEL Pakete für opsi 4.0 sind gebaut für RHEL 5. / 6
 
-Zunächst ein paar allgemeine Hinweise:
-* Zu anderen RHEL Versionen können wir keine Aussagen machen.
+* Die RHEL Pakete für opsi 4.0 sind gebaut für RHEL 5 und RHEL 6.
+
+* Die Unterstützung für RHEL 5 ist abgekündigt.
+
 * Zu Evaluierung von opsi empfiehlt die uib gmbh weiterhin dringend die Verwendung der opsi-VM.
 
 Notwendige Vorbereitungen:
@@ -822,9 +836,27 @@ getent hosts $(hostname -f)
 +
 muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die Clients verbinden sollen. Gibt der Befehl die Adresse '127.0.0.1' oder '127.0.0.2' aus, muss die Datei '/etc/hosts' korrigiert werden.
 
-* Samba muss konfiguriert sein.
+* Samba und mysql-server installieren:
++
+[source,prompt]
+----
+yum install mysql-server samba
+----
 
-* mysql-server sollte installiert sein
+* Samba und mysql-server konfigurieren:
++
+[source,prompt]
+----
+/etc/init.d/mysqld start
+mysql_secure_installation
+/etc/init.d/smb start
+/etc/init.d/nmb start
+/etc/init.d/xinetd start
+chkconfig smbd on
+chkconfig nmbd on
+chkconfig mysqld on
+chkconfig xinetd on
+----
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
 
@@ -838,6 +870,8 @@ rhn_register
 Hinzufügen des RHEL Repositories: +
 Erstellen Sie die Datei `/etc/yum.repos.d/opsi40.repo` mit folgendem Inhalt:
 
+*For RHEL 5*
+
 [source,configfile]
 ----
 [opsi4]
@@ -848,19 +882,38 @@ gpgcheck=1
 gpgkey=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/RedHat_RHEL-5/repodata/repomd.xml.key
 ----
 
+*For RHEL 6*
+
+[source,configfile]
+----
+[opsi4]
+name=opsi4.0 for RHEL/ CentOS $releasever - $basearch
+baseurl=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/RedHat_RHEL-6/
+enabled=1
+gpgcheck=1
+gpgkey=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/RedHat_RHEL-6/repodata/repomd.xml.key
+----
+
 Nach dem Hinzufügen der Repositories kann die Installation gestartet werden:
 
 [source,prompt]
 ----
 yum makecache
+yum install p7zip p7zip-plugins cabextract
 yum remove tftp-server
 yum install opsi-depotserver opsi-configed
    Importing GPG key 0x4DC87421 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/RedHat_RHEL-5/repodata/repomd.xml.key
    Is this ok [y/N]: y
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
-yum install p7zip p7zip-plugins cabextract mysql-server
+opsi-setup --auto-configure-samba
+chkconfig opsiconfd on
+chkconfig opsipxeconfd on
+/etc/init.d/smb restart
+/etc/init.d/nmb restart
 ----
+
+Bitte stellen Sie sicher, daß Ihre iptables und SE-Linux Konfiguration die folgemnden Ports erlaubt: tftp Port (69/UDP) und die opsi ports (4447/TCP und 4441/TCP).
 
 Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen welche sie ignorieren sollen.
 
@@ -873,11 +926,11 @@ WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich au
 ==== Installation auf einem CentOS Server
 
 Bitte beachten:
-* Die CentOS Pakete für opsi 4.0 sind gebaut für CentOS 5.
-* Es liegen noch keine Betriebserfahrungen mit opsi auf CentOS vor.
 
-Zunächst ein paar allgemeine Hinweise:
-* Zu anderen CentOS Versionen können wir keine Aussagen machen.
+* Die RHEL Pakete für opsi 4.0 sind gebaut für CentOS 5 und CentOS 6.
+
+* Die Unterstützung für CentOS 5 ist abgekündigt.
+
 * Zu Evaluierung von opsi empfiehlt die uib gmbh weiterhin dringend die Verwendung der opsi-VM.
 
 Notwendige Vorbereitungen:
@@ -900,16 +953,37 @@ getent hosts $(hostname -f)
 +
 muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die Clients verbinden sollen. Gibt der Befehl die Adresse '127.0.0.1' oder '127.0.0.2' aus, muss die Datei '/etc/hosts' korrigiert werden.
 
-* Samba muss konfiguriert sein.
+* Samba und mysql-server installieren:
++
+[source,prompt]
+----
+yum install mysql-server samba
+----
 
-* mysql-server sollte installiert sein
+* Samba und mysql-server konfigurieren:
++
+[source,prompt]
+----
+/etc/init.d/mysqld start
+mysql_secure_installation
+/etc/init.d/smb start
+/etc/init.d/nmb start
+/etc/init.d/xinetd start
+chkconfig smbd on
+chkconfig nmbd on
+chkconfig mysqld on
+chkconfig xinetd on
+----
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
 
 Hinzufügen des CentOS Repositories: +
 Erstellen Sie die Datei /etc/yum.repos.d/opsi40.repo mit folgendem Inhalt:
+
+*CentOS 5*
+
 [source,configfile]
------
+----
 [opsi4]
 name=opsi4.0 for RHEL/ CentOS $releasever - $basearch
 baseurl=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/
@@ -918,18 +992,37 @@ gpgcheck=1
 gpgkey=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/repodata/repomd.xml.key
 ----
 
+*CentOS 6*
+
+[source,configfile]
+----
+[opsi4]
+name=opsi4.0 for RHEL/ CentOS $releasever - $basearch
+baseurl=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-6/
+enabled=1
+gpgcheck=1
+gpgkey=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-6/repodata/repomd.xml.key
+----
+
 Nach dem Hinzufügen der Repositories kann die Installation gestartet werden:
 
 [source,prompt]
 ----
 yum makecache
+yum install p7zip p7zip-plugins cabextract
 yum install opsi-depotserver opsi-configed
    Importing GPG key 0x4DC87421 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/repodata/repomd.xml.key
    Is this ok [y/N]: y
 /etc/init.d/opsiconfd restart
 /etc/init.d/opsipxeconfd restart
-yum install p7zip p7zip-plugins cabextract mysql-server
+opsi-setup --auto-configure-samba
+chkconfig opsiconfd on
+chkconfig opsipxeconfd on
+/etc/init.d/smb restart
+/etc/init.d/nmb restart
 ----
+
+Bitte stellen Sie sicher, daß Ihre iptables und SE-Linux Konfiguration die folgemnden Ports erlaubt: tftp Port (69/UDP) und die opsi ports (4447/TCP und 4441/TCP).
 
 Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen welche sie ignorieren sollen.
 
