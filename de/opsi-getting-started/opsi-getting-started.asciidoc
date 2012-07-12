@@ -2490,21 +2490,21 @@ Das Template-Paket können Sie auf Ihrem Server mittels `opsi-package-manager` i
 oder entpacken (+-x+), um an die enthaltenen Skripte zu gelangen.
 
 
-.setup.ins: Installationsscript
+.setup32.ins: Installationsscript
 [source,winst]
 ----
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This sourcecode is owned by uib
 ; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/credits/
+; credits: http://www.opsi.org/en/credits/
 
 [Actions]
-requiredWinstVersion >= "4.10.5"
+requiredWinstVersion >= "4.11.2.6"
 
 DefVar $MsiId$
 DefVar $UninstallProgram$
 DefVar $LogDir$
-DefVar $ProductId$
+DefVar $ProductId$  
 DefVar $MinimumSpace$
 DefVar $InstallDir$
 DefVar $ExitCode$
@@ -2517,10 +2517,13 @@ Set $LogDir$ = "%SystemDrive%\tmp"
 ; ----------------------------------------------------------------
 ; - Please edit the following values                             -
 ; ----------------------------------------------------------------
+;$ProductId$ should be the name of the product in opsi
+; therefore please: only lower letters, no umlauts, 
+; no white space use '-' as a seperator
 Set $ProductId$       = "opsi-template"
 Set $MinimumSpace$    = "1 MB"
 ; the path were we find the product after the installation
-Set $InstallDir$      = "%ProgramFilesDir%\path to the product"
+Set $InstallDir$      = "%ProgramFiles32Dir%\<path to the product>"
 Set $LicenseRequired$ = "false"
 Set $LicensePool$     = "p_" + $ProductId$
 ; ----------------------------------------------------------------
@@ -2533,9 +2536,9 @@ else
 	comment "Show product picture"
 	ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 	
-	if FileExists("%ScriptPath%\delsub.ins")
+	if FileExists("%ScriptPath%\delsub32.ins")
 		comment "Start uninstall sub section"
-		Sub "%ScriptPath%\delsub.ins"
+		Sub "%ScriptPath%\delsub32.ins"
 	endif
 	
 	Message "Installing " + $ProductId$ + " ..."
@@ -2546,54 +2549,46 @@ else
 	endif
 	
 	comment "Start setup program"
+	ChangeDirectory "%SCRIPTPATH%"
 	Winbatch_install
 	Sub_check_exitcode
 	
 	comment "Copy files"
-	Files_install
+	Files_install /32Bit
 	
 	comment "Patch Registry"
-	Registry_install
+	Registry_install /32Bit
 	
 	comment "Create shortcuts"
 	LinkFolder_install
 	
-	; comment "Test for installation success"
-	; Test if software marked as installed in registry
-	; if (GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}] DisplayName") = "")
-	; 	logError "Fatal: After Installation [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}] not found"
-	; 	isFatalError
-	; else
-	; 	comment "Successful Installation"
-	; endif
-
 endif
 
 [Winbatch_install]
 ; Choose one of the following examples as basis for your installation
 ; You can use $LicenseKey$ var to pass a license key to the installer
 ;
-; === Nullsoft Scriptable Install System =================================
+; === Nullsoft Scriptable Install System ================================================================
 ; "%ScriptPath%\Setup.exe" /S
 ;
-; === MSI package ========================================================
+; === MSI package =======================================================================================
 ; You may use the parameter PIDKEY=$Licensekey$
 ; msiexec /i "%ScriptPath%\some.msi" /l* "$LogDir$\$ProductId$.install_log.txt" /qb! ALLUSERS=2 REBOOT=ReallySuppress
 ;
-; === InstallShield + MSI=================================================
+; === InstallShield + MSI=====================================================================================
 ; Attention: The path to the log file should not contain any whitespaces
 ; "%ScriptPath%\setup.exe" /s /v" /l* $LogDir$\$ProductId$.install_log.txt /qb! ALLUSERS=2 REBOOT=ReallySuppress"
 ; "%ScriptPath%\setup.exe" /s /v" /qb! ALLUSERS=2 REBOOT=ReallySuppress"
 ;
-; === InstallShield ======================================================
+; === InstallShield =====================================================================================
 ; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
 ; "%ScriptPath%\setup.exe" /s /sms /f1"%ScriptPath%\setup.iss" /f2"$LogDir$\$ProductId$.install_log.txt"
 ;
-; === Inno Setup ========================================================
+; === Inno Setup ========================================================================================
 ; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
 ; You may create setup answer file by: setup.exe /SAVEINF="filename"
 ; You may use an answer file by the parameter /LOADINF="filename"
-; "%ScriptPath%\setup.exe" /sp- /silent /norestart
+; "%ScriptPath%\setup.exe" /sp- /silent /norestart /nocancel /SUPPRESSMSGBOXES
 
 [Files_install]
 ; Example of recursively copying some files into the installation directory:
@@ -2621,7 +2616,7 @@ endif
 ;
 ; set_link
 ; 	name: $ProductId$
-; 	target: $NewExe$
+; 	target: <path to the program>
 ; 	parameters:
 ; 	working_dir: $InstallDir$
 ; 	icon_file:
@@ -2635,47 +2630,49 @@ endif
 ;
 ; set_link
 ; 	name: $ProductId$
-; 	target: $NewExe$
-; 	parameters: /some_param
+; 	target: <path to the program>
+; 	parameters: <some_param>
 ; 	working_dir: $InstallDir$
-; 	icon_file: $NewExe$
+; 	icon_file: <path to icon file>
 ; 	icon_index: 2
 ; end_link
 
 [Sub_get_licensekey]
-comment "License management is enabled and will be used"
+if opsiLicenseManagementEnabled
+	comment "License management is enabled and will be used"
 
-comment "Trying to get a license key"
-Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
-; If there is an assignment of exactly one licensepool 
-; to the product the following call is possible:
-; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
-;
-; If there is an assignment of a license pool 
-; to a windows software id, it is possible to use:
-; DefVar $WindowsSoftwareId$
-; $WindowsSoftwareId$ = "..."
-; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
-
-DefVar $ServiceErrorClass$
-set $ServiceErrorClass$ = getLastServiceErrorClass
-comment "Error class: " + $ServiceErrorClass$
-
-if $ServiceErrorClass$ = "None"
-	comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
-else
-	if $ServiceErrorClass$ = "LicenseConfigurationError"
-		LogError "Fatal: license configuration must be corrected"
-		LogError getLastServiceErrorMessage
-		isFatalError
+	comment "Trying to get a license key"
+	Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
+	; If there is an assignment of exactly one licensepool to the product the following call is possible:
+	; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
+	;
+	; If there is an assignment of a license pool to a windows software id, it is possible to use:
+	; DefVar $WindowsSoftwareId$
+	; $WindowsSoftwareId$ = "..."
+	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
+	
+	DefVar $ServiceErrorClass$
+	set $ServiceErrorClass$ = getLastServiceErrorClass
+	comment "Error class: " + $ServiceErrorClass$
+	
+	if $ServiceErrorClass$ = "None"
+		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
 	else
-		if $ServiceErrorClass$ = "LicenseMissingError"
-			LogError "Fatal: required license is not supplied"
+		if $ServiceErrorClass$ = "LicenseConfigurationError"
+			LogError "Fatal: license configuration must be corrected"
+			LogError getLastServiceErrorMessage
 			isFatalError
+		else 
+			if $ServiceErrorClass$ = "LicenseMissingError"
+				LogError "Fatal: required license is not supplied"
+				isFatalError
+			endif
 		endif
 	endif
+else
+	LogError "Fatal: license required, but license management not enabled"
+	isFatalError
 endif
-
 
 
 [Sub_check_exitcode]
@@ -2689,21 +2686,18 @@ if ($ExitCode$ = "0")
 else
 	comment "Setup program gives a exitcode unequal zero: " + $ExitCode$
 	if ($ExitCode$ = "1605")
-		comment "ERROR_UNKNOWN_PRODUCT 1605 This action is only valid for products"
-		comment "that are currently installed."
+		comment "ERROR_UNKNOWN_PRODUCT	1605	This action is only valid for products that are currently installed."
 		comment "Uninstall of a not installed product failed - no problem"
 	else
 		if ($ExitCode$ = "1641")
 			comment "looks good: setup program gives exitcode 1641"
-			comment "ERROR_SUCCESS_REBOOT_INITIATED 1641 The installer has initiated a restart. This message is indicative of a success."
+			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
 		else
 			if ($ExitCode$ = "3010")
 				comment "looks good: setup program gives exitcode 3010"
-				comment "ERROR_SUCCESS_REBOOT_REQUIRED 3010 A restart is required to"
-				comment "complete the install. This message is indicative of a success."
+				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
 			else
-				logError "Fatal: Setup program gives an unknown exitcode unequal zero: "
-				logError $ExitCode$
+				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
 				isFatalError
 			endif
 		endif
@@ -2711,16 +2705,16 @@ else
 endif
 ----
 
-.delsub.ins: Ausgelagerte Deinstallations-Sub-Sektion
+.delsub32.ins: Ausgelagerte Deinstallations-Sub-Sektion
 [source,winst]
 ----
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This sourcecode is owned by uib gmbh
 ; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/credits/
+; credits: http://www.opsi.org/en/credits/
 
 
-Set $MsiId$ = "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
 Set $UninstallProgram$ = $InstallDir$ + "\uninstall.exe"
 
 Message "Uninstalling " + $ProductId$ + " ..."
@@ -2730,17 +2724,17 @@ if FileExists($UninstallProgram$)
 	Winbatch_uninstall
 	sub_check_exitcode
 endif
-if not (GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ + "] DisplayName") = "")
+if not (GetRegistryStringValue32("[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ + "] DisplayName") = "")
 	comment "MSI id " + $MsiId$ + " found in registry, starting msiexec to uninstall"
 	Winbatch_uninstall_msi
 	sub_check_exitcode
 endif
 
 comment "Delete files"
-Files_uninstall
+Files_uninstall /32Bit
 
 comment "Cleanup registry"
-Registry_uninstall
+Registry_uninstall /32Bit
 
 comment "Delete program shortcuts"
 LinkFolder_uninstall
@@ -2748,19 +2742,18 @@ LinkFolder_uninstall
 [Winbatch_uninstall]
 ; Choose one of the following examples as basis for program uninstall
 ;
-; === Nullsoft Scriptable Install System ==================================
+; === Nullsoft Scriptable Install System ================================================================
 ; "$UninstallProgram$" /S
 ;
-; === Inno Setup ==========================================================
-; "$UninstallProgram$" /silent /norestart
+; === Inno Setup ========================================================================================
+; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
 
 
 [Winbatch_uninstall_msi]
 msiexec /x $MsiId$ /qb! REBOOT=ReallySuppress
 
 [Files_uninstall]
-; Example for recursively deleting the installation directory 
-; (do not forget the trailing backslash):
+; Example for recursively deleting the installation directory (don't forget the trailing backslash):
 ;
 ; delete -sf "$InstallDir$\"
 
@@ -2781,21 +2774,20 @@ msiexec /x $MsiId$ /qb! REBOOT=ReallySuppress
 ; set_subfolder ""
 ; delete_element $ProductId$
 
-
 [Sub_check_exitcode]
 ;(.... siehe oben .....)
 ----
 
-.uninstall.ins: Deinstallations-Skript
+.uninstall32.ins: Deinstallations-Skript
 [source,winst]
 ----
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This sourcecode is owned by uib gmbh
 ; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/credits/
+; credits: http://www.opsi.org/en/credits/
 
 [Actions]
-requiredWinstVersion >= "4.10.5"
+requiredWinstVersion >= "4.11.2.6"
 
 DefVar $MsiId$
 DefVar $UninstallProgram$
@@ -2812,7 +2804,7 @@ Set $LogDir$ = "%SystemDrive%\tmp"
 ; - Please edit the following values                             -
 ; ----------------------------------------------------------------
 Set $ProductId$       = "opsi-template"
-Set $InstallDir$      = "%ProgramFilesDir%\path to the product"
+Set $InstallDir$      = "%ProgramFiles32Dir%\<path to the product>"
 Set $LicenseRequired$ = "false"
 Set $LicensePool$     = "p_" + $ProductId$
 ; ----------------------------------------------------------------
@@ -2823,9 +2815,9 @@ ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 
 Message "Uninstalling " + $ProductId$ + " ..."
 
-if FileExists("%ScriptPath%\delsub.ins")
+if FileExists("%ScriptPath%\delsub32.ins")
 	comment "Start uninstall sub section"
-	Sub "%ScriptPath%\delsub.ins"
+	Sub "%ScriptPath%\delsub32.ins"
 endif
 
 if $LicenseRequired$ = "true"
@@ -2839,12 +2831,10 @@ comment "License management is enabled and will be used"
 comment "Trying to free license used for the product"
 DefVar $result$
 Set $result$ = FreeLicense($LicensePool$)
-; If there is an assignment of a license pool to 
-; the product, it is possible to use
+; If there is an assignment of a license pool to the product, it is possible to use
 ; Set $result$ = FreeLicense("", $ProductId$)
 ;
-; If there is an assignment of a license pool to 
-; a windows software id, it is possible to use
+; If there is an assignment of a license pool to a windows software id, it is possible to use
 ; DefVar $WindowsSoftwareId$
 ; $WindowsSoftwareId$ = "..."
 ; set $result$ = FreeLicense("", "", $WindowsSoftwareId$)
