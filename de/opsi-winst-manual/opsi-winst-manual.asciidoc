@@ -15,8 +15,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      19.10.2011
-:Revision:  4.0.1
+:Date:      11.07.2012
+:Revision:  4.0.2
 :doctype:		book
 
 // Include common opsi terms
@@ -24,7 +24,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst Handbuch (4.11.2)
+opsi-winst Handbuch (4.11.3)
 ==============================
 
 
@@ -54,7 +54,13 @@ Dateien (z.B. DLLs) können beim Kopieren auf ihre interne Version überprüft w
 * Es existiert eine ausgearbeitete und gut verständliche Syntax zum Patchen von XML-Konfigurationsdateien, das in die sonstigen Konfigurationsaufgaben integriert ist.
 
 [[opsi-winst-cliparams]]
-== Aufrufparameter
+== Start und Aufrufparameter
+
+Der '{opsi-winst}' enthält seit Version 4.11.3 ein Manifest mit der Option: +
+`<requestedExecutionLevel level="highestAvailable" />`. Dies bedeutet, das unter NT6 als Administrator aufgerufen versucht wird als 'elevated' Prozess zu arbeiten. Wird der '{opsi-winst}' mit User Rechten aufgerufen so läuft er unter den Rechten dieses Users.
+
+Wird der '{opsi-winst}' ohne Parameter  aufgrefufen, so startet er interaktiv.
+
 '{opsi-winst}' kann ja nach Kontext und Verwendungszweck mit unterschiedlichen Parametern gestartet werden.
 
 Es existieren folgende Syntax-Varianten des Aufrufs:
@@ -3558,9 +3564,28 @@ CAUTION: Diese Befehle erkennen nur Fenster von 32 Bit-Programmen.
 Wartet darauf, das sich der Prozess mit dem Namen <program name> beendet. +
 Kann und sollte mit `/TimeOutSeconds` kombiniert werden.
 
+Erläuterung: +
+Der '{opsi-winst}' wartet auf das Ende eines per `winbatch` gestarteten Prozesses bevor mit der nächsten Zeile des Scriptes forgefahren wird:
+
+.Sequentielle Abarbeitung des Scriptes mit Warten auf das Ende eines Prozesses
+image::../images/waitforprocess_scheme_std.png["waitforprocess_scheme_std",width=150]
+
+Es gibt allerdings Prozesse, welche einen weiteren Prozess starten und sich Beenden ohne auf das Ende des Kindprozesses zu warten. Aus Sich des '{opsi-winst}' ist admit der Weg zur Ausführung des nächsten Befehls frei:
+
+.Ende eines Prozesses mit weiterlaufenden Kindprozess
+image::../images/waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1",width=200]
+
+Werden z.B. hintereinander ein Uninstall und ein Setup Programm aufgerufen und das Uninstall Programm führt die eigentliche Deinstallation in einem Kindprozess aus, so ist das Ergebnis undefiniert, da deinstallation und Installation gleichzeitig laufen:
+
+.Überlappung von Kindprozess und nächstem gestarteten Prozess
+image::../images/waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2",width=200]
+
+Mit dem Modifier `/WaitForProcessEnding` kann eine solche Situation vermieden werden.
+
 *  `/TimeOutSeconds` <seconds> +
-Bricht eine Wartebedingung nach Ablauf von <seconds> ab, auch wenn die Wartebedingung noch nicht erfüllt ist. +
-Kann nicht alleine (z.B. ohne `/WaitForProcessEnding`) verwendet werden. +
+Bricht das Warten auf das Processende oder eine Wartebedingung (`/WaitForProcessEnding`) nach Ablauf von <seconds> ab, auch wenn das Prozessende oder die Wartebedingung noch nicht erfüllt ist. +
+Der Prozess auf dessen Ende gewartet werden sollte wird nicht gestopt. +
+Kann seit Version 4.11.3 auch alleine (z.B. ohne `/WaitForProcessEnding`) verwendet werden, aber nicht zusammen mit `/WaitSeconds`. +
 Beispiel: 
 +
 [source,winst]
@@ -3570,8 +3595,15 @@ Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
 "%ScriptPath%\uninstall_starter.exe"
 ----
 
+* `/RunElevated` +
+Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten). Dieser Modifier hat folgende Einschränkungen: +
+** Unter NT5 hat er keine Auswirkungen
+** Ein Zugriff auf das Netz ist in dem Prozess nicht möglich. Daher müssen die aufzurufenden Programme von einem Netzlaufwerk in ein temporäres lokales Verzeichnis kopiert werden.
+** Evtl. kann es zu Problemen bei der Nutzung der grafischen Oberfläche kommen. Daher sind echte silent aufrufe hier zu bevorzugen.
+** Funktioniert nur im opsi-service Kontext
+
 *  `getLastExitCode` +
-Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch Sektion aus.
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch Sektion aus.
 
 [[opsi-winst-winbatch-examples]]
 ==== Beispiele
