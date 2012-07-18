@@ -57,7 +57,7 @@ Dateien (z.B. DLLs) können beim Kopieren auf ihre interne Version überprüft w
 == Start und Aufrufparameter
 
 Der '{opsi-winst}' enthält seit Version 4.11.3 ein Manifest mit der Option: +
-`<requestedExecutionLevel level="highestAvailable" />`. Dies bedeutet, das unter NT6 als Administrator aufgerufen versucht wird als 'elevated' Prozess zu arbeiten. Wird der '{opsi-winst}' mit User Rechten aufgerufen so läuft er unter den Rechten dieses Users.
+`<requestedExecutionLevel level="highestAvailable" />`. Dies bedeutet, dass unter NT6 als Administrator aufgerufen, versucht wird als 'elevated' Prozess zu arbeiten. Wird der '{opsi-winst}' mit User Rechten aufgerufen, so läuft er unter den Rechten dieses Users.
 
 Wird der '{opsi-winst}' ohne Parameter  aufgrefufen, so startet er interaktiv.
 
@@ -807,6 +807,19 @@ CAUTION: Nach Programmiersystem-Handbuch soll der Wert nicht im laufenden Betrie
 
 `StayOnTop` steht per Default auf false damit verhindert wird das Fehlermeldungen eventuell nicht sichtbar sind, weil der '{opsi-winst}' im Vordergrund läuft.
 
+[[opsi-winst-params-showmode]]
+==== Fenster Modus
+
+* `NormalizeWinst` +
+setzt das '{opsi-winst}' Fenster auf 'normal' Modus.
+
+* `IconizeWinst` +
+setzt das '{opsi-winst}' Fenster auf 'minimierten' Modus.
+
+* `RestoreWinst` +
+setzt das '{opsi-winst}' Fenster auf 'maximierten' Modus.
+
+
 [[opsi-winst-string]]
 === String-Werte, String-Ausdrücke und String-Funktionen
 
@@ -943,8 +956,30 @@ Z.B. wird durch EnvVar ("Username") der Name des eingeloggten Users ermittelt.
 *  `ParamStr`
 Die Funktion gibt den String aus, der im Aufruf von '{opsi-winst}' nach dem optionalen Kommandozeilenparameter /parameter folgt. Ist der Kommandozeilenparameter nicht verwendet, liefert ParamStr den leeren String.
 
-*  `GetLastExitCode` +
-Gibt den ExitCode (auch FehlerLevel genannt) vom letzten Winbatch-Aufruf zurück. 
+*  `getLastExitCode` +
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus. +
+Bei DosBatch und ExecWith Sektionen erhalten wir den Exitcode des Interpreters.
+Daher muss in der Regel der gewünschte Exitcode in der Sektion explizit übergeben werden.
+
+Beispiel:
+[source,winst]
+----
+DosInAnIcon_exit1
+		set $ConstTest$ = "1"
+		set $CompValue$ = getLastExitCode
+		if ($ConstTest$ = $CompValue$)
+			comment "DosBatch / DosInAnIcon  exitcode passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "DosBatch / DosInAnIcon  exitcode failed"
+		endif
+		
+[DosInAnIcon_exit1]
+rem create an errolevel= 1
+VERIFY OTHER 2> NUL
+echo %ERRORLEVEL%
+exit %ERRORLEVEL%
+----
 
 *  `GetUserSID(`<Windows Username>`)` +
 gibt die SID für den übergebenen Benutzer an (möglich mit der Domäne als Vorspann in Form von DOMAIN\USER).
@@ -1125,6 +1160,114 @@ Schneidet Leerzeichen am Anfang und Ende des <string> ab.
 
 * `lower(`<string>`)` +
 liefert <string> in Kleinbuchstaben
+
+* `contains(`<str>, <substr>`)` +
+Boolsche Funktion welche 'true' liefert wenn <substr> in <str> enthalten ist. Die Funktion arbeitet case sensitive. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+set $ConstTest$ = "1xy451Xy451XY45"
+set $CompValue$ ="xy"
+if contains($ConstTest$, $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $CompValue$ ="xY"
+if not(contains($ConstTest$, $CompValue$))
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `stringReplace(`<string>, <oldPattern>, <newPattern>`)` +
+Liefert einen String in dem in <string>, <oldPattern> durch <newPattern> ersetzt ist. Die Funktion arbeitet case sensitive. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+set $ConstTest$ = "123451234512345"
+set $CompValue$ = stringReplace("1xy451Xy451XY45","xy","23")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strLength(`<string>`)` +
+Liefert Anzahl der Zeichen in <string> +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+set $tmp$ = "123456789"
+set $ConstTest$ = "9"
+set $CompValue$ = strLength($tmp$)
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strPos(`<string>, <sub string>`)` +
+Liefert die Position des ersten Vorkommens von <sub string> in <string>. Wird <sub string> nicht gefunden so liefert die Funktion "0". Die Funktion arbeitet case sensitive. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+set $tmp$ = "1xY451Xy451xy45"
+set $ConstTest$ = "7"
+set $CompValue$ = strPos($tmp$,"Xy")
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $tmp$ = lower("1xY451Xy451xy45")
+set $ConstTest$ = "2"
+set $CompValue$ = strPos($tmp$,lower("xy"))
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strPart(`<string>, <start pos>, <number of chars>`)` +
+Liefert einen Teilstring von <string> beginnend mit <start pos> und <number of chars> lang. Wenn ab <str pos> weniger als <number of chars> vorhanden sind, so wird der String bis zum Ende geliefert. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+set $tmp$ = "123456789"
+set $ConstTest$ = "34"
+set $CompValue$ = strPart($tmp$,"3","2")
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $tmp$ = "123456789"
+set $ConstTest$ = "56789"
+set $CompValue$ = strPart($tmp$, strPos($tmp$,"56"),strLength($tmp$))
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
 
 * `unquote(`<string>,<quote-string>`)`  //since 4.11.2.1 +
 Wenn <string> mit dem Anführungszeichen <quote-string> versehen ist so liefert diese Funktion <string> ohne Anführungszeichen +
@@ -1511,6 +1654,24 @@ Then
 Else
 EndIf
 ----
+
+*  `getDiffTimeSec` +
+liefert einen String mit dem ganzahligen Wert der vergangenen Sekunden seit dem letzten Aufruf von `marktime`. +
+Seit Version 4.11.3.1
+
+* `GetMyIpByTarget(`<target ip addr>`)` +
+liefert einen String mit der IP-Adresse des Interfaces, welches das Betriebssystem verwenden wird, wenn es versucht <target ip addr> zu erreichen. Diese Funktion liefert sicherer den korrekten Wert als die Verwendung der Konstante `%IPAddress%`. +
+Seit Version 4.11.3.1 +
+Beispiel:
+[source,winst]
+----
+set $CompValue$ = getMyIpByTarget("%opsiServer%")
+----
+
+* `SidToName(`<well known sid>`)` +
+liefert einen String mit dem lokalisierten Namen der mit <well known sid> bezeichneten Gruppe. Zum Beispiel für 'S-1-5-32-544' je nach lokalisierung des Betriebsystems 'Administratoren' oder 'Administrators'.  +
+Seit Version 4.11.3.1
+
 
 [[opsi-winst-string-functions-license]]
 ==== (String-) Funktionen für die Lizenzverwaltung
@@ -2047,6 +2208,86 @@ Set $result$=getReturnListFromSection("opsiservicecall_clientIdsList")
 "params":[]
 ----
 
+[[opsi-winst-stringlist-create-by-registry]]
+==== String-Listen aus der Registry
+
+
+* `getRegistryKeyList32(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Keys direkt unterhalb von <regkey>. +
+32 Bit Modus (mit Redirection). Seit 4.11.3
+
+* `getRegistryKeyList64(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Keys direkt unterhalb von <regkey>. +
+64 Bit Modus (ohne Redirection). Seit 4.11.3
+
+* `getRegistryKeyListSysnative(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Keys direkt unterhalb von <regkey>. +
+Modus abhängig von der Architektur des Betriebssystems. Seit 4.11.3
+
+* `getRegistryVarList32(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Werte direkt unterhalb von <regkey>. +
+32 Bit Modus (mit Redirection). Seit 4.11.3
+
+* `getRegistryVarList64(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Werte direkt unterhalb von <regkey>. +
+64 Bit Modus (ohne Redirection). Seit 4.11.3
+
+* `getRegistryVarListSysnative(`<regkey>`)` +
+Liefert eine Liste mit dem Namen aller Werte direkt unterhalb von <regkey>. +
+Modus abhängig von der Architektur des Betriebssystems. Seit 4.11.3
+
+Beispiel: +
+Wir erzeugen Registryeinträge mit folgender Sektion durch den Aufruf von: +
+[source,winst]
+----
+Registry_createkeys /32Bit
+
+[Registry_createkeys]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test]
+set "entry1" = "val1"
+set "entry2" = "val2"
+set "entry3" = "val3"
+set "entry4" = "val4"
+set "entry5" = "val5"
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key1]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key2]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key3]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key4]
+----
+Dann liefert uns:
+[source,winst]
+----
+set $list$ = getRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+----
+folgenden Log: 
+----
+Set  $list$ = GetRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+Registry started with redirection (32 Bit)
+    retrieving strings from GetRegistryVarList32 [switch to loglevel 7 for debugging]
+        (string   0)entry1
+        (string   1)entry2
+        (string   2)entry3
+        (string   3)entry4
+        (string   4)entry5
+----
+
+Dann liefert uns:
+[source,winst]
+----
+set $list$ = getRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+----
+folgenden Log: 
+----
+Set  $list$ = GetRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+Registry started with redirection (32 Bit)
+    retrieving strings from GetRegistryKeyList32 [switch to loglevel 7 for debugging]
+        (string   1)key1
+        (string   2)key2
+        (string   3)key3
+        (string   4)key4
+----
+
+
 [[opsi-winst-stringlist-transform]]
 ==== Transformation von String-Listen
 
@@ -2100,8 +2341,32 @@ kehrt die Reihenfolge der Aufzählung um – aus 'a', 'b', 'c', 'd', 'e' wird mi
 ----
 set $list1$ = reverse ($list$)
 ----
-
 also 'e', 'd', 'c', 'b', 'a'.
+
+* `getProductPropertyList(`<propname>,<default value>`)` 
+Liefert eine Liste mit den aktiven Werten des multivalue Properties <propname>. Im Gegensatz zu der Funktion `GetProductProperty` welche in diesem Fall die einzelnen Werte auf einem komma separierten String zurück liefert. Diese Vorgehen wird problematisch wenn Kommas auch in der Werten vorkommen. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+;Property "dummymulti" has the values: ("ab", "cd", "ef", "g,h")
+set $list$ = GetProductPropertyList ("dummymulti","True")
+if not ("" = takeFirstStringContaining($list$,"g,h"))
+	comment "GetProductPropertyList passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductPropertyList failed"
+endif
+
+set $ConstTest$ = "ab,cd,ef,g,h"
+set $CompValue$ = GetProductProperty ("dummymulti","True")
+if ($ConstTest$ = $CompValue$)
+	comment "GetProductProperty passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductProperty failed"
+endif
+----
 
 [[opsi-winst-stringlist-iteration]]
 ==== Iteration durch String-Listen
@@ -2394,6 +2659,92 @@ if opsiLicenseManagementEnabled
 else
    set $mykey$ = GetProductProperty("productkey","")
 endif
+----
+
+* `runningAsAdmin` +
+Boolsche Funktion welche 'true' liefert wenn das laufende Script mit Administrativen Rechten ausgeführt wird. +
+Seit 4.11.1.1
+
+* `isLoginScript` +
+Boolsche Funktion welche 'true' liefert wenn das laufende Script über die opsi Erweiterung 'User Profile Management' als 'userLoginScript' läuft. +
+Seit 4.11.2.1
+
+* `contains(`<str>, <substr>`)` +
+Boolsche Funktion welche 'true' liefert wenn <substr> in <str> enthalten ist. Die Funktion arbeitet case sensitive. +
+Seit 4.11.3
+
+* `isNumber(`<str>`)` +
+Boolsche Funktion welche 'true' liefert wenn <str> einen ganzahligen Wert (integer) representiert. +
+Seit 4.11.3
+
+[[opsi-winst-commands-insert]]
+=== Insert Kommandos
+
+Mit Insert Kommandos kann der Inhalt einer externen Datei dem laufende Script hinzugefügt werden. Dies kann entweder einfügend oder anhängend erfolgen. Die Insert Kommandos sind normale Kommandos der primären Sektionen. Die eingefügten Dateien können weitere Insert Kommandos enthalten. +
+Diese Kommandos gibt es seit Version 4.11.3
+
+* `include_insert` <file name> +
+Fügt den Inhalt von <file name> nach der aktuellen Zeile im laufenden Script ein. Somit ist die erste Zeile der eingefügten Datei die nächste Zeile welche der '{opsi-winst}' interpretiert.
+
+* `include_append` <file name> +
+Fügt den Inhalt von <file name> am Ende des laufenden Scriptes ein. Diese Anweisung dient vor allem dazu Sektionen aus z.B. einer Bibliothek hinzu zufügen.
+
+Für beide Funktionen gilt: +
+<file name> ist: +
+* Ein kompletter Pfad zu einer Datei.
+* Eine Datei in %ScriptPath%
+* Eine Datei in %WinstDir%\lib
+
+Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
+
+Beispiel: +
+Wir haben folgendes Script:
+[source,winst]
+----
+[Actions]
+include_append "include-test3.opsiinc"
+include_insert "include-test1.opsiinc"
+----
+
+Dabei hat die Datei "include-test1.opsiinc" folgenden Inhalt:
+[source,winst]
+----
+DefVar $inctestvar$
+set $inctestvar$ = "inctest"
+Files_del_tmp_dummy
+include_append "include-test2.opsiinc"
+Files_copy_inctest
+
+if fileExists("c:\opsi.org\tmp\dummy.txt") 
+	comment "passed"
+else
+	comment "failed"
+	set $TestResult$ = "not o.k."
+	LogWarning "include test failed"
+endif
+
+if fileExists("%scriptpath%\test-files\dummy.txt") 
+	comment "passed"
+else
+	comment "failed"
+	set $TestResult$ = "not o.k."
+	LogWarning "include test failed"
+endif
+Files_del_tmp_dummy
+----
+
+Dabei hat die Datei "include-test2.opsiinc" folgenden Inhalt:
+[source,winst]
+----
+[Files_copy_inctest]
+copy "%scriptpath%\test-files\dummy.txt" "c:\opsi.org\tmp"
+----
+
+Dabei hat die Datei "include-test3.opsiinc" folgenden Inhalt:
+[source,winst]
+----
+[Files_del_tmp_dummy]
+del -f "c:\opsi.org\tmp\dummyt.txt"
 ----
 
 [[opsi-winst-commands-subcall]]
@@ -3603,7 +3954,7 @@ Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten
 ** Funktioniert nur im opsi-service Kontext
 
 *  `getLastExitCode` +
-Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch Sektion aus.
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus.
 
 [[opsi-winst-winbatch-examples]]
 ==== Beispiele
@@ -4211,6 +4562,8 @@ Wie bei ExecPython Sektionen wird die Ausgabe einer ExecWith-Sektion in einer St
 Die erste Option legt fest, dass die Backslashes in '{opsi-winst}'-Variablen und Konstanten dupliziert werden, so dass 
 sie das ausführende Programm in der üblichen Form von Strings in 'C'-Syntax vorfindet. 
 Die zweite Option hat den Effekt (wie bei `winBatch` Aufrufen), dass das aufgerufene Programm in einem neuen Thread startet, während der '{opsi-winst}' mit dem Auslesen des Skripts fortfährt.
+
+Der Inhalt der Sektion wird in eine temporäre Datei (*.bat) gespeichert. Seit Version 4.11.3 wird, wenn als Interpreter 'powershell' angegeben ist, die temporäre Datei als `.ps1` gespeichert. 
 
 [[opsi-winst-execwith-examples]]
 ==== Weitere Beispiele
