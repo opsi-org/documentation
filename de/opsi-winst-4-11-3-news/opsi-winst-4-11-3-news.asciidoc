@@ -39,8 +39,10 @@ Der '{opsi-winst}' enthält seit Version 4.11.3 ein Manifest mit der Option: +
 `<requestedExecutionLevel level="highestAvailable" />`. Dies bedeutet, dass unter NT6 als Administrator aufgerufen, versucht wird als 'elevated' Prozess zu arbeiten. Wird der '{opsi-winst}' mit User Rechten aufgerufen, so läuft er unter den Rechten dieses Users.
 
 
+== Primäre Sektionen
+
 [[opsi-winst-params-showmode]]
-== Fenster Modus
+=== Fenster Modus
 
 * `NormalizeWinst` +
 setzt das '{opsi-winst}' Fenster auf 'normal' Modus.
@@ -51,10 +53,13 @@ setzt das '{opsi-winst}' Fenster auf 'minimierten' Modus.
 * `RestoreWinst` +
 setzt das '{opsi-winst}' Fenster auf 'maximierten' Modus.
 
-[[opsi-winst-commands-insert]]
-== Insert Kommandos
+[[opsi-winst-commands-include]]
+=== Include Kommandos
 
-Mit Insert Kommandos kann der Inhalt einer externen Datei dem laufende Script hinzugefügt werden. Dies kann entweder einfügend oder anhängend erfolgen. Die Insert Kommandos sind normale Kommandos der primären Sektionen. Die eingefügten Dateien können weitere Insert Kommandos enthalten. +
+[[opsi-winst-commands-include-syntax]]
+==== Include Kommandos: Syntax
+
+Mit Include Kommandos kann der Inhalt einer externen Datei dem laufende Script hinzugefügt werden. Dies kann entweder einfügend oder anhängend erfolgen. Die Include Kommandos sind normale Kommandos der primären Sektionen. Die eingefügten Dateien können weitere Include Kommandos enthalten. +
 Diese Kommandos gibt es seit Version 4.11.3
 
 * `include_insert` <file name> +
@@ -66,8 +71,8 @@ Fügt den Inhalt von <file name> am Ende des laufenden Scriptes ein. Diese Anwei
 Für beide Funktionen gilt: +
 <file name> ist: +
 * Ein kompletter Pfad zu einer Datei.
-* Eine Datei in %ScriptPath%
-* Eine Datei in %WinstDir%\lib
+* Eine Datei in `%ScriptPath%`
+* Eine Datei in `%WinstDir%\lib`
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
@@ -80,7 +85,7 @@ include_append "include-test3.opsiinc"
 include_insert "include-test1.opsiinc"
 ----
 
-Dabei hat die Datei "include-test1.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test1.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 DefVar $inctestvar$
@@ -107,23 +112,127 @@ endif
 Files_del_tmp_dummy
 ----
 
-Dabei hat die Datei "include-test2.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test2.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 [Files_copy_inctest]
 copy "%scriptpath%\test-files\dummy.txt" "c:\opsi.org\tmp"
 ----
 
-Dabei hat die Datei "include-test3.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test3.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 [Files_del_tmp_dummy]
 del -f "c:\opsi.org\tmp\dummyt.txt"
 ----
 
+[[opsi-winst-commands-include-library]]
+==== Include Kommandos: Library
+
+Mit der Version 4.11.3 werden folgende Includefiles in `%WinstDir%\lib` ausgeliefert:
+
+`insert_check_exit_code.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $ExitCode$
+
+include_append "section_sub_check_exitcode.opsiinc"
+----
+
+`insert_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+
+include_append "section_sub_get_licensekey.opsiinc"
+----
+
+`section_sub_check_exit_code.opsiinc`:
+[source,winst]
+----
+;opsi include file
+
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+if ($ExitCode$ = "0")
+	comment "Looks good: setup program gives exitcode zero"
+else
+	comment "Setup program gives a exitcode unequal zero: " + $ExitCode$
+	if ($ExitCode$ = "1605")
+		comment "ERROR_UNKNOWN_PRODUCT	1605	This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	else
+		if ($ExitCode$ = "1641")
+			comment "looks good: setup program gives exitcode 1641"
+			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
+		else
+			if ($ExitCode$ = "3010")
+				comment "looks good: setup program gives exitcode 3010"
+				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
+			else
+				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+				isFatalError
+			endif
+		endif
+	endif
+endif
+----
+
+`section_sub_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+[Sub_get_licensekey]
+if opsiLicenseManagementEnabled
+	comment "License management is enabled and will be used"
+
+	comment "Trying to get a license key"
+	Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
+	; If there is an assignment of exactly one licensepool to the product the following call is possible:
+	; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
+	;
+	; If there is an assignment of a license pool to a windows software id, it is possible to use:
+	; DefVar $WindowsSoftwareId$
+	; $WindowsSoftwareId$ = "..."
+	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
+	
+	DefVar $ServiceErrorClass$
+	set $ServiceErrorClass$ = getLastServiceErrorClass
+	comment "Error class: " + $ServiceErrorClass$
+	
+	if $ServiceErrorClass$ = "None"
+		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
+	else
+		if $ServiceErrorClass$ = "LicenseConfigurationError"
+			LogError "Fatal: license configuration must be corrected"
+			LogError getLastServiceErrorMessage
+			isFatalError
+		else 
+			if $ServiceErrorClass$ = "LicenseMissingError"
+				LogError "Fatal: required license is not supplied"
+				isFatalError
+			endif
+		endif
+	endif
+else
+	LogError "Fatal: license required, but license management not enabled"
+	isFatalError
+endif
+----
 
 [[opsi-winst-string-functions-handling]]
-== String-Verarbeitung
+=== String-Verarbeitung
 
 * `contains(`<str>, <substr>`)` +
 Boolsche Funktion welche 'true' liefert wenn <substr> in <str> enthalten ist. Die Funktion arbeitet case sensitive. +
@@ -240,7 +349,7 @@ Von <quote-string> wird nur das erste Zeichen berücksichtigt, wobe führende Wh
 
 
 [[opsi-winst-string-functions-others]]
-== Weitere String-Funktionen
+=== Weitere String-Funktionen
 
 *  `getDiffTimeSec` +
 liefert einen String mit dem ganzahligen Wert der vergangenen Sekunden seit dem letzten Aufruf von `marktime`. +
@@ -254,7 +363,7 @@ Seit Version 4.11.3.1
 Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus.
 
 [[opsi-winst-commands-if-else-bool-functions]]
-== Boolesche Ausdrücke
+=== Boolesche Ausdrücke
 
 
 * `runningAsAdmin` +
@@ -300,7 +409,7 @@ endif
 ----
 
 [[opsi-winst-stringlist-create-by-registry]]
-== String-Listen aus der Registry
+=== String-Listen aus der Registry
 
 
 * `getRegistryKeyList32(`<regkey>`)` +
@@ -378,9 +487,67 @@ Registry started with redirection (32 Bit)
         (string   4)key4
 ----
 
-==== ExecWith
+== Sekundäre Sektionen
+
+=== ExecWith
 
 Seit Version 4.11.3 wird, wenn als Interpreter 'powershell' angegeben ist, die temporäre Datei als `.ps1` gespeichert. 
+
+[[opsi-winst-winbatch]]
+=== WinBatch-Sektionen
+
+[[opsi-winst-winbatch-params]]
+==== Aufrufparameter (Modifier)
+
+*  `/WaitSeconds` [AnzahlSekunden] +
+Die Parametrisierung /WaitSeconds [AnzahlSekunden] modifiziert das Verhalten dahingehend, dass '{opsi-winst}' jeweils erst nach [AnzahlSekunden] die Skriptbearbeitung fortsetzt. Die angegebene Zeit stoppt '{opsi-winst}' auf jeden Fall. In der Default-Einstellung wird zusätzlich auf das Ende der angestoßenen Prozesse gewartet. Ist letzteres nicht gewünscht, so kann der Parameter mit dem Parameter /LetThemGo kombiniert werden.
+
+ 
+*  `/WaitForProcessEnding` <program name> +
+Wartet darauf, das sich der Prozess mit dem Namen <program name> beendet. +
+Kann und sollte mit `/TimeOutSeconds` kombiniert werden.
+
+Erläuterung: +
+Der '{opsi-winst}' wartet auf das Ende eines per `winbatch` gestarteten Prozesses bevor mit der nächsten Zeile des Scriptes forgefahren wird:
+
+.Sequentielle Abarbeitung des Scriptes mit Warten auf das Ende eines Prozesses
+image::../images/waitforprocess_scheme_std.png["waitforprocess_scheme_std",width=150]
+
+Es gibt allerdings Prozesse, welche einen weiteren Prozess starten und sich Beenden ohne auf das Ende des Kindprozesses zu warten. Aus Sich des '{opsi-winst}' ist admit der Weg zur Ausführung des nächsten Befehls frei:
+
+.Ende eines Prozesses mit weiterlaufenden Kindprozess
+image::../images/waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1",width=200]
+
+Werden z.B. hintereinander ein Uninstall und ein Setup Programm aufgerufen und das Uninstall Programm führt die eigentliche Deinstallation in einem Kindprozess aus, so ist das Ergebnis undefiniert, da deinstallation und Installation gleichzeitig laufen:
+
+.Überlappung von Kindprozess und nächstem gestarteten Prozess
+image::../images/waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2",width=200]
+
+Mit dem Modifier `/WaitForProcessEnding` kann eine solche Situation vermieden werden.
+
+*  `/TimeOutSeconds` <seconds> +
+Bricht das Warten auf das Processende oder eine Wartebedingung (`/WaitForProcessEnding`) nach Ablauf von <seconds> ab, auch wenn das Prozessende oder die Wartebedingung noch nicht erfüllt ist. +
+Der Prozess auf dessen Ende gewartet werden sollte wird nicht gestopt. +
+Kann seit Version 4.11.3 auch alleine (z.B. ohne `/WaitForProcessEnding`) verwendet werden, aber nicht zusammen mit `/WaitSeconds`. +
+Beispiel: 
++
+[source,winst]
+----
+Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
+[Winbatch_uninstall]
+"%ScriptPath%\uninstall_starter.exe"
+----
+
+* `/RunElevated` +
+Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten). Dieser Modifier hat folgende Einschränkungen: +
+** Unter NT5 hat er keine Auswirkungen
+** Ein Zugriff auf das Netz ist in dem Prozess nicht möglich. Daher müssen die aufzurufenden Programme von einem Netzlaufwerk in ein temporäres lokales Verzeichnis kopiert werden.
+** Evtl. kann es zu Problemen bei der Nutzung der grafischen Oberfläche kommen. Daher sind echte silent aufrufe hier zu bevorzugen.
+** Funktioniert nur im opsi-service Kontext
+
+*  `getLastExitCode` +
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus.
+
 
 == Sonstiges
 

@@ -2677,10 +2677,13 @@ Seit 4.11.3
 Boolsche Funktion welche 'true' liefert wenn <str> einen ganzahligen Wert (integer) representiert. +
 Seit 4.11.3
 
-[[opsi-winst-commands-insert]]
-=== Insert Kommandos
+[[opsi-winst-commands-include]]
+=== Include Kommandos
 
-Mit Insert Kommandos kann der Inhalt einer externen Datei dem laufende Script hinzugefügt werden. Dies kann entweder einfügend oder anhängend erfolgen. Die Insert Kommandos sind normale Kommandos der primären Sektionen. Die eingefügten Dateien können weitere Insert Kommandos enthalten. +
+[[opsi-winst-commands-include-syntax]]
+==== Include Kommandos: Syntax
+
+Mit Include Kommandos kann der Inhalt einer externen Datei dem laufende Script hinzugefügt werden. Dies kann entweder einfügend oder anhängend erfolgen. Die Include Kommandos sind normale Kommandos der primären Sektionen. Die eingefügten Dateien können weitere Include Kommandos enthalten. +
 Diese Kommandos gibt es seit Version 4.11.3
 
 * `include_insert` <file name> +
@@ -2692,8 +2695,8 @@ Fügt den Inhalt von <file name> am Ende des laufenden Scriptes ein. Diese Anwei
 Für beide Funktionen gilt: +
 <file name> ist: +
 * Ein kompletter Pfad zu einer Datei.
-* Eine Datei in %ScriptPath%
-* Eine Datei in %WinstDir%\lib
+* Eine Datei in `%ScriptPath%`
+* Eine Datei in `%WinstDir%\lib`
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
@@ -2706,7 +2709,7 @@ include_append "include-test3.opsiinc"
 include_insert "include-test1.opsiinc"
 ----
 
-Dabei hat die Datei "include-test1.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test1.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 DefVar $inctestvar$
@@ -2733,18 +2736,123 @@ endif
 Files_del_tmp_dummy
 ----
 
-Dabei hat die Datei "include-test2.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test2.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 [Files_copy_inctest]
 copy "%scriptpath%\test-files\dummy.txt" "c:\opsi.org\tmp"
 ----
 
-Dabei hat die Datei "include-test3.opsiinc" folgenden Inhalt:
+Dabei hat die Datei `include-test3.opsiinc` folgenden Inhalt:
 [source,winst]
 ----
 [Files_del_tmp_dummy]
 del -f "c:\opsi.org\tmp\dummyt.txt"
+----
+
+[[opsi-winst-commands-include-library]]
+==== Include Kommandos: Library
+
+Mit der Version 4.11.3 werden folgende Includefiles in `%WinstDir%\lib` ausgeliefert:
+
+`insert_check_exit_code.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $ExitCode$
+
+include_append "section_sub_check_exitcode.opsiinc"
+----
+
+`insert_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+
+include_append "section_sub_get_licensekey.opsiinc"
+----
+
+`section_sub_check_exit_code.opsiinc`:
+[source,winst]
+----
+;opsi include file
+
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+if ($ExitCode$ = "0")
+	comment "Looks good: setup program gives exitcode zero"
+else
+	comment "Setup program gives a exitcode unequal zero: " + $ExitCode$
+	if ($ExitCode$ = "1605")
+		comment "ERROR_UNKNOWN_PRODUCT	1605	This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	else
+		if ($ExitCode$ = "1641")
+			comment "looks good: setup program gives exitcode 1641"
+			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
+		else
+			if ($ExitCode$ = "3010")
+				comment "looks good: setup program gives exitcode 3010"
+				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
+			else
+				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+				isFatalError
+			endif
+		endif
+	endif
+endif
+----
+
+`section_sub_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+[Sub_get_licensekey]
+if opsiLicenseManagementEnabled
+	comment "License management is enabled and will be used"
+
+	comment "Trying to get a license key"
+	Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
+	; If there is an assignment of exactly one licensepool to the product the following call is possible:
+	; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
+	;
+	; If there is an assignment of a license pool to a windows software id, it is possible to use:
+	; DefVar $WindowsSoftwareId$
+	; $WindowsSoftwareId$ = "..."
+	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
+	
+	DefVar $ServiceErrorClass$
+	set $ServiceErrorClass$ = getLastServiceErrorClass
+	comment "Error class: " + $ServiceErrorClass$
+	
+	if $ServiceErrorClass$ = "None"
+		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
+	else
+		if $ServiceErrorClass$ = "LicenseConfigurationError"
+			LogError "Fatal: license configuration must be corrected"
+			LogError getLastServiceErrorMessage
+			isFatalError
+		else 
+			if $ServiceErrorClass$ = "LicenseMissingError"
+				LogError "Fatal: required license is not supplied"
+				isFatalError
+			endif
+		endif
+	endif
+else
+	LogError "Fatal: license required, but license management not enabled"
+	isFatalError
+endif
 ----
 
 [[opsi-winst-commands-subcall]]
