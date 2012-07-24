@@ -1,0 +1,589 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.07.2012
+:Revision:  4.0.2
+:doctype:		book
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+
+
+opsi-winst (4.11.3): What is new ?
+==================================
+
+
+
+// Include common opsi copyright
+include::../common/opsi_manual_copyright.asciidoc[]
+
+
+== Start and command line options
+
+The '{opsi-winst}' contains since version 4.11.3 a manifest with the statement: +
+`<requestedExecutionLevel level="highestAvailable" />`. This has the effect that if the '{opsi-winst}' is called at NT6 by an Administrator it will run as a 'elevated' process. If the '{opsi-winst}' is called with normal user priviliges, it will run with the priviliges of this user.
+
+
+== Primary sections
+
+[[opsi-winst-params-showmode]]
+=== Show window mode
+
+* `NormalizeWinst` +
+sets the '{opsi-winst}' window to the 'normal' mode
+
+* `IconizeWinst` +
+sets the '{opsi-winst}' window to the 'minimized' mode
+
+* `RestoreWinst` +
+sets the '{opsi-winst}' window to the 'maximized' mode
+
+[[opsi-winst-commands-include]]
+=== Include Commands
+
+[[opsi-winst-commands-include-syntax]]
+==== Include Commands: Syntax
+
+The include commands may be used to add external script files to the running script while runtime. The include can be done as an insert (after the actual line) or as an append (after the last line). The include commands may be used anywhere in a primary section. Included files may contain more include commands. +
+The include commands are avaliable since version 4.11.3
+
+* `include_insert` <file name> +
+inserts <file name> after the actual line to the running script. So the first line of the included file, is the next line which will be executed by the '{opsi-winst}'.
+
+* `include_append` <file name> +
+appends the conten of <file name> to the running script. This kind of insert is normally used to include sections from a library to the running script.
+
+At both variants <file name> is: +
+
+* A complete path to a existing file..
+
+* A existing file in `%ScriptPath%`
+
+* A existing file in `%WinstDir%\lib`
+
+The tests on the existence of the include file is done in this sequence. The first found file is used.
+
+Example: +
+We are running the following script:
+[source,winst]
+----
+[Actions]
+include_append "include-test3.opsiinc"
+include_insert "include-test1.opsiinc"
+----
+
+The content of the included file `include-test1.opsiinc`is:
+[source,winst]
+----
+DefVar $inctestvar$
+set $inctestvar$ = "inctest"
+Files_del_tmp_dummy
+include_append "include-test2.opsiinc"
+Files_copy_inctest
+
+if fileExists("c:\opsi.org\tmp\dummy.txt") 
+	comment "passed"
+else
+	comment "failed"
+	set $TestResult$ = "not o.k."
+	LogWarning "include test failed"
+endif
+
+if fileExists("%scriptpath%\test-files\dummy.txt") 
+	comment "passed"
+else
+	comment "failed"
+	set $TestResult$ = "not o.k."
+	LogWarning "include test failed"
+endif
+Files_del_tmp_dummy
+----
+
+The content of the included file  `include-test2.opsiinc` is:
+[source,winst]
+----
+[Files_copy_inctest]
+copy "%scriptpath%\test-files\dummy.txt" "c:\opsi.org\tmp"
+----
+
+The content of the included file  `include-test3.opsiinc` is:
+[source,winst]
+----
+[Files_del_tmp_dummy]
+del -f "c:\opsi.org\tmp\dummyt.txt"
+----
+
+[[opsi-winst-commands-include-library]]
+==== Include Kommandos: Library
+
+The following include files are shipped with version 4.11.3 in `%WinstDir%\lib`:
+
+`insert_check_exit_code.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $ExitCode$
+
+include_append "section_sub_check_exitcode.opsiinc"
+----
+
+`insert_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+
+include_append "section_sub_get_licensekey.opsiinc"
+----
+
+`section_sub_check_exit_code.opsiinc`:
+[source,winst]
+----
+;opsi include file
+
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+if ($ExitCode$ = "0")
+	comment "Looks good: setup program gives exitcode zero"
+else
+	comment "Setup program gives a exitcode unequal zero: " + $ExitCode$
+	if ($ExitCode$ = "1605")
+		comment "ERROR_UNKNOWN_PRODUCT	1605	This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	else
+		if ($ExitCode$ = "1641")
+			comment "looks good: setup program gives exitcode 1641"
+			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
+		else
+			if ($ExitCode$ = "3010")
+				comment "looks good: setup program gives exitcode 3010"
+				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
+			else
+				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+				isFatalError
+			endif
+		endif
+	endif
+endif
+----
+
+`section_sub_get_licensekey.opsiinc`:
+[source,winst]
+----
+; opsi include file
+
+[Sub_get_licensekey]
+if opsiLicenseManagementEnabled
+	comment "License management is enabled and will be used"
+
+	comment "Trying to get a license key"
+	Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
+	; If there is an assignment of exactly one licensepool to the product the following call is possible:
+	; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
+	;
+	; If there is an assignment of a license pool to a windows software id, it is possible to use:
+	; DefVar $WindowsSoftwareId$
+	; $WindowsSoftwareId$ = "..."
+	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
+	
+	DefVar $ServiceErrorClass$
+	set $ServiceErrorClass$ = getLastServiceErrorClass
+	comment "Error class: " + $ServiceErrorClass$
+	
+	if $ServiceErrorClass$ = "None"
+		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
+	else
+		if $ServiceErrorClass$ = "LicenseConfigurationError"
+			LogError "Fatal: license configuration must be corrected"
+			LogError getLastServiceErrorMessage
+			isFatalError
+		else 
+			if $ServiceErrorClass$ = "LicenseMissingError"
+				LogError "Fatal: required license is not supplied"
+				isFatalError
+			endif
+		endif
+	endif
+else
+	LogError "Fatal: license required, but license management not enabled"
+	isFatalError
+endif
+----
+
+[[opsi-winst-string-functions-handling]]
+=== String Handling
+
+* `contains(`<str>, <substr>`)` +
+boolean function which returns 'true' if <str> contains <substr>. This function works case sensitive. +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+set $ConstTest$ = "1xy451Xy451XY45"
+set $CompValue$ ="xy"
+if contains($ConstTest$, $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $CompValue$ ="xY"
+if not(contains($ConstTest$, $CompValue$))
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `stringReplace(`<string>, <oldPattern>, <newPattern>`)` +
+returns a string which is based on <string> but all ocurences of <oldPattern> are replaced by <newPattern>. This function works not case sensitive. +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+set $ConstTest$ = "123451234512345"
+set $CompValue$ = stringReplace("1xy451Xy451XY45","xy","23")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strLength(`<string>`)` +
+Returns the number of chars in in <string> +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+set $tmp$ = "123456789"
+set $ConstTest$ = "9"
+set $CompValue$ = strLength($tmp$)
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strPos(`<string>, <sub string>`)` +
+returns the first position of <sub string> in <string>. If <sub string> is not found, so "0" is the return value. The function works case sensitive. +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+set $tmp$ = "1xY451Xy451xy45"
+set $ConstTest$ = "7"
+set $CompValue$ = strPos($tmp$,"Xy")
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $tmp$ = lower("1xY451Xy451xy45")
+set $ConstTest$ = "2"
+set $CompValue$ = strPos($tmp$,lower("xy"))
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `strPart(`<string>, <start pos>, <number of chars>`)` +
+returns a part of <string> starting with <start pos> and with the lenght of <number of chars>. If there are behind <start pos> less than <number of chars>, than the remaining string will be the result value. +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+set $tmp$ = "123456789"
+set $ConstTest$ = "34"
+set $CompValue$ = strPart($tmp$,"3","2")
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $tmp$ = "123456789"
+set $ConstTest$ = "56789"
+set $CompValue$ = strPart($tmp$, strPos($tmp$,"56"),strLength($tmp$))
+if $ConstTest$ = $CompValue$
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+* `unquote(`<string>,<quote-string>`)`  +
+returns the unquoted version of <string>, if <string> is quoted with <quote-string> +
+Only one char (the first char) of <quote-string> is accepted as quote char. Leading white spaces are ignored. +
+Since 4.11.2.1
+
+
+
+[[opsi-winst-string-functions-others]]
+=== Other String Functions
+
+*  `getDiffTimeSec` +
+returns a string with the integer part of the seconds since the last call of `marktime`. +
+Since 4.11.3.1
+
+* `SidToName(`<well known sid>`)` +
+returns a string with the localized name of the group with the <well known sid>. For example you will get for 'S-1-5-32-544' the localized name of the group 'Administrators'.  +
+Since 4.11.3.1
+
+*  `getLastExitCode` +
+returns a string that contains the value of the exitcode of the last called process by a WinBatch / DosBatch / ExecWith section. +
+Using a DosBatch or ExecWith section, you will get normally the exitcode of the called interpreter. To get the exitcode of your script you have to pass it explicit.
+
+Example:
+[source,winst]
+----
+DosInAnIcon_exit1
+		set $ConstTest$ = "1"
+		set $CompValue$ = getLastExitCode
+		if ($ConstTest$ = $CompValue$)
+			comment "DosBatch / DosInAnIcon  exitcode passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "DosBatch / DosInAnIcon  exitcode failed"
+		endif
+		
+[DosInAnIcon_exit1]
+rem create an errolevel= 1
+VERIFY OTHER 2> NUL
+echo %ERRORLEVEL%
+exit %ERRORLEVEL%
+----
+
+
+[[opsi-winst-commands-if-else-bool-functions]]
+=== Boolean Expressions
+
+
+* `runningAsAdmin` +
+returns 'true' if the running script is executed with Administrator privileges. +
+Since 4.11.1.1
+
+* `isLoginScript` +
+returns 'true' if the running script is called as 'userLoginScrip' using the opsi extension 'User Profile Management'. +
+Since 4.11.2.1
+
+* `contains(`<str>, <substr>`)` +
+boolean function which returns 'true' if <str> contains <substr>. This function works case sensitive. +
+Since 4.11.3 
+
+* `isNumber(`<str>`)` +
+boolean function which returns 'true' if <str> represents an integer. +
+Since 4.11.3
+
+* `getProductPropertyList(`<propname>,<default value>`)`
+returns a stringlist withe the selected values of the multivalue product property <propname>. If there is no connection to the opsi server the resulting stringlist contains only <default value>. +
+If you call the function `GetProductProperty` with a multivalue property, you will get the selected values on a comma separated string. This will lead to problems, if the selected values contains comma chars by it self. +
+Since 4.11.3 +
+Example:
+[source,winst]
+----
+;Property "dummymulti" has the values: ("ab", "cd", "ef", "g,h")
+set $list$ = GetProductPropertyList ("dummymulti","True")
+if not ("" = takeFirstStringContaining($list$,"g,h"))
+	comment "GetProductPropertyList passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductPropertyList failed"
+endif
+
+set $ConstTest$ = "ab,cd,ef,g,h"
+set $CompValue$ = GetProductProperty ("dummymulti","True")
+if ($ConstTest$ = $CompValue$)
+	comment "GetProductProperty passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductProperty failed"
+endif
+----
+
+[[opsi-winst-stringlist-create-by-registry]]
+=== Stringlists from the registry
+
+
+* `getRegistryKeyList32(`<regkey>`)` +
+returns a stringlist with the names of all keys below <regkey>. +
+32 Bit mode (with redirection). Since 4.11.3
+
+* `getRegistryKeyList64(`<regkey>`)` +
+returns a stringlist with the names of all keys below <regkey>. +
+64 Bit mode (without redirection). Since 4.11.3
+
+* `getRegistryKeyListSysnative(`<regkey>`)` +
+returns a stringlist with the names of all keys below <regkey>. +
+Mode (redirection) depends on the architecture of the OS. Since 4.11.3
+
+* `getRegistryVarList32(`<regkey>`)` +
+returns a stringlist with the names of all value entries below <regkey>. +
+32 Bit mode (with redirection). Since 4.11.3
+
+* `getRegistryVarList64(`<regkey>`)` +
+returns a stringlist with the names of all value entries below <regkey>. +
+64 Bit mode (without redirection). Since 4.11.3
+
+* `getRegistryVarListSysnative(`<regkey>`)` +
+returns a stringlist with the names of all value entries below <regkey>. +
+Mode (redirection) depends on the architecture of the OS. Since 4.11.3
+
+Example: +
+We create some registry entries by calling the following section: +
+[source,winst]
+----
+Registry_createkeys /32Bit
+
+[Registry_createkeys]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test]
+set "entry1" = "val1"
+set "entry2" = "val2"
+set "entry3" = "val3"
+set "entry4" = "val4"
+set "entry5" = "val5"
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key1]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key2]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key3]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key4]
+----
+With this registry entries we will get with the code:
+[source,winst]
+----
+set $list$ = getRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+----
+the following log: 
+----
+Set  $list$ = GetRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+Registry started with redirection (32 Bit)
+    retrieving strings from GetRegistryVarList32 [switch to loglevel 7 for debugging]
+        (string   0)entry1
+        (string   1)entry2
+        (string   2)entry3
+        (string   3)entry4
+        (string   4)entry5
+----
+
+With this registry entries we will get with the code:
+[source,winst]
+----
+set $list$ = getRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+----
+the following log:
+----
+Set  $list$ = GetRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+Registry started with redirection (32 Bit)
+    retrieving strings from GetRegistryKeyList32 [switch to loglevel 7 for debugging]
+        (string   1)key1
+        (string   2)key2
+        (string   3)key3
+        (string   4)key4
+----
+
+== Secundary Sections
+
+=== ExecWith Sections
+
+If you call a ExecWith section with the interpreter 'powershell', so the content of the section will be stored in a temporary file with the extension `.ps1`. 
+
+[[opsi-winst-winbatch]]
+=== WinBatch Sections
+
+[[opsi-winst-winbatch-params]]
+==== Call Parameter (Modifier)
+
+* `/WaitSeconds` [number of seconds] +
+If we do the call with parameter /WaitSeconds [number of seconds] then '{opsi-winst}' is waiting the specified time before proceeding. In the default configuration we additionally wait for the started programs returning. If we combine the parameter with the option `/LetThemGo` then '{opsi-winst}' continues processing when the waiting time is finished.
+ 
+* `/WaitForProcessEnding` <program name> +
+Waits for the ending of the process with the name <program name>. +
+Should be combined with `/TimeOutSeconds`.
+
+Explanation: +
+Starting a external process by a winbatch call, the '{opsi-winst}' waits until the end of the started process before executing the next command of the script.
+
+.Sequential processing of a script with waiting on the end of a started program 
+image::../images/waitforprocess_scheme_std.png["waitforprocess_scheme_std",width=150]
+
+But there are some external programs which start an other process and then end without waiting for the end of their child process. From '{opsi-winst}'s point of view the process is ended and the next command could be started.
+
+.End of process while running child process
+image::../images/waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1",width=200]
+
+If run a uninstall program and a setup program in sequence and the uninstall program works with such a child process, you get a critical situation because uninstallation and installation are running at the same time.
+
+.Overlapping of child process and next started process
+image::../images/waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2",width=200]
+
+Using the modifier `/WaitForProcessEnding` helps to avoid such a situation.
+
+* `/TimeOutSeconds` <seconds> +
+A timeout setting. After <seconds> the waiting for process end or other waiting condition will be canceled . +
+Since 4.11.3 may be used without a waiting condition (e.g. `/WaitForProcessEnding`) but not in combination with `/WaitSeconds`. +
+Example: +
+[source,winst]
+----
+Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
+[Winbatch_uninstall]
+"%ScriptPath%\uninstall_starter.exe"
+----
+
+* `/RunElevated` +
+Starts a process with a security token with elevated privileges. This modifier has the following restrictions: +
+** At NT5 it do not change anything.
+** A process started this way has no network access. So you should copy a program to a temporary local directory but do not start it from a network share.
+** You may see problems using the graphical interface. So true silent installations are the better choice in this case.
+** Only works if the '{opsi-winst}' ist started in the web service context.
+
+*  `getLastExitCode` +
+returns a string that contains the value of the exitcode of the last called process by a WinBatch / DosBatch / ExecWith section. +
+Using a DosBatch or ExecWith section, you will get normally the exitcode of the called interpreter. To get the exitcode of your script you have to pass it explicit.
+
+
+== Miscellaneous
+
+* wisynth: TuibInstScript.doInfo: optimal fill for LabelInfo
+
+* name of installing product shown in inital info block. fixes #367
+
+* wisynth: executeWith: use extension '.ps1' if interpreter = powershell, fixes #382
+
+* logfiles now again not locked against reading while opsi-winst is running
+                         fixes: https://forum.opsi.org/viewtopic.php?f=7&t=3655
+                         
+* winbatch: test if extension of exitsting file is exe or com now not case sensitive.
+         fixes: https://forum.opsi.org/viewtopic.php?f=7&t=3592#p18127
+         
+* Winbatch: The parameter to /timeoutseconds may now be a variable fixes #352
