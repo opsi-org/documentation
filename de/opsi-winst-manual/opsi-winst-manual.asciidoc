@@ -788,9 +788,18 @@ Das Verhalten des '{opsi-winst}' bei einem syntaktischen Fehler wird über die K
 Wenn der Wert true ist (Default), werden Syntaxfehler bzw. Warnhinweise zum Skripts als Message-Fenster auf dem Bildschirm angezeigt. Derartige Fehler werden generell nicht in der Logdatei festgehalten, weil die Protokollierung in der Logdatei die objektiven Probleme einer Installation anzeigen soll. +
 Für <Wahrheitswert> kann außer true bzw. false hier zwecks einer suggestiveren Bezeichnung auch on bzw. off eingesetzt werden.
 
+*  `FatalOnSyntaxError =` <Wahrheitswert> +
+** 'true' = (default) Bei einem Syntaxfehler wird das Script abgebrochen und 'failed' zurückgeliefert. Dem Server wird die Meldung 'Syntax Error' übergeben.
+** 'false' = Bei einem Syntaxfehler wird das Script +nicht+ abgebrochen. +
+Der Syntaxfehler wird in jedem Fall als 'Critical' in die Logdatei übernommen. +
+In jedem Fall wird der Errorcounter um 1 erhöht. +
+Seit 4.11.3.2 +
+In älteren Versionen wird weder gelogged noch abgebrochen.
+
+
 Die beiden folgenden Einstellungen steuern die Reaktion auf Fehler bei der Ausführung des Skripts.
 
-*  `ExitOnError` = <Wahrheitswert> + 
+*  `ExitOnError` = <Wahrheitswert> +
 Mit dieser Anweisung wird festgelegt, ob bei Auftreten eines Fehlers die Abarbeitung des Skripts beendet wird. Wenn <Wahrheitswert> 'true' oder 'yes' oder 'on' gesetzt wird, terminiert das Programm, andernfalls werden die Fehler lediglich protokolliert (default). 
 
 *  `TraceMode =` <Wahrheitswert> + 
@@ -2288,6 +2297,34 @@ Registry started with redirection (32 Bit)
         (string   4)key4
 ----
 
+[[opsi-winst-stringlist-create-by-propery]]
+==== String-Listen aus Produkt Properties
+
+* `getProductPropertyList(`<propname>,<default value>`)` +
+Liefert eine Liste mit den aktiven Werten des multivalue Properties <propname>. Im Gegensatz zu der Funktion `GetProductProperty` welche in diesem Fall die einzelnen Werte auf einem komma separierten String zurück liefert. Diese Vorgehen wird problematisch wenn Kommas auch in der Werten vorkommen. +
+Seit 4.11.3 +
+Beispiel:
+[source,winst]
+----
+;Property "dummymulti" has the values: ("ab", "cd", "ef", "g,h")
+set $list$ = GetProductPropertyList ("dummymulti","True")
+if not ("" = takeFirstStringContaining($list$,"g,h"))
+	comment "GetProductPropertyList passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductPropertyList failed"
+endif
+
+set $ConstTest$ = "ab,cd,ef,g,h"
+set $CompValue$ = GetProductProperty ("dummymulti","True")
+if ($ConstTest$ = $CompValue$)
+	comment "GetProductProperty passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "GetProductProperty failed"
+endif
+----
+
 
 [[opsi-winst-stringlist-transform]]
 ==== Transformation von String-Listen
@@ -2343,31 +2380,6 @@ kehrt die Reihenfolge der Aufzählung um – aus 'a', 'b', 'c', 'd', 'e' wird mi
 set $list1$ = reverse ($list$)
 ----
 also 'e', 'd', 'c', 'b', 'a'.
-
-* `getProductPropertyList(`<propname>,<default value>`)` 
-Liefert eine Liste mit den aktiven Werten des multivalue Properties <propname>. Im Gegensatz zu der Funktion `GetProductProperty` welche in diesem Fall die einzelnen Werte auf einem komma separierten String zurück liefert. Diese Vorgehen wird problematisch wenn Kommas auch in der Werten vorkommen. +
-Seit 4.11.3 +
-Beispiel:
-[source,winst]
-----
-;Property "dummymulti" has the values: ("ab", "cd", "ef", "g,h")
-set $list$ = GetProductPropertyList ("dummymulti","True")
-if not ("" = takeFirstStringContaining($list$,"g,h"))
-	comment "GetProductPropertyList passed"
-else
-	set $TestResult$ = "not o.k."
-	LogWarning "GetProductPropertyList failed"
-endif
-
-set $ConstTest$ = "ab,cd,ef,g,h"
-set $CompValue$ = GetProductProperty ("dummymulti","True")
-if ($ConstTest$ = $CompValue$)
-	comment "GetProductProperty passed"
-else
-	set $TestResult$ = "not o.k."
-	LogWarning "GetProductProperty failed"
-endif
-----
 
 [[opsi-winst-stringlist-iteration]]
 ==== Iteration durch String-Listen
@@ -3022,6 +3034,11 @@ Passieren bei einer Installation Fehler, die zum Fehlschlagen der Installation f
 Um in einem '{opsi-winst}' Skript, eine Installation als gescheitert zu erklären, gibt es eine Ausdruck namens  +
 `isFatalError` +
 unterbricht die normale Ausführung eines Skripts, an der Stelle, an der er aufgerufen wird. Nach dem der Befehl aufgerufen wurde, werden (außer if-Anweisungen) keine Anweisungen mehr ausgeführt und als Skriptergebnis wird 'failed' zurückgeliefert. Wird dieser Befehl nicht aufgerufen, so ist das Skriptergebnis 'success'.
+
+Seit 4.11.3.2 ist auch die folgende Variante erlaubt:
+
+* `isFatalError` <string> +
+wobei <string> als kurze Fehlerbeschreibung an den opsi-server als 'actionProgress' weitergegeben wird und im opsi-configed angezeigt wird.
 
 Es gibt *keinen* Automatismus innerhalb eines Winst-Skriptes, um zu einen 'failed' Ergebnis zu kommen. Sie müssen skriptgesteuert den Fehler selbst feststellen. Hierzu gibt Ihnen der '{opsi-winst}' einige Hilfsmittel.
 
@@ -5035,6 +5052,14 @@ Schreibzugriffe werden in die 64 Bit-Registry bzw. das 64 Bit-Systemverzeichnis 
 
 *  `/SysNative` +
 Schreibzugriffe werden in den architekturspezifischen Zweig der Registry bzw. des Systemverzeichnisses gelenkt.
+
+Für `DosBatch`, `DosInAnIcon` usw. gilt das selbe, nur das die Parameter durch das Schlüsselwort `winst` abgergernzt werden müssen.
+
+Beispiel:
+[source,winst]
+----
+DosInAnIcon_do_64bit_stuff winst /64Bit
+----
 
 Als weitere Möglichkeit für explizite 64 Bit-Operationen wird bei der Installation des opsi-client-agent die Datei 'c:\windows\system32\cmd.exe' nach 'c:\windows\cmd64.exe' kopiert. Durch den Aufruf von SKripten mit dieser 'cmd64.exe' im Rahmen von `ExecWith` Sektionen können beliebige 64 Bit-Operationen ausgeführt werden. 
 
