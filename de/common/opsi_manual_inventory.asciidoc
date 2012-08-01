@@ -1,0 +1,183 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      1.08.2012
+:Revision:  4.0.2
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-inventory]]
+== Inventarisierung
+
+Zur Inventarisierung stehen die Localbootprodukte `hwaudit` und `swaudit` sowie das Netboot Produkt `hwinvent` zur Verfügung.
+
+[[opsi-manual-inventory-hard]]
+=== Hardware Inventarisierung
+
+Die Hardwareinventarisierung ist unter opsi Konfigurationsdatei gesteuert. Das bedeutet, das die Information wie und welche Informationen erhoben werden, nicht in den entsprechenden Produkten `hwaudit` und `hwinvent` fest verdrahtet sind. Vielmehr werden diese Produkte über eine Konfigurationsdatei gesteuert. Dazu wird die Konfigurationsdatei bei jeder Ausführung über den opsi Webservice eingelesen und interpretiert. Gleichzeitig steuert diese Konfigurationsdatei auch den Aufbau der Datenbank, so dass eine Erweiterung dieser Konfigurationsdatei auch eine Erweiterung der Datenhaltung nach sich zieht.
+
+Die Konfigurationsdatei ist die `/etc/opsi/hwaudit/opsihwaudit.conf`. +
+In dieser Datei werden alle zu Inventarisierenden Objekte definiert, beschrieben wie die zu diesem Objekt gehörenden Daten zu erhebn sind (unter Linux und unter Windows) und die dazu gehörige Datenstruktur definiert.
+Zur Vereinfachung enthält diese Konfigurationsdatei Vererbungsmechanismen die an eine Objektorientierung angelehnt sind. Hintergrund hierfür ist die Tatsache, dass viele Objekte identische Datenfelder wie z.B. `Name` und `Vendor` enthalten. Diese allgemeinen Informationen werden so in 'virtual' Hardwareklassen definiert. Die eigentlichen Inventarisierungsobjekte sind dann 'structural' Hardwareklassen, welche viele Eigenschaften von übergeordneten 'virtual' Klassen erben können.
+
+Zur Erläuterung dieses Mechanismus ein Beispiel: +
+So definiert die Knfigurationsdatei zunächste eine 'virtual Class' Namens '"BASIC_INFO"'. diese Definiert die Eigenschaften ('Values'):
+
+* "name"
+
+* "description"
+
+Als nächstes folgt  die 'virtual Class' Namens '"HARDWARE_DEVICE"' welche alle Eigenschaften von '"BASIC_INFO"' erbt und folgende zusätzliche definiert:
+
+* "vendor"
+
+* "model"
+
+* "serialNumber"
+
+Als nächstes folgt als erstes Objekt welche wir in der Inventarisierung auch finden, die erste 'structural Class' Namens ' "COMPUTER_SYSTEM"' welche alle Eigenschaften von '"HARDWARE_DEVICE"' erbt und folgende zusätzliche definiert bzw. überschreibt:
+
+* "name"
+
+* "systemType"
+
+* "totalPhysicalMemory"
+
+Im Rahmen der Definition einer Klasse und ihrer 'Values' werden verschiedene Eigenschaften beschrieben:
+
+* Klassen definition: +
+**  "Type" +
+ist "STRUCTURAL" oder  "VIRTUAL"
+** "Super" +
+gibt die Klasse an von der geerbt wird.
+** "Opsi" +
+gibt den Namen der Klasse an.
+
+Weiterhin können in der Klassendefinition angegeben werden, wie diese Daten erhoben werden. Diese Informationen können aber auch bei der Definition der 'Values' stehen.
+
+* Für die Inventarisierung unter Linux:
+
+** "Linux":  "[<command>]<parameter>" +
+Ausführung des Kommandozeilenprogramms <command> mit dem Argument <parameter>.
+
+** "Python": "<python code with place holder>" +
+Ausführung des angegeben Python codes wobei zunächst der Platzhalte durch die schon ermittelten Werte ersetzt wird.
+
+* Für die Inventarisierung unter Windows:
+
+** "WMI": "<wmi select statement>" +
+auszuführende WMI Abfrage
+
+** "Cmd": "<Python text object with place holder>" +
+Der Platzhalter ist indiesem Fall der relative Pfad zu einem ausführbarem Programm, dessen Ausgabe den Platzhalter ersetzt.
+
+** "Registry": "[<registry key>] <value name>" +
+Aus der Registry wird in <registry key> der Wert von <value name> ausgelesen. +
+Das Auslesen der Registry erfolgt Architektur spezifisch. Das heißt, auf einem 64 Bit System wird der 64 Bit Zweig der Registry ausgelesen.
+
+* Valuedefinition:
+
+** "Type":   "<MySQL Datenbanktyp>" +
+<MySQL Datenbanktyp> gibt den Datentyp an in dem dieser Wert in der Datenbank angelegt wird.
+
+** "Scope":  "<scope>" +
+das Feld <scope> wird folgendsermaßen verwendet: +
+"g" bedeutet: Dieses Attribut ist bei allen Geräten dieses Typs gleich. +
+"i" bedeutet: Dieses Attribut kann bei Geräten dieses Typs unterschiedliche
+Werte haben.
+
+** "Opsi":   "<id>" +
+dabei ist <id> der opsi interne Name des Feldes. Dieser kann zur Ausgabe über die Dateien in `/etc/opsi/hwaudit/locales` wiederum lokalisiert werden.
+
+** "WMI":    "<id or command>" +
+dabei ist <id or command> entweder der Name unter dem der in der Klassen definition angegebene WMI Befehl den Wert ausgibt oder ein eigener WMI Befehl.
+
+** "Linux":  "<id>" +
+dabei ist <id> der Name unter dem der in der Klassen definition angegebene Linux Befehl den Wert ausgibt.
+
+** "Condition": "<condition>" +
+dabei ist <condition> eine Bedingung die erfüllt sein muss, damit der 'Value' ermittelt wird. So legt z.B. die <condition> "vendor=[dD]ell*" fest, das der schon erhobene Wert von "vendor" 'Dell' oder 'dell' sein muss.
+
+Hierzu als Beispiel die Klasse "COMPUTER_SYSTEM":
+----
+{
+   "Class": {
+      "Type":   "STRUCTURAL",
+      "Super":  [ "HARDWARE_DEVICE" ],
+      "Opsi":   "COMPUTER_SYSTEM",
+      "WMI":    "select * from Win32_ComputerSystem",
+      "Linux":  "[lshw]system"
+   },
+   "Values": [
+      {
+         "Type":   "varchar(100)",
+         "Scope":  "i",
+         "Opsi":   "name",
+         "WMI":    "Name",
+         "Linux":  "id"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "systemType",
+         "WMI":    "SystemType",
+         "Linux":  "configuration/chassis"
+      },
+      {
+         "Type":   "bigint",
+         "Scope":  "i",
+         "Opsi":   "totalPhysicalMemory",
+         "WMI":    "TotalPhysicalMemory",
+         "Linux":  "core/memory/size",
+         "Unit":   "Byte"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "dellexpresscode",
+         "Condition": "vendor=[dD]ell*",
+         "Cmd":	"#dellexpresscode\dellexpresscode.exe#.split('=')[1]",
+         "Python":  "str(int(#{'COMPUTER_SYSTEM':'serialNumber','CHASSIS':'serialNumber'}#,36))"
+      }
+   ]
+},
+----
+Besonders interessant ist hier der letzte Value "dellexpresscode": +
+Dieser ist nur sinnvoll, wenn es sich auch um einen Dell-Rechner handelt, daher die Condition. +
+Unter Windows wird das Kommandozeilen Programm `dellexpresscode.exe` ausgeführt, welches sich von der `hwaudit.exe` aus gesehen im Unterverzeichnis `dellexpresscode\` findet. Diese produziert eine Ausgabe in der Form: 'dellexpresscode=123456789'. Durch den den hiter dem Platzhalter befindlichen `.split('=')[1]` wird der Wert hinter dem Gleichheitszeichen verwendet. +
+Unter Linux wird geprüft in welchem Element ('COMPUTER_SYSTEM' oder 'CHASSIS') bei 'serialNumber' ein Wert gefunden wurde, und dieser dann zur Berechung des Dell expresscodes verwendet.
+
+
+Die Opsi-Namen der Values werden über die Dateien `/etc/opsi/hwaudit/locales/*`
+übersetzt.
+Bsp. `/etc/opsi/hwaudit/locales/de_DE`:
+----
+COMPUTER_SYSTEM = Computer
+COMPUTER_SYSTEM.systemType = Typ
+----
+Der Klassenname COMPUTER_SYSTEM wird übersetzt in "Computer".
+Das Opsi-Attribut "systemType" der Klasse COMPUTER_SYSTEM wird übersetzt in
+"Typ".
+
+[[opsi-manual-inventory-soft]]
+=== Software Inventarisierung
+
+Die Softwareinventarisierung findet über das Localbootprodukt `swaudit` statt. Dabei werden die Informationen aus dem Uninstallzweig der Registry erhoben und durch zusätzliche Informationen zu Hotfixes und Lizenzkeys ergänzt.
+
+Der Quellcode diese Paketes wir hier verwaltet: +
+https://svn.opsi.org/listing.php?repname=swaudit
