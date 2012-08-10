@@ -1,0 +1,192 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      1.08.2012
+:Revision:  4.0.2
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-inventory]]
+== Inventory
+
+The inventory can be ordered with the Localboot products `hwaudit` and `swaudit` or with the Netboot product `hwinvent`.
+
+[[opsi-manual-inventory-hard]]
+=== Hardware Inventarisierung
+
+The Hardware inventory is controlled by an opsi configuration file.  This means that the information about which data will be compiled are not hardwired into the
+corresponding products `hwaudit` and `hwinvent`.  In fact, the products will be controlled by a configuration file.  The configuations file will be called and interpreted 
+with every dispatch of the Webservice.  Simultaneously, the configuration file controls both the structure of the databank, so that an extension of this configuration file
+and drafts the configuation of the data management.
+
+
+The configuration file is `/etc/opsi/hwaudit/opsihwaudit.conf`. +
+All the inventoried objects are defined and described in this file, like how these objects and their data are made (under Linux and Windows).  This file will 
+also simultaneously define the associated data structure.  To be more specific, this configuration file contains inheritance mechanisms, which are object oriented.
+The reason for this is the fact that a lot of objects contain identical data fields (i.e. like `Name` and `Vendor`).  This general information will be defined 
+in 'virtual' hardware classes.  The actual inventory objects are then 'structural' Hardware classes, where many properties could possibly be inherited 
+from overridden 'virtual' classes.  
+
+
+The following example may help one understand the details: +
+At first, the configuration file defines a 'virtual Class' called '"BASIC_INFO"'. This defines the properties ('Values'):
+
+* "name"
+
+* "description"
+
+Next comes the 'virtual Class' called '"HARDWARE_DEVICE"', which inherits all the additional parameters from '"BASIC_INFO"', it is defined as follows:
+
+* "vendor"
+
+* "model"
+
+* "serialNumber"
+
+Next follows the first object that is found in the inventory, which is the first 'structural Class' called '"COMPUTER_SYSTEM"', 
+which inherits of all the additional parameters from '"HARDWARE_DEVICE"', it is defined or rather overwritten as:
+
+* "name"
+
+* "systemType"
+
+* "totalPhysicalMemory"
+
+The class definition will include a description of various parameters and their 'Values':
+
+* Class definition: +
+**  "Type" +
+is "STRUCTURAL" or  "VIRTUAL"
+** "Super" +
+this class which it will be inheriting.
+** "Opsi" +
+give the name of the class, which will be used also later in opsi as a display name.
+
+Further more it could be in the given class definiation given how the data will be compiled.  This information could also be found in the definition of the 'Values'.
+
+For the inventory under Linux:
+
+** "Linux":  "[<command>]<parameter>" +
+Executes the command <command> on the command line, with the arguements <parameter>.
+
+** "Python": "<python code with place holder>" +
+Executes the given Python code whose output will be placed in the place holder. 
+
+* For the Inventory under Windows:
+
+** "WMI": "<wmi select statement>" +
+executes WMI when called
+
+** "Cmd": "<Python text object with place holder>" +
+In this case, this is the relative path to the Python executable program, whose output will be placed in the place holder.
+
+** "Registry": "[<registry key>] <value name>" +
+The value of <value name> will be read from the registry, given the key name <registry key>. +
+The registry must be read in an architecture-specific manner.  That means, that the 64 bit sector will be read on a 64 bit system.
+
+
+* Value Definition:
+
+** "Type":   "<MySQL Datenbase type>" +
+<MySQL Datenbase type> gives the data type that will be applied to this value in the database.
+
+** "Scope":  "<scope>" +
+The field <scope> will be used in the following way: +
+"g" means:  This attribute is the same in every link of these types. +
+"i" means:  This attribute can have different types of values with these links.
+
+** "Opsi":   "<id>" +
+"<id>" is an internal name of the fields.  This can be agian be given in the file located in `/etc/opsi/hwaudit/locales` .
+
+** "WMI":    "<id or command>" +
+<id or command> is either the name under which the class definition gives the WMI command that prints the value or a single WMI command.
+
+** "Linux":  "<id>" +
+This part of the classes definition, <id> is the name of the displayed value when the Linux command is given.
+
+** "Condition": "<condition>" +
+<condition> is a condition which must be fulfilled, with which the 'Value' will be determined.  So for example if the <condition> is defined as"vendor=[dD]ell*", then the values of "vendor" must contain the values 'Dell' or 'dell'. 
+
+Here is an example of the class "COMPUTER_SYSTEM":
+----
+{
+   "Class": {
+      "Type":   "STRUCTURAL",
+      "Super":  [ "HARDWARE_DEVICE" ],
+      "Opsi":   "COMPUTER_SYSTEM",
+      "WMI":    "select * from Win32_ComputerSystem",
+      "Linux":  "[lshw]system"
+   },
+   "Values": [
+      {
+         "Type":   "varchar(100)",
+         "Scope":  "i",
+         "Opsi":   "name",
+         "WMI":    "Name",
+         "Linux":  "id"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "systemType",
+         "WMI":    "SystemType",
+         "Linux":  "configuration/chassis"
+      },
+      {
+         "Type":   "bigint",
+         "Scope":  "i",
+         "Opsi":   "totalPhysicalMemory",
+         "WMI":    "TotalPhysicalMemory",
+         "Linux":  "core/memory/size",
+         "Unit":   "Byte"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "dellexpresscode",
+         "Condition": "vendor=[dD]ell*",
+         "Cmd":	"#dellexpresscode\dellexpresscode.exe#.split('=')[1]",
+         "Python":  "str(int(#{'COMPUTER_SYSTEM':'serialNumber','CHASSIS':'serialNumber'}#,36))"
+      }
+   ]
+},
+----
+Especially interesting is here the last value "dellexpresscode": +
+This is especially meaningful, when it questions a Dell-computer, about its condition. +
+The commandline program `dellexpresscode.exe` was desiged for Windows, and tells `hwaudit.exe` that the dellexpresscode is provided in the directory `dellexpresscode\`. 
+This produces output in the form : 'dellexpresscode=123456789'.  The value that will be used is the one after the split on the place holder '=', which is done using `.split('=')[1]` .
+Under Linux, there will be found a value for 'serialNumber' for the elements ('COMPUTER_SYSTEM' or 'CHASSIS'), that is then used to calculate the Dell Express codes.
+
+The OPSI names of the values will be translated in the files `/etc/opsi/hwaudit/locales/*`
+i.e. `/etc/opsi/hwaudit/locales/de_DE`:
+----
+COMPUTER_SYSTEM = Computer
+COMPUTER_SYSTEM.systemType = Typ
+----
+The class name COMPUTER_SYSTEM will be translated into "Computer".  The Opsi attribute "systemType" of the class COMPUTER_SYSTEM will be translated into "Typ".
+Finally a hint:  When a new field is created, it should be placed in the files, even if one does not translate the term explicitly.
+This avoids the messages that read  "'Warning'".
+
+[[opsi-manual-inventory-soft]]
+=== Software Inventory
+
+The software inventory takes place during the local boot product `swaudit`.
+Here the information will inherit from the uninstall of the Registry, and supplemented to Hottfixes and License keys through additional information.
+
+The source code for these packets can be found here: +
+https://svn.opsi.org/listing.php?repname=swaudit
