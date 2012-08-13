@@ -101,7 +101,8 @@ diese neue Sektion kann dazu dienen um Aktionen auf Userprofilen zusammenzufasse
 ** 'Login' +
 Läuft ein Script als 'userLoginScript' und enthält eine Sektion +ProfileActions+, so wird die Scriptabarbeitung bei dieser Sektion gestartet (und nicht bei +Actions+).
 ** 'Machine' +
-Läuft ein Script als normales Installationsscript, so kann die Sektion +ProfileActions+ ähnlich einer 'Sub'-Sektion als Untersektion aufgerufen werden. Für die Abarbeitung dieser Sektion gilt: Für alle 'Registry'-Sektions Aufrufe ist implizit '/AllNtUserDats' gesetzt. Für alle 'Files'-Sektions Aufrufe ist implizit '/AllNtUserProfiles' gesetzt.
+Läuft ein Script als normales Installationsscript, so kann die Sektion +ProfileActions+ ähnlich einer 'Sub'-Sektion als Untersektion aufgerufen werden. Für die Abarbeitung dieser Sektion gilt: Für alle 'Registry'-Sektions Aufrufe ist implizit '/AllNtUserDats' gesetzt. Für alle 'Files'-Sektions Aufrufe ist implizit '/AllNtUserProfiles' gesetzt. +
+Seit Version 4.11.3.2 gilt: Für alle 'Patches'-Sektions Aufrufe ist implizit '/AllNtUserProfiles' gesetzt.
 
 * Registry Sektionen +
 ** Registry Sektionen welche auf 'HKCU' bzw. 'HKEY_CURRENT_USER' arbeiten, werden im Loginscript Mode so ausgeführt, dass die Änderungen im Zweig des eingeloggten users landen. Entsprechendes gilt für die Funktionen `GetRegistryStringValue*`.
@@ -127,10 +128,12 @@ Ein sehr einfaches allgemeines Beispiel:
 [source,winst]
 ----
 [Actions]
+requiredWinstVersion >= "4.11.3.2"
 Message "Example Profile Patch ...."
 
 Files_profile_copy
 Registry_currentuser_set
+Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 
 [Files_profile_copy]
 copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
@@ -138,6 +141,9 @@ copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
+
+[Patches_profile_ini]
+add [secdummy] dummy1=add1
 ----
 
 Ein Beispiel zur Firefoxkonfiguration:
@@ -145,6 +151,7 @@ Ein Beispiel zur Firefoxkonfiguration:
 [source,winst]
 ----
 [Actions]
+requiredWinstVersion >= "4.11.3.2"
 Message "Firefox Profile Patch ...."
 
 DefVar $akt_profile_ini$
@@ -167,12 +174,14 @@ Als nächstes zeigen wir ein Beispiel welches das erste erweitert um die Möglic
 [source,winst]
 ----
 [Actions]
+requiredWinstVersion >= "4.11.3.2"
 Message "Example Profile Patch ...."
 
 if getValue("installationstate", getProductMap) = "installed"
 	comment "Product is installed"
 	Files_profile_copy
 	Registry_currentuser_set
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 if getValue("lastactionrequest", getProductMap) = "uninstall"
@@ -190,6 +199,10 @@ set "show_greeting_window" = "no"
 
 [Files_profile_del]
 del -s -f "%CurrentAppdataDir%\ACME"
+del "%userprofiledir%\opsi-winst-test.ini"
+
+[Patches_profile_ini]
+add [secdummy] dummy1=add1
 
 [Registry_currentuser_del]
 deletekey [HKCU\Software\ACME]
@@ -201,7 +214,7 @@ setup32.ins:
 [source,winst]
 ----
 [Actions]
-requiredWinstVersion >= "4.11.2"
+requiredWinstVersion >= "4.11.3.2"
 
 DefVar $MsiId$
 DefVar $UninstallProgram$
@@ -231,12 +244,14 @@ if GetScriptMode = "Machine"
 	comment "Patch the local Profiles ..."
 	Registry_currentuser_set /AllNtUserDats
 	Files_profile_copy /AllNtUserProfiles
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini" /AllNtUserProfiles
 endif
 
 if GetScriptMode = "Login"
 	comment "login part"
 	Files_profile_copy
 	Registry_currentuser_set
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 
@@ -249,6 +264,9 @@ copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
+
+[Patches_profile_ini]
+add [secdummy] dummy1=add1
 ----
 
 delsub32.ins:
@@ -278,7 +296,8 @@ endif
 "$UninstallProgram$" /silent /norestart
 
 [Files_profile_del]
-del -s -f "%CurrentProfileDir%\Appdata\ACME"
+del -s -f "%CurrentAppdataDir%\ACME"
+del "%userprofiledir%\opsi-winst-test.ini"
 
 [Registry_currentuser_del]
 deletekey [HKCU\Software\ACME]
@@ -289,7 +308,7 @@ Nun ein Beispiel welches eine Variante des vorherigen Beispiels ist. Dabei wird 
 [source,winst]
 ----
 [Actions]
-requiredWinstVersion >= "4.11.2"
+requiredWinstVersion >= "4.11.3.2"
 
 DefVar $ProductId$  
 DefVar $InstallDir$
@@ -312,6 +331,7 @@ ProfileActions
 comment "login part"
 Files_profile_copy
 Registry_currentuser_set
+Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 
 [Winbatch_install]
 "%ScriptPath%\setup.exe" /sp- /silent /norestart
@@ -322,6 +342,9 @@ copy "%Scriptpath%\profiles\*.*" "%CurrentProfileDir%\Appdata\ACME"
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
+
+[Patches_profile_ini]
+add [secdummy] dummy1=add1
 ----
 
 Nun eine Variante, welche sich im Profil merkt ob das Skript für dieses Produkt in dieser Version und diesen User schon mal ausgeführt wurde.
@@ -329,6 +352,7 @@ Nun eine Variante, welche sich im Profil merkt ob das Skript für dieses Produkt
 [source,winst]
 ----
 [Actions]
+requiredWinstVersion >= "4.11.3.2"
 Message "Example Profile Patch ...."
 
 comment "Did we run this script before ? - and set version stamp in profile"
@@ -336,6 +360,7 @@ if not (scriptWasExecutedBefore)
 	comment "loginscript was not run yet "	
 	Files_profile_copy
 	Registry_currentuser_set
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 [Files_profile_copy]
@@ -344,6 +369,9 @@ copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
 [Registry_currentuser_set]
 openkey [HKCU\Software\ACME]
 set "show_greeting_window" = "no"
+
+[Patches_profile_ini]
+add [secdummy] dummy1=add1
 ----
 
 
