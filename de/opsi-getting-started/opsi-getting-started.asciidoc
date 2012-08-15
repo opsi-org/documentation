@@ -539,7 +539,7 @@ Machen Sie daher mit dem Punkt <<opsi-getting-started-installation-config-backen
 [[opsi-getting-started-installation-base-ucs]]
 ==== Installation auf einem Univention Corporate Server (UCS)
 
-opsi 4.0 ist getestet und freigegeben für UCS 2.4 und UCS 3.0
+opsi 4.0 ist getestet und freigegeben für UCS 2.4 und UCS 3.0-2
 
 Beachten Sie bitte <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
 
@@ -657,18 +657,74 @@ WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich au
 [[opsi-getting-started-installation-base-ucs-3]]
 ===== Installation auf einem UCS 3
 
-Für UCS 3 steht das opsi 'univention' Backend nicht mehr zur Verfügung. Das default Backend ist wie bei den anderen Distributionen das file Backend.
+Für UCS 3 steht das opsi 'univention' Backend nicht mehr zur Verfügung. Das default Backend ist wie bei den anderen Distributionen das file Backend. Aus diesem Grund darf das opsi4ucs-ldap-schema auf einem UCS 3 System nicht auf dem Master installiert werden. Besonders wenn das UCS 3 System mit Samba4 (default) installiert wurde.
 
-Die Installation von opsi mit dem file oder mysql Backend ist möglich auf den Rollen Master, Backup, Slave und. Member.
+Die Installation von opsi mit dem file oder mysql Backend ist möglich auf den Rollen Master, Backup, Slave und Member.
 
-Die folgende Dokumentation geht von einer Installation auf dem Master aus.
+Die folgende Dokumentation geht von einer Installation auf dem Master mit samba4 aus.
+
+Zunächst muss dafür gesorgt werden, dass das pcpatch-Konto sauber zu Samba4 repliziert wird. Dazu muss als erstes geprüft werden, ob der s4-Connector von Univention das Konto pcpatch in seiner Ignore-Liste stehen hat:
+
+[source,prompt]
+----
+ucr get connector/s4/mapping/user/ignorelist
+----
+
+Sollte die Ausgabe etwa so aussehen:
+
+[source,prompt]
+----
+root,pcpatch,ucs-s4sync
+----
+
+Muss mit folgendem Befehl der pcpatch aus der Ignore-Liste entfernt werden:
+
+[source,prompt]
+----
+ucr set connector/s4/mapping/user/ignorelist=root,ucs-s4sync
+----
+
+Wenn diese Option angepasst wurde muss der Connector neu gestartet werden:
+
+[source,prompt]
+----
+invoke-rc.d univention-s4-connector restart
+----
+
+Ein weiteres Problem stellt das neue Security-Feature von UCS für das anonyme lesen des Univention-LDAP dar. Dieses ist entegegen der UCS 2.4-x Installationen per default ausgeschaltet. Somit hat der Configserver von opsi keine Möglichkeit die Gruppenzugehörigkeit der User zu lokalisieren. Da man aber keinen User (Weder System- noch Domänenuser) explizit das Recht für das Lesen geben kann, bleiben zwei alternativen (Beide Einstellungen müssen nur auf dem Configserver durchgeführt werden):
+
+Entweder komplettes ausschalten des Features:
+[source,prompt]
+----
+ucr set ldap/acl/read/anonymous=yes
+----
+
+(Dies wird per Default bei einem Upgrade von UCS 2.4-x auf UCS 3 automatisch gemacht.)
+
+Oder das partielle Freischalten für den Configserver:
+
+[source,prompt]
+----
+ucr set ldap/acl/read/ips="127.0.0.1,192.168.1.1"
+----
+
+Die Ipadresse 192.168.1.1 muss an dieser Stelle mit der echten IP des Configservers ersetzt werden.
+
+Wenn eine der oben genannten Änderungen notwendig waren muss auf diesem Server das slapd neu gesartet werden (Vorsicht bei einem Produktiv-System, da durch slapd das LDAP auf diesem Server neugestartet wird.):
+
+[source,prompt]
+----
+invoke-rc.d slapd restart
+----
+
+Nachdem diese Einstellungen gemacht wurden, kann man anfangen das opsi4ucs zu installieren, dazu sind die Unmaintained Repositories von UCS notwendig, diese schaltet man mit folgendem Befehl dazu:
 
 [source,prompt]
 ----
 ucr set repository/online/unmaintained="yes"
 ----
 
-
+Als nächstes wird das opsi4ucs-Repository aktiviert:
 
 [source,prompt]
 ----
@@ -681,6 +737,7 @@ Nun muss noch der Schlüssel des Repositories ins System importiert werden:
 ----
 wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-experimental/ucs3.0/Release.key | apt-key add -
 ----
+
 Bei der Installation auf einem Master führen Sie nun folgende Befehle aus:
 
 [source,prompt]
@@ -692,7 +749,7 @@ aptitude install mysql-server
 Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen welche sie ignorieren sollen.
 
 
-Ist die Rolle des Zielsystems eine andere als Master, muss nun noch das opsi4ucs Join-Skript ausgeführt werden:
+Ist die Rolle des Zielsystems eine andere als Master oder Backup, muss nun noch das opsi4ucs Join-Skript ausgeführt werden:
 
 [source,prompt]
 ----
