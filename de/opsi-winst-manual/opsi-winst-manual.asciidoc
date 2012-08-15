@@ -971,23 +971,23 @@ Z.B. wird durch EnvVar ("Username") der Name des eingeloggten Users ermittelt.
 Die Funktion gibt den String aus, der im Aufruf von '{opsi-winst}' nach dem optionalen Kommandozeilenparameter /parameter folgt. Ist der Kommandozeilenparameter nicht verwendet, liefert ParamStr den leeren String.
 
 *  `getLastExitCode` +
-Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus. +
-Bei DosBatch und ExecWith Sektionen erhalten wir den Exitcode des Interpreters.
-Daher muss in der Regel der gewünschte Exitcode in der Sektion explizit übergeben werden.
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden 'WinBatch' / 'DosBatch' / 'ExecWith' Sektion aus. +
+Der Aufruf anderer opsi-winst Befehle ( wie z.B. einer 'Files' Sektion) verändert den gefundenen ExitCode nicht. +
+Bei 'DosBatch' und 'ExecWith' Sektionen erhalten wir den Exitcode des Interpreters. Daher muss in der Regel der gewünschte Exitcode in der Sektion explizit übergeben werden.
 
 Beispiel:
 [source,winst]
 ----
 DosInAnIcon_exit1
-		set $ConstTest$ = "1"
-		set $CompValue$ = getLastExitCode
-		if ($ConstTest$ = $CompValue$)
-			comment "DosBatch / DosInAnIcon  exitcode passed"
-		else
-			set $TestResult$ = "not o.k."
-			LogWarning "DosBatch / DosInAnIcon  exitcode failed"
-		endif
-		
+set $ConstTest$ = "1"
+set $CompValue$ = getLastExitCode
+if ($ConstTest$ = $CompValue$)
+	comment "DosBatch / DosInAnIcon  exitcode passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "DosBatch / DosInAnIcon  exitcode failed"
+endif
+
 [DosInAnIcon_exit1]
 rem create an errolevel= 1
 VERIFY OTHER 2> NUL
@@ -1259,6 +1259,7 @@ endif
 
 * `strPart(`<string>, <start pos>, <number of chars>`)` +
 Liefert einen Teilstring von <string> beginnend mit <start pos> und <number of chars> lang. Wenn ab <str pos> weniger als <number of chars> vorhanden sind, so wird der String bis zum Ende geliefert. +
+Die Zählung der Zeichen beginnt mit 1. +
 Seit 4.11.3 +
 Beispiel:
 [source,winst]
@@ -1285,9 +1286,65 @@ endif
 
 * `unquote(`<string>,<quote-string>`)` +
 Wenn <string> mit dem Anführungszeichen <quote-string> versehen ist so liefert diese Funktion <string> ohne Anführungszeichen +
-Von <quote-string> wird nur das erste Zeichen berücksichtigt, wobe führende Whitespaces ignoriert werden. +
+Von <quote-string> wird nur das erste Zeichen berücksichtigt, wobei führende Whitespaces ignoriert werden. +
 Seit 4.11.2.1 
-
+[source,winst]
+----
+set $ConstTest$ = "b"
+		set $CompValue$ = unquote("'b'", "'")
+		comment "compare values"
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		comment "double quote"
+		set $ConstTest$ = "b"
+		set $CompValue$ = unquote('"b"', '"')
+		comment "compare values"
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		comment "quote string will be trimmed and then only the first char is used"
+		comment "note: brackets are different chars"
+		set $ConstTest$ = "b]"
+		set $CompValue$ = unquote("[b]", " [{ ")
+		comment "compare values"
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		comment "not usable to remove brackets"
+		set $ConstTest$ = "b]"
+		set $CompValue$ = unquote("[b]", "[")
+		set $CompValue$ = unquote($CompValue$,"]")
+		set $CompValue$ = unquote("[b]", "]")
+		set $CompValue$ = unquote($CompValue$,"[")
+		set $CompValue$ = unquote(unquote("[b]", "["),"]")
+		comment "compare values"
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		comment "if string not quoted it will be come back without changes"
+		set $ConstTest$ = "b"
+		set $CompValue$ = unquote("b", "'")
+		comment "compare values"
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+----
 
 *  `HexStrToDecStr(`<string>`)` +
 wandelt einen String mit einem hexadezimalen Zahlwert in einen String mit dem entsprechenden decimalen Wert um. Enthält der Eingabe String führende Zeichen wie '0x' oder '$' werden diese ignoriert. +
@@ -1684,8 +1741,34 @@ set $CompValue$ = getMyIpByTarget("%opsiServer%")
 ----
 
 * `GetIpByName(`<ip addr / ip name>`)` +
-liefert die IP-Nummer des mit <ip addr / ip name> angegebenen Rechners +
+liefert die IP-Adresse des mit <ip addr / ip name> angegebenen Rechners +
 Seit Version 4.11.3.2
+[source,winst]
+----
+set $ConstTest$ = "%IPAddress%"
+		set $string1$ = "%IPAddress%"
+		set $CompValue$ = getIpByName($string1$)
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		set $CompValue$ = getIpByName("%HostID%")
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+		set $CompValue$ = getIpByName("%PCName%")
+		if ($ConstTest$ = $CompValue$)
+			comment "passed"
+		else
+			set $TestResult$ = "not o.k."
+			LogWarning "failed"
+		endif
+----
 
 * `SidToName(`<well known sid>`)` +
 liefert einen String mit dem lokalisierten Namen der mit <well known sid> bezeichneten Gruppe. Zum Beispiel für 'S-1-5-32-544' je nach Lokalisierung des Betriebsystems 'Administratoren' oder 'Administrators'.  +
@@ -2255,23 +2338,37 @@ Liefert eine Liste mit dem Namen aller Werte direkt unterhalb von <regkey>. +
 Liefert eine Liste mit dem Namen aller Werte direkt unterhalb von <regkey>. +
 Modus abhängig von der Architektur des Betriebssystems. Seit 4.11.3
 
+* `getRegistryVarMap32(`<regkey>`)` +
+Liefert eine Map mit den Namen=Value Paaren aller Werte direkt unterhalb von <regkey>. +
+32 Bit Modus (mit Redirection). Seit 4.11.3
+
+* `getRegistryVarMap64(`<regkey>`)` +
+Liefert eine Map mit den Namen=Value Paaren aller Werte direkt unterhalb von <regkey>. +
+64 Bit Modus (ohne Redirection). Seit 4.11.3
+
+* `getRegistryVarMapSysnative(`<regkey>`)` +
+Liefert eine Map mit den Namen=Value Paaren aller Werte direkt unterhalb von <regkey>. +
+Modus abhängig von der Architektur des Betriebssystems. Seit 4.11.3
+
+
 Beispiel: +
 Wir erzeugen Registryeinträge mit folgender Sektion durch den Aufruf von: +
 [source,winst]
 ----
 Registry_createkeys /32Bit
 
-[Registry_createkeys]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test]
-set "entry1" = "val1"
-set "entry2" = "val2"
-set "entry3" = "val3"
-set "entry4" = "val4"
-set "entry5" = "val5"
+set "var1" = "value1"
+set "var2" = REG_SZ:"value2"
+set "var3" = REG_EXPAND_SZ:"value3"
+set "var4" = REG_DWORD:444
+set "var5" = REG_BINARY:05 05 05 0F 10
+set "var6" = REG_MULTI_SZ:"value6|value7|de"
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key1]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key2]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key3]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key4]
+
 ----
 Dann liefert uns:
 [source,winst]
@@ -2283,11 +2380,29 @@ folgenden Log:
 Set  $list$ = GetRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
 Registry started with redirection (32 Bit)
     retrieving strings from GetRegistryVarList32 [switch to loglevel 7 for debugging]
-        (string   0)entry1
-        (string   1)entry2
-        (string   2)entry3
-        (string   3)entry4
-        (string   4)entry5
+        (string   0)var1
+        (string   1)var2
+        (string   2)var3
+        (string   3)var4
+        (string   4)var5
+        (string   5)var6
+----
+
+Dann liefert uns:
+[source,winst]
+----
+set $list$ = getRegistryVarMap32("hklm\software\opsi.org\opsi-winst-test")
+----
+folgenden Log: 
+----
+Set  $list$ = GetRegistryVarMap32("hklm\software\opsi.org\opsi-winst-test")
+retrieving strings from GetRegistryVarMap32 [switch to loglevel 7 for debugging]
+    (string   0)var1=value1
+    (string   1)var2=value2
+    (string   2)var3=value3
+    (string   3)var4=444
+    (string   4)var5=05 05 05 0F 10
+    (string   5)var6=value6
 ----
 
 Dann liefert uns:
@@ -2345,13 +2460,10 @@ Profile welche die folgenden Worte enthalten werden *nicht* berücksichtigt:
 
 * 'networkservice'
 
-* 'all users'
-
 * 'systemprofile'
 
-* 'public'
-
-Das Profil des 'Default Users' ist Bestandteil der Liste.
+Das Profil des 'Default Users' ist Bestandteil der Liste. +
+`All User` oder `Public` sind nicht Bestandteil der Liste.
 
 Beispiel:
 [source,winst]
@@ -2865,10 +2977,12 @@ else
 		if ($ExitCode$ = "1641")
 			comment "looks good: setup program gives exitcode 1641"
 			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
+			ExitWindows /Reboot
 		else
 			if ($ExitCode$ = "3010")
 				comment "looks good: setup program gives exitcode 3010"
 				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
+				ExitWindows /Reboot
 			else
 				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
 				isFatalError "Exit Code: "+ $ExitCode$
