@@ -32,7 +32,7 @@ The inventory can be ordered with the Localboot products `hwaudit` and `swaudit`
 The hardware inventory is controlled by an opsi configuration file.  This means that the information about which data will be compiled are not hardwired into the
 corresponding products `hwaudit` and `hwinvent`.  In fact, the products will be controlled by a configuration file.  The configuration file will be called and interpreted 
 with every dispatch of the Web service.  Simultaneously, the configuration file controls the structure of the database, so that a change of this configuration file
-changes the database configuration.
+changes the database schema.
 
 
 The configuration file is `/etc/opsi/hwaudit/opsihwaudit.conf`. +
@@ -85,7 +85,7 @@ Further more, the class definition can define how the data will be compiled.  Th
 Executes the command <command> on the command line, with the argument <parameter>.
 
 ** "Python": "<python code with place holder>" +
-Executes the given Python code whose output will be placed in the place holder. 
+Executes the given Python code whose output will be placed in the place holder which is between the "#" signs (see example below). 
 
 * For the Inventory under Windows:
 
@@ -114,7 +114,8 @@ The field <scope> will be used in the following way: +
 "<id>" is an internal name of the fields.  This can be found in the file located at `/etc/opsi/hwaudit/locales` .
 
 ** "WMI":    "<id or command>" +
-<id or command> is either the name of a WMI command that prints the value or a single WMI command (i.e. "WMI":"Status" runs the WMI command Status, whereas "WMI":"PNPDeviceID.split('ID')[1][0:4]" prints the first four characters of the second item of the list in PNPDeviceID).
+<id or command> is either the name of a WMI command that prints the value or a single WMI command.  If the WMI command is given in the Class defintion (i.e. "select * from Win32_ComputerSystem") , 
+then the results are assinged to the "WMI" variables in the "Values" class definition.  If there is no WMI command, then the "WMI" variables in the "Values" section are WMI commands (see example below).
 
 ** "Linux":  "<id>" +
 This is part of the class definition, <id> is the name of the displayed value when the Linux command is given.
@@ -166,11 +167,16 @@ Here is an example of the class "COMPUTER_SYSTEM":
    ]
 },
 ----
+Regarding the "WMI" commands, the class definition contains "select * from Win32_ComputerSystem".  This command is run by WMI, which 
+has output columns of "Name", "SystemType", and "TotalPhysicalMemory".  These values are then assigned to the opsi values of "name",
+"systemType", and "totalPhysicalMemory".
+
 Especially interesting is here the last value "dellexpresscode": +
 This is really useful when it questions a Dell-computer, about its condition. +
 The command line program `dellexpresscode.exe` was designed for Windows, and tells `hwaudit.exe` that the dellexpresscode is provided in the directory `dellexpresscode\`. 
-This produces output in the form : 'dellexpresscode=123456789'.  The value that will be used is the one after the split on the place holder '=', which is done in Python using the split() method as such `.split('=')[1]` .
-Under Linux, there will be found a value for 'serialNumber' for the elements ('COMPUTER_SYSTEM' or 'CHASSIS'), that is then used to assign the Dell Express codes.
+Items inbetween "#" are place holders for output.  So the statemtent at "#dellexpresscode\dellexpresscode.exe#" runs `dellexpresscode.exe`, and 
+produces output in the form : 'dellexpresscode=123456789'.  The value that will be used is the one after the split on the place holder '=', which is done in Python using the split() method as such `.split('=')[1]` .
+Under Linux, there will be found a value for 'serialNumber' for the elements ('COMPUTER_SYSTEM' or 'CHASSIS'), that is then used to assign the Dell Express codes.  The 'int(,36)' converts the output number to base-36.
 
 The OPSI names of the values will be translated using the files found in `/etc/opsi/hwaudit/locales/*`.
 The file `/etc/opsi/hwaudit/locales/en_US` may contain translations such as:
