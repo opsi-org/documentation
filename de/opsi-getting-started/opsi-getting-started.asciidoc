@@ -306,7 +306,7 @@ reboot
 
 erzwungen.
 
-Wenn die Netzwerkanbindung funktioniert, können jetzt die opsi-Pakete eingespielt bzw. aktualisiert (Kapitel <<opsi-getting-started-installation-config,Aktualisieren und Konfigurieren des {opsi-Servers}>>) und schließlich die Umgebung für den ersten Installationstest hergestellt werden.
+Wenn die Netzwerkanbindung funktioniert, setzen Sie die Konfiguration des {opsi-Server}s unter <<opsi-getting-started-installation-config-update>> fort, um dann mit ersten Installationstest beginnen zu können.
 
 [[opsi-getting-started-installation-base-deb]]
 ==== Installation auf einem Debian / Ubuntu System
@@ -1682,6 +1682,57 @@ Loggen Sie sich als ein User ein, der Mitglied der Gruppe {opsi-admin} ist (in d
 Die Bedienung des Management-Interfaces ist weitgehend selbsterklärend. Daher hier nur ein Hinweis: Änderungen im opsi-Management Interface müssen gespeichert werden, bevor Sie wirksam werden und Veränderungen der Daten müssen vom Server über 'Daten neu laden' geholt werden.
 
 Sie finden eine ausführliche Anleitung im opsi-Handbuch.
+
+[[opsi-getting-started-installation-config-nagios]]
+=== Konfiguration des opsi-Nagios-Connectors auf der opsidemo-VM  
+
+Auf der opsidemo-vmware sind bereits Vorarbeiten für den opsi-Nagios-Connector vorgenommen worden.
+
+Neben der Installation eines Nagios-Servers wurden die zugehörigen opsi-Nagios Pakete installiert. Für die Inbetriebnahme sind noch folgende Schritte notwendig:
+
+* Zur Aktivierung des opsi-Nagios-Connectors muss eine Freischaltdatei installiert werden, da es sich um ein Kofinanzierungs-Projekt handelt. Zu Evaluierungszwecken kann eine zeitlich befristete Freigabe angefordert werden. Weitere Infos siehe <<opsi-getting-started-installation-config-modules>>
+
+* Nagios Benutzer und Passwort anlegen 
+[source,prompt]
+----
+opsi-admin -d method user_setCredentials monitoring monitoring123
+----
+* Nagios Benutzer in der /etc/opsi/opsiconfd.conf eintragen (Als default ist eingetragen: monitoring user = monitoring),  nach einer Änderung muss der opsiconfd neu gestartet werden. 
+* Nagios Benutzer und Passwort in die /etc/nagios3/resource.cfg eintragen:
+[source,configfile]
+----
+# Sets $USER2$ to be the path to event handlers
+$USER2$=monitoring
+$USER3$=monitoring123
+----
+* In der VMWare ist ein Template für die Service-Konfiguration enthalten, in dem die einzelnen Checks vorkonfiguriert wurden und durch ein Kommentar-Zeichen vor den HostGroup-Namen deaktiviert wurden. Um den Nagios Service zu verwenden müssen die Kommentar-Zeichen vor den Einträgen "hostgroup_name" in der /etc/nagios3/conf.d/opsi/opsiservice.cfg entfernt werden:
+[source,configfile]
+----
+define service{
+        use                             opsi-service-tmpl
+        hostgroup_name                  opsi-server
+        service_description             opsi-diskusage
+        check_command                   check_opsidiskusage
+        check_interval                  1
+
+----
+
+* Um die Nagios Konfiguration auf Validität zu prüfen, führen Sie den pre-flight check mit folgendem Kommando aus:
+[source,prompt]
+----
+nagios3 -v /etc/nagios3/nagios.cfg
+----
+
+* Nagios neu starten
+[source,prompt]
+----
+/etc/init.d/nagios3 reload
+ * Reloading nagios3 monitoring daemon configuration files nagios3                        [ OK ]
+----
+
+Für die Einrichtung von verschiedenen Checks hilft das Kapitel Nagios im opsi-Handbuch weiter. Hier wird auch die grundsätzliche Einrichtung auf opsi-Servern beschrieben, wenn nicht die opsi-Demo-VMWare genutzt wurde.
+
+Die Nagios-Website ist erreichbar über OPSISERVER/nagios3,  Benutzer: nagiosadmin, Passwort: linux123
 
 [[opsi-getting-started-firststeps]]
 == Erste Schritte
