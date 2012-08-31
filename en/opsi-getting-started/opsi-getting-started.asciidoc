@@ -2070,30 +2070,66 @@ The subdirectory `postinst.d` contains scripts which are executed after the OS i
 This directory is used for the integration of drivers and is described in the following chapter.
 
 [[opsi-getting-started-firststeps-osinstall-driverintegration]]
-==== Simplified driver integration for the automatic OS installation
+=== Simplified Driver Integration during the Automatic Windows Installation
 
-If a type of client hardware is not supported by the standard Windows drivers, then it could be useful, and sometimes even necessary, to integrate new drivers into the unattended installation. We recommend installing new drivers for network devices, because a client without network access is neither remotely accessible, nor can the automated software distribution connect to the distributed file shares. 
+If a group of computers have drivers that are not part of the Windows default installation, it is best to put these computers into a pool and integrate their drivers during installation time.
 
-opsi supports your work with an automated driver integration and detection. You only have to place the drivers in the correct directory. After calling the script (`create_driver_links.py`), a catalog is created which allows the boot image to find the correct drivers for the detected Hardware via PCI, USB, or HD-Audio Identifier. Drivers for mass storage controllers (text mode drivers) may also integrated using this method.
+Opsi supports the automatic integration of drivers into the installation, and therefore simplifies driver deployment.  In this case, the drivers simply need to be place into the correct directory.  When the installation script is called it searches through these directories and creates a catalog. The boot image automatically uses this catalog to embed the correct drivers.  Opsi supports the automatic installation of standard drivers, USB drivers, HD audio drivers, and disk controller drivers (text-mode drivers).
 
-The server can provide additional drivers to be installed during the Windows setup. All of these drivers must come with an '.inf' file, which holds the driver's installation information. Any drivers that are packed as an executable cannot be used for this purpose (but often they can be unpacked to get the plain installation files).
+In order for a driver to be immediately installed with the Windows installation, you must place the drivers on the server in a specific format.  The drivers must be placed in the drivers directory, with the format '\*.inf' , where the file name describes the driver for the Windows setup program. The drivers in the 'setup.exe' or '*.zip' are not used here. If you have a computer that already has the drivers installed, then you can extract the appropriate drivers using the program 'double driver' (http://www.boozet.org/dd.htm).
 
-If you have a running machine with the correct drivers installed, then you may use the program 'double driver' (http://www.boozet.org/dd.htm) to extract these drivers and save them to the {opsi-server}.
+There are many levels of driver integration:  
 
-If you have special hardware, then you can take drivers that are provided by the hardware manufacturer and put them into the distribution file share.
+* General driver packages
 
-However, if you have to support a lot of different hardware, it might be convenient to use readily made packages for a whole bunch of Windows drivers, which can be found at 
-http://driverpacks.net/.
+* Preferred drivers that belong to your hardware, but are not assigned to specific computers
 
-You may download the current driverpacks (!!! about 2,5 GB !!!) from http://driverpacks.net/DriverPacks/overview.php and save them to the server. To extract drivers, use extract_driver_pack.py as follows: 
+* Drivers that will be manually assigned to computers
+
+* Drivers that will be automatically assigned to the computers using the fields <vendor>/<model>
+
+Below is a detailed discussion about how to include each of these drivers
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-generaldrivers]]
+==== General Driver Packages
+
+When the hardware configuration is very heterogeneous, then it may make sense to work with general driver packages. +
+General drivers can be placed under `./drivers/drivers`. +
+You can find example general driver packages here http://driverpacks.net/ . +
+Download the appropriate driver package to a temporary directory, and then unpack the driver package using the opsi script extract_driver_pack.py as such:
 [source,prompt]
 ----
-/opt/pcbin/install/winxppro/extract_driver_pack.py <path to the compressed driverpacks>
+./extract_driver_pack.py <path to the temporary directory with the compressed driverpacks>
 ----
+This will unpack and store the drivers in the directory `./drivers/drivers/`. +
+It may be the case that the drivers found by opsi in this location do not necessarily work with your hardware. +
+For the drivers which are found in `./drivers/drivers/`, the driver will be matched to the corresponding hardware using the PCI IDs (i.e. USB- or HD_Audio-ID) in the description file, and then integrated into the Windows setup as needed.
 
-These driver packs will be decompressed and stored in the directory `winxppro/drivers/drivers/D`.
+[[opsi-getting-started-firststeps-osinstall-driverintegration-preferred]]
+==== Preferred Drivers
 
-Structure of the drivers directory tree:
+In the case that you have to support special hardware, and you can find the additional drivers from the manufacturers, then use the following procedure to include them in the installation. +
+Place the additional drivers in their own directory under: +
+`./drivers/drivers/preferred`. +
+(the naming and depth of the directory structure is not important).  Drivers that are found in the directory `./drivers/drivers/preferred` will be integrated into the Windows setup, assuming that opsi finds a suitable match to the drive hardware based off of the PCI IDs (i.e. USB or HD_Audo-ID) in the description file. +
+Problems can occur when the same PCI ID of the drivers is found in `preferred`. In this case, a direct mapping of the drivers to the devices is needed. 
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-additional]]
+==== Drivers that will be Manually Assigned to Computers
+
+When installing additional drivers based on the PCI-IDs or USB-IDs, they should be installed under the directory `./drivers/drivers/additional` (where name and depth of the directory structure is not important).  You can map one or more drivers to a client using the Product-Property 'additional_drivers' and a list of driver directories under `./drivers/drivers/additional`.  The directories specified by 'additional_drivers' are searched recursively until all drivers are found.  This method can be used to make a specific directory based on the client type (i.e. dell-optiplex-815).
+
+When a driver is found under the drivers directory that is specified by 'additional_drivers' and also matches the PCI identifier, then other drivers in `drivers/preferred` or `drivers/` will not be used.  Therefore the drivers under 'additional_drivers' add functionality that would not have been found with the normal drivers.  Also, the drivers that are manually bound to a client using 'additional_drivers' receive priority over other drivers ('additional_drivers' can be thought of as 'super-preferred').
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-byaudit]]
+==== Drivers that will be Automatically Assigned to the Computers using the Fields <vendor>/<model>
+
+The previously described mechanisms that directly map drivers to devices is automated since the 4.0.2 Release 2 of opsi.  Opsi will search the directory `./drivers/drivers/additional/byAudit` for a director name that matches the field 'Vendor' that was given in the Hardware Inventory. This 'Vendor' directory will be search for a 'Model' directory that corresponds to what is seen in Hardware Inventory.   If this directory is found, then it will be manually assigned to the product property 'additional_drivers'. +
+The directory name 'byAudit' is case sensitive.  The directory names for 'Vendor' and 'Model' are not case sensitive ('Dell' and 'dELL' are treated the same way).
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-structure]]
+==== Structure of the Driver Directory and Driver Files:
+
 [source,configfile]
 ----
 /opt/
@@ -2101,56 +2137,64 @@ Structure of the drivers directory tree:
      !-install/
         !-winxppro/
            !-drivers
-              |-classes/            (links to drivers by device classes)
-              |-hdaudioids/         (links to HD-Audio drivers)
-              |-pciids/             (links to drivers via PCI identifier)
-              |-pci.ids             (PCI identifier data base)
-              |-usbids/             (links to drivers via USB identifier)
-              |-usb.ids             (USB identifier data base)
-              |-vendors/            (Links to drivers by vendors)
-              !-drivers             (space for general driver packs)
-                 |-additional/      (for manual assigned drivers)
-                 |-buildin/         (inf files from the i386 directory)
-                 |-preferred/       (preferred drivers for your hardware)
-                 |-exclude/	        (excluded drivers)
-                 !-mydriverpacks/   (example driver pack)
+              |-classes/		(Links to driver device classes)
+              |-hdaudioids/		(Links to HD-Audio drivers)
+              |-pciids/			(Links to PCI-ID drivers)
+              |-pci.ids			(PCI database)
+              |-usbids/			(Links to USB-ID drivers)
+              |-usb.ids			(USB database)
+              |-vendors/		(Links to manufacturer drivers)
+              !-drivers			(place for general driver packages)
+                 |-additional/		(manually assigned drivers)
+                    |-byAudit/		Model-specific drivers that 
+                       |-<vendor>		will be assigned by 
+                          |-<model>		the Hardware Inventory
+                 |-buildin/		(data for the i386 version)
+                 |-preferred/		(certified drivers)
+                 |-exclude/		(excluded drivers)
+                 !-mydriverpacks/	(example driver packages)
 ----
 
-Additional drivers can be added into their own sub directory at `winxppro/drivers/drivers/preferred`.
+[[opsi-getting-started-firststeps-osinstall-driverintegration-processing]]
+==== Processing of the Different Levels of Driver Integration 
 
-After adding new drivers (or any other change) adjust the rights with (e.g.):
+The top priority is given to drivers that are found using the property 'additional_drivers' or using the inventory data in `./drivers/drivers/additional/byAudit`.  Tests will be made during driver integration to determine which drivers are already installed on which hardware devices. When a driver is not found for a device, the following method will be used to search for drivers.
+
+For devices that have drivers that were not listed in 'additional_drivers', opsi will search for, and integrate, an appropriate driver based off of the PCI ID (ie. USB-, HD_Audio-ID).  
+
+'Integration' of drivers means the following:
+
+* The driver will be copied to the local hard drive at `c:\drv\<num>`.
+
+* The Windows Setup will search for the driver sub-directory under `c:\drv\` , where the sub-directory name will be read from the unattended file in the root 'unattend' sub-directory.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-drivercheck]]
+==== Driver Addition and Checking
+
+After any changes in the directory `./drivers/drivers` have been made, call the following command from the Netboot Products root directory in order to set the permissions:
 [source,prompt]
 ----
-opsi-setup --set-rights /opt/pcbin/install/winxppro/drivers
+opsi-setup --set-rights ./drivers
 ----
 
-Then execute the script `create_driver_links.py` from the winxppro directory. 
+Then call the script `./create_driver_links.py`.  The script searches through the directories under './drivers/drivers' and generates a list of links using PCI-IDs, USB-IDs, HD-Audio-IDs that enables hardware to know about drivers.  The script will use the drivers in the preferred directories.   
+
+The script `setup.py` examines the hardware of the installed computers and identifies the necessary drivers.  These will be copied to the disk and the file unattended.txt will be patched.  The script `create_driver_links.py` examines the NT5 products one at a time in the 'i386' tree and extracts the .inf files of the necessary drivers into 'windows_builtin'.  If you make a change to the i386 directory tree (i.e. after installing a service pack), then delete that directory and run `create_driver_links.py` again.  The recognized drivers for NT6 products are found in WinPE at 'windows_builtin'. 
+
+With the following command, one can see the hardware inventory for a client:
 [source,prompt]
 ----
-/opt/pcbin/install/winxpro/create_driver_links.py
+./show_drivers.py <clientname>
 ----
+When this is command is called, it will show a selection for which drivers would be chosen for installation to the Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs, and 'additional_drivers' (or 'byAudit'),  and which hardware still has no driver. 
 
-The script searches all the directories beneath `drivers`, and then creates links that assign drivers to their respective hardware (using the PCI-IDs, USB-IDs, HD-Audio-IDs). Drivers found beneath the directory `preferred` will indeed be preferred against other ones with the same IDs beneath other directories. During installation, the script `setup.py` (from the boot image) identifies the client hardware and determines the required drivers. The drivers will be copied to the hard disk, and the file `unattend.txt` (which is the control file for the Windows unattended installation) will be patched accordingly.
+Use the output of `show_drivers.py` to check and see which drivers need to be installed.
 
-The `create_driver_links.py` script does a onetime extraction of the driver information from the `i386` or `installfiles` directory to the 'buildin' directory. If you make any changes to these directories (e.g by integrating a service pack) you should delete the build directory and call `create_dirver_links.py` again.
+It could be that manufacturers include different drivers for different operating systems (i.e. Vista vs. Win7) or different configurations (ie. SATA vs. SATA RAID).  The `create_driver_links.py` cannot make this distinction.  If you think the wrong driver has been installed, then move the driver to the 'drivers/exclude' directory and then call `create_driver_links.py` again.  Drivers in the directory 'drivers/exclude' are not used during the integration.
 
-If there is any hardware inventory data for a client, then these data can be used to list the drivers that will be selected by the boot image for this client:
-[source,prompt]
-----
-winxppro/show_drivers.py <clientname>
-----
+Example output of a `show_drivers.py` call:
 
-If there are additional drivers that should be used by the setup, even if they were not selected via PCI-IDs, then they should be placed beneath the directory `winxppro/drivers/drivers/additional`. Using the product property 'additional_drivers', it is possible to give a comma separated list of driver paths beneath the additional directory which should be used by the Windows setup program. The directories given in the property 'additional_drivers' are recursively searched for drivers, and all detected driver directories are integrated into the installation. You may use symbolic links in the additional drivers directory.
-
-During the first driver integration, all drivers that were assigned using the 'additional' property will be integrated and analyzed in order to determine which PCI device (or HD-Audio, USB) will be used. For the devices that have a driver assigned using 'additional_drivers', no other driver `drivers/prefered/` or `drivers/` will be integrated. The means that 'Additional' is not only the function that adds undeteced drivers, it has also the function of superseding other drivers (so 'Additional' may also be called 'super-preferred').
-
-You should examine the output of `show_drivers.py`, and check which drivers will be integrated.
-
-It may be the case that driver directories from hardware vendors contain drivers for different operating systems versions (Vista/Win7) or different configurations (SATA / SATA-Raid). The `create_driver_links.py` script will take the first directory that matches the PCI-Id (or HD-Audio, USB). If you suspect that the link goes to the wrong driver directory, then you can move the driver directory to `drivers/exclude` and run `create_driver_links.py` once again. Drivers in `drivers/exclude` are excluded from the driver integration.
-
-Example output from show_drivers.py : 
-
-[source,prompt]
+[source,opsifiles]
 ----
 ./show_drivers.py pcdummy
 
@@ -2182,6 +2226,143 @@ Additional drivers
    [ati_hdaudio_azalia]
      /opt/pcbin/install/winxppro/drivers/drivers/additional/ati_hdaudio_azalia
 ----
+
+Example with  'additional_drivers':
+[source,opsifiles]
+----
+ ./show_drivers.py e5800
+Manually selected drivers (additional)
+   [hp_e5800]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI3.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDX861A.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI1.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXCPC.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI2.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/autorun.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/ibxHDMI/IntcDAud.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/HDMI/IntcHdmi.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/Graphics/kit24890.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/IIPS/Impcd.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit/hp64win7.inf]
+
+PCI-Devices
+   [8086:27C8]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C8
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DA]  Intel : Intel(R) N10/ICH7 Family SMBus Controller - 27DA
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C9]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C9
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DF]  Intel : Intel(R) ICH7 Family Ultra ATA Storage Controllers - 27DF
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27CA]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CA
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E30]  Intel : Intel(R) 4 Series Chipset Processor to I/O Controller - 2E30
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/not_preferred/x64/C/Intel/1
+   [8086:27CB]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CB
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E32]  Intel Corporation : Intel(R) G41 Express Chipset
+      Manually selected [hp_e5800] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp50134/Graphics
+   [8086:27CC]  Intel : Intel(R) N10/ICH7 Family USB2 Enhanced Host Controller - 27CC
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:244E]  Intel : Intel(R) 82801 PCI-Brücke - 244E
+      Using build-in windows driver
+      This driver will not be integrated, because same device already integrated in: '/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/not_preferred/x64/C/Intel/1/dmi_pci.inf'
+   [8086:27D0]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D0
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27B8]  Intel : Intel(R) ICH7 Family LPC Interface Controller - 27B8
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D2]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D2
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C0]  Intel : Intel(R) N10/ICH7 Family Serial ATA Storage Controller - 27C0
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D8]  Microsoft : High Definition Audio-Controller
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/8086/27D8' not found
+   [10EC:8136]  Realtek : Realtek RTL8102E/RTL8103E-Familie-PCI-E-Fast-Ethernet-NIC (NDIS 6.20)
+      Manually selected [hp_e5800] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit
+
+USB-Devices
+   [0461:0010]  (Standardsystemgeräte) : USB-Eingabegerät
+      No driver - vendor directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/usbids/0461' not found
+   [0461:4D20]  (Standardsystemgeräte) : USB-Eingabegerät
+      No driver - vendor directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/usbids/0461' not found
+   [058F:6366]  Kompatibles USB-Speichergerät : USB-Massenspeichergerät
+      No driver - vendor directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/usbids/058F' not found
+   [0461:0010]  (Standard-USB-Hostcontroller) : USB-Verbundgerät
+      No driver - vendor directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/usbids/0461' not found
+
+HD-Audio-Devices
+   [10EC:0662]  Realtek High Definition Audio
+      Manually selected [hp_e5800] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/hp_e5800/sp52852/Vista64
+----
+
+Example with 'byAudit':
+[source,opsifiles]
+----
+ ./show_drivers.py pctry5detlef
+Manually selected drivers (additional)
+   [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio/oem21.inf]
+
+PCI-Devices
+   [1002:5B70]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Manually selected [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0053]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/0053' not found
+   [10DE:005D]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/005D' not found
+   [1022:1100]  AMD : AMD HyperTransport(tm)-Konfiguration
+      Using build-in windows driver
+   [10DE:0054]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/evb_potsdam_fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1101]  AMD : AMD-Adresszuordnungskonfiguration
+      Using build-in windows driver
+   [10DE:0055]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/evb_potsdam_fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1102]  AMD : AMD DRAM und HyperTransport(tm)-Nachverfolgungsmoduskonfiguration
+      Using build-in windows driver
+   [10DE:0057]  NVIDIA : NVIDIA nForce-Netzwerkcontroller
+      Using build-in windows driver
+   [1022:1103]  AMD : Sonstige AMD-Konfiguration
+      Using build-in windows driver
+   [10DE:0059]  Realtek : Realtek AC'97 Audio
+      Manually selected [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio
+   [10DE:005E]  NVIDIA : NVIDIA nForce4 HyperTransport-Brücke
+      /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/preferred/ga-ma78-pcbon4/chipset_win7-64/SMBUS
+   [104C:8025]  Texas Instruments : OHCI-konformer Texas Instruments 1394-Hostcontroller
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/104C/8025' not found
+   [10DE:005A]  (Standard-USB-Hostcontroller) : Standard OpenHCD USB-Hostcontroller
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/005A' not found
+   [10DE:0050]  (Standardsystemgeräte) : PCI Standard-ISA-Brücke
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/0050' not found
+   [10DE:005B]  (Standard-USB-Hostcontroller) : Standard PCI-zu-USB erweiterter Hostcontroller
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/005B' not found
+   [1002:5B60]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series (Microsoft Corporation - WDDM)
+      Manually selected [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /opt/pcbin/install/win7-x64-professional-msdn/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0052]  NVIDIA : NVIDIA nForce PCI-Systemverwaltung
+      Using build-in windows driver
+   [10DE:005C]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
+      No driver - device directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/pciids/10DE/005C' not found
+
+USB-Devices
+   [1241:1111]  (Standardsystemgeräte) : USB-Eingabegerät
+      No driver - vendor directory '/opt/pcbin/install/win7-x64-professional-msdn/drivers/usbids/1241' not found
+
+HD-Audio-Devices
+   No devices installed
+----
+
+TIPS::
+* Directory names `NDIS1` are Vista-Drivers ; `NDIS2` are Win7-Driver
+
+* Some chip driver contain description files, which perform a lot without actually providing drivers.  An example would be the 'cougar.inf' from Intel. If such a 'Pseudo-Driver' were to be placed in `additional_drivers` (or 'byAudit'), then the other drivers may be excluded.  It is better to move these directories to the 'preferred' subdirectory.     
+
+* SATA drivers and SATA-RAID drivers refer to the same PCI ID.  A SATA-RAID driver will not function with a single-disk system.
+
+* Check the output of `./show_drivers` carefully !
 
 [[opsi-getting-started-softwintegration]]
 == Integration of new software packets into the opsi software deployment.
@@ -2852,11 +3033,8 @@ http://www.opsi.org/en/software-integration-web-links
 .Search the software producer's site:
 A lot of software manufacturers are aware of the needs of unattended software distribution, so there are often some hints and instructions in the product documentation or on the software producer's website.
 
-.Determine the used setup tool:
-Setup programs are often not written by the software manufacturers themselves, but use frame works like 'Inno', 'NSIS', 'Installshield' or 'Wise'. So the command line arguments for the resulting packet will be similar to the arguments used by the setup creation tool.
-
-To determine which setup tool was used, you may use the following procedure: Use the `strings` command to extract the strings from your setup program, and than `grep` (or `findstr`) to filter for the names of the setup tools.
-
+.Identify the manufacturer of the setup program:
+Most setup programs are built using frameworks like 'Inno', 'NSIS', 'Installshield' or 'Wise'.   Each one of these setup frameworks has their own switch.  The following method can be used to determine the framework and other necessary information:  The input strings can be determined using the command line program 'strings' given the setup program 'setup.exe', and the output framework names can be found using 'grep' or 'findstr'.
 
 The Linux commands looks like this (change <mysetup.exe> to the name of your setup.exe):
 
@@ -2872,6 +3050,20 @@ To use this program, enter these commands at the command line interface (change 
 ----
 strings.exe <mysetup.exe> | findstr /i /r "inno installshield nsis wise"
 ----
+
+The same method is used in the `opsi-setup-detector`.  See the example below: 
+
+.opsi setup detector
+image::../images/opsi-setup-detector.png[width="100mm"]
+
+This GUI program can be called from the Windows context menu Explore.  
+
+.opsi setup detector in Windows Explore context menu
+image::../images/opsi-setup-detector-context-small-en.png[width="70mm"]
+
+The 'opsi setup detector' is part of the 'opsi-adminutils' package.  The program can be downloaded as a stand-alone application from:
+
+http://download.uib.de/opsi4.0/helper/opsisetupdetector.exe
 
 At opsi.org, you can find a web link: +
 http://www.opsi.org/en/software-integration-web-links +
