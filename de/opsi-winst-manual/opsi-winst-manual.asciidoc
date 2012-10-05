@@ -5452,7 +5452,7 @@ net start
 
 In manchen Situationen kann es sinnvoll oder notwendig sein, ein '{opsi-winst}' Skript als lokal eingeloggter Benutzer auszuführen anstatt wie üblich im Kontext eines Systemdienstes. Beispielsweise kann es sein, dass Softwareinstallationen, die vom '{opsi-winst}' aus aufgerufen werden, zwingend einen Benutzerkontext benötigen oder dass bestimmte Dienste, die für den Installationsvorgang wichtig sind, erst nach dem Login zur Verfügung stehen. 
 
-MSI-Installationen, die eine lokalen User benötigen lassen, sich häufig durch die Option 'ALLUSERS=2' dazu "überreden" auch ohne aus zukommen. Beispiel:
+MSI-Installationen, die eine lokalen User benötigen lassen, sich häufig durch die Option 'ALLUSERS=1' dazu "überreden" auch ohne aus zukommen. Beispiel:
 [source,winst]
 ----
 [Actions]
@@ -5468,34 +5468,23 @@ Eine andere aufwendigere Möglichkeit dieses Problem zu lösen, ist einen admini
 
 Dazu gehen Sie wie folgt vor:
 
-Legen im Verzeichnis 'install\produkid' ein Verzeichnis 'localsetup' an.
-Verschieben Sie die gesamten Installationsdateien in dieses Verzeichnis.
-Benennen Sie das Installationsscript von '<produktname>.ins' in 'local_<produktname>.ins' um.
-Erzeugen Sie im Verzeichnis 'install\produktname' eine neue '<produktname>.ins' mit dem nachfolgenden Inhalt und passen Sie in diesem SKript in der Actions-Sektion die Variablen an (siehe unten). Der Rest des Skriptes bleibt unberührt.
+Erzeugen Sie ein neues Produkt auf Basis des Produkte opsi-template-with-admin
+Legen im Verzeichnis 'install\productid' ein Verzeichnis 'localsetup' an.
+Verschieben Sie die gesamten Installationsdateien Ihres Produktes in das Unterverzeichnis 'localsetup' des erzeugten Produktes.
 
-Sorgen Sie dafür, dass das in 'local_<produktname>.ins' umbenannte Skript am Ende einen *Reboot* auslöst. 
 
-Dazu sollte der letzte ausgeführte Befehl der Actions-Sektion folgende Zeile sein:
-
-`ExitWindows /Reboot`
-
-Am Anfang des 'local_<produktname>.ins' Skripts fügen Sie einen Aufruf ein um das Passwort des temporären lokalen Administrators im Autologin zu löschen:
+Sorgen Sie dafür, dass Ihr setup-script  einen *Reboot* auslöst. Dazu fügen Sie am besten direkt unter `[Actions]` die Zeile `ExitWindows /Reboot` ein:
 [source,winst]
 ----
 [Actions]
-Registry_del_autologin
-;....
-
-[Registry_del_autologin]
-openkey [HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
-set "DefaultUserName"=""
-set "DefaultPassword"=""
+ExitWindows /Reboot
 ----
-Das nachfolgende abgedruckte '{opsi-winst}' Skript-Template erzeugt temporär den gewünschten Benutzerkontext, führt in ihm eine Installation aus und beseitigt ihn schließlich wieder. Für die Verwendung sind die folgende Variablen zusetzen:
+
+Das nachfolgende abgedruckte '{opsi-winst}' Skript-Template erzeugt temporär den gewünschten Benutzerkontext, führt in ihm eine Installation aus und beseitigt ihn schließlich wieder. Für die Verwendung sind die folgende Variablen zu setzen:
 
 * der richtige Wert für die Variable `$Productname$`,
 * der richtige Wert für die Variable `$ProductSize$` und
-* `$LockKeyboard$` auf „true“, um das Keyboard zu sperren.
+* der richtige Wert für die Variable `$LocalSetupScript$` (Name des eigentlichen setup-scriptes)
 
 Das Skript führt im Einzelnen folgende Schritte aus:
 
@@ -5513,15 +5502,15 @@ Wie man sieht, gliedert sich die Installation in 2 Bereiche: ein Skript, das als
 
 CAUTION: Erfordert das Localscript mehr als nur einen Reboot, muss auch das Masterscript verändert bzw. um diese Anzahl von Reboots erweitert werden. Solange das Localscript nicht fertig ist, muss das Masterscript ein ExitWindows /ImmediateLogout ausführen, um die Kontrolle an das Localscript zu übergeben. Der RunOnce-Eintrag muss dann immer wieder neu gesetzt werden. Ebenso müssen Username und Passwort des Autologins nach jedem Reboot neu gesetzt werden.
 
-Es gibt keinen direkten Zugang vom lokalen Skript auf die Produkteigenschaften (üblicherweise erfolgt der Zugang über die String-Funktion GetProductProperty). Wenn Werte benötigt werden, müssen diese über das Masterskript geholt werden und werden ggf. temporär in der Registry gespeichert.
+Es gibt (ab opsi 4.0.2-2) einen direkten Zugang vom lokalen Skript auf die Produkteigenschaften und das Lizenzmanagement mit den gewohnten Funktionen.
 
 Es kann Produktinstallationen (also aus dem Localscript heraus) geben, die Schlüssel in der Registry verändern, die vorher vom Masterscript gesichert und am Ende durch dieses wieder überschreiben werden. In diesem Fall muss die Wiederherstellung der Werte im Masterscript unterbunden werden.
 
 Das Localscript läuft unter eingeloggtem Administrator Account. Wenn hier nicht Keyboard/Maus gesperrt werden, besteht für den Anwender die Möglichkeit das Skript zu unterbrechen und Administrator zu werden.
 
-Das Passwort des temporären opsiSetupAdmin wird in nachfolgenden Beispiel durch die Funktion RandomStr bestimmt.
+Es gibt daher im Template ein Property 'debug'. Steht dieses auf dem Default (=false) so werden Tastatur und Maus gesperrt und keine Passwörter geloggt. Während der Skriptentwicklung und den Tests kann dieses Property auf 'true' gesetzt werden.
 
-Damit die Verarbeitung der Passwörter nicht geloggt wird, wird der LogLevel zeitweise auf -2 gesetzt.
+Das Passwort des temporären opsiSetupAdmin wird in nachfolgenden Beispiel durch die Funktion RandomStr bestimmt.
 
 IMPORTANT: Verwenden Sie aktualisierte Versionen des folgenden Beispiels aus dem Templateprodukt: opsi-template-with-admin.
 [source,winst]
@@ -5535,8 +5524,6 @@ IMPORTANT: Verwenden Sie aktualisierte Versionen des folgenden Beispiels aus dem
 ; installations as temporary local admin
 ; see winst_manual.pdf / winst_handbuch.pdf
 
-; !!! requires winst32.exe version 4.2.x !!!
-
 ;
 ; !!! Das lokale Installations-Skript, das durch den temporaeren lokalen Admin ausgefuehrt wird
 ; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl  
@@ -5546,25 +5533,20 @@ IMPORTANT: Verwenden Sie aktualisierte Versionen des folgenden Beispiels aus dem
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ; Vorarbeiten/Voraussetzungen/Doku pruefen wie in Winsthandbuch
-; 8.3 Skript fuer Installationen im Kontext eines lokalen Administrators
+;  Skript fuer Installationen im Kontext eines lokalen Administrators
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 [Actions]
-requiredWinstVersion >= 4.10.6
+requiredWinstVersion >= 4.11.3.3
 setLogLevel=7
 DefVar $ProductName$
 DefVar $ProductSizeMB$
 DefVar $LocalSetupScript$
 DefVar $LockKeyboard$
 DefVar $OpsiAdminPass$
-DefVar $OS$
-DefVar $MinorOS$
-DefVar $MsVersion$
 DefVar $RebootFlag$
-DefVar $ShutdownRequested$
 DefVar $WinstRegKey$
-DefVar $RebootRegVar$
 DefVar $AutoName$
 DefVar $AutoPass$
 DefVar $AutoDom$
@@ -5572,88 +5554,70 @@ DefVar $AutoLogon$
 DefVar $AutoBackupKey$
 DefVar $LocalFilesPath$
 DefVar $LocalWinst$
-DefVar $SystemType$
-DefVar $platform_cmdexe$
 DefVar $DefaultLoglevel$
 DefVar $PasswdLogLevel$
 DefVar $AdminGroup$
 DefVar $SearchResult$
+DefVar $LocalDomain$
+DefVar $debug$
+DefVar $isFatal$
 
-DefStringlist $ResultList$
-DefStringlist $ResultList2$
-DefStringlist $ResultList3$
-
-comment "set $LockKeyboard$ to true to prevent user hacks while admin is logged in"
-Set $LockKeyboard$="true"
-Set $LockKeyboard$="false"
+; ----------------------------------------------------------------
+; - Please edit the following values
+; ----------------------------------------------------------------
 Set $ProductName$ = "opsi-template-with-admin"
 Set $ProductSizeMB$ = "1"
+Set $LocalSetupScript$ = "setup32.ins"
+; ----------------------------------------------------------------
 
-Set $LocalSetupScript$ = "local_setup.ins"
-set $OS$ = GetOS
-set $MinorOS$ = GetNTVersion
-Set $SystemType$ = GetSystemType
-Set $MsVersion$ = GetMsVersionInfo
+comment "get and set initial values..."
+set $debug$ = GetProductProperty("debug","false")
+set $isFatal$ = "false"
 set $DefaultLoglevel$ = "7"
-comment " set $PasswdLogLevel$ to 0 for production"
-Set $PasswdLogLevel$="7"
 SetLogLevel=$DefaultLoglevel$
+Set $LocalDomain$ = "%PCNAME%"
 
-if not (fileExists ("%Scriptpath%\psgetsid.exe"))
-	LogError "psgetsid.exe is missing. Please install it from http://download.sysinternals.com/Files/PsTools.zip to %Scriptpath%"
-	isFatalError
-endif
-
-if not(($SystemType$ = "64 Bit System") or ($SystemType$ = "x86 System"))
-	LogError "Unknown Systemtype: "+$SystemType$+" - aborting"
-	isFatalError
-endif
-
-if $SystemType$ = "64 Bit System"
-	set $platform_cmdexe$ = "%SystemRoot%\cmd64.exe"
+comment "check if we productive or debugging..."
+if $debug$ = "true"
+	comment "we are in debug mode"
+	Set $LockKeyboard$="false"
+	Set $PasswdLogLevel$="7"
 else
-	set $platform_cmdexe$ = "%System%\cmd.exe"
+	comment "we are in productive mode"
+	comment "set $LockKeyboard$ to true to prevent user hacks while admin is logged in"
+	Set $LockKeyboard$="true"
+	comment " set $PasswdLogLevel$ to 0 for production"
+	Set $PasswdLogLevel$="0"
 endif
 
 comment "handle Rebootflag"
 Set $WinstRegKey$ = "HKLM\SOFTWARE\opsi.org\winst"
-Set $RebootFlag$ = GetRegistryStringValue("["+$WinstRegKey$+"] "+"RebootFlag")
-Set $ShutdownRequested$ = GetRegistryStringValue("["+$WinstRegKey$+"] "+"ShutdownRequested")
-
-sub_test_autologon_data
+Set $RebootFlag$ = GetRegistryStringValue32("["+$WinstRegKey$+"] "+"RebootFlag")
 
 comment "some paths required"
 Set $AutoBackupKey$ = $WinstRegKey$+"\AutoLogonBackup"
-Set $LocalFilesPath$ = "C:\opsi_local_inst"
-Set $LocalWinst$ = "c:\opsi\utils\winst32.exe"
-if not( FileExists($LocalWinst$) )
-	Set $LocalWinst$ = "%ProgramFilesDir%\opsi.org\preloginloader\utils\winst32.exe"
-endif
-if not( FileExists($LocalWinst$) )
-	Set $LocalWinst$ = "%ProgramFilesDir%\opsi.org\preloginloader\opsi-winst\winst32.exe"
-endif
-if not( FileExists($LocalWinst$) )
-	Set $LocalWinst$ = "%ProgramFilesDir%\opsi.org\opsi-client-agent\opsi-winst\winst32.exe"
-endif
+Set $LocalFilesPath$ = "C:\opsi.org\tmp\opsi_local_inst"
+Set $LocalWinst$ = "%ProgramFilesDir%\opsi.org\opsi-client-agent\opsi-winst\winst32.exe"
 if not( FileExists($LocalWinst$) )
 	LogError "No opsi-winst found. Abborting."
 	isFatalError
 endif
 
 comment "show product picture"
-ShowBitmap /3 "%scriptpath%\localsetup\"+$ProductName$+".png" $ProductName$
+ShowBitmap "%scriptpath%\localsetup\"+$ProductName$+".png" $ProductName$
 
 if not (($RebootFlag$ = "1") or ($RebootFlag$ = "2") or ($RebootFlag$ = "3"))
 	comment "Part before first Reboot"
 	comment "just reboot - this must be done if this is the first product after OS installation"
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "1"
-	Registry_SaveRebootFlag
-	ExitWindows /ImmediateReboot
+	Registry_SaveRebootFlag /32bit
+	;ExitWindows /ImmediateReboot
 endif ; Rebootflag = not (1 or 2 or 3)
 
 if $RebootFlag$ = "1"
 	comment "Part before second Reboot"
+	setActionProgress "Preparing"
 
 	if not(HasMinimumSpace ("%SYSTEMDRIVE%", ""+$ProductSizeMB$+" MB"))
 		LogError "Not enough space on drive C: . "+$ProductSizeMB$+" MB on C: required for "+$ProductName$
@@ -5667,8 +5631,7 @@ if $RebootFlag$ = "1"
 	comment "we need to reboot now to be sure that the autologon work"
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "2"
-	Registry_SaveRebootFlag
-	sub_test_autologon_data
+	Registry_SaveRebootFlag /32bit
 	ExitWindows /ImmediateReboot
 endif ; Rebootflag = not (1 or 2)
 
@@ -5677,41 +5640,54 @@ if ($RebootFlag$ = "2")
 	
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "3"
-	Registry_SaveRebootFlag
+	Registry_SaveRebootFlag /32bit
 	
 	comment "Lets work..."
 	Message "Preparing "+$ProductName$+" install step 2..."
-	Registry_enable_keyboard /64bit
+	Registry_enable_keyboard /sysnative
+
 	comment "now let the autologon work"
 	comment "it will stop with a reboot"
+	setActionProgress "Run Installation"
+	
 	ExitWindows /ImmediateLogout
 endif ; Rebootflag = 2
 
 if ($RebootFlag$ = "3")
 	comment "Part after second Reboot"
-	
+	ExitWindows /Reboot
+	setActionProgress "Cleanup"
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "0"
-	Registry_SaveRebootFlag
+	Registry_SaveRebootFlag /32bit
 	
 	comment "Lets work..."
 	Message "Cleanup "+$ProductName$+" install (step 3)..."
 	sub_Restore_AutoLogon
-	set $SearchResult$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce] opsi_autologon_setup")
-	if $SearchResult$ = $LocalWinst$+" "+$LocalFilesPath$+"\"+$LocalSetupScript$+" /batch"
+	set $SearchResult$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce] opsi_autologon_setup")
+	if $SearchResult$ = $LocalWinst$+" "+$LocalFilesPath$+"\"+$LocalSetupScript$+" /batch /productid %installingProdName%"
 		LogError "Localscript did not run. We remove the RunOnce entry and abort"
-		Registry_del_runonce /64Bit
+		Registry_del_runonce /sysnative
+		set $isFatal$ = "true"
+	endif
+	if "true" = getRegistryStringValue32("[HKLM\Software\opsi.org\winst] with-admin-fatal")
+		LogError "set to fatal because the local script stored this result"
+		set $isFatal$ = "true"
+	endif
+	comment "cleanup the registry key which stores a fatal result of the local script"
+	Registry_clean_fatal_flag /32bit
+	if $isFatal$ = "true"
 		isFatalError
 	endif
 	comment "This is the clean end of the installation"
 endif ; Rebootflag = 3
-ExitWindows /Reboot
+
 
 [sub_Prepare_AutoLogon]
 comment "copy the setup script and files"
 Files_copy_Setup_files_local
 comment "read actual Autologon values for backup"
-set $AutoName$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultUserName")
+set $AutoName$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultUserName")
 comment "if AutoLogonName is our setup admin user, something bad happend"
 comment "then let us cleanup"
 if ($AutoName$="opsiSetupAdmin")
@@ -5720,55 +5696,47 @@ if ($AutoName$="opsiSetupAdmin")
 	set $AutoDom$=""
 	set $AutoLogon$="0"
 else
-	set $AutoPass$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultPassword")
-	set $AutoDom$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultDomainName")
-	set $AutoLogon$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] AutoAdminLogon")
+	set $AutoPass$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultPassword")
+	set $AutoDom$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultDomainName")
+	set $AutoLogon$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] AutoAdminLogon")
 endif
 
 comment "backup AutoLogon values"
-Registry_save_autologon
+Registry_save_autologon /32bit
 
 comment "prepare the admin AutoLogon"
 SetLogLevel=$PasswdLogLevel$
 set $OpsiAdminPass$= randomstr
-Registry_autologon /64Bit
+Registry_autologon /sysnative
 
 comment "get the name of the admin group"
-comment "using psgetsid from sysinernals pstools"
-set $ResultList$ = getOutStreamFromSection("DosInAnIcon_get_admin_group")
-set $AdminGroup$ = takeString(6,$ResultList$)
-set $AdminGroup$ = takeString(1,splitstring($AdminGroup$,"\"))
+set $AdminGroup$ = SidToName("S-1-5-32-544")
 comment "create our setup admin user"
 DosInAnIcon_makeadmin
 SetLogLevel=$DefaultLoglevel$
 
-comment "remove c:\tmp\winst.bat with password"
-Files_remove_winst_bat
-
 comment "store our setup script as run once"
-Registry_runOnce /64Bit
+Registry_runOnce /sysnative
 
 comment "disable keyboard and mouse while the autologin admin works"
 if ($LockKeyboard$="true")
-	Registry_disable_keyboard /64Bit
+	Registry_disable_keyboard /Sysnative
 endif
 
-[sub_test_autologon_data]
-set $AutoPass$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultPassword")
-set $AutoDom$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultDomainName")
-set $AutoLogon$ = GetRegistryStringValue64("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] AutoAdminLogon")
+comment "cleanup the registry key which stores a fatal result of the local script"
+Registry_clean_fatal_flag /32bit
 
 [sub_Restore_AutoLogon]
 comment "read AutoLogon values from backup"
 set $AutoName$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultUserName")
 set $AutoPass$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultPassword")
-set $AutoDom$= GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultDomainName")
-set $AutoLogon$= GetRegistryStringValue("["+$AutoBackupKey$+"] AutoAdminLogon")
+set $AutoDom$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultDomainName")
+set $AutoLogon$ = GetRegistryStringValue("["+$AutoBackupKey$+"] AutoAdminLogon")
 
 comment "restore the values"
-SetLogLevel=$PasswdLogLevel$
-Registry_restore_autologon /64Bit
-SetLogLevel=$DefaultLoglevel$
+SetLogLevel = $PasswdLogLevel$
+Registry_restore_autologon /Sysnative
+SetLogLevel = $DefaultLoglevel$
 comment "delete our setup admin user"
 DosInAnIcon_deleteadmin
 comment "cleanup setup script, files and profiledir"
@@ -5801,17 +5769,13 @@ set "RebootFlag" = "$RebootFlag$"
 copy -s %ScriptPath%\localsetup\*.* $LocalFilesPath$
 
 [Files_delete_Setup_files_local]
-delete -sf $LocalFilesPath$
+del -sf $LocalFilesPath$\
 ; folgender Befehl funktioniert nicht vollständig, deshalb ist er zur Zeit auskommentier
 ; der Befehl wird durch die Sektion "DosInAnIcon_deleteprofile" ersetzt (P.Ohler)
 ;delete -sf "%ProfileDir%\opsiSetupAdmin"
 
 [DosInAnIcon_deleteprofile]
 rmdir /S /Q "%ProfileDir%\opsiSetupAdmin"
-
-[DosInAnIcon_get_admin_group]
-@echo off
-"%ScriptPath%\psgetsid.exe" /accepteula S-1-5-32-544
 
 [DosInAnIcon_makeadmin]
 NET USER opsiSetupAdmin $OpsiAdminPass$ /ADD
@@ -5821,12 +5785,12 @@ NET LOCALGROUP $AdminGroup$ /ADD opsiSetupAdmin
 openkey [HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
 set "DefaultUserName"="opsiSetupAdmin"
 set "DefaultPassword"="$OpsiAdminPass$"
-set "DefaultDomainName"="localhost"
+set "DefaultDomainName"="$LocalDomain$"
 set "AutoAdminLogon"="1"
 
 [Registry_runonce]
 openkey [HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce]
-set "opsi_autologon_setup"='"$LocalWinst$" "$LocalFilesPath$\$LocalSetupScript$" /batch'
+set "opsi_autologon_setup"='"$LocalWinst$" "$LocalFilesPath$\$LocalSetupScript$" /batch /productid %installingProdName%'
 
 [Registry_del_runonce]
 openkey [HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce]
@@ -5844,8 +5808,9 @@ set "Start"=REG_DWORD:0x1
 openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Mouclass]
 set "Start"=REG_DWORD:0x1
 
-[Files_remove_winst_bat]
-delete -f c:\tmp\_winst.bat
+[Registry_clean_fatal_flag]
+openkey [$WinstRegKey$]
+DeleteVar "with-admin-fatal"
 ----
 
 [[opsi-winst-cookbook-patchxml]]
