@@ -639,7 +639,7 @@ WARNING: The Unix commands that are used in the following chapters are for Debia
 [[opsi-getting-started-installation-base-ucs-3]]
 ===== Installation on a UCS 3 System
 
-The opsi 'univention' is no longer available for UCS 3.
+The opsi 'univention' backend is no longer available for UCS 3.
 The default backend is a file backend, which is the same for the other distributions.
 
 WARNING:  Because of the reason mentioned above, it is not possible to install the opsi4ucs-ldap-schema on a 
@@ -649,11 +649,11 @@ The installation of opsi with the file or MySQL backend is possible on a Rolling
 
 The following documentation describes an installation on a master with Samba4.
 
-The classical installation, with the user: 'pcpatch' in the group: 'pcpatch', will not function with UCS 3. 
-Samba4 has placed fundamental restrictions on the Active-Directory, such that groups with the same name  
+The classical installation, with the user: 'pcpatch' in the group: 'pcpatch', does not work with UCS 3. 
+Samba4 has placed fundamental restrictions on the Active-Directory, such as groups with the same name  
 as the user (usually in Unix/Linux) are no longer allowed.  For this reason, a new configuration file has 
 been introduced:  `/etc/opsi/opsi.conf`, which will control how the groups will access Samba-Access. More specifically, for 
-UCS 3 the group name 'pcpatch' will be called 'opsifileadmins'.  The means 
+UCS 3 the group name 'pcpatch' will be called 'opsifileadmins'.  This means 
 that the user who belonged to the group 'pcpatch' under UCS 3, must now belong to the group 'opsifileadmins'.  
 This means that a user, who must have access rights for opsi-packages under UCS3 cannot be a member of 'pcpatch', 
 but must be a member of the group 'opsifileadmins'.  This peculiarity initially applies only to UCS 3, and is different
@@ -707,7 +707,7 @@ Either completely turn off the features:
 ucr set ldap/acl/read/anonymous=yes
 ----
 
-(This will be done by automatically with an upgrade from UCS 2.4-x to UCS 3.)
+(This will be done automatically with an upgrade from UCS 2.4-x to UCS 3.)
 
 The second option is to partially disable the Configserver:
 
@@ -807,6 +807,78 @@ Since opsi has already been run on the server, it is assumed that the network co
 Continue with the installation be skipping forward to <<opsi-getting-started-installation-config-backend>>.
 
 WARNING:  The Unix commands that are used in the following chapters are for Debian systems. You may have to change them to match your Linux system.  
+
+[[opsi-getting-started-installation-base-ucs-listener]]
+===== opsi4ucs-Listener
+
+In an 'standard' opsi4ucs-installation Windows-Clients have to be created in UDM first and in a second step they have to be created in the opsi-configed.
+With the former univention-ldap-backend, both steps had to be done, too, but only the FQDN of the client had to be filled in as HostID into the {opsi-configed}. All other informations have been transferred from LDAP. 
+With opsi4ucs for UCS3 this former univention-ldap-backend isn't available any longer. So from now on, changes in the LDAP are not automatically transferred to opsi.
+For example, if a client's MAC address changes in LDAP and in opsi a netboot-product is set to setup, the boot configuration would be provided with a false MAC address.
+
+A solution for this problem provides the new opsi-listener, programmed by DIGITEC GmbH. (www.DIGITEC-SES.de) The belonging package is part of the official opsi repsitory.
+
+For installing the package run this command on the {opsi-configserver}:
+
+[source,prompt]
+----
+univention-install digitec-opsi-listener
+----
+
+This command installs the opsi-listener into the UCS univention-directory-listener and restarts it.
+With a standard-installation this listener works without further configuration. If a client is created or removed in LDAP, this information is sent to opsi. So with this ucs-listener there is no need to create a client in opsi in addition.
+Don't forget to deploy the {opsi-client-agent} on new windows-clients as described in <<opsi-getting-started-firststeps-software-deployment-client-integration>>. The {opsi-client-agent} isn't automatically deployed with the opsi-listener.
+
+The behavior of the opsi-listener can be controlled via UCR-variables.
+These are the possible configurations:
+
+
+[options="header"]
+|=======================
+| UCR-variable | Function | Default 
+| digitec/opsi/listener/host/filter | LDAP search filter opsi-Host-Objekt | (objectClass=univentionWindows)
+| digitec/opsi/listener/host/modify | Change an opsi-Host-Object | true
+| digitec/opsi/listener/host/delete | Remove an existing opsi-Host-Object, if it is no longer there in LDAP | true
+| digitec/opsi/listener/host/create | Create an opsi-Host-Objekt | true
+|=======================
+
+These variables may be edited via UCS web interface or via command line.
+The following example describes how to change one of the options named above via command line and how to make it undone. (For questions about the handling via UCS web interface, look at the official UCS documentation)
+
+
+
+Configuration of the LDAP search filter:
+
+[source,prompt]
+----
+ucr set digitec/opsi/listener/host/filter='(&(objectClass=univentionWindows)(customAttr=opsi))'
+----
+
+To make it undone and set it to default use:
+
+[source,prompt]
+----
+ucr unset digitec/opsi/listener/host/filter
+----
+
+To activate these configurations, the univention-directory-listener service has to be restarted.
+
+[source,prompt]
+----
+/etc/init.d/univention-directory-listener restart
+----
+
+It is possible to run a complete synchronization. This is useful e.g. if opsi is installed in an existing infrastructure. Even if the variables named above have changed a complete synchronization may make sense.
+The following command starts this synchronization:
+
+[source,prompt]
+----
+univention-directory-listener-ctrl resync opsilistener
+----
+
+The listener writes its messages into: `/var/log/univention/listener.log`.
+The loglevel will be taken over from univention-directory-listener and cannot separately be set, what would be usual for other services in opsi. 
+The loglevel is defined in the UCR-variable: `listener/debug/level`. Please notice, that the opsi-listener doesn't offers the opsi standard loglevels. It takes the loglevels from the univention-directory-listener (e.g. 4 is debug and 2 is normal output. For more loglevel information look at the official UCS-documentation).
 
 
 [[opsi-getting-started-installation-base-opensuse]]
