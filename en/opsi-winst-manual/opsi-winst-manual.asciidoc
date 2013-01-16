@@ -191,7 +191,12 @@ ID_SYSLOG_FACILITY_LOCAL7     = 23; // local use 7  (local7)
 [[opsi-winst-skins]]
 === Skinnable opsi-winst
 
-Since version 3.6 '{opsi-winst}' has an adaptable skin. Its elements are located in a subdirectory winstskin of the directory of the executed '{opsi-winst}'. The definition file which you may edit is skin.ini. 
+'{opsi-winst}' has an adaptable skin. Its elements are located in a subdirectory winstskin of the directory of the executed '{opsi-winst}'. The definition file which you may edit is skin.ini. 
+
+It will look for skins (more exactly: skin.ini) in the following sequence: +
+    1) by parameter +
+    2) new custom directory of opsi-client-agent `../custom/winstskin` +
+    3) own winstskin: `winstskin`  
 
 [[opsi-winst-script]]
 == The opsi-winst Skript
@@ -3687,6 +3692,14 @@ An essential tool for working on text files is the check if a specific line is c
 
 The text file which is to be treated is given as parameter.
 
+There are optional modifiers:
+
+* `/AllNTUserProfiles` +
+If a PatchTextFile section is called with this modifier, then all directories under `%UserProfileDir%` will be patched, which means that this PatchTextFile is performed for all user profiles. +
+When a 'PatchTextFile' is called within a `[ProfileActions]` section, then the modifier `/AllNTUserProfiles` is implicit. In logscript mode, `%UserProfileDir%` will be interpreted as `%CurrentProfileDir%`. +
+(Since Version 4.11.3.4)
+
+
 [[opsi-winst-patchtextfile-commands]]
 ==== Commands
 
@@ -3801,6 +3814,11 @@ The predefined virtual system folders which can be used are:
 
 'desktop, sendto, startmenu, startup, programs, desktopdirectory, common_startmenu, common_programs, common_startup, common_desktopdirectory'
 
+The predefined virtual system folders: +
+`desktop, sendto, startmenu, startup, programs, desktopdirectory` +
+are pointing to the folders of the user that the script is running.
+If you use it in a userLoginScript with the opsi 'User Profile Management' extension these virtual folders point to the folder of the user that just had logged in.
+
 The folders are 'virtual' since the operating system (resp. registry entries) determine the real places of them in the file system. 
 Second, we have to open a subfolder of the selected virtual folder: +
 `set_subfolder` <folder path> +
@@ -3829,7 +3847,7 @@ The 'target' name is the only essential entry. The other entries have default va
 * `name` defaults to the program name.
 * `parameters`defaults to a empty string.
 * `icon_file` defaults to the 'target'.
-* `icon_index defaults to 0.
+* `icon_index` defaults to 0.
 
 CAUTION: If the referenced target does not lie on an mounted share at the moment of link creation windows shortens its name to the 8.3 format. +
 Workaround: +
@@ -4255,6 +4273,11 @@ Starts a process that has a security token with elevated privileges. This modifi
 *  `getLastExitCode` +
 Returns a string that contains the value of the exitcode of the the process that was last called by a WinBatch / DosBatch / ExecWith section. +
 When using a DosBatch or ExecWith section, you will normally get the exitcode of the interpreter that was called. To get the exitcode of your script you have to define it explicitly.
+
+* `/RunAsLoggedOnUser` // since 4.11.3.5 ; works only inside 'userLoginScripts'
+
+* `/32Bit` or `/64Bit` or `/SysNative`	 //since 4.11.3.5 +
+These modifiers control if the path to a called program is interpreted as 32 or 64 Bit Path. So if want for example call a `%system%\cmd.exe` you call a 32 bit program by default. If you use the /64bit modifier you will get with the same call the 64 bit version.
 
 * `/WaitForWindowAppearing` [window title] +
 resp. +
@@ -4877,11 +4900,14 @@ Each of the expressions 'PROGRAM, PROGRAMPARAS, PASSPARAS, WINSTOPTS' may be an 
 
 The key words PASS and WINST may be missing if the respective parts do not exist.
 
-There are two '{opsi-winst}' options recognized:
+There are some '{opsi-winst}' options recognized:
 
 * `/EscapeStrings`
 
 * `/LetThemGo`
+
+* `/32Bit` or `/64Bit` or `/SysNative`	 //since 4.11.3.5 +
+These modifiers control if the path to a called program is interpreted as 32 or 64 Bit Path. So if want for example call a `"%System%\WindowsPowerShell\v1.0\powershell.exe"` you call a 32 bit program by default. If you use the /64bit modifier you will get with the same call the 64 bit version.
 
 Like with ExecPython sections, the output of an ExecWith section may be captured into a String list via the function `getOutStreamFromSection`.
 
@@ -4906,6 +4932,12 @@ ExecWith_edit_me "notepad.exe"  WINST /letThemGo
 ----
 
 calls notepad and opens the section lines in it (but without any line that is starting with a semicolon since '{opsi-winst}' regards such lines as comments and eliminates them before handle).
+
+The following example call the 64Bit version of the powershell.exe.
+[source,winst]
+----
+ExecWith_do_64bit_stuff "%System%\WindowsPowerShell\v1.0\powershell.exe" winst /64Bit
+----
 
 For further examples watch the product 'opsi-winst-test' and there especially 
 '$Flag_autoit3_test$ = "on"'
