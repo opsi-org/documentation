@@ -15,7 +15,7 @@
 :Author:    uib gmbh
 :Email:     info@uib.de
 :Date:      01.02.2013
-:Revision:  4.0.2
+:Revision:  4.0.3
 :toclevels: 6
 
 
@@ -36,7 +36,7 @@ Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
 
 IMPORTANT: Diese kofinanzierte Erweiterung kann bis auf weiteres nur von der öffentlichen Hand (z.B. Schulen / Unis) erworben werden.
 
-Technische Voraussetzungen sind opsi 4.0.2 mit den Paketständen:
+Technische Voraussetzungen sind opsi 4.0.3 mit den Paketständen:
 
 .Benötigte Pakete
 [options="header"]
@@ -81,11 +81,11 @@ Der im Folgenden untersuchte Ansatz versucht die Vorteile der jeweiligen Ansätz
 [[opsi-manual-localimage-concept-technical]]
 === Technisches Konzept
 
-Der Schulungsrechner wird mit einer (fast) statischen Partitionstabelle verwendet:
+Der Schulungsrechner wird mit einer statischen Partitionstabelle verwendet:
 
 * Partition 1 (System) +
 Hier findet sich das aktuell verwendete Betriebssystem (Windows / Linux) +
-Die Größe dieser Partition wird zentral über den Hostparameter (config_state) `opsi-local-image.system_partition_size` gesteuert. So wird sicher gestellt, daß alle Netbootprodukte die selbe Größe verwenden und es zu keinen Konflikten kommt.
+Die Größe dieser Partition wird bei der Partitionierung über das Produkt `opsi-local-image-repartition` über ein Property gesteuert.
 
 * Partition 2 (winpe / swap) +
 Die Größe dieser Partition ist statisch auf 4GB festgelegt. +
@@ -93,19 +93,20 @@ Unter Windows XP wird dies Partition nicht verwendet. +
 Unter NT6 (Windows 7) wird diese Partition für das bei der Installation notwendige winpe verwendet und ist im Betrieb nicht sichtbar. +
 Unter Linux wird diese Partition als Swap verwendet.
 
-* Partition 3 (reserved) +
-Diese Partition wird im Moment nicht verwendet.
-
-* Partition 4 (data) +
+* Partition 3 (data) +
 Diese Partition dient zur Speicherung der gesicherten Images und ihrer Metadaten. +
 Die Größe dieser Partition ergibt sich aus dem nach Erstellung der anderen Partitionen noch vorhandenen freien Platz.
 
-Die Netbootprodukte zur Betriebssystem Installation verwenden die ersten beiden Partitionen (XP nur die erste) und lassen die Partitionen 3 und 4 unberuhrt. Somit bleiben die auf der Partition 4 liegenden Images auch bei der Installation eines neuen Betriebsystems erhalten.
+Die Netbootprodukte zur Betriebssystem Installation verwenden die ersten beiden Partitionen (XP nur die erste) und lassen die Partition 3 unberuhrt. Somit bleiben die auf der Partition 3 liegenden Images auch bei der Installation eines neuen Betriebsystems erhalten.
 
 
 [[opsi-manual-localimage-components]]
 === Komponenten
  
+* `opsi-local-image-repartition` +
+Erstellung der statischen Partitionierung der Festplatte für alle anderen Produkte. +
+Dieses Produkt löscht beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list'.
+
 ==== Netboot Produkte zur Installation der Betriebssysteme
 
 * `opsi-local-image-winxp` +
@@ -122,18 +123,25 @@ Administrator Passwort = `nt123`.
 
 * `opsi-local-image-ubuntu32` +
 Installation von Ubuntu Linux 12.04 (Precise) 32 Bit. +
-Das installierte System kennt 2 user: `root` und `user`. Für beide wird das im Produktproperty `root_password` festgelegte Passwort gesetzt (Default: `linux123`).
+Das installierte System kennt 2 user: `root` und `user`. Für 'root' wird das im Produktproperty `root_password` festgelegte Passwort gesetzt (Default: `linux123`). Für 'user' wird das im Produktproperty `user_password` festgelegte Passwort gesetzt (Default: `linux123`).
 Da bisher es noch keinen opsi-client-agent für Linux gibt, enthält diese Installation eine statische über die Produktproperties gesteuerte Softwareausstattung. Die wesentlichen Produktproperties sind dabei: 
-** desktop +
+** `desktop` +
 Hierbei wird mit dem default Wert `none` keine grafische Oberfläche installiert. Weiterhin gibt es die Auswahl zwischen `kde`, `gnome`, `unity` und `xfce4`.
-** additional_packages +
+** `additional_packages` +
 Hier kann eine Liste von Ubuntu Paketen angegeben werden, welche ebenfalls installiert werden.
+** `language` +
+steuert in welcher Sprache (und Tastaturlayout) der desktop installiert wird.
+** `online_repository` +
+gibt an aus welchem online Repository die Pakete installiert werden sollen. Der Default ist 'http://de.archive.ubuntu.com/ubuntu' . Zur entlastung der Internetverbindung, kann hier ein eigener 'Mirror' angegeben werden (siehe unten ).
 
-==== Netboot Produkte zum Backup und Retore
+==== Netboot Produkte zum Backup und Restore
 
 * `opsi-local-image-backup` +
+Diese Produkt sichert das aktuell auf Partition 1 installierte Betriebssystem in einer Imagedatei auf Partition 3. Als Image Namen wird der Name des opsi Netbootproduktes verwendet, welcher aktuell auf 'installed' steht (z.B. `opsi-local-image-winxp`). Dieser Name wird beim Produkt `opsi-local-image-restore` als Produktproperty 'imagefile' gesetzt, so daß ein nachfolgender Aufruf von `opsi-local-image-restore` per default genau dieses Image wiederherstellt. Dieser Name wird beim Produkt `opsi-local-image-restore` dem Produktproperty 'imagefiles_list' hinzugefügt. Damit enthält dieses Property die Liste aller verfügbaren Images. Weiterhin werden (für die Windows-Produkte) die aktuellen opsi-Produktstände zusammen mit dem Image gesichert, damit auch diese im Rahmen des restores wiederhergestellt werden können. +
+Als Sicherungsmethode wird partclone verwendet.
 
 * `opsi-local-image-restore` +
+Diese Produkt spielt das im Produktproperty 'imagefile' angegebene Image wieder auf der Partition 1 ein und sorgt dafür, das es gebootet werden kann. Weiterhin werden (für die Windows-Produkte) die für das Image gesicherten opsi-Produktstände zusammen mit dem Image wiederhergestellt.
 
 [[opsi-manual-localimage-proceedings]]
 === Abläufe
@@ -144,22 +152,11 @@ Hier kann eine Liste von Ubuntu Paketen angegeben werden, welche ebenfalls insta
 
 Um die 'opsi local image' Erweiterung zu nutzen muss 
 
-Einrichtung des zentralen configs 'opsi-local-image.system_partition_size' mit einem default von 30 GB:
+[[opsi-manual-localimage-ubuntumirror]]
+=== Erstellen eines eigenen Ubuntu Mirrors
 
-[source, prompt]
-----
-opsi-admin -d method config_createUnicode opsi-local-image.system_partition_size "system partition size" '["20G","30G","40G","50G","60G","70G"]' '["30G"]'
-----
+http://wiki.ubuntuusers.de/apt-mirror
 
-
-Einrichtung des zentralen configs 'opsi-local-image.delete_partition_table' mit einem default 'if_needed':
-
-[source, prompt]
-----
-opsi-admin -d method config_createUnicode opsi-local-image.delete_partition_table "Darf die Festplatte komplett neu formatiert werden (Verlust aller images) ?" '["always","if_needed","never"]' '["if_needed"]'
-----
-
-Die so eingerichteten Einstellungen können Sie im opsi Managementinterface im Tab 'Hostparameter' Server- oder Client-spezifisch modifizieren.
 
 
 
