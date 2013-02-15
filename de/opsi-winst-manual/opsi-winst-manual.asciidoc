@@ -193,6 +193,22 @@ ID_SYSLOG_FACILITY_LOCAL7     = 23; // local use 7  (local7)
 
 Ab Version 3.6 verfügt '{opsi-winst}' einen veränderbare Oberfläche. Seine Elemente liegen im Unterverzeichnis winstskin des Verzeichnisses, in dem der ausgeführte '{opsi-winst}' liegt. Die editierbare Definitionsdatei ist skin.ini. 
 
+Seit Version 4.11.3.5 sucht der 'opsi-winst' nach dem zu verwendenden Skin Verzeichnis in folgender Reihenfolge, wobei das erste Verzeichnis, welches eine skin.ini enthält verwendet wird:
+
+. `%WinstDir%\..\custom\winstskin`
+. `%WinstDir%\winstskin`
+
+Mit dem Befehl `SetSkinDirectory` kann ein SkinDirectory auch im Script angegeben werden.
+Wird bei diesem Befehl ein leerer oder ungültiger Pafd angegeben, so wird der Defaultpfad verwendet.
+
+Beispiel:
+[source,winst]
+----
+SetSkinDirectory "%ScriptPath%\testskin"
+sleepseconds 1
+SetSkinDirectory ""
+----
+
 [[opsi-winst-script]]
 == Das '{opsi-winst}' Skript
 
@@ -823,7 +839,19 @@ CAUTION: Nach Programmiersystem-Handbuch soll der Wert nicht im laufenden Betrie
 `StayOnTop` steht per Default auf false damit verhindert wird das Fehlermeldungen eventuell nicht sichtbar sind, weil der '{opsi-winst}' im Vordergrund läuft.
 
 [[opsi-winst-params-showmode]]
-==== Fenster Modus
+==== Fenster Modus / Skin
+
+* `SetSkinDirectory` <skindir>+
+Setzt das zu vwendende SkinDirectory und lädt den Skin 
+Wird bei diesem Befehl ein leerer oder ungültiger Pafd angegeben, so wird der Defaultpfad verwendet.
+
+Beispiel:
+[source,winst]
+----
+SetSkinDirectory "%ScriptPath%\testskin"
+sleepseconds 1
+SetSkinDirectory ""
+----
 
 * `NormalizeWinst` +
 setzt das '{opsi-winst}' Fenster auf 'normal' Modus.
@@ -833,7 +861,6 @@ setzt das '{opsi-winst}' Fenster auf 'minimierten' Modus.
 
 * `RestoreWinst` +
 setzt das '{opsi-winst}' Fenster auf 'maximierten' Modus.
-
 
 [[opsi-winst-string]]
 === String-Werte, String-Ausdrücke und String-Funktionen
@@ -3895,6 +3922,13 @@ Wichtig für die Arbeit mit Textdateien ist das Überprüfen, ob eine bestimmte 
 
 Der Name der zu patchenden Datei wird als Parameter übergeben.
 
+Als optionalen Modifier gibt es:
+
+* `/AllNTUserProfiles` +
+Wird eine 'PatchTextFile' Sektion mit diesem Modifier aufgerufen und der Pfad zur zu patchenden Datei enthält die Konstante `%UserProfileDir%`, so wird diese Patchsektion für alle Profile ausgeführt. +
+Eine 'PatchTextFile' Sektion welche in einer `[ProfileActions]` Sektion aufgerufen wird hat im 'Machine' Modus den Modifier `/AllNTUserProfiles` implizit. Im Loginscript Modus wird dann `%UserProfileDir%` als `%CurrentProfileDir%` interpretiert. +
+(Seit Version 4.11.3.5)
+
 [[opsi-winst-patchtextfile-commands]]
 ==== Kommandos
 
@@ -5377,6 +5411,12 @@ Der Server, der das LDAP Verzeichnis verwaltet/gespeichert wird (service), muss 
 *  `targetport:` +
 Wenn der Port eines LDAP Service nicht der voreingestellte Port von 389, muss er an dieser Stelle angegeben werden. Wenn die Spezifizierung nicht erfolgt, wird der Default-Port verwendet.
 
+*  `user:` +
+Zu verwendender user Name. Seit 4.11.3.5
+
+*  `password:` +
+Zu verwendendes user Passwort. Seit 4.11.3.5
+
 *  `dn:` +
 Hier kann der charakteristische Name (distinguished name), der „Suchpfad“, für die Suchanfrage gegeben werden.
 
@@ -5420,6 +5460,41 @@ dn: cn=$opsiclient$,cn=hosts,cn=opsi,dc=uib,dc=local
 typesOnly: false
 filter: (objectclass=*)
 attributes: opsiDescription
+----
+
+Beispiel mit user / password
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+comment "user / password"
+Set $LdapHost$ = "vmix7.uib.local"
+Set $LdapPort$ = "389"
+Set $LdapUser$ = "cn=Administrator,cn=Users,dc=uib,dc=local"
+Set $LdapPassword$ = "Linux123"
+Set $LdapResultType$ = "objects"
+Set $LdapSearchDn$ = "cn=Users,dc=uib,dc=local"
+Set $LdapSearchAttributes$ = "name,objectClass"
+Set $LdapFilter$ = "(&(objectclass=*))"
+
+markErrorNumber
+set $list1$ = getReturnListFromSection("ldapsearch_users /" + $LdapResultType$)
+if errorsOccuredSinceMark > 0
+	comment "failed while ldapsearch"
+	set $TestResult$ = "not o.k."
+else
+	comment "passed"
+endif
+
+[ldapsearch_users]
+targethost: $LdapHost$
+targetport: $LdapPort$
+user: $LdapUser$
+password: $LdapPassword$
+dn: $LdapSearchDn$
+attributes: $LdapSearchAttributes$
+filter: $LdapFilter$
 ----
 
 Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
@@ -5493,7 +5568,7 @@ Schreibzugriffe werden in die 64 Bit-Registry bzw. das 64 Bit-Systemverzeichnis 
 *  `/SysNative` +
 Schreibzugriffe werden in den architekturspezifischen Zweig der Registry bzw. des Systemverzeichnisses gelenkt.
 
-Für `DosBatch`, `DosInAnIcon` usw. gilt das selbe, nur das die Parameter durch das Schlüsselwort `winst` abgergernzt werden müssen.
+Für `DosBatch`, `DosInAnIcon` usw. sowie `winbatch` und `Execwith` gilt das selbe, nur das die Parameter durch das Schlüsselwort `winst` abgegrenzt werden müssen.
 
 Beispiel:
 [source,winst]
