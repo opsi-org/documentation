@@ -32,7 +32,10 @@ Dieses Modul ist momentan eine
 http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
 Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
 zu können. Das bedeutet, das Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+
+////
 Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+////
 
 IMPORTANT: Diese kofinanzierte Erweiterung kann bis auf weiteres nur von der öffentlichen Hand (z.B. Schulen / Unis) erworben werden.
 
@@ -42,8 +45,7 @@ Technische Voraussetzungen sind opsi 4.0.3 mit den Paketständen:
 [options="header"]
 |==========================
 |opsi-Paket|Version
-|opsi-linux-bootimage|>=
-|python-opsi|>=
+|opsi-linux-bootimage|>= 20130207-1
 |==========================
 
 
@@ -52,10 +54,10 @@ Technische Voraussetzungen sind opsi 4.0.3 mit den Paketständen:
 
 Opsi bietet eine gute Basis, um automatisiert Windows Rechner zu installieren und zu pflegen - auch und gerade, wenn es sich um heterogene Hardware handelt. Die von opsi unterstützte Technik der Paket basierten Installation ist aber nicht schnell genug, um in Schulungsräumen Rechner innerhalb von kurzer Zeit wie z.B. in einer Pause zwischen zwei Kursen wieder in einen definierten Zustand zu versetzen. Daher wird hier ein Konzept vorgestellt, bei dem die paket basiert durch geführte Installation lokal auf einer zweiten Partition als Imagekopie gesichert wird und von dort eine schnelle Wiederherstellung möglich ist.
 
-1. Initiale Installation mit abschließender lokaler Image-Sicherung
-2. Schnelle Wiederherstellung auf Basis unterschiedlicher Techniken
-3. Systempflege mit abschließender lokaler Image-Sicherung
-4. Integration von Linuxclients in das Backup/Restore Verfahren.
+. Initiale Installation mit abschließender lokaler Image-Sicherung
+. Schnelle Wiederherstellung auf Basis unterschiedlicher Techniken
+. Systempflege mit abschließender lokaler Image-Sicherung
+. Integration von Linuxclients in das Backup/Restore Verfahren.
 
 [[opsi-manual-localimage-concept]]
 === Konzept
@@ -102,12 +104,37 @@ Die Netbootprodukte zur Betriebssystem Installation verwenden die ersten beiden 
 
 [[opsi-manual-localimage-components]]
 === Komponenten
+
+Das Paket 'opsi-local-image' besteht aus mehreren Komponenten:
+
+Den Netbootprodukten
+
+* `opsi-local-image-repartition`
+* `opsi-local-image-winxp`
+* `opsi-local-image-win7`
+* `opsi-local-image-win7-x64`
+* `opsi-local-image-ubuntu32`
+* `opsi-local-image-backup`
+* `opsi-local-image-restore`
+
+Dem Lokalbootprodukt:
+
+* `opsi-local-image-backup-starter`
+
+Einer Erweiterung der opsi-Service Methoden.
+
+[[opsi-manual-localimage-components-part]]
+==== Netboot Produkte zur Partitionierung
  
 * `opsi-local-image-repartition` +
 Erstellung der statischen Partitionierung der Festplatte für alle anderen Produkte. +
-Dieses Produkt löscht beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list'.
+Über das Property `system_partition_size` wird die Größe der Partition 1 angegeben (Default = 30G) +
+Bei der Installation dieses Produkts werden beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list' gelöscht, da durch die Neupartitionierung diese Daten ungültig geworden sind.
 
-==== Netboot Produkte zur Installation der Betriebssysteme
+[[opsi-manual-localimage-components-win]]
+==== Netboot Produkte zur Installation von Windows
+
+Die Netbootprodukte zur Installation von Windows sind Abkömmlinge der opsi Standardprodukte zur Windowsinstallation. Das bedeutet konkret, das sie bezüglich des Aufbaus und der Treiberintegration identisch sind. Entsprechende Anleitungen finden sich im 'opsi-getting-started' Handbuch.
 
 * `opsi-local-image-winxp` +
 Installation von Windows XP. Verwendet nur die erste Partition.
@@ -120,6 +147,9 @@ Administrator Passwort = `nt123`.
 * `opsi-local-image-win7-x64` +
 Installation von Windows  7 64 Bit.
 Administrator Passwort = `nt123`.
+
+[[opsi-manual-localimage-components-linux]]
+==== Netboot Produkte zur Installation von Linux
 
 * `opsi-local-image-ubuntu32` +
 Installation von Ubuntu Linux 12.04 (Precise) 32 Bit. +
@@ -134,6 +164,7 @@ steuert in welcher Sprache (und Tastaturlayout) der desktop installiert wird.
 ** `online_repository` +
 gibt an aus welchem online Repository die Pakete installiert werden sollen. Der Default ist 'http://de.archive.ubuntu.com/ubuntu' . Zur entlastung der Internetverbindung, kann hier ein eigener 'Mirror' angegeben werden (siehe unten ).
 
+[[opsi-manual-localimage-components-backuprestore]]
 ==== Netboot Produkte zum Backup und Restore
 
 * `opsi-local-image-backup` +
@@ -143,14 +174,52 @@ Als Sicherungsmethode wird partclone verwendet.
 * `opsi-local-image-restore` +
 Diese Produkt spielt das im Produktproperty 'imagefile' angegebene Image wieder auf der Partition 1 ein und sorgt dafür, das es gebootet werden kann. Weiterhin werden (für die Windows-Produkte) die für das Image gesicherten opsi-Produktstände zusammen mit dem Image wiederhergestellt.
 
+[[opsi-manual-localimage-components-helper]]
+==== Localboot Produkt zur Ablaufsteuerung
+
+* `opsi-local-image-backup-starter` +
+Dieses Localbootprodukt stellt das Netbootprodukt `opsi-local-image-backup` aus 'setup' und rebootet den Rechner dann. Diese produkt hat eine sehr niedrige 'Priorität' von -98. Dies bedeutet das alle 'normalen' Localboot Produkte vorher abgearbeitet werden. Dies kann zu folgendem genutzt werden: +
+Wird für einen Rechner folgende Produkte auf setup gestellt: +
+* `opsi-local-image-restore`
+* Alle Localboot Produkte die nicht mehr aktuell sind
+* `opsi-local-image-backup-starter`
+
+so führt dies zu folgendem Ablauf: +
+. Restore des Images
+. Update des restoreten Betriebsystems
+. Backup des upgedateten Betriebssystems
+
+[[opsi-manual-localimage-service-methods]]
+=== Erweiterte opsi Service Methoden
+
+Im Rahmen dieser Erweiterung können die Rechner eines Schulungsraums in einer opsi-client Gruppe zusammengefasst werden. Um möglichst komfortable Aktionen für alle Rechner eines Schulungsraums auszulösen sind folgende Erweiterungen der opsi-service Methoden vorgesehen:
+
+* `setProductActionRequest4Group` +
+Parameter: `productId actionRequest groupId` +
+Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums) eine bestimmte Aktion zu starten (z.B. Retstore des Images).
+
+* `setProductProperty4Group` +
+Parameter: `productId propertyId propertyValue groupId` +
+Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums) für ein betimmtes Produkt einen Propertywert zusetzen (z.B. welches Image restored werden soll).
+
+* `setActionRequestWhereOutdated` +
+Parameter: `clientId actionRequest` +
+Diese Methode wird nur intern verwendet und dient dazu alle Produkte für die es ein Update gibt auf setup zusetzen.
+
+* `getPossibleImagefileValuse4group` +
+Parameter: `groupId` +
+Liefert die Liste der Imagefile Namen welche das `opsi-local-image-backup` auf allen Mitgliedern der Gruppe angelegt hat. Wenn ein bestimmtes Image (z.B. `opsi-local-image-winxp`) auf einem oder mehreren Rechnern nicht vorhanden ist, so ist es nicht Bestandteil der Rückgabeliste.
+
+
 [[opsi-manual-localimage-proceedings]]
 === Abläufe
 
+text
 
 [[opsi-manual-localimage-configuration]]
 === Konfiguration
 
-Um die 'opsi local image' Erweiterung zu nutzen muss 
+Keine besonder Konfiguration notwendig.
 
 [[opsi-manual-localimage-ubuntumirror]]
 === Erstellen eines eigenen Ubuntu Mirrors
