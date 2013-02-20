@@ -148,6 +148,8 @@ Administrator Passwort = `nt123`.
 Installation von Windows  7 64 Bit.
 Administrator Passwort = `nt123`.
 
+Diese Produkte haben als 'opsi-local-image' spezifisches Property die Einstellung 'backup_after_install' mit der Default Wert 'true'. Dies bedeutet in diesem Fall, das nach der OS Installation zunächst die Anwendungsoftware installiert wird und abschließend eine Imagesicherung der Installation durchgeführt wird.
+
 [[opsi-manual-localimage-components-linux]]
 ==== Netboot Produkte zur Installation von Linux
 
@@ -163,6 +165,8 @@ Hier kann eine Liste von Ubuntu Paketen angegeben werden, welche ebenfalls insta
 steuert in welcher Sprache (und Tastaturlayout) der desktop installiert wird.
 ** `online_repository` +
 gibt an aus welchem online Repository die Pakete installiert werden sollen. Der Default ist 'http://de.archive.ubuntu.com/ubuntu' . Zur entlastung der Internetverbindung, kann hier ein eigener 'Mirror' angegeben werden (siehe unten ).
+** `backup_after_install` +
+('true'/'false') Default = 'true'. Nach der Installation wird sofort eine Imagesicherung der Installation durchgeführt.
 
 [[opsi-manual-localimage-components-backuprestore]]
 ==== Netboot Produkte zum Backup und Restore
@@ -172,7 +176,16 @@ Diese Produkt sichert das aktuell auf Partition 1 installierte Betriebssystem in
 Als Sicherungsmethode wird partclone verwendet.
 
 * `opsi-local-image-restore` +
-Diese Produkt spielt das im Produktproperty 'imagefile' angegebene Image wieder auf der Partition 1 ein und sorgt dafür, das es gebootet werden kann. Weiterhin werden (für die Windows-Produkte) die für das Image gesicherten opsi-Produktstände zusammen mit dem Image wiederhergestellt.
+Diese Produkt spielt das im Produktproperty 'imagefile' angegebene Image wieder auf der Partition 1 ein und sorgt dafür, das es gebootet werden kann. Weiterhin werden (für die Windows-Produkte) die für das Image gesicherten opsi-Produktstände zusammen mit dem Image wiederhergestellt. +
+Properties:
+** `imagefile` +
+Name des Images welches restored werden soll. Der wert dieses Properties wird automatisch durch das letzte Backup gesetzt. Die Liste der verfügbaren Images findet sich im Property `imagefiles_list`.
+** `imagefiles_list` +
+Liste der verfügbaren Images. Wird duch das Backup Produkt gepflegt.
+** `method` +
+Methode des Imagerestores. Mögliche Methoden sind `partclone-image-restore` und `rsync-partclone-image`. Der Default ist `partclone-image-restore`. Die Methode `rsync-partclone-image` ist nur möglich wenn sich auf der Partition 1 das Betriebsystem befindet, von dem das bei `imagefile` angegebene Image erstellt wurde. D.h. mit dieser Methode können kleine Änderungen rückgängig gemacht werden aber es kann kein Wechsel zwischen Betriebssystemen durchgeführt werden.
+** `update_and_backup` +
+('true'/'false') Default = 'false'. Bei 'true' wird nach dem restore dafür gesorgt das alle Localboot Produkte die auf dem Server im einer abweichenden Version vorhanden sind auf Setup gestellt werden und das Produkt `opsi-local-image-backup-starter` auf `once` gesetzt wird. Dies führt dazu, das alle Vorhandenen Update eingespielt und nach den Updates automatisch wieder eine Sicherung durchgeführt wird.
 
 [[opsi-manual-localimage-components-helper]]
 ==== Localboot Produkt zur Ablaufsteuerung
@@ -202,10 +215,6 @@ Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums
 Parameter: `productId propertyId propertyValue groupId` +
 Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums) für ein betimmtes Produkt einen Propertywert zusetzen (z.B. welches Image restored werden soll).
 
-* `setActionRequestWhereOutdated` +
-Parameter: `clientId actionRequest` +
-Diese Methode wird nur intern verwendet und dient dazu alle Produkte für die es ein Update gibt auf setup zusetzen.
-
 * `getPossibleImagefileValuse4group` +
 Parameter: `groupId` +
 Liefert die Liste der Imagefile Namen welche das `opsi-local-image-backup` auf allen Mitgliedern der Gruppe angelegt hat. Wenn ein bestimmtes Image (z.B. `opsi-local-image-winxp`) auf einem oder mehreren Rechnern nicht vorhanden ist, so ist es nicht Bestandteil der Rückgabeliste.
@@ -214,15 +223,27 @@ Liefert die Liste der Imagefile Namen welche das `opsi-local-image-backup` auf a
 [[opsi-manual-localimage-proceedings]]
 === Abläufe
 
-text
+[[opsi-manual-localimage-proceedings-initial]]
+==== Initiale Installation
 
-[[opsi-manual-localimage-configuration]]
-=== Konfiguration
+Über das Produkt `opsi-local-image-repartition` wird zunächst die notwendige statische Partitionierung erzeugt.
 
-Keine besonder Konfiguration notwendig.
+Anschließend können über die Produkte `opsi-local-image-winxp`, `opsi-local-image-win7`, `opsi-local-image-win7-x64`und `opsi-local-image-ubuntu32` verschiedene Betriebsysteme mit unterschiedlicher Ausstattung an Anwendungssoftware installiert werden. Diese werden per Default nach Ihrer Installation automatisch als Image gesichert.
+
+[[opsi-manual-localimage-proceedings-restore]]
+==== Restore eines Images
+
+Der einfache Aufruf des Produktes `opsi-local-image-restore` stellt automatisch das letzte erstellte Image wieder her. Soll ein anderes Image wieder hergestellt werden, so muß dies im Property `imagefile` angegeben werden.
+
+[[opsi-manual-localimage-proceedings-update]]
+==== Update eines Images
+
+Durch den Aufruf des Produktes `opsi-local-image-restore` mit der Propertyeinstellung `update_and_backup` = 'true' wird das angegebene Image restored, alle Anwendungssoftware upgedated (soweit Updates auf dem Server vorhanden) und anschließend automatisch wieder eine Sicherung durch geführt.
+
 
 [[opsi-manual-localimage-ubuntumirror]]
 === Erstellen eines eigenen Ubuntu Mirrors
+Eine brauchbare Anleitung zur Erstellung eines eigenen Ubuntu Mirrors finden Sie hier:
 
 http://wiki.ubuntuusers.de/apt-mirror
 
