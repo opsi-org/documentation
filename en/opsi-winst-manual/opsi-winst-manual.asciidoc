@@ -189,14 +189,24 @@ ID_SYSLOG_FACILITY_LOCAL7     = 23; // local use 7  (local7)
 ----
 
 [[opsi-winst-skins]]
-=== Skinnable opsi-winst
+=== Skinnable {opsi-winst}
 
-'{opsi-winst}' has an adaptable skin. Its elements are located in a subdirectory winstskin of the directory of the executed '{opsi-winst}'. The definition file which you may edit is skin.ini. 
+Since version 3.6 the '{opsi-winst}' GUI can be customized. The elements for customizing are to be found in the winstskin subdirectory of the '{opsi-winst}' directory. The configuration file for customization is skin.ini. 
 
-It will look for skins (more exactly: skin.ini) in the following sequence: +
-    1) by parameter +
-    2) new custom directory of opsi-client-agent `../custom/winstskin` +
-    3) own winstskin: `winstskin`  
+Since version 4.11.3.5 the 'opsi-winst' searches the skin directory in the following order (directory with the first skin.ini to be found wins):
+
+. `%WinstDir%\..\custom\winstskin`
+. `%WinstDir%\winstskin`
+
+With the Command `SetSkinDirectory` the SkinDirectory to be used can be defined in the script. If the path specified is empty or not valid, the default path will be used.
+
+Example:
+[source,winst]
+----
+SetSkinDirectory "%ScriptPath%\testskin"
+sleepseconds 1
+SetSkinDirectory ""
+----
 
 [[opsi-winst-script]]
 == The opsi-winst Skript
@@ -2600,6 +2610,180 @@ Such, finally line has value 'abcde' . If we omitted the citation marks around %
 
 Please note: The note variable is only valid in the directly called procedure. If it is needed in sub programs of it its value must be transferred to a global variable.
 
+[[opsi-winst-numbers]]
+=== Calculating with numbers
+
+'opsi-winst' scripts do not have a special type of varibles for numbers. But there are some functions to help calculating with numbers.
+
+* `calculate(`<str>`)` +
+this string function calculates the arithemtic expression of the string <str> and returns the rounded result as a string. +
+Internally the calculations are done with real numbers. This function acceptsthe operators `+`, `-`, `*`, `/` and round brackets `(`,`)`. +
+In case of an error, an empty string is returned and the error counter is incremented. If the passed string contains any characters other than numbers, valid operators and brackets, this results in an error. +
+If the second operand is missing, the first operand is also taken as the second operand and vice versa: 5+ = 10 ; 5* = 25. So the strings that are used to assemble the argument should be validated by the funktion `isNumber`. +
+(since version 4.11.3.5)
+
+Example:
+[source,winst]
+----
+set $ConstTest$ = "0"
+set $CompValue$ = calculate("-1+1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "1"
+set $CompValue$ = calculate("0+1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "-1"
+set $CompValue$ = calculate("0-1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "25"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "1"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "0"
+set $ConstTest$ = ""
+comment " expecting devision by zero error and empty string result"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "9"
+set $string2$ = "10"
+set $ConstTest$ = "1"
+comment "result 0.9 is rounded to 1 "
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "10"
+set $string2$ = "9"
+set $ConstTest$ = "1"
+comment "result 1.1111 is rounded to 1 "
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "55"
+comment " rule * before +"
+set $CompValue$ = calculate($string1$+"+"+$string2$+"*10")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "100"
+comment "brackets before  rule * before + "
+set $CompValue$ = calculate("("+$string1$+"+"+$string2$+")*10")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "ten"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = ""
+set $ConstTest$ = "25"
+comment "5* is interpreted as 5*5"
+set $CompValue$ = calculate($string1$+"*")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = ""
+set $ConstTest$ = "10"
+comment "5+ is interpreted as 5+5"
+set $CompValue$ = calculate($string1$+"+")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "nothing"
+set $string2$ = "foo"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "foo"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+For more examples refer to the product 'opsi-winst-test'
+at the section '$Flag_calculate$ = "on"'
+
+
 [[opsi-winst-special-commands]]
 === Special Commands
 
@@ -2648,6 +2832,27 @@ Example:
 [source,winst]
 ----
 includelog "%Scriptpath%\test-files\10lines.txt" "5"
+----
+
+* `SetConfidential` <secret string> +
+This is to prevent confidential information (like passwords) from being logged. In the logfile the confidential information will be replaced by '***(confidential)***'. +
+When the loglevel is set to '9', the confidential information will be logged. +
+(since version 4.11.3.5)
+
+Example:
+[source,winst]
+----
+message "SetConfidential"
+SetConfidential "forbidden"
+comment "This is a forbidden string"
+comment "shown in the should be in the log file: This is a ***(confidential)*** string"
+----
+Log:
+[source,winst]
+----
+message SetConfidential
+comment: This is a ***(secret)*** string
+comment: should be in the log file: This is a ***(confidential)*** string
 ----
 
 [[opsi-winst-commands-information]]
@@ -3695,9 +3900,9 @@ The text file which is to be treated is given as parameter.
 There are optional modifiers:
 
 * `/AllNTUserProfiles` +
-If a PatchTextFile section is called with this modifier, then all directories under `%UserProfileDir%` will be patched, which means that this PatchTextFile is performed for all user profiles. +
-When a 'PatchTextFile' is called within a `[ProfileActions]` section, then the modifier `/AllNTUserProfiles` is implicit. In logscript mode, `%UserProfileDir%` will be interpreted as `%CurrentProfileDir%`. +
-(Since Version 4.11.3.4)
+If a 'PatchTextFile' section is called with this modifier and the path of the file to be patched contains the constant `%UserProfileDir%`, the patch section will be executed for all the profiles. +
+For a 'PatchTextFile' section which is called from a `[ProfileActions]` section in the 'Machine' mode the modifier `/AllNTUserProfiles` is implied. In the 'Loginscript' Mode the `%UserProfileDir%` is interpreted as `%CurrentProfileDir%`. +
+(since version 4.11.3.5)
 
 
 [[opsi-winst-patchtextfile-commands]]
@@ -3807,17 +4012,18 @@ set_link
 end_link
 ----
 
-As can be seen in the example, in a LinkFolder section the first thing to set is the virtual system folder on which the following statements shall operate: +
-`set_basefolder` '<system folder>'
+In a 'LinkFolder' section first must be defined, in which virtual system folder the subsequent instructions are to operate. This expression defines the base folder: +
+`set_basefolder` '<virtual system folder>' 
 
-The predefined virtual system folders which can be used are: 
+Virtual system folders to be used are:
 
 'desktop, sendto, startmenu, startup, programs, desktopdirectory, common_startmenu, common_programs, common_startup, common_desktopdirectory'
 
-The predefined virtual system folders: +
-`desktop, sendto, startmenu, startup, programs, desktopdirectory` +
-are pointing to the folders of the user that the script is running.
-If you use it in a userLoginScript with the opsi 'User Profile Management' extension these virtual folders point to the folder of the user that just had logged in.
+These folders are virtual, for it depends on the operating system (and version), what the resulting physical directory name is.
+
+In the context of standard 'maschine' installations, only the virtual system folders starting with `common_` are relevant.
+
+The system folders 'desktop, sendto, startmenu, startup, programs, desktopdirectory' can only be used in the context of a logged on user respectively in a 'userLoginScript' in the context of the opsi extension 'user Profile Management'.
 
 The folders are 'virtual' since the operating system (resp. registry entries) determine the real places of them in the file system. 
 Second, we have to open a subfolder of the selected virtual folder: +
@@ -4236,6 +4442,32 @@ Should be combined with `/TimeOutSeconds`.
 
 Explanation: +
 When starting an external process from a winbatch call, the '{opsi-winst}' waits for the current process to finish before executing the next command in the script.
+
+*  `/32Bit` +
+This is the default. The paths within the section are assumed to be 32 bit pathes. +
+Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
+
+*  `/64Bit` +
+The paths within the section are assumed to be 64 bit paths. +
+Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
+
+*  `/SysNative` +
+The paths within the section are assigned according to the OS architecture interpretiert. +
+Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
+
+Example:
+[source,winst]
+----
+Winbatch_add_reg winst /64Bit
+[Winbatch_add_reg]
+"c:\windows\system32\regedit.exe" /s "%scriptpath%\my64.reg"
+----
+
+* `/RunAsLoggedonUser` //since 4.11.3.5 +
+This is available only in the context of 'userLoginScripts'. The program is executed as the user, who has just logged on.
+This modifier has the following limitation: +
+** insufficient tested on NT6 and possibly of limited effect.
+
 
 .Sequential processing of a script that waits for the end of a program
 image::../images/waitforprocess_scheme_std.png["waitforprocess_scheme_std",width=150]
@@ -4888,7 +5120,8 @@ execWith_hello "python" PASS -a "hello" -b "world" WINST /EscapeStrings
 The option '/EscapeStrings' is automatically used in an ExecPython section and means that backslashes in String variables and constants are duplicated before interpretation by the the called program. 
 
 
-==== Call Syntax
+[[opsi-winst-execwith-params]]
+==== Calling parameters (Modifier)
 
 In general, we have the call syntax:
 [source,winst]
@@ -4900,20 +5133,29 @@ Each of the expressions 'PROGRAM, PROGRAMPARAS, PASSPARAS, WINSTOPTS' may be an 
 
 The key words PASS and WINST may be missing if the respective parts do not exist.
 
-There are some '{opsi-winst}' options recognized:
+The following '{opsi-winst}'-options are available:
 
 * `/EscapeStrings`
 
 * `/LetThemGo`
 
-* `/32Bit` or `/64Bit` or `/SysNative`	 //since 4.11.3.5 +
-These modifiers control if the path to a called program is interpreted as 32 or 64 Bit Path. So if want for example call a `"%System%\WindowsPowerShell\v1.0\powershell.exe"` you call a 32 bit program by default. If you use the /64bit modifier you will get with the same call the 64 bit version.
+*  `/32Bit` +
+This is the default. The interpreter path is assumed to be a 32 bit path. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls (also when running on a 64 bit system) the 32 bit 'powershell.exe'.
+
+*  `/64Bit` +
+The interpreter path is assumed to be a 64 bit path. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls (on a 64 bit system) the 64 bit 'powershell.exe'.
+
+*  `/SysNative` +
+The given interpreter path is assigned accoring to the OS architecture. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls on a 64 bit system the 64 bit 'powershell.exe' and running on a 32bit system the 32 bit 'powershell.exe'.
 
 Like with ExecPython sections, the output of an ExecWith section may be captured into a String list via the function `getOutStreamFromSection`.
 
 The first one declares that the backslash in '{opsi-winst}' variables and constants is C-like escaped. The second one has the effect (as for 'winBatch' calls) that the called program starts its work in new thread while '{opsi-winst}' is continuing to interpret its script.
 
-If you call an ExecWith section with the interpreter 'powershell', then the content of the section will be stored in a temporary file with the extension `.ps1`. (Since Version 4.11.3.1)
+Since Version 4.11.3.5, if the interpreter path contains 'powershell.exe', the temporary file is saved with the extension `.ps1`. 
 
 [[opsi-winst-execwith-examples]]
 ==== More Examples
@@ -5166,6 +5408,12 @@ A LDAPsearch section comprises the specifications:
 * `targethost:` +
 The server hosting the LDAP directory (service) must be named.
 
+*  `user:` +
+user name to be applied. Since 4.11.3.5
+
+*  `password:` +
+user password to be applied. Since 4.11.3.5
+
 * `targetport:` +
 If the port of the LDAP service is not the default (389), it can be declared at this place. If the specification is missing, the default port is used.
 
@@ -5213,6 +5461,42 @@ typesOnly: false
 filter: (objectclass=*)
 attributes: opsiDescription
 ----
+
+Example with user / password
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+comment "user / password"
+Set $LdapHost$ = "vmix7.uib.local"
+Set $LdapPort$ = "389"
+Set $LdapUser$ = "cn=Administrator,cn=Users,dc=uib,dc=local"
+Set $LdapPassword$ = "Linux123"
+Set $LdapResultType$ = "objects"
+Set $LdapSearchDn$ = "cn=Users,dc=uib,dc=local"
+Set $LdapSearchAttributes$ = "name,objectClass"
+Set $LdapFilter$ = "(&(objectclass=*))"
+
+markErrorNumber
+set $list1$ = getReturnListFromSection("ldapsearch_users /" + $LdapResultType$)
+if errorsOccuredSinceMark > 0
+	comment "failed while ldapsearch"
+	set $TestResult$ = "not o.k."
+else
+	comment "passed"
+endif
+
+[ldapsearch_users]
+targethost: $LdapHost$
+targetport: $LdapPort$
+user: $LdapUser$
+password: $LdapPassword$
+dn: $LdapSearchDn$
+attributes: $LdapSearchAttributes$
+filter: $LdapFilter$
+----
+
 
 For further examples watch the product 'opsi-winst-test' and there especially 
 '$Flag_winst_ldap_search$ = "on"'
