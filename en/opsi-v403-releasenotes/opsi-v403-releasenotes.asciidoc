@@ -1,0 +1,972 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      25.02.2013
+:Revision:  4.0.3
+:doctype:		book
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+= opsi Version 4.0.3 Release Notes
+
+// Include common opsi copyright
+include::../common/opsi_manual_copyright.asciidoc[]
+
+[[opsi-403-releasenotes-overview]]
+== Overview of the new features
+
+The opsi Service Release 4.0.3 comes with a whole bunch of new features and improvements. Here comes a survey:
+
+* opsi extension: Install-on-shutdown
+
+* opsi feature: Silent-Install
+
+* Italian and Danish Localisation
+
+* Support for the following distributions:
+
+** UCS 3.1
+** Ubuntu 12.10
+
+The installation guide as usual is to be found in the 'opsi-getting-started' manual.
+
+* opsi-client-agent
+
+** extensively revised version
+** Open Source Release of opsi-Feature: Dynamic Depot Selection
+** opsi extension: Install-on-shutdown
+** opsi extension: Silent-Install
+** improved Customizing
+** Adaptions for Windows 8 Support
+** Revised session handling: better identification of user accounts.
+** Improvements for the WAN-Support
+** several fixes
+
+* opsi server components
+
+** Improvements of the DHCP-Backend
+** New HostControlSafe-Backend
+** Generating the Webservice-SSL-Certificate via opsi-setup
+
+* Windows Netboot products
+
+** Improvement of the byAudit procedure
+** Configurable WinPE partition size
+** New property data_partition_create : shall a data partition be created, if there is disk space availabl(true/false ; default: true).
+** UEFI support
+** Support for Softwareraid 1: new property 'useRaid1' handles 2 existing disks the same way.
+
+* opsi-winst: +
+A lot of new features, which are described in detail further down.
+
+[[opsi-403-releasenotes-python24_eol]]
+== Discontinuation of Python 2.4 support
+
+With this feature pack release the official support for Python 2.4 is discontinued. This regards the Python 2.4 distributions: Redhat 5 and Centos 5. The repositories concerned will be closed at the end of March 2013. The final packet versions will be available from the archive of download.uib.de. For opsi installations concerned we recommend to upgrade to the new distribution versions, which still are supported.
+
+[[opsi-403-releasenotes-installation]]
+== Installation
+
+The products contained within this Release in several parts are dependent from each other. So install the Release as a packet and don't try to install just some parts of it.
+
+The installation does not require any special procedures and can be done as part of the standard update of the server and the opsi products.
+
+As the first step you should create a server update and then install the opsi products. This is to be done with the opsi-product-updater:
+
+[source,prompt]
+----
+opsi-product-updater -i -vv
+----
+
+In case you have a multi depot installation, first upgrade the config server, then the depot servers..
+
+
+
+include::../common/opsi_manual_on_shutdown.asciidoc[]
+include::../common/opsi_manual_silentinstall.asciidoc[]
+
+
+[[opsi-manual-clientagent-ci-custom]]
+== Protect your CI changes from updates: the custom directory
+
+(available since opsi-client-agent version 4.0.2.3)
+
+The custom directory can be used to protect your configuration changes during opsi-client-agent updates: (`/opt/pcbin/install/opsi-client-agent/files/opsi/custom`). During server updates of opsi-client-agent the whole custom directory will be saved and restored after the update, so that your custom changes will persist.
+
+* `custom/cfg/config.ini` +
+Values from this config file override values from the default `cfg/config.ini`. Except of the values for `pckey` and `bootmode`, which never are picked from that file. Add to your custom config file *only* those values, that are different from the default settings.
+
+* `custom/winstskin/*.*` +
+All the files from this directory will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\custom\winstskin` directory during installation of the opsi-client-agent on the client. This `winstskin` directory, if it exists, since opsi-winst Version 4.11.3.4. is the preferred one. It must contain all required winstskin files and configurations, for the content of the default directory is ignored. 
+
+* `custom/notifier/*.*` +
+All the files from this directory will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\notifier` directory during installation of the opsi-client-agent and overwrite the files from the server side `files/opsi/dist/notifier/` directory. 
+
+* `custom/opsiclientd.conf` +
+If it exists, the `custom/opsiclientd.conf` will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd` directory during installation of the opsi-client-agent and overwrites the default opsiclientd.conf from the server side `files/opsi/dist/opsiclientd/` directory. So the custom opsiclientd.conf must contain *all* the required configuration entries. +
+*Attention:* +
+Using a custom `opsiclientd.conf` is not recommended. To customize your client configuration, use the host parameter configuration for single features as described in the opsi-client-agent chapter. Using a custom `opsiclientd.conf` is applicable for very complex configurations only. By using a custom `opsiclientd.conf`, after each update of opsi-client-agent it is required to check the server default file  `files/opsi/dist/opsiclientd/opsiclientd.conf` for changes to be patched to your custom `opsiclientd.conf`. +
+ *So: hands off this feature, unless you really know what you are doing!*
+ 
+
+[[opsi-403-releasenotes-driverintegration]]
+== Adaptions of the  driver integration method byAudit
+
+Some manufacturers use model identifier codes including special characters, which cannot be used in file and directory names. For instance a model identification : "5000/6000/7000". The slash cannot be used for valid directory names. Therefore since the third service release opsi 4.0.3 the following special characters: < > ? " : | \ / * internally will be replaced by an underscore '_' . So the example above will be changed to : "5000_6000_7000" and the directory will be assignedautomatically, although the information in the hardware inventory is different.
+
+[[opsi-manual-backends-hostcontrolsafe]]
+== HostControlSafe-Backend
+
+The default behaviour of opsi4.0 methods called without any parameter is, that it matches all existing objects. For instance the command "host_getObjects" without any parameters results in returning all existing host objects. Dieses This could be dangerous when using the HostControl-Backend. Especially with commands like: "hostControl_shutdown" and "hostControl_reboot". In these casses calling the method without any parameter would shutdown or reboot all the clients.
+
+Therefore with service release opsi 4.0.3 comes with two changes:
+
+* The methods: "hostControl_shutdown" and "hostControl_reboot" don't have the standard behaviour anymore and result in an error message when they are called without any parameter.
+* A new backend is introduced: HostControlSafe Backend, that results in an error message for all of the methods, if they are called without any client parameter. To explicitely address all of the clients by a HostControlSafe-Backend method, the wildcard * can be used:
+
+[source,prompt]
+----
+opsi-admin -d method hostControlSafe_shutdown *
+----
+
+So for the reasons mentioned above, we recommend to use the hostControlSafe methods at the console or especially with little experience in using the service methods.
+
+
+[[opsi-winst]]
+== opsi-winst 4.11.3.5
+
+[[opsi-winst-skins]]
+=== Skinnable {opsi-winst}
+
+Since version 3.6 the '{opsi-winst}' GUI can be customized. The elements for customizing are to be found in the winstskin subdirectory of the '{opsi-winst}' directory. The configuration file for customization is skin.ini. 
+
+Since version 4.11.3.5 the 'opsi-winst' searches the skin directory in the following order (directory with the first skin.ini to be found wins):
+
+. `%WinstDir%\..\custom\winstskin`
+. `%WinstDir%\winstskin`
+
+With the Command `SetSkinDirectory` the SkinDirectory to be used can be defined in the script. If the path specified is empty or not valid, the default path will be used.
+
+Example:
+[source,winst]
+----
+SetSkinDirectory "%ScriptPath%\testskin"
+sleepseconds 1
+SetSkinDirectory ""
+----
+
+[[opsi-winst-commands-logging]]
+=== Commands to control the logging
+
+(...)
+
+* `SetConfidential` <secret string> +
+This is to prevent confidential information (like passwords) from being logged. In the logfile the confidential information will be replaced by '***(confidential)***'. +
+When the loglevel is set to '9', the confidential information will be logged. +
+(since version 4.11.3.5)
+
+Example:
+[source,winst]
+----
+message "SetConfidential"
+SetConfidential "forbidden"
+comment "This is a forbidden string"
+comment "shown in the should be in the log file: This is a ***(confidential)*** string"
+----
+Log:
+[source,winst]
+----
+message SetConfidential
+comment: This is a ***(secret)*** string
+comment: should be in the log file: This is a ***(confidential)*** string
+----
+
+
+[[opsi-winst-numbers]]
+=== Calculating with numbers
+
+'opsi-winst' scripts do not have a special type of varibles for numbers. But there are some functions to help calculating with numbers.
+
+* `calculate(`<str>`)` +
+this string function calculates the arithemtic expression of the string <str> and returns the rounded result as a string. +
+Internally the calculations are done with real numbers. This function acceptsthe operators `+`, `-`, `*`, `/` and round brackets `(`,`)`. +
+In case of an error, an empty string is returned and the error counter is incremented. If the passed string contains any characters other than numbers, valid operators and brackets, this results in an error. +
+If the second operand is missing, the first operand is also taken as the second operand and vice versa: 5+ = 10 ; 5* = 25. So the strings that are used to assemble the argument should be validated by the funktion `isNumber`. +
+(since version 4.11.3.5)
+
+Example:
+[source,winst]
+----
+set $ConstTest$ = "0"
+set $CompValue$ = calculate("-1+1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "1"
+set $CompValue$ = calculate("0+1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "-1"
+set $CompValue$ = calculate("0-1")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "25"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "1"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "0"
+set $ConstTest$ = ""
+comment " expecting devision by zero error and empty string result"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "9"
+set $string2$ = "10"
+set $ConstTest$ = "1"
+comment "result 0.9 is rounded to 1 "
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "10"
+set $string2$ = "9"
+set $ConstTest$ = "1"
+comment "result 1.1111 is rounded to 1 "
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "55"
+comment " rule * before +"
+set $CompValue$ = calculate($string1$+"+"+$string2$+"*10")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "5"
+set $ConstTest$ = "100"
+comment "brackets before  rule * before + "
+set $CompValue$ = calculate("("+$string1$+"+"+$string2$+")*10")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "ten"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = ""
+set $ConstTest$ = "25"
+comment "5* is interpreted as 5*5"
+set $CompValue$ = calculate($string1$+"*")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = ""
+set $ConstTest$ = "10"
+comment "5+ is interpreted as 5+5"
+set $CompValue$ = calculate($string1$+"+")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "nothing"
+set $string2$ = "foo"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"*"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $string1$ = "5"
+set $string2$ = "foo"
+set $ConstTest$ = ""
+comment "invalid char error"
+set $CompValue$ = calculate($string1$+"/"+$string2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+For more examples refer to the product 'opsi-winst-test'
+at the section '$Flag_calculate$ = "on"'
+
+[[opsi-winst-patchtextfile]]
+=== PatchTextFile sections
+
+[[opsi-winst-patchtextfile-params]]
+==== Parameters
+
+The name of the file to be patched is passed as parameter.
+
+Optional modifiers are:
+
+* `/AllNTUserProfiles` +
+If a 'PatchTextFile' section is called with this modifier and the path of the file to be patched contains the constant `%UserProfileDir%`, the patch section will be executed for all the profiles. +
+For a 'PatchTextFile' section which is called from a `[ProfileActions]` section in the 'Machine' mode the modifier `/AllNTUserProfiles` is implied. In the 'Loginscript' Mode the `%UserProfileDir%` is interpreted as `%CurrentProfileDir%`. +
+(since version 4.11.3.5)
+
+
+[[opsi-winst-linkfolder]]
+=== LinkFolder sections
+
+(...)
+
+In a 'LinkFolder' section first must be defined, in which virtual system folder the subsequent instructions are to operate. This expression defines the base folder: +
+`set_basefolder` '<virtual system folder>' 
+
+Virtual system folders to be used are:
+
+'desktop, sendto, startmenu, startup, programs, desktopdirectory, common_startmenu, common_programs, common_startup, common_desktopdirectory'
+
+These folders are virtual, for it depends on the operating system (and version), what the resulting physical directory name is.
+
+In the context of standard 'maschine' installations, only the virtual system folders starting with `common_` are relevant.
+
+The system folders 'desktop, sendto, startmenu, startup, programs, desktopdirectory' can only be used in the context of a logged on user respectively in a 'userLoginScript' in the context of the opsi extension 'user Profile Management'.
+
+[[opsi-winst-execwith]]
+=== ExecWith sections
+
+[[opsi-winst-execwith-params]]
+==== Calling parameters (Modifier)
+
+(...)
+
+The following '{opsi-winst}'-options are available:
+
+*  `/32Bit` +
+This is the default. The interpreter path is assumed to be a 32 bit path. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls (also when running on a 64 bit system) the 32 bit 'powershell.exe'.
+
+*  `/64Bit` +
+The interpreter path is assumed to be a 64 bit path. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls (on a 64 bit system) the 64 bit 'powershell.exe'.
+
+*  `/SysNative` +
+The given interpreter path is assigned accoring to the OS architecture. +
+Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls on a 64 bit system the 64 bit 'powershell.exe' and running on a 32bit system the 32 bit 'powershell.exe'.
+
+Since Version 4.11.3.5, if the interpreter path contains 'powershell.exe', the temporary file is saved with the extension `.ps1`. 
+
+[[opsi-winst-winbatch]]
+=== WinBatch sections
+
+[[opsi-winst-winbatch-params]]
+==== Calling Parameters (Modifier)
+
+*  `/32Bit` +
+This is the default. The paths within the section are assumed to be 32 bit pathes. +
+Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
+
+*  `/64Bit` +
+The paths within the section are assumed to be 64 bit paths. +
+Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
+
+*  `/SysNative` +
+The paths within the section are assigned according to the OS architecture interpretiert. +
+Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
+
+Example:
+[source,winst]
+----
+Winbatch_add_reg winst /64Bit
+[Winbatch_add_reg]
+"c:\windows\system32\regedit.exe" /s "%scriptpath%\my64.reg"
+----
+
+* `/RunAsLoggedonUser` //since 4.11.3.5 +
+This is available only in the context of 'userLoginScripts'. The program is executed as the user, who has just logged on.
+This modifier has the following limitation: +
+** insufficient tested on NT6 and possibly of limited effect.
+
+[[opsi-winst-ldapsearch]]
+=== LDAPsearch section
+
+[[opsi-winst-ldapsearch-syntax]]
+==== LDAPsearch section syntax
+
+A LDAPsearch section has the following specifivations:
+
+(...)
+
+*  `user:` +
+user name to be applied. Since 4.11.3.5
+
+*  `password:` +
+user password to be applied. Since 4.11.3.5
+
+(...)
+
+[[opsi-winst-ldapsearch-examples]]
+==== Examples
+
+(...)
+
+Example with user / password
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+comment "user / password"
+Set $LdapHost$ = "vmix7.uib.local"
+Set $LdapPort$ = "389"
+Set $LdapUser$ = "cn=Administrator,cn=Users,dc=uib,dc=local"
+Set $LdapPassword$ = "Linux123"
+Set $LdapResultType$ = "objects"
+Set $LdapSearchDn$ = "cn=Users,dc=uib,dc=local"
+Set $LdapSearchAttributes$ = "name,objectClass"
+Set $LdapFilter$ = "(&(objectclass=*))"
+
+markErrorNumber
+set $list1$ = getReturnListFromSection("ldapsearch_users /" + $LdapResultType$)
+if errorsOccuredSinceMark > 0
+	comment "failed while ldapsearch"
+	set $TestResult$ = "not o.k."
+else
+	comment "passed"
+endif
+
+[ldapsearch_users]
+targethost: $LdapHost$
+targetport: $LdapPort$
+user: $LdapUser$
+password: $LdapPassword$
+dn: $LdapSearchDn$
+attributes: $LdapSearchAttributes$
+filter: $LdapFilter$
+----
+
+[[opsi-configed]]
+== opsi-configed 4.0.3.1
+
+[[opsi-manual-configuration-tools-opsi-configed-hostproperties]]
+=== Host parameter in the client and server configuration
+
+For a better overview the host parameters now are devided into functional groups. 
+The groups are displayed on the left side as a tree. The parameters and values of the selected group are displayed on the right side.
+
+.'{opsi-configed}': Tab host parameter (server and client configuration)
+image::../images/opsi-configed-hostparameters.png["{opsi-configed}: Tab host parameter (server and client configuration)", width=400]
+
+
+[[opsi-manual-configuration-tools-opsi-configed-logfiles]]
+=== Logfiles
+
+The level of log entries to be shown can be selected by a slider, so it is easier to find errors. The slider can also be moved using the mouse wheel.
+
+Logs referring to an event can be selected.
+
+'{opsi-configed}': Tab Logfiles
+image::../images/opsi-configed-logfiles.png["{opsi-configed}: Tab Logfiles", width=400]
+
+
+[[opsi-403-releasenotes-misc]]
+== Miscellaneous
+
+[[opsi-403-releasenotes-misc-externalReferences]]
+=== References to the opsi manual
+
+Some chapters of the Release Notes are also part of the 'opsi-manual' and refer to other chapters of the 'opsi-manual'. The chapters referred to are:
+
+[[opsi-manual-modules]]
+==== Activating licensed extension modules
+More information on activating licensed extension modules are to be found in the 'opsi-manual' in the repective chapter on extension modules.
+
+[[opsi-manual-clientagent-configuration-webservice]]
+==== Configuration by the webservice ({opsi-config-object})
+More information on configuring the web service are to be found in the 'opsi-manual' in the repective chapter on the client agend configuration. 
+
+[[opsi-403-releasenotes-misc-changelogs]]
+=== Changelogs:
+
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-winst]]
+==== Changelog opsi-winst
+
+opsi-winst (4.11.3.5) stable; urgency=low
+
+  * del / delete will not delete if the given Filename starts with '\' (eg. '\Dummy')
+  * danish localization added
+  * italien localization added
+  * extended LDAPSearch (username/password)
+  * fix: do not store isfatalerror in registry if nor running as admin
+  * execwith: winst (/32bit|/64bit|/sysnative) no allowed
+  * execwith: if 'powershell.exe' is part of the interpreter string the script extension is '.ps1'
+  * winbatch: /32bit|/64bit|/sysnative no allowed
+  * wilog: replace ' -->' by ' ==>' because the opsi web service get in trouble because it is interpreted as xml comment, fixes #350
+  * switch to Lazarus 1.0 / fpc 2.6.0
+  * wisynt: doAktionen, fileActionsMain: do ApplyTextConstants for filesections in fileActionsMain.
+      fixes wrong resolution of %CurrentProfileDir% in Files /AllNTuserProfiles
+  * wisynt: doLinkFolderActions: fix: now comments allowed between set_link and end_link
+  * wisynt: doLinkFolderActions: linkfolder section now  usable in userLoginScripts:
+      the predefined basfolders:
+      'desktop', 'sendto', 'startmenu', 'programs', 'startup', 'desktopdirectory'
+      are pointing to the loggedin user directories if called from userLoginScript
+  * wimain: ProcessNonZeroScript: fix: do not run update after setup if setup is failed, fixes #432
+  * fix: widatamodul: opsidata4.initproduct now boolean function: false = error
+  * new: new winst cli parameter '/productlist <productid>[,<productid>]* as sub parameter to /opsiservice
+    try to run the setup-scripts of the given products, change installation states, send log files
+  * new: string function calculate(<string expr>) ; calculates the mathematical expression and returns the result as string.
+    on error the result is a empty string and the errorcounter is increased
+  * new command 'setConfidential <confidential string>' ;
+       adds the given string to a list of strings which are replaced with '***(confidential)***' while logging
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  05 Dec 2012:15:00:00 +0200
+
+
+opsi-winst (4.11.3.4) stable; urgency=low
+
+  * new winbatch parameter /RunAsLoggedOnUser
+  * PatchTextFile sections may now called with  %userprofiledir% as part of the file name and /AllNTuserProfiles
+     so it will run on all profiles.
+     If running in Machine mode, the '/AllNTuserProfiles' is implizit in the [ProfileActions].
+     If running in LoginScript mode, the '%userprofiledir%' is the %CurrentProfileDir%.
+  * will now look for skins (more exactly: skin.ini) in the following sequence:
+    1) by parameter
+    2) new custom directory of opsi-client-agent ../custom/winstskin
+    3) own winstskin: winstskin
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  26 Oct 2012:15:00:00 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-winst-test]]
+==== Changelog opsi-winst-test
+
+opsi-winst-test (4.11.3.5-1) stable; urgency=low
+
+	* Test of Linkfolder in login.opsiscript
+	* Test of use of temporary loop constant in subsub call
+	* Test of calculate
+	* Test of 'no update script if setup is failed': new property: setfailed
+	* Test of SetConfidential
+	* Test of SetSkinDirectory
+	* Test of LDAPSearch (username/password)
+	* Test of execwith: winst (/32bit|/64bit|/sysnative)
+	* Test of winbatch: /32bit|/64bit|/sysnative
+	* Test of PatchTextFile /AllNTuserProfiles
+	
+-- detlef oertel <d.oertel@uib.de>  Wed,  16 Jan 2013 17:00:13 +0200
+
+opsi-winst-test (4.11.3.4-1) stable; urgency=low
+
+	* Test of Winbatch /RunAsLoggeedOnUser in login.ins
+	
+-- detlef oertel <d.oertel@uib.de>  Thu,  26 Oct 2012 17:00:13 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-jedit]]
+==== Changelog jedit
+
+jedit_5.0.0-3 stable; urgency=low
+
+   * opsi-winst.xml for version 4.11.3.5
+   * code cleanup
+
+-- detlef oertel <d.oertel@uib.de>  Fri, 15 Feb 2013 16:01:53 +0200
+
+jedit_5.0.0-2 stable; urgency=low
+
+   * jedit version with localization support
+
+-- rupert röder <r.roeder@uib.de>  Tue, 27 Nov 2012 16:01:53 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-adminutils]]
+==== Changelog opsi-adminutils
+
+opsi-adminutils (4.0.3.-1) stable; urgency=low
+
+  * change to 4.0.3
+
+-- detlef oertel <d.oertel@uib.de>  15 Feb 2013
+
+
+opsi-adminutils (4.0.2.1-5) stable; urgency=low
+
+  * correct parameters for configed.jnlp URL
+
+-- rupert roeder <r.roeder@uib.de>  10 Jan 2013
+
+opsi-adminutils (4.0.2.1-4) stable; urgency=low
+
+  * removed parameter from configed.jnlp URL
+  * removed opsi-configed version from control file
+
+-- detlef oertel <d.oertel@uib.de>  04 Jan 2013
+
+
+opsi-adminutils (4.0.2.1-3) stable; urgency=low
+
+  * regshot 1.8.3 (include 64-bit)
+  * added kitty
+
+-- detlef oertel <d.oertel@uib.de>  11 Oct 2012
+
+
+opsi-adminutils (4.0.2.1-2) stable; urgency=low
+  * swingx.jar
+  * configed.jar 4.0.2.5.4
+-- bardo wolf <b.wolf@uib.de>  04 Sep 2012
+
+
+opsi-adminutils (4.0.2.1-1) stable; urgency=low
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-template]]
+==== Changelog opsi-template
+
+opsi-template (4.0.3-1) stable; urgency=low
+
+	* default is now without property and 32 Bit
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 27 Sep 2012 16:01:53 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-windows-netboot]]
+==== Changelog windows netboot products
+
+windows (4.0.3-1) stable; urgency=low
+
+  * do not copy winpe uefi boot files if not in uefi mode
+  * code cleanup
+  * new property winpe_partition_size
+  * showdrivers.py:
+      - Option -V for version output added.
+      - byAudit: Translating model and vendor from hwinvent: characters <>?":|\/* will be translated to _
+
+-- uib GmbH <info@uib.de>  Thu, 14 Feb 2013 15:19:15 +0000
+
+windows (4.0.2-2) experimental; urgency=low
+
+  * new property data_partition_create
+  * detect if we are on uefi
+  * if we are on uefi use gpt partitions
+  * win8 (NT 6.2) support
+  * new property use_raid1
+
+-- uib GmbH <info@uib.de>  Mon, 27 Aug 2012 15:19:15 +0000
+
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-client-agent]]
+==== Changelog opsi-client-agent
+
+opsi-client-agent (4.0.2.3-1) testing; urgency=low
+
+  * opsiclientd.conf:
+    - added new silent_install event
+    - added new time event for silent_install
+  * fix search algorithm for finding usersessions
+  * fixed setting userrights for local opsi-winst
+  * added new service-method for cleaning cache (WAN-Support)
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 14 Nov 2012 09:00:00 +0100
+
+opsi-client-agent (4.0.2.3-2) testing; urgency=low
+
+  * opsiclientd.conf:
+    - [event_on_shutdown{installation_pending}]active=False
+  * opsiclientd:
+    - v4.0.1.75
+    - new state installation_pending for future use (event_on_shutdown)
+  * new product property: on_shutdown_active (true/false)
+  * new updatescript, which installs shutdown files if on_shutdown_active=true
+
+ -- Miriam Michaelis <m.michaelis@uib.de>  Wed, 05 Dec 2012 13:00:00 +0100
+
+opsi-client-agent (4.0.2.3-1) testing; urgency=low
+
+  * opsiclientd:
+    - fix for user_cancelable = 0
+    - fix for getSessioninformation
+    - updated sessionhelper in utilities
+    - added /usercontext parameter for user-login events. This option gives now opsi-winst the username.
+    - fix for User-Login-Events on Windows 8: Do not fire event, if the Window Management Service is logged on.
+  * new custom directory
+    - is saved in preinst and restored in postinst
+    - cfg/config.ini values will be overwritten by values from custom/config.ini (execption: pckey , bootmode) fixes #333
+    - it is a good idea to delete all not used key from a custom/config.ini
+    - files at the depot in custom\winstskin\*.* will be copied to custom\winstskin\ at the client and will be used by opsi-winst since version
+    - files at the depot  in custom\notifier\*.* will be overwrite the files at the clients notifier directory
+    - a existing file at the depot: custom\opsiclientd.conf will overwrite the opsiconfd.conf files at the clients opsiclientd directory, which comes from the 'dist' directory
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 14 Nov 2012 09:00:00 +0100
+
+[[opsi-403-releasenotes-misc-changelogs-python-opsi]]
+==== Changelog python-opsi
+
+python-opsi (4.0.3.1-1) testing; urgency=low
+
+  * dhcp-backend: ddns-rev-domainname added to list where the values are written in double quotas
+  * System: opsi-setup --init-current-config gives an warning instead of error, when vendor not found for network device
+  * Posix:
+    - saveImage returns the result from partclone if run was successfull.
+    - readPartitionTable: Try to find out the right filesystem with blkid tool.
+    - createPartition: allows linux as filesystem-type and produces partition with id 83
+  * WindowsDriver: byAudit: Translating model and vendor from hwinvent: characters <>?":|\/* will be translated to _
+  * python-opsi locale: danish added
+  * compareVersion: fixed handling with versions from custom packages.
+  * global.conf: fixed hostname entries
+  * fixed resource directory listing for custom packages /repository
+  * fix for ubuntu 12.10
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 05 Feb 2013 17:40:23 +0100
+
+python-opsi (4.0.2.6-1) testing; urgency=low
+
+  * Posix: getBlockDeviceControllerInfo():
+    - if no devices attached on a AHCI-Controller (maybe a lshw or a kernel bug)
+      try to find AHCI-Controller, if found try return the first found AHCI Controller
+      for textmode-driverintegration (only for nt5)
+  * Posix: modifications for newer ms-sys version
+  * rpm-spec-file: noreplace option for dispatch.conf.default in files-section
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 07 Nov 2012 17:34:13 +0100
+
+python-opsi (4.0.2.5-1) testing; urgency=low
+
+  * fix in hwinvent procedure, don't crash if lshw don't work properly
+  * fix for resizeNTFSPartition if blockAlignmnet is used (ntfs-restore-image)
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 02 Nov 2012 15:00:34 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-opsipxeconfd]]
+==== Changelog opsipxeconfd
+
+opsipxeconfd (4.0.3.1-1) stable; urgency=low
+
+  * featurepack-release 4.0.3
+  * this version is stable, because no changes were made, only version modified for new featurepack-release
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 14 Feb 2013 17:57:02 +0100
+
+[[opsi-403-releasenotes-misc-changelogs-opsiconfd]]
+==== Changelog opsiconfd
+
+opsiconfd (4.0.3.1-1) testing; urgency=low
+
+  * ressource: webstart jnlp build fixed for arguments.
+  * added monitoring debug switch in opsiconfd.conf
+  * fixed init-Script for using global.conf
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 05 Jan 2013 13:15:56 +0100
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-utils]]
+==== Changelog opsi-utils
+
+opsi-utils (4.0.3.1-1) testing; urgency=low
+
+  * opsi-product-updater: Added Blank line between header and message-body to fix empty body mails on exchange environment.
+  * opsi-product-updater: fix for handling with custom products.
+  * opsi-admin: added new HostControlSafeBackend in BackendManager initialization.
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 12 Feb 2013 12:42:44 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-linux-bootimage]]
+==== Changelog opsi-linux-bootimage
+
+opsi-linux-bootimage (20130207-1) testing; urgency=low
+
+  * added bc
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 01 Feb 2013 12:34:59 +0100
+
+opsi-linux-bootimage (20130117-1) experimental; urgency=low
+
+  * downgrade:
+      ms-sys: 2.1.2
+      kernel 3.6.11
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 17 Jan 2013 16:25:11 +0100
+
+opsi-linux-bootimage (20130111-1) experimental; urgency=low
+
+  * python-opsi 4.0.2.7-1
+  * locale: danish and italian localisation added
+  * kernel 3.7.1
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 11 Jan 2013 11:48:23 +0100
+
+opsi-linux-bootimage (20121107-1) experimental; urgency=low
+
+  * new ms-sys-version: 2.2.1
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 07 Nov 2012 17:51:31 +0100
+
+opsi-linux-bootimage (20121105-1) experimental; urgency=low
+
+  * python-opsi 4.0.2.6-1
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 05 Nov 2012 17:36:27 +0100
+
+opsi-linux-bootimage (20121102-1) experimental; urgency=low
+
+  * kernel 3.6.5
+  * python-opsi 4.0.2.5-1
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Fri, 02 Nov 2012 15:11:43 +0100
+ 
+opsi-linux-bootimage (20121024-1) unstable; urgency=low
+
+  * kernel 3.6.3
+  * python-opsi 4.0.2.5-1
+  * added packages: cloop, cloop-utils, dmraid, rsync, partclone-utils, nbd-client, genisoimage
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Wed, 24 Oct 2012 12:57:00 +0200
+
+opsi-linux-bootimage (20121011-1) experimental; urgency=low
+
+  * kernel 3.6.1
+  * python-opsi 4.0.2.4-1
+  * Missing firmware from Broadcom-Chipsets added
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Thu, 11 Oct 2012 00:45:26 +0200
+
+[[opsi-403-releasenotes-misc-changelogs-opsi-depotserver]]
+==== Changelog opsi-depotserver
+
+opsi-depotserver (4.0.3.1-1) testing; urgency=low
+
+  * opsi-setup: added renew-opsiconfd-cert task
+  * opsi-setup: added special files in set rights to add execute bit for these files in depot
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Mon, 28 Jan 2013 17:34:42 +0100
+
+[[opsi-403-releasenotes-misc-changelogs-opsi4ucs]]
+==== Changelog opsi4ucs
+
+opsi4ucs (4.0.3.1-1) testing; urgency=low
+
+  * join script: execute /usr/lib/univention-pam/ldap-group-to-file.py to resync the groups  (for ucs 3.1 support)
+  * opsi-setup: set executebit for special opsi files in depot
+
+ -- Erol Ueluekmen <e.ueluekmen@uib.de>  Tue, 05 Feb 2013 11:07:47 +0100
+
+ 
+[[opsi-403-releasenotes-opsi-configed]]
+==== Changelog opsi-configed
+
+opsi-configed (4.0.3.1-1) testing; urgency=low
+
+  * host config editing grouped by a tree
+  * last change column for products now possible
+  * the configed log files are now placed in the user home directory in a folder .configed
+  * log panes now allow selection of displayed levels
+  * log panes allow selection of event type if a log file has lines with event
+  type specification
+  * improved search handling in log panes
+  * log panes, software and hardware audit panes can be copied into separated frames
+  
+ -- Rupert Roeder <r.roeder@uib.de>  Fri, 25 Jan 2013 12:00:00 +0200
+
+ 
+  * search function for windows software panel
+  * reset client selection when returning from server or depot editing
+  * bugfix in mac address editing
+  * configed checks if read only version is requested and, if wanted, produces it
+
+ -- Rupert Roeder <r.roeder@uib.de>  Mon, 03 Dec 2012 12:00:00 +0200
+
+ 
+opsi-configed (4.0.2.10-1) testing;  urgency=low
+
+  * new logging format, included time check for service calls
+
+ -- Rupert Roeder <r.roeder@uib.de>  Fri, 02 Nov 2012 12:00:00 +0200
+
+ 
+ opsi-configed (4.0.2.8-1) testing;  urgency=low
+
+  * check of transgression of activated client numbers
+  * read only option 
+
+ -- Rupert Roeder <r.roeder@uib.de>  Mon, 22 Oct 2012 12:00:00 +0200
+
+opsi-configed (4.0.2.7-1) testing;  urgency=low
+
+  * reopening a saved search
+
+ -- Rupert Roeder <r.roeder@uib.de>  Mon, 15 Oct 2012 12:00:00 +0200
+
+opsi-configed (4.0.2.7-1) testing;  urgency=low
+
+  * more caching and less reloading actions
+
+ -- Rupert Roeder <r.roeder@uib.de>  Mon, 15 Oct 2012 12:00:00 +0200
+ 
+
