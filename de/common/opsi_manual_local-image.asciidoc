@@ -87,7 +87,7 @@ Der Schulungsrechner wird mit einer statischen Partitionstabelle verwendet:
 
 * Partition 1 (System) +
 Hier findet sich das aktuell verwendete Betriebssystem (Windows / Linux) +
-Die Größe dieser Partition wird bei der Partitionierung über das Produkt `opsi-local-image-repartition` über ein Property gesteuert.
+Die Größe dieser Partition wird bei der Partitionierung über das Produkt `opsi-local-image-prepare` über ein Property gesteuert.
 
 * Partition 2 (winpe / swap) +
 Die Größe dieser Partition ist statisch auf 4GB festgelegt. +
@@ -109,7 +109,7 @@ Das Paket 'opsi-local-image' besteht aus mehreren Komponenten:
 
 Den Netbootprodukten
 
-* `opsi-local-image-repartition`
+* `opsi-local-image-prepare`
 * `opsi-local-image-winxp`
 * `opsi-local-image-win7`
 * `opsi-local-image-win7-x64`
@@ -127,12 +127,15 @@ Dem Lokalbootprodukt:
 Einer Erweiterung der opsi Service Methoden.
 
 [[opsi-manual-localimage-components-part]]
-==== Netboot Produkte zur Partitionierung
+==== Netboot Produkt zur Partitionierung
  
-* `opsi-local-image-repartition` +
+* `opsi-local-image-prepare` +
 Erstellung der statischen Partitionierung der Festplatte für alle anderen Produkte. +
 Über das Property `system_partition_size` wird die Größe der Partition 1 angegeben (Default = 30G) +
+Über das Property `start_os_installation` kann ein Produkt zur Installation eines Betriebssystems ausgewählt werden welches im Anschluß an die Partitionierung automatisch gestartet wird.
 Bei der Installation dieses Produkts werden beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list' gelöscht, da durch die Neupartitionierung diese Daten ungültig geworden sind.
+
+IMPORTANT: Verwenden Sie dieses Produkt nur zur initialen Vorbereitung der Platte. Es löscht alle gespeicherten Images.
 
 [[opsi-manual-localimage-components-win]]
 ==== Netboot Produkte zur Installation von Windows
@@ -198,9 +201,11 @@ Name des Images welches restored werden soll. Der wert dieses Properties wird au
 ** `imagefiles_list` +
 Liste der verfügbaren Images. Wird duch das Backup Produkt gepflegt.
 ** `method` +
-Methode des Imagerestores. Mögliche Methoden sind `partclone-image-restore` und `rsync-partclone-image`. Der default ist `partclone-image-restore`. Die Methode `rsync-partclone-image` ist nur möglich wenn sich auf der Partition 1 das Betriebsystem befindet, von dem das bei `imagefile` angegebene Image erstellt wurde. D.h. mit dieser Methode können kleine Änderungen rückgängig gemacht werden aber es kann kein Wechsel zwischen Betriebssystemen durchgeführt werden.
+Methode des Imagerestores. Mögliche Methoden sind `partclone-image-restore` und `rsync-partclone-image`. Der default ist `rsync-partclone-image`. Die Methode `rsync-partclone-image` ist nur möglich wenn sich auf der Partition 1 das Betriebsystem befindet, von dem das bei `imagefile` angegebene Image erstellt wurde. D.h. mit dieser Methode können kleine Änderungen rückgängig gemacht werden aber es kann kein Wechsel zwischen Betriebssystemen durchgeführt werden. Die Methode `rsync-partclone-image` führt eine vollständige Imagekopie durch.
 ** `update_and_backup` +
 ('true'/'false') Default = 'false'. Bei 'true' wird nach dem restore dafür gesorgt das alle Localboot Produkte die auf dem Server im einer abweichenden Version vorhanden sind auf Setup gestellt werden und das Produkt `opsi-local-image-backup-starter` auf `once` gesetzt wird. Dies führt dazu, das alle Vorhandenen Update eingespielt und nach den Updates automatisch wieder eine Sicherung durchgeführt wird.
+** `setup_after_restore` +
+Hier kann ein oder mehrere opsi-Produkte angegeben werden, welche nach dem Abschluß des Restores auf 'setup' gesetzt werden und somit nach dem Reboot automatisch ausgeführt werden. Der Default ist das Produkt 'windomain' zur erneuten Aufnahme des restorten Clients in die Windows Domain.
 
 * `opsi-local-image-delete` +
 Diese Produkt löscht das im Produktproperty 'imagefile' angegebene Image von der Backup Partition +
@@ -228,18 +233,20 @@ so führt dies zu folgendem Ablauf:
 
 Im Rahmen dieser Erweiterung können die Rechner eines Schulungsraums in einer opsi-client Gruppe zusammengefasst werden. Um möglichst komfortable Aktionen für alle Rechner eines Schulungsraums auszulösen sind folgende Erweiterungen der opsi-service Methoden vorgesehen:
 
-* `setProductActionRequest4Group` +
-Parameter: `productId actionRequest groupId` +
+* `setProductActionRequestForHostGroup` +
+Parameter: `hostGroupId, productId, actionRequest` +
 Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums) eine bestimmte Aktion zu starten (z.B. Retstore des Images).
 
-* `setProductProperty4Group` +
-Parameter: `productId propertyId propertyValue groupId` +
+* `setProductPropertyForHostGroup` +
+Parameter: `productId propertyId propertyValue hostGroupId` +
 Ermöglicht für alle Mitglieder einer Gruppe (z.B. Rechner eines Schulungsraums) für ein betimmtes Produkt einen Propertywert zusetzen (z.B. welches Image restored werden soll).
 
-* `getPossibleImagefileValuse4group` +
+* `getPossibleImagefileValuesForHostGroup` +
 Parameter: `groupId` +
 Liefert die Liste der Imagefile Namen welche das `opsi-local-image-backup` auf allen Mitgliedern der Gruppe angelegt hat. Wenn ein bestimmtes Image (z.B. `opsi-local-image-winxp`) auf einem oder mehreren Rechnern nicht vorhanden ist, so ist es nicht Bestandteil der Rückgabeliste.
 
+Diese Methoden werden zu einem späteren Zeitpunkt in die Standardpakete von opsi integriert. Bisdahin steht Ihnen in der Auslieferung eine Datei `40_groupActions.conf` zur Verfügung die Sie bitte mit 'root' Rechten nach `/etc/opsi/backendManager/extend.d` kopieren. Führen Sie danach aus: 
+`opsi-setup --set-rights /etc/opsi`.
 
 [[opsi-manual-localimage-proceedings]]
 === Abläufe
@@ -247,7 +254,7 @@ Liefert die Liste der Imagefile Namen welche das `opsi-local-image-backup` auf a
 [[opsi-manual-localimage-proceedings-initial]]
 ==== Initiale Installation
 
-Über das Produkt `opsi-local-image-repartition` wird zunächst die notwendige statische Partitionierung erzeugt.
+Über das Produkt `opsi-local-image-prepare` wird zunächst die notwendige statische Partitionierung erzeugt.
 
 Anschließend können über die Produkte `opsi-local-image-winxp`, `opsi-local-image-win7`, `opsi-local-image-win7-x64`und `opsi-local-image-ubuntu32` verschiedene Betriebssysteme mit unterschiedlicher Ausstattung an Anwendungssoftware installiert werden. Diese werden per default nach Ihrer Installation automatisch als Image gesichert.
 
@@ -273,6 +280,7 @@ Durch den Aufruf des Produktes `opsi-local-image-delete` wird das im Property `i
 
 Die Backuppartion ist die dritte Partition der 1. Festplatte. +
 Dort finden sich:
+
 * Die Datei `master.log` mit Informationen über alle durchgeführten Image Operationen. Diese Logdatei wird in die bootimage logs übernommen.
 * Die Image Verzeichnisse +
 Die Imageverzeichnisse haben den selben Namen wie das Image und enthalten neben dem Image noch die Metadaten den Images. +
