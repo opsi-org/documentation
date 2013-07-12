@@ -25,7 +25,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 opsi-winst / opsi-script Handbuch (4.11.4)
-==============================
+==========================================
 
 
 
@@ -59,7 +59,7 @@ Dateien (z.B. DLLs) können beim Kopieren auf ihre interne Version überprüft w
 [[opsi-winst-linux-intro]]
 === Einführung
 
-Seit Version 4.11.4 steht der 'opsi-winst' unter dem Namen 'opsi-script' auch unter Windows zur Verfügung.
+Seit Version 4.11.4 steht der 'opsi-winst' unter dem Namen 'opsi-script' auch unter Linux zur Verfügung.
 
 Bedingt durch den Fortgang der Portierung und durch die Unterschiede der Betriebssysteme stehen bestimmte Funktionalitäten nicht unter beiden Betriebssystemen zur Verfügung. Im folgenden sind entsprechende Abschnitte markiert:
 
@@ -93,14 +93,80 @@ Ausgeführt als user: `/tmp`
 `/usr/share/opsi-client-agent/opsi-script/languages`
 
 * Skin files: +
-Default = '/usr/share/opsi-client-agent/opsi-script/skin' +
-Custom = '/usr/share/opsi-client-agent/opsi-script/customskin'
+Default = `/usr/share/opsi-client-agent/opsi-script/skin` +
+Custom = `/usr/share/opsi-client-agent/opsi-script/customskin`
 
 * Config files: +
 `/etc/opsi-client-agent`
 
 * Varibale files: +
 `/var/lib/opsi-client-agent/opsi-script`
+
+[[opsi-winst-linux-pathhandling]]
+=== Verwendung von Pfaden in opsiscript
+
+Seit Version 4.11.4 wird bei allen Funktionen welche einen Pfad erwarten, intern eine Funktion aufgerufen welchen den übergebenen String in einen für das Betriebssystem gültigen Pfad wandeln. Es werden also alle Pfadtrennzeichen korrekt gesetzt. So wird z.B. aus dem Pfad `/home/opsiproduct\myproduct\CLIENT_DATA` unter Linux `/home/opsiproduct/myproduct/CLIENT_DATA`. Dies bedeutet auch, dass unter Linux keine Dateien angelegt oder verarbeitet werden können welche einen Backslash im Namen haben.
+
+[[opsi-winst-linux-functions]]
+=== Linuxspezifische Funktionen
+
+Zur Unterstützung von Linux gibt es folgende Linuxspezifische Funktionen:
+
+* `GetOS`  // 'Linux' or 'Windows_NT'   [W/L]
+
+* `getLinuxDistroType`  // 'debian' or 'redhat' or 'suse' [L]
+
+* `getLinuxVersionMap` [L]
+
+
+[[opsi-winst-linux-examples]]
+=== Beispiel Scripte für Linux
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4"
+
+DefVar $OS$
+DefVar $distro_type$
+
+DefStringlist $list$
+
+
+set $OS$ = GetOS
+ 
+if not ($OS$ = "Linux")
+	logError "Installation aborted: wrong OS version: only Linux alowed"
+	isFatalError "wrong OS"
+endif
+
+set $distro_type$ = getLinuxDistroType
+set $list$ = getLinuxVersionMap
+
+comment "install openssl ...."
+if $distro_type$ = "redhat"
+	ShellInAnIcon_install_ssl_98_redhat
+else
+	if $distro_type$ = "suse"
+		ShellInAnIcon_install_ssl_98_suse
+	else
+		if $distro_type$ = "debian"
+			ShellInAnIcon_install_ssl_98_debian
+		else
+			LogError "Unknown distro type"
+		endif
+	endif
+endif
+
+[ShellInAnIcon_install_ssl_98_debian]
+apt-get --yes install libssl0.9.8
+
+[ShellInAnIcon_install_ssl_98_redhat]
+yum install openssl098e
+
+[ShellInAnIcon_install_ssl_98_suse]
+zypper --non-interactive install libopenssl0_9_8
+----
 
 [[opsi-winst-cliparams]]
 == Start und Aufrufparameter

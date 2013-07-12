@@ -25,7 +25,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 opsi-winst / opsi-script Manual (4.11.4)
-============================
+========================================
 
 // Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
@@ -34,13 +34,13 @@ include::../common/opsi_manual_copyright.asciidoc[]
 [[opsi-winst-introduction]]
 == Introduction
 
-The open source program '{opsi-winst}' serves in the context of opsi – open pc server integration (cf. www.opsi.org) – as the central function for initiating and performing the automatic software installation. It may also be used stand alone as a tool for setup programs for any piece of software. 
+The open source program '{opsi-winst}/opsi-script' serves in the context of opsi – open pc server integration (cf. www.opsi.org) – as the central function for initiating and performing the automatic software installation. It may also be used stand alone as a tool for setup programs for any piece of software. 
 
-'{opsi-winst}' is basically an interpreter for a specific, rather simple script language which can be used to express all relevant elements of a software installation. 
+'{opsi-winst}/opsi-script' is basically an interpreter for a specific, rather simple script language which can be used to express all relevant elements of a software installation. 
 
-A software installation that is described by a '{opsi-winst}' script and performed by executing the script has several advantages compared with installations that are managed by a bunch of shell commands (e. g. copy etc.):
+A software installation that is described by a '{opsi-winst}/opsi-script' script and performed by executing the script has several advantages compared with installations that are managed by a bunch of shell commands (e. g. copy etc.):
 
-* '{opsi-winst}' offers to log very thoroughly all operations of the installation process. The support team can check the log files, and can easily detect when errors occurred or other problematic circumstances are evolving.
+* '{opsi-winst}/opsi-script' offers to log very thoroughly all operations of the installation process. The support team can check the log files, and can easily detect when errors occurred or other problematic circumstances are evolving.
 
 * Copy actions can be configured with a great variety of options if existing files shall be overwritten
 
@@ -55,14 +55,130 @@ A software installation that is described by a '{opsi-winst}' script and perform
 
 * There is a sophisticated syntax for an integrated patching of XML configuration files.
 
+[[opsi-winst-linux]]
+== Using 'opsi-script' on Linux
+
+[[opsi-winst-linux-intro]]
+=== Introduction
+
+
+Since version 4.11.4 there is a Linux port of 'opsi-winst' with the name 'opsi-script'.
+
+According to the progess of porting and the differences between Linux and Windows not all functionalities are existing for both operating systems.
+
+In the following section the availability is marked as:
+
+* [W/L] may be used on Windows and on Linux as well
+
+* [W] Windows only
+
+* [L] Linux only
+
+[[opsi-winst-linux-importantdiff]]
+=== Important differences and hints
+
+'opsi-script' is at the moment a GUI application which needs a running and accessable X Windows. A command line version 'opsi-script-nogui' which can run without any GUI is under development.
+
+At Linux the parameter delimiter is not "/" but "-". So instead of calling `opsi-winst /help` you should call `opsi-script -help` at Linux.
+
+[[opsi-winst-linux-path]]
+=== opsi-script path
+
+According to the Linux Filesystem Hierachie Standard the files that belong to 'opsi-script' are not at one place but distributed around the system. So here an overview where to find which part:
+
+* executable program: `/usr/bin/opsi-script`
+
+* log files: +
+if running with root privileges: `/var/log/opsi-agent/opsi-script` +
+if not running with root privileges: `/tmp`
+
+* language files: +
+`/usr/share/opsi-client-agent/opsi-script/languages`
+
+* skin files: +
+default = `/usr/share/opsi-client-agent/opsi-script/skin` +
+custom = `/usr/share/opsi-client-agent/opsi-script/customskin`
+
+* config files: +
+`/etc/opsi-client-agent`
+
+* varibale files: +
+`/var/lib/opsi-client-agent/opsi-script`
+
+[[opsi-winst-linux-pathhandling]]
+=== Path handling in opsi-script
+
+Since version 4.11.4 at all functions that expect a path as argument, the path string is converted to a valid path for the actual operating system. This means that all path delimiter will be set OS specific. For example a path string like `/home/opsiproduct\myproduct\CLIENT_DATA` will be on Linux converted to `/home/opsiproduct/myproduct/CLIENT_DATA`. Therefore it is not possible to handle files that have a backslash in their name.
+
+[[opsi-winst-linux-functions]]
+=== Linux specific functions
+
+For Linux support there are the following special functions:
+
+* `GetOS`  // 'Linux' or 'Windows_NT'   [W/L]
+
+* `getLinuxDistroType`  // 'debian' or 'redhat' or 'suse' [L] 
+
+* `getLinuxVersionMap` [L]
+
+
+[[opsi-winst-linux-examples]]
+=== Example script for Linux
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4"
+
+DefVar $OS$
+DefVar $distro_type$
+
+DefStringlist $list$
+
+
+set $OS$ = GetOS
+ 
+if not ($OS$ = "Linux")
+	logError "Installation aborted: wrong OS version: only Linux alowed"
+	isFatalError "wrong OS"
+endif
+
+set $distro_type$ = getLinuxDistroType
+set $list$ = getLinuxVersionMap
+
+comment "install openssl ...."
+if $distro_type$ = "redhat"
+	ShellInAnIcon_install_ssl_98_redhat
+else
+	if $distro_type$ = "suse"
+		ShellInAnIcon_install_ssl_98_suse
+	else
+		if $distro_type$ = "debian"
+			ShellInAnIcon_install_ssl_98_debian
+		else
+			LogError "Unknown distro type"
+		endif
+	endif
+endif
+
+[ShellInAnIcon_install_ssl_98_debian]
+apt-get --yes install libssl0.9.8
+
+[ShellInAnIcon_install_ssl_98_redhat]
+yum install openssl098e
+
+[ShellInAnIcon_install_ssl_98_suse]
+zypper --non-interactive install libopenssl0_9_8
+----
+
 
 [[opsi-winst-cliparams]]
 == Start and Command Line Options
 
-Since version 4.11.3, the '{opsi-winst}' program contains a manifest with the statement: +
-`<requestedExecutionLevel level="highestAvailable" />`. This means that if '{opsi-winst}' is called on an NT6 OS by an Administrator, then it will run as an 'elevated' process. If '{opsi-winst}' is called with normal user privileges, then it will run with the privileges of this user.
+Since version 4.11.3, the '{opsi-winst}/opsi-script' program contains a manifest with the statement: +
+`<requestedExecutionLevel level="highestAvailable" />`. This means that if '{opsi-winst}/opsi-script' is called on an NT6 OS by an Administrator, then it will run as an 'elevated' process. If '{opsi-winst}/opsi-script' is called with normal user privileges, then it will run with the privileges of this user.
 
-'{opsi-winst}' can be started with different sets of parameters depending on context and purpose of use. 
+'{opsi-winst}/opsi-script' can be started with different sets of parameters depending on context and purpose of use. 
 
 There are the following syntactical schemata:
 
@@ -86,7 +202,7 @@ There are the following syntactical schemata:
       [`/usercontext` <[domain\]user name> ] +
       [`/parameter` <parameter string>] +
 
-4) Read the PC configuration from the opsi service and act accordingly, since '{opsi-winst}' 4.11.2
+4) Read the PC configuration from the opsi service and act accordingly, since '{opsi-winst}/opsi-script' 4.11.2
 
 `opsi-winst /opsiservice` <opsiserviceurl> +
      `/clientid` <clientname> +
@@ -102,12 +218,12 @@ Some explanations:
 
 * Default name of the log file is `c:\tmp\instlog.txt`
 
-* The parameter string, which is marked by the option `/parameter`, is accessible for every called '{opsi-winst}' script (via the string function `ParamStr`).
+* The parameter string, which is marked by the option `/parameter`, is accessible for every called '{opsi-winst}/opsi-script' script (via the string function `ParamStr`).
 
 
 Explanations to (2) and (3) :
 
-* If option `/batch` is used, then '{opsi-winst}' shows only its "batch surface" offering no user dialogs. By option `/silent` event the batch surface is suppressed. Without using option `/batch` we get into the interactive mode where script file and log file can be chosen interactively (mainly for testing purposes). 
+* If option `/batch` is used, then '{opsi-winst}/opsi-script' shows only its "batch surface" offering no user dialogs. By option `/silent` event the batch surface is suppressed. Without using option `/batch` we get into the interactive mode where script file and log file can be chosen interactively (mainly for testing purposes). 
 
 * The `winstconfigfilepath` parameter which is designated by `/histofile` refers to a file in ini file format that holds the (in interactive mode) last used script file names. The dialogue surface presents a list box that presents these file names for choosing the next file to interpret. If `winstconfigfilepath` ends with "\" it is assumed to be a directory name and `WINST.INI` serves as file name.
 
@@ -115,7 +231,7 @@ Explanations to (4):
 
 * The default for `clientid` is the full qualified computer name
 
-* When called with option `/allloginscripts` or `/loginscripts` '{opsi-winst}' can do configurations for the logged in user (particularly in a Roaming Profile context). This is a co-funding feature - you need to buy it in order to use it. +
+* When called with option `/allloginscripts` or `/loginscripts` '{opsi-winst}/opsi-script' can do configurations for the logged in user (particularly in a Roaming Profile context). This is a co-funding feature - you need to buy it in order to use it. +
 See at the opsi-manual for more information about 'User Profile Management'.
 
 * By option `/silent` the batch surface is suppressed.
@@ -126,13 +242,13 @@ The not interactive mode is implied.
 [[opsi-winst-logpath]]
 === Log Paths
 
-By default log files are written into the directory `c:\tmp` which '{opsi-winst}' tries to create. If '{opsi-winst}' has no access to this directory it uses the user-TEMP directory. 
+By default log files are written into the directory `c:\tmp` which '{opsi-winst}/opsi-script' tries to create. If '{opsi-winst}/opsi-script' has no access to this directory it uses the user-TEMP directory. 
 
 The default log file name is `instlog.txt`. The log file name and location will be overwritten via the specific command line option. 
 
-In the case, that '{opsi-winst}' executes a script in `/batch` mode and with a specified (and working) usercontext, the default logging path is the `opsi/tmp` in the appdata directory of the user. This will be overwritten by an explicit given log path.
+In the case, that '{opsi-winst}/opsi-script' executes a script in `/batch` mode and with a specified (and working) usercontext, the default logging path is the `opsi/tmp` in the appdata directory of the user. This will be overwritten by an explicit given log path.
 
-In addition, '{opsi-winst}' uses the logging directory for saving certain temporary files.
+In addition, '{opsi-winst}/opsi-script' uses the logging directory for saving certain temporary files.
 
 [[opsi-winst-configuration-options]]
 == Additional Configurations 
@@ -140,12 +256,12 @@ In addition, '{opsi-winst}' uses the logging directory for saving certain tempor
 [[opsi-winst-central-logging]]
 === Central Logging of Error Messages
 
-If the '{opsi-winst}' running in opsi web service mode, it sends the log file via opsi web service to the opsi server.
+If the '{opsi-winst}/opsi-script' running in opsi web service mode, it sends the log file via opsi web service to the opsi server.
 
 [[opsi-winst-skins]]
 === Skinnable {opsi-winst}
 
-Since version 3.6 the '{opsi-winst}' GUI can be customized. The elements for customizing are to be found in the winstskin subdirectory of the '{opsi-winst}' directory. The configuration file for customization is skin.ini. 
+Since version 3.6 the '{opsi-winst}/opsi-script' GUI can be customized. The elements for customizing are to be found in the winstskin subdirectory of the '{opsi-winst}/opsi-script' directory. The configuration file for customization is skin.ini. 
 
 Since version 4.11.3.5 the 'opsi-winst' searches the skin directory in the following order (directory with the first skin.ini to be found wins):
 
@@ -165,18 +281,18 @@ SetSkinDirectory ""
 [[opsi-winst-script]]
 == The opsi-winst Skript
 
-On principle: '{opsi-winst}' is an interpreter for a specific, easy to use scripting language which is tailored for the requirements of software installations. A script should be an integrated description, and a means of control, for the installation of one piece of software.
+On principle: '{opsi-winst}/opsi-script' is an interpreter for a specific, easy to use scripting language which is tailored for the requirements of software installations. A script should be an integrated description, and a means of control, for the installation of one piece of software.
 
-The following section sketches the structure of a '{opsi-winst}' script. The purpose is to identify the book marks of a script: in which way we to have to look into it, to understand its processing.
+The following section sketches the structure of a '{opsi-winst}/opsi-script' script. The purpose is to identify the book marks of a script: in which way we to have to look into it, to understand its processing.
 
 All elements shall be described more in detail in the further section. The purpose then will be to show how scripts can be modified or developed.
 
 [[opsi-winst-script-first-example]]
 === An Example
 
-'{opsi-winst}' scripts are roughly derived from .INI files. They are composed of sections, which are marked by a title (the section name) which is written in brackets []. 
+'{opsi-winst}/opsi-script' scripts are roughly derived from .INI files. They are composed of sections, which are marked by a title (the section name) which is written in brackets []. 
 
-Schematically a '{opsi-winst}' script looks like this one (here with a check which operating system is installed):
+Schematically a '{opsi-winst}/opsi-script' script looks like this one (here with a check which operating system is installed):
 
 [source,winst]
 ----
@@ -229,7 +345,7 @@ The script as a whole serves as a program, an instruction for an installation pr
 
 The human reader as well as an interpreting software has to know at which element in this collection reading must start.
 
-Execution of a '{opsi-winst}' script begins with working on the sections[Initial] and [Actions] (in this order). All other sections are called as subroutines from these two sections. This process is only recursive for Sub sections: Sub sections have the same syntax as Initial and Actions sections and may contain calls for further subroutines.
+Execution of a '{opsi-winst}/opsi-script' script begins with working on the sections[Initial] and [Actions] (in this order). All other sections are called as subroutines from these two sections. This process is only recursive for Sub sections: Sub sections have the same syntax as Initial and Actions sections and may contain calls for further subroutines.
 
 NOTE: If a script is run as 'userLoginScript' and it contains a section [ProfileActions], so the script interpretation will be started at the `ProfleActions` section.
 
@@ -296,7 +412,7 @@ On a win7 system, this function call yields the value "6.1" (not as with a varia
 
 There is no analogous way of using string expressions in the secondary sections. They follow there domain specific syntax. e.g. for copying commands similar to the windows command line copy command. Up to this moment it is no escape syntax implemented for transporting primary section logic into secondary sections. 
 
-The only way to transport string values into secondary sections is the use of the names of variables and constants as value container in these sections. Lets have a closer look at the variables and constants of a '{opsi-winst}' script:
+The only way to transport string values into secondary sections is the use of the names of variables and constants as value container in these sections. Lets have a closer look at the variables and constants of a '{opsi-winst}/opsi-script' script:
 
 [[opsi-winst-var-const]]
 == Definition and Use of Variables and Constants in a opsi-winst Script 
@@ -304,16 +420,16 @@ The only way to transport string values into secondary sections is the use of th
 [[opsi-winst-var-const-general]]
 === General
 
-In a '{opsi-winst}' script, variables and constants appear as "words", that are interpreted by '{opsi-winst}' and "contain" values. "Words" are sequences of characters consisting of letters, numbers and some special characters (in particular ".", "-", "_", "$", "%"), but not blanks, but no brackets, parentheses, or operator signs ("+") . 
+In a '{opsi-winst}/opsi-script' script, variables and constants appear as "words", that are interpreted by '{opsi-winst}/opsi-script' and "contain" values. "Words" are sequences of characters consisting of letters, numbers and some special characters (in particular ".", "-", "_", "$", "%"), but not blanks, but no brackets, parentheses, or operator signs ("+") . 
 
-'{opsi-winst}' variables and constants are not case-sensitive.
+'{opsi-winst}/opsi-script' variables and constants are not case-sensitive.
 
 There exist the following types of variables or constants:
 
 * Global text constants, shortly constants, +
-contain values which are present by the '{opsi-winst}' program and cannot be changed in a script. Before interpreting the script '{opsi-winst}' replaces each occurrence of the pure constant name with its value in the whole script (textual substitution). +
+contain values which are present by the '{opsi-winst}/opsi-script' program and cannot be changed in a script. Before interpreting the script '{opsi-winst}/opsi-script' replaces each occurrence of the pure constant name with its value in the whole script (textual substitution). +
 An example will make this clear: +
-The constant `%ScriptPath%` is the predefined name of the location where '{opsi-winst}' found and read the script that it just executes. This location may be, e.g., `p:\product`. Then we have to write +
+The constant `%ScriptPath%` is the predefined name of the location where '{opsi-winst}/opsi-script' found and read the script that it just executes. This location may be, e.g., `p:\product`. Then we have to write +
 `"%ScriptPath%"` +
 in the script when we want do get the value +
 `"p:\product"`. +
@@ -331,7 +447,7 @@ In detail:
 [[opsi-winst-global-const]]
 === Global Text Constants
 
-Scripts shall work in a different contexts without manual changes. The contexts can be characterized by system values as OS version or certain paths. '{opsi-winst}' introduces such values as constants into the script. 
+Scripts shall work in a different contexts without manual changes. The contexts can be characterized by system values as OS version or certain paths. '{opsi-winst}/opsi-script' introduces such values as constants into the script. 
 
 [[opsi-winst-global-const-usage]]
 ==== Usage
@@ -344,7 +460,7 @@ The replacement does not take into account any syntactical context in which the 
 
 [[opsi-winst-global-const-example]]
 ==== Example
-'{opsi-winst}' implements constants %ScriptPath% for the location of the momentarily interpreted script and %System% for the name of the windows system directory. The following (Files) subsection defines a command that copies all files from the script directory to the windows system directory:
+'{opsi-winst}/opsi-script' implements constants %ScriptPath% for the location of the momentarily interpreted script and %System% for the name of the windows system directory. The following (Files) subsection defines a command that copies all files from the script directory to the windows system directory:
 [source,winst]
 ----
 [files_do_my_copying]
@@ -441,22 +557,22 @@ When the section is executed for each user that exists on a work station this va
 may be used instead of the older `%UserProfileDir%` in order to have `Files`-sections which may be used also for 'userLoginScripts'.
 
 [[opsi-winst-global-const-list-winst]]
-==== '{opsi-winst}' Path and Directory
+==== '{opsi-winst}/opsi-script' Path and Directory
 
 `%opsiScriptHelperPath%` +
 Corresponds to: `%ProgramFiles32Dir%\opsi.org\opsiScriptHelper` +
 Path in which the help program, libraries, and items needed for script execution could be installed. +
 Since 4.11.3.2
 
-`%ScriptPath%` or `%ScriptDir%` : represents the path of the current '{opsi-winst}' script (without closing backslash). Using this variable we can build path and file names in scripts that are relative to the location of the script. So, everything can be copied, called from the new place, and all works as before.
+`%ScriptPath%` or `%ScriptDir%` : represents the path of the current '{opsi-winst}/opsi-script' script (without closing backslash). Using this variable we can build path and file names in scripts that are relative to the location of the script. So, everything can be copied, called from the new place, and all works as before.
 
-`%ScriptDrive%` : he drive where the just executed '{opsi-winst}' script is located (including the colon).
+`%ScriptDrive%` : he drive where the just executed '{opsi-winst}/opsi-script' script is located (including the colon).
 
-`%WinstDir%` : The location (without closing backslash) of the running '{opsi-winst}'.
+`%WinstDir%` : The location (without closing backslash) of the running '{opsi-winst}/opsi-script'.
 
 `%WinstVersion%` : Version string of the running winst.
 
-`%Logfile%` : The name of the logfile which '{opsi-winst}' is using.
+`%Logfile%` : The name of the logfile which '{opsi-winst}/opsi-script' is using.
 
 Example: +
 The code:
@@ -537,7 +653,7 @@ EndIf
 
 `%opsiserviceUser%` : The user ID for which there is a connection to the opsi service.
 
-`%opsiservicePassword%` : The user password used for the connection to the opsi service. The password is eliminated when logging by the standard '{opsi-winst}' logging functions.
+`%opsiservicePassword%` : The user password used for the connection to the opsi service. The password is eliminated when logging by the standard '{opsi-winst}/opsi-script' logging functions.
 
 `%installingProdName%`: 	The 'productid' of the product that is actually installed via call by the opsi-service. Empty if the Script ist not started by the opsi-service.
 
@@ -605,7 +721,7 @@ Set $MailLocation$ = $Home$ + "\mail"
 [[opsi-winst-strvar-usage]]
 ==== Use of variables in String expressions
 
-In primary sections of a '{opsi-winst}' script, a variable "holds" a value. When it is declared it is initialized with the empty String "". When a new value is assigned to it via the `set` command, it represents this value. 
+In primary sections of a '{opsi-winst}/opsi-script' script, a variable "holds" a value. When it is declared it is initialized with the empty String "". When a new value is assigned to it via the `set` command, it represents this value. 
 
 In a primary section a variable can replace any String expression resp. can be a component of a String expression, e.g. 
 [source,winst]
@@ -620,7 +736,7 @@ This representational chain is shortcut in a secondary section. Just the variabl
 [[opsi-winst-strvar-in-sections]]
 ==== Secondary vs. primary sections
 
-When a secondary section is loaded and '{opsi-winst}' starts its interpretation the sequence of chars of a variable name is directly replaced by the value of the variable.
+When a secondary section is loaded and '{opsi-winst}/opsi-script' starts its interpretation the sequence of chars of a variable name is directly replaced by the value of the variable.
 
 Example: +
 A `copy` command in a files section shall copy a file to +
@@ -672,9 +788,9 @@ CAUTION: Wenn (geschachtelte) Sub-Sektionen in externe Dateien ausgelagert werde
 [[opsi-winst-prim-section]]
 == Syntax and Meaning of Primary Sections of a opsi-winst Script 
 
-As shortly presented in chapter 4 the Actions section of a script can be regarded as a the main method of the '{opsi-winst}' script and describes the global processing sequence. It may call subroutines - the Sub sections which may then recursively call Sub sections themselves.
+As shortly presented in chapter 4 the Actions section of a script can be regarded as a the main method of the '{opsi-winst}/opsi-script' script and describes the global processing sequence. It may call subroutines - the Sub sections which may then recursively call Sub sections themselves.
 
-The following sections explain syntax and use of the primary sections of a '{opsi-winst}' script.
+The following sections explain syntax and use of the primary sections of a '{opsi-winst}/opsi-script' script.
 
 [[opsi-winst-prim-section-kinds]]
 === Primary Sections
@@ -689,7 +805,7 @@ There are possibly three kinds of primary sections in a script
 
 * an `ProfileActions` section
 
-`Initial` and `Action` section are syntactically equivalent (but Initial has to keep the first place). By convention, in the Initial section some parametrizations of the script execution (e.g. the loglevel) are made. The Action section can be regarded as the main program in a '{opsi-winst}' script. It contains the sequence of actions that are controlled by the script.
+`Initial` and `Action` section are syntactically equivalent (but Initial has to keep the first place). By convention, in the Initial section some parametrizations of the script execution (e.g. the loglevel) are made. The Action section can be regarded as the main program in a '{opsi-winst}/opsi-script' script. It contains the sequence of actions that are controlled by the script.
 
 Sub sections are as well syntactically equivalent. But they are a called from the Action section. Then, they can call themselves `Sub` sections. 
 
@@ -705,7 +821,7 @@ A `ProfileActions` section at a normal installation script may be used as a sub 
 [[opsi-winst-params]]
 === Parametrizing opsi-winst
 
-Typical entries of an Initial section set some the '{opsi-winst}' execution attributes. The following example shows how error responses may be configured:
+Typical entries of an Initial section set some the '{opsi-winst}/opsi-script' execution attributes. The following example shows how error responses may be configured:
 
 [[opsi-winst-params-example]]
 ==== Example
@@ -721,26 +837,26 @@ This means that:
 
 * logging level is set to 5
 
-* when an error occurs '{opsi-winst}' shall try to continue script execution
+* when an error occurs '{opsi-winst}/opsi-script' shall try to continue script execution
 
 * if a script syntax error occurs it shall be communicated (this will be in a special window)
 
 * we don't want to activate the trace mode for script execution (which would mean that we are asked after each program step if we want to continue).
 
-The above values are the default values, '{opsi-winst}' will assume them if these statements are missing.
+The above values are the default values, '{opsi-winst}/opsi-script' will assume them if these statements are missing.
 
 To the details of syntax and meaning: 
 
 [[opsi-winst-params-loglevel]]
 ==== Specification of Logging Level
 
-CAUTION: The old function `LogLevel=` is deprecated since '{opsi-winst}' version 4.10.3. For backward compatibility reasons Loglevels ste by this old function will be increased by 4 before they are used.
+CAUTION: The old function `LogLevel=` is deprecated since '{opsi-winst}/opsi-script' version 4.10.3. For backward compatibility reasons Loglevels ste by this old function will be increased by 4 before they are used.
 
 There are two syntactical variants for specifying the logging level:
 
 SetLogLevel = <number> 
 SetLogLevel = <String expression> 
-I.e. the number can be given as an integer value or as a string expression (cf. section 6.3). In the second case, '{opsi-winst}' tries to evaluate the string expression as a number.
+I.e. the number can be given as an integer value or as a string expression (cf. section 6.3). In the second case, '{opsi-winst}/opsi-script' tries to evaluate the string expression as a number.
 There exist ten levels from 0 up to 9. 
 
 Es gibt zwei ähnliche Varianten, um den Loglevel zu spezifizieren:
@@ -749,7 +865,7 @@ Es gibt zwei ähnliche Varianten, um den Loglevel zu spezifizieren:
 
 `SetLogLevel =` <String expression>
 
-I.e. the number can be given as an integer value or as a string expression (cf. <<opsi-winst-string>>). In the second case, '{opsi-winst}' tries to evaluate the string expression as a number.
+I.e. the number can be given as an integer value or as a string expression (cf. <<opsi-winst-string>>). In the second case, '{opsi-winst}/opsi-script' tries to evaluate the string expression as a number.
 
 There exist ten levels from 0 up to 9. 
 ****
@@ -779,22 +895,22 @@ e.g.
 requiredWinstVersion >= "4.3"
 ----
 
-makes '{opsi-winst}' check if the desired version state is given. Otherwise an error message windows pops up. 
+makes '{opsi-winst}/opsi-script' check if the desired version state is given. Otherwise an error message windows pops up. 
 
-This feature exists since '{opsi-winst}' version 4.3. For an earlier version, the statement is unknown, and the statement itsself is a syntactical error which will be indicated by syntax error window (cf. the following section). Therefore the statement can be used independently of the currently used '{opsi-winst}' version as long as the required version is at least version 4.3.
+This feature exists since '{opsi-winst}/opsi-script' version 4.3. For an earlier version, the statement is unknown, and the statement itsself is a syntactical error which will be indicated by syntax error window (cf. the following section). Therefore the statement can be used independently of the currently used '{opsi-winst}/opsi-script' version as long as the required version is at least version 4.3.
 
 [[opsi-winst-params-errors]]
 ==== Reacting on Errors
 
 There are two kinds of errors which are treated in different ways:
 
-. illegal statements which cannot be interpreted by '{opsi-winst}' (syntactical errors),
+. illegal statements which cannot be interpreted by '{opsi-winst}/opsi-script' (syntactical errors),
 
 . failing statements which cannot be executed because of external, objective reasons (execution errors).
 
 In principal, syntactical errors are indicated by a pop up window for immediate correction, execution errors are logged in a log file to be analysed later.
 
-The behaviour of '{opsi-winst}' when it recognizes a syntactical error is defined by the configuration statement
+The behaviour of '{opsi-winst}/opsi-script' when it recognizes a syntactical error is defined by the configuration statement
 
 * `ScriptErrorMessages =` <boolean value> +
 If the value is true (default), syntactical errors trigger a pop up window with some informations on the error. This kind of errors is not recorded in the log file. The log file shall keep informations on the real execution of a syntactical correct script. +
@@ -822,25 +938,25 @@ In TraceMode (default false) every log file entry will additionally be shown in 
 
 * `StayOnTop =` <Wahrheitswert>
 
-With StayOnTop = true (or = on) we request, that - in batch mode - the '{opsi-winst}' window be on top on the windows which share the screen. That means it should be visible in the "foreground" as long as no other window having the same status wins. 
+With StayOnTop = true (or = on) we request, that - in batch mode - the '{opsi-winst}/opsi-script' window be on top on the windows which share the screen. That means it should be visible in the "foreground" as long as no other window having the same status wins. 
  
 CAUTION: According to the system manual the value cannot be changed while the program is running. But it seems that we can give a new value to it once. 
 
-`StayOnTop` has default false in order to avoid that some other process raises an error message which eventually can not be seen if '{opsi-winst}' keeps staying on top.
+`StayOnTop` has default false in order to avoid that some other process raises an error message which eventually can not be seen if '{opsi-winst}/opsi-script' keeps staying on top.
 
 [[opsi-winst-params-showmode]]
 === Show window mode
-To change the modes of how the '{opsi-winst}' window is displayed, use these commands:
+To change the modes of how the '{opsi-winst}/opsi-script' window is displayed, use these commands:
 
 
 * `NormalizeWinst` +
-sets the '{opsi-winst}' window to the 'normal' mode
+sets the '{opsi-winst}/opsi-script' window to the 'normal' mode
 
 * `IconizeWinst` +
-sets the '{opsi-winst}' window to the 'minimized' mode
+sets the '{opsi-winst}/opsi-script' window to the 'minimized' mode
 
 * `RestoreWinst` +
-sets the '{opsi-winst}' window to the 'maximized' mode
+sets the '{opsi-winst}/opsi-script' window to the 'maximized' mode
 
 [[opsi-winst-string]]
 === String Expressions, String Values, and String Functions
@@ -958,8 +1074,16 @@ returns for systems of type Windows NT the Microsoft version info as indicated b
 |5.2    |XP 64 Bit, 2003, Home Server, 2003 R2
 |6.0    |Vista, 2008
 |6.1    |Windows 7, 2008 R2
+|6.2    |Windows 8, 2012
 |=======================
 see also `GetMsVersionMap`
+
+* `getLinuxDistroType` +
+returns the type of the running Linux distribution an can be used to determine which general syntax we have to use. It may return one of the following values
+** 'debian' (Debian / Ubuntu -> use apt-get)
+** 'redhat' (RedHat / CentOs -> use yum)
+** 'suse' (-> use zypper)
+(see `getLinuxVersionMap`) [L]
 
 * `GetSystemType` +
 checks the installed Windows OS if it can be assumed that the system is 64 Bit. In this case the value is '64 Bit System' otherwise 'x86 System'.
@@ -971,7 +1095,7 @@ The function reads and returns the momentary value of a system environment varia
 
 E.g., we can retrieve which user is logged in by EnvVar ("Username").
 ParamStr
-The function passes the the parameter string of the '{opsi-winst}' command line i.e. the command line parameter which is indicated by /parameter. If there is no such parameter ParamStr returns the empty string.
+The function passes the the parameter string of the '{opsi-winst}/opsi-script' command line i.e. the command line parameter which is indicated by /parameter. If there is no such parameter ParamStr returns the empty string.
 GetLastExitCode
 returns the exit code (also called ErroLevel) of the last Winbatch call.
 GetUserSID(<Windows Username>)
@@ -982,7 +1106,7 @@ DOMAIN\USER).
 The function reads and returns the momentary value of a system environment variable. E.g., we can retrieve which user is logged in by `EnvVar ("Username")`.
 
 * `ParamStr` +
-The function passes the the parameter string of the '{opsi-winst}' command line i.e. the command line parameter which is indicated by /parameter. If there is no such parameter ParamStr returns the empty string.
+The function passes the the parameter string of the '{opsi-winst}/opsi-script' command line i.e. the command line parameter which is indicated by /parameter. If there is no such parameter ParamStr returns the empty string.
 
 * `GetLastExitCode` +
 returns the exit code (also called ErroLevel) of the last Winbatch call.
@@ -992,7 +1116,7 @@ returns the SID for a given user (possibly with domain prefix in the form
 DOMAIN\USER).
 
 * `GetUsercontext` +
-returns the string which was given to the '{opsi-winst}' by the optional parameter `/usercontext`. IF this parameter was not userd the returned string is empty.
+returns the string which was given to the '{opsi-winst}/opsi-script' by the optional parameter `/usercontext`. IF this parameter was not userd the returned string is empty.
 
 [[opsi-winst-string-functions-reg]]
 ==== Reading Values from the Windows Registry and Transforming Values into Registry Format
@@ -1077,8 +1201,8 @@ The second function borrows its syntax from the ini file format itself, and may 
 
 * `GetProductProperty (` <PropertyName>, <DefaultValue>`)` +
 where $PropertyName$ and $DefaultValue$ are String expressions. 
-If '{opsi-winst}' is connected to the opsi configuration service the product property is retrieved from the service. 
-If the '{opsi-winst}' is not connected to the service or for other reasons the the call fails, the given +<DefaultValue>+ will be returned.
+If '{opsi-winst}/opsi-script' is connected to the opsi configuration service the product property is retrieved from the service. 
+If the '{opsi-winst}/opsi-script' is not connected to the service or for other reasons the the call fails, the given +<DefaultValue>+ will be returned.
 
 The product properties can be used to configure variants of an installation.
 
@@ -1874,8 +1998,28 @@ We start with a special and rather useful kind of String lists: 'maps' – also 
 [[opsi-winst-stringlist-maps]]
 ==== Info Maps
 
+* `getLinuxVersionMap`  //since 4.11.4  [L] +
+get OS informations and writes them to hash map string list. +
+There are the folowinging keys: (example):
+[source,ini]
+----  
+Distributor ID=Ubuntu
+Description=Ubuntu 12.04.2 LTS
+Release=12.04
+Codename=precise
+kernel name=Linux
+node name=detlefvm05
+kernel release=3.2.0-40-generic-pae
+kernel version=#64-Ubuntu SMP Mon Mar 25 21:44:41 UTC 2013
+machine=i686
+processor=athlon
+hardware platform=i386
+operating system=GNU/Linux
+----
+
+
 * `getMSVersionMap` +
-get OS informations and wrties them to hash map string list. +
+get OS informations and writes them to hash map string list. +
 There are the folowinging keys:
 * major_version
 * minor_version
@@ -2151,7 +2295,7 @@ http://schneegans.de/lv/?tags=de-de-1996&format=text
 
 * `getProductMap` // since 4.11.2.1 +
 returns a info map of the opsi product you are just installing. +
-It works only if '{opsi-winst}' is running in opsi service mode. +
+It works only if '{opsi-winst}/opsi-script' is running in opsi service mode. +
 keys are: id, name, description, advice, productversion, packageversion, priority, installationstate, lastactionrequest, lastactionresult, installedversion, installedpackage, installedmodificationtime
 
 
@@ -2772,7 +2916,7 @@ killtask "winword.exe"
 ----
 
 *   `ChangeDirectory` <directory>   //since 4.11.2.6
-Set the given directory as working directory of the '{opsi-winst}'. Affects all subsequent actions (e.g. winbatch sections) and will be reset at the end of a script.  
+Set the given directory as working directory of the '{opsi-winst}/opsi-script'. Affects all subsequent actions (e.g. winbatch sections) and will be reset at the end of a script.  
 Beispiel :
 [source,winst]
 ----
@@ -2837,7 +2981,7 @@ comment: should be in the log file: This is a ***(confidential)*** string
 *  `Message` <string expression> +
 bzw. +
 `Message` = <sequence of characters> +
-lets '{opsi-winst}' display the value of the String expression resp. the sequence of chars in the batch window in the top information line. The text is kept as long as no new `message` is set. +
+lets '{opsi-winst}/opsi-script' display the value of the String expression resp. the sequence of chars in the batch window in the top information line. The text is kept as long as no new `message` is set. +
 Example:
 [source,winst]
 ----
@@ -2882,7 +3026,7 @@ give one of the possible values 'Machine','Login': +
 * `GetLoggedInUser`   //since 4.11.1.2
 
 * `GetUsercontext`   //since 4.11.1.2 +
-returns the username in whose context the '{opsi-winst}' is just running.
+returns the username in whose context the '{opsi-winst}/opsi-script' is just running.
 
 * `saveVersionToProfile` //since 4.11.2.1 +
 save +productversion+-+packageversion+ to local profile +
@@ -2939,7 +3083,7 @@ The `else` part may be omitted.
 
 `if` statements may be nested. That is, in the sequence of statements that depend on an if clause (no matter if inside the if or the else part) another if statement may occur. 
 
-<condition> is a <Boolean expression> . A Boolean (or logical) expression can be constructed as a (String) value comparison, by Boolean operators, or by certain function calls which evaluate to true or false. Up to now these Boolean values cannot be explicitly represented in a '{opsi-winst}' script).
+<condition> is a <Boolean expression> . A Boolean (or logical) expression can be constructed as a (String) value comparison, by Boolean operators, or by certain function calls which evaluate to true or false. Up to now these Boolean values cannot be explicitly represented in a '{opsi-winst}/opsi-script' script).
 
 [[opsi-winst-commands-if-else-bool-functions]]
 ==== Boolean Expressions
@@ -2949,7 +3093,7 @@ The String comparison (which is a Boolean expression) has the form +
 where <comparison sign> is one of the signs +
 `<`  `<=`  `=`  `>=`  `>`
 
-String comparisons in '{opsi-winst}' are case independent. 
+String comparisons in '{opsi-winst}/opsi-script' are case independent. 
 
 Inequality must be expressed by a `NOT()` expression which is presented below.
 
@@ -3002,7 +3146,7 @@ returns 'true' if the text file denoted by <file name> contains a line as specif
 returns 'true' if there is line that begins with <string> in the text file denoted by filename (each parameter being a string expression). Otherwise (or if the file does not exist) it returns 'false'.
 
 * `XMLAddNamespace`(<XMLfilename>, <XMLelementname>, <XMLnamespace>) +
-inserts a XML namespace definition into the first XML element with the given name (if not existing). It gives back if an insertion took place. (The '{opsi-winst}' XML patch section need the definitions of namespace.) +
+inserts a XML namespace definition into the first XML element with the given name (if not existing). It gives back if an insertion took place. (The '{opsi-winst}/opsi-script' XML patch section need the definitions of namespace.) +
 The file must be formatted that an element tag has no line breaks in it. 
 For an example, cf. cookbook <<opsi-winst-cookbook-xmlnamespace>>. 
 
@@ -3053,7 +3197,7 @@ The `include_*` commands may be used to add external script files to the current
 The include commands are available since version 4.11.3
 
 * `include_insert` <file name> +
-inserts <file name> after the current line into the running script. So the first line of the included file is the next line that will be executed by '{opsi-winst}'.
+inserts <file name> after the current line into the running script. So the first line of the included file is the next line that will be executed by '{opsi-winst}/opsi-script'.
 
 * `include_append` <file name> +
 appends the content of <file name> to the running script. This kind of insert is normally used to include sections from a library.
@@ -3069,7 +3213,7 @@ Is equivalent to: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
 * A existing file in `%WinstDir%\lib`
 
-The tests for the location of the <file name> are done in the order above. '{opsi-winst}' uses the first file it finds that has a matching name.
+The tests for the location of the <file name> are done in the order above. '{opsi-winst}/opsi-script' uses the first file it finds that has a matching name.
 
 Example: +
 When we run that contains the following commands:
@@ -3284,13 +3428,13 @@ Examples of type names are 'Sub' (we call a procedure of type sub that is a agai
 
 The second part determines where and how the lines of sub program are to be found.
 
-. The subprogram is a sequence of lines situated in the executed '{opsi-winst}' script as another internal section. Then a name (constituted from letters, digits, and some special characters) has to be appended to the type specifier (without space) in order to form an unique section name. +
+. The subprogram is a sequence of lines situated in the executed '{opsi-winst}/opsi-script' script as another internal section. Then a name (constituted from letters, digits, and some special characters) has to be appended to the type specifier (without space) in order to form an unique section name. +
 `sub_install_winXP` +
 or +
 `files_copy_winXP` +
 Section names are case independent as any other string. 
 
-. If the type specifier stands alone a String list expression or a String expression is expected. If the expression following the type specifier cannot be resolved as a String list expression (cf. case (3)) it is assumed to be a String expression. The string is then interpreted as a file name. '{opsi-winst}' tries to open the file as a text file and interprets its lines as an external section of the specified type. +
+. If the type specifier stands alone a String list expression or a String expression is expected. If the expression following the type specifier cannot be resolved as a String list expression (cf. case (3)) it is assumed to be a String expression. The string is then interpreted as a file name. '{opsi-winst}/opsi-script' tries to open the file as a text file and interprets its lines as an external section of the specified type. +
 E.g. +
 `sub "p:\install\opsiutils\mainroutine.ins"`
 tries to execute the lines of mainroutine.ins as statements of a sub section. 
@@ -3316,20 +3460,20 @@ For a reference of the call options cf. the descriptions of the section calls in
 [[opsi-winst-commands-reboot]]
 === Controlling Reboot
 
-The command `ExitWindows` is used to control reboots , shutdown and similar actions which should take place after the '{opsi-winst}' it self is terminated. The name of the command and the fact that there is no 'ExitWindows' without modifier has histrical reasons: Working on Windows 3.1 you could exit windows to go back to the DOS level.
+The command `ExitWindows` is used to control reboots , shutdown and similar actions which should take place after the '{opsi-winst}/opsi-script' it self is terminated. The name of the command and the fact that there is no 'ExitWindows' without modifier has histrical reasons: Working on Windows 3.1 you could exit windows to go back to the DOS level.
 
 * `ExitWindows /RebootWanted` +
 DEPRECATED: a reboot request is registered which should be executed when all installations requests are treated, and the last script has finished. +
 In fact, this command is now treated as an `ExitWindows /Reboot` (since otherwise an installation could fail because a required product is not yet completely installed).
 
 * `ExitWindows /Reboot` +
-triggers the reboot after '{opsi-winst}' has finished the currently treated script.
+triggers the reboot after '{opsi-winst}/opsi-script' has finished the currently treated script.
 
 * `ExitWindows /ImmediateReboot` +
-breaks the normal execution of a script anywhere inside it. When this command is called '{opsi-winst}' runs as directly as possible to its end entailing the system ExitWindows call. In the context of an installed opsi-client-agent it is guaranteed that after rebooting '{opsi-winst}' runs again into the script that was aborted. Therefore, the script has to take provisions that the execution continues after the point where it was left the turn before (otherwise we may get an infinite loop ...) Cf. the example in this section.
+breaks the normal execution of a script anywhere inside it. When this command is called '{opsi-winst}/opsi-script' runs as directly as possible to its end entailing the system ExitWindows call. In the context of an installed opsi-client-agent it is guaranteed that after rebooting '{opsi-winst}/opsi-script' runs again into the script that was aborted. Therefore, the script has to take provisions that the execution continues after the point where it was left the turn before (otherwise we may get an infinite loop ...) Cf. the example in this section.
 
 * `ExitWindows /ImmediateLogout` +
-The normal execution of a script breaks at the point of the call, and the '{opsi-winst}' stops running. This behaviour is needed if an automated user log in for some other user shall take place (cf. <<opsi-winst-cookbook-local-admin>>).
+The normal execution of a script breaks at the point of the call, and the '{opsi-winst}/opsi-script' stops running. This behaviour is needed if an automated user log in for some other user shall take place (cf. <<opsi-winst-cookbook-local-admin>>).
 
 * `ExitWindows /ShutdownWanted` +
 sets a flag in the registry that the PC shuts down when all installations requests are treated, and the last script has finished. 
@@ -3395,9 +3539,9 @@ If a product installation fails, then this should be signaled to the server.
 
 Due to the fact that there is no automatic method that detects a failed installation, testing for a failed installation has to be done using script commands. 
 
-To indicate in a '{opsi-winst}' script that the installation is failed we have to call the statement: +
+To indicate in a '{opsi-winst}/opsi-script' script that the installation is failed we have to call the statement: +
 `isFatalError` +
-If this statement is called, then '{opsi-winst}' stops the normal execution of the script and sets the product result to 'failed' (otherwise it is 'success'). +
+If this statement is called, then '{opsi-winst}/opsi-script' stops the normal execution of the script and sets the product result to 'failed' (otherwise it is 'success'). +
 
 Since 4.11.3.2 there is a new variant of this command:
 
@@ -3478,7 +3622,7 @@ The functional context is mirrored in the specific syntax of the particular sect
 [[opsi-winst-files]]
 === Files Sections
 
-A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. an newer dll-file) are already installed on the system. 
+A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}/opsi-script' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. an newer dll-file) are already installed on the system. 
 
 [[opsi-winst-files-example]]
 ==== Example 
@@ -3510,7 +3654,7 @@ Both variants mean: +
 The called Files section is executed once for each local Windows NT user.
 Every copy command in the section is associated with an user specific target directory. 
 
-In case other we need to build other user specific path names we can use the automatically set variable `%UserProfileDir%` or since '{opsi-winst}' version 4.11.2 `%CurrentProfileDir%`. 
+In case other we need to build other user specific path names we can use the automatically set variable `%UserProfileDir%` or since '{opsi-winst}/opsi-script' version 4.11.2 `%CurrentProfileDir%`. 
 With option `/AllNTUserProfiles` the user specific target directory for copy actions is the user profile directory (that is usually denoted by the user name and is by default situated as a subdirectory of the userappdata directory. In case of option `/AllNTUserSendTo` the target directory is the path of the user specific 'SendTo' folder (for links of the windows explorer context menu).
 
 The exact rule for determining the target path for a copy command has three parts:
@@ -3603,7 +3747,7 @@ We respect any write protection of a file such proceeding "weakly" (in opposite 
 Existing files are not overwritten. 
 
 ** `c` -> continue +
-If a system file is in use, then it can be overwritten only after a reboot. The '{opsi-winst}' default behaviour is therefore that a file in use will be marked for overwriting after the next reboot, AND the '{opsi-winst}' reboot flag is set. Setting the copy modifier "-c" turns the automatic reboot off. Instead normal processing continues, the copying will be completed only when a reboot is otherwise triggered.
+If a system file is in use, then it can be overwritten only after a reboot. The '{opsi-winst}/opsi-script' default behaviour is therefore that a file in use will be marked for overwriting after the next reboot, AND the '{opsi-winst}/opsi-script' reboot flag is set. Setting the copy modifier "-c" turns the automatic reboot off. Instead normal processing continues, the copying will be completed only when a reboot is otherwise triggered.
 
 ** `r` -> read-only Attribute +
 If a copied file has a read-only attribute it is set again (in opposite to the default behaviour which is to eliminate read-only attributs). 
@@ -3896,7 +4040,7 @@ Each of them, in fact, any (javascript) function call of the form +
 'functionname (String1, String2)' +
 can be patched with this command by setting the appropriate string for <preference type> (that is, resp. for functionname),
 If an entry starting with "functionname (String1" exists in the treated file, it will be patched (and left at its place). Otherwise a new line will be appended.
-Unusually in '{opsi-winst}', all strings are case sensitive.
+Unusually in '{opsi-winst}/opsi-script', all strings are case sensitive.
 
 * `Set_Netscape_User_Pref` ("<preference variable>", "<value>") +
 sets the line of the given user preference file for the variable <preference variable> to value <value>. The ASCII ordering of the file will be rebuilt. +
@@ -4113,9 +4257,9 @@ For more examples, please check the opsi standard product 'opsi-winst-test' and 
 
 Today, the most popular way to keep configuration data or data at all is a file in XML document format. Its syntax follows the conventions as defined in the XML (or "Extended Markup Language") specification (http://www.w3.org/TR/xml/).
 
-'{opsi-winst}' offers XMLPatch sections for editing XML documents. 
+'{opsi-winst}/opsi-script' offers XMLPatch sections for editing XML documents. 
 
-With the actions defined for this section type '{opsi-winst}' can 
+With the actions defined for this section type '{opsi-winst}/opsi-script' can 
 
 * 'select' (and optionally create) sets of elements of a XML document according to a path description
 * 'patch' all elements of a selected element set
@@ -4200,7 +4344,7 @@ For selecting a set of elements any kind of information can be used:
 
 . the textual content of elements (resp. their subordinated text nodes).
 
-In '{opsi-winst}', selection based on criteria (1) to (3) and (7) is implemented
+In '{opsi-winst}/opsi-script', selection based on criteria (1) to (3) and (7) is implemented
 
 [[opsi-winst-xmlpatch-search-options]]
 ==== Options for Selection a Set of Elements
@@ -4208,7 +4352,7 @@ In '{opsi-winst}', selection based on criteria (1) to (3) and (7) is implemented
 
 Before any operation on the contents of a XML file the precise set of elements has to be determined on which it will be operated. The set is constructed step by step by defining the allowed paths through the XML tree. The finally remaining end points of the paths define the selected set.
 
-The basic '{opsi-winst}' command is
+The basic '{opsi-winst}/opsi-script' command is
 
 * `OpenNodeSet`
 
@@ -4399,25 +4543,25 @@ It is deprecated but still supported that you may call – as from Windows explo
 [[opsi-winst-winbatch-params]]
 ==== Call Parameter (Modifier)
 
-There a several parameters of the WinBatch call which determine if (or how long) '{opsi-winst}' shall be wait for the started programs returning.
+There a several parameters of the WinBatch call which determine if (or how long) '{opsi-winst}/opsi-script' shall be wait for the started programs returning.
 
 * `/WaitOnClose` +
 Is the default +
-'{opsi-winst}' waits for every initiated process to come back. 
+'{opsi-winst}/opsi-script' waits for every initiated process to come back. 
 
 * `/LetThemGo` +
-This is the contrary to `/WaitOnClose`. It is used if '{opsi-winst}' shall proceed while the started processes run in their own threads.
+This is the contrary to `/WaitOnClose`. It is used if '{opsi-winst}/opsi-script' shall proceed while the started processes run in their own threads.
 
 
 * `/WaitSeconds` [number of seconds] +
-If a call includes the parameter /WaitSeconds [number of seconds], then '{opsi-winst}' is waiting for [number of seconds] before proceeding. In the default configuration, we also wait for any programs that are currently running to finish. If we combine the parameter /WaitSeconds with the option `/LetThemGo`, then '{opsi-winst}' continues processing after the waiting time is finished.
+If a call includes the parameter /WaitSeconds [number of seconds], then '{opsi-winst}/opsi-script' is waiting for [number of seconds] before proceeding. In the default configuration, we also wait for any programs that are currently running to finish. If we combine the parameter /WaitSeconds with the option `/LetThemGo`, then '{opsi-winst}/opsi-script' continues processing after the waiting time is finished.
  
 * `/WaitForProcessEnding` <program name> +
 Waits for the process called <program name> to end. +
 Should be combined with `/TimeOutSeconds`.
 
 Explanation: +
-When starting an external process from a winbatch call, the '{opsi-winst}' waits for the current process to finish before executing the next command in the script.
+When starting an external process from a winbatch call, the '{opsi-winst}/opsi-script' waits for the current process to finish before executing the next command in the script.
 
 *  `/32Bit` +
 This is the default. The paths within the section are assumed to be 32 bit pathes. +
@@ -4448,7 +4592,7 @@ This modifier has the following limitation: +
 .Sequential processing of a script that waits for the end of a program
 image::../images/waitforprocess_scheme_std.png["waitforprocess_scheme_std",width=150]
 
-There are some external programs which start another process and then end without waiting for their child process to end. From the point of view of '{opsi-winst}', the process is ended and the next command could be started.
+There are some external programs which start another process and then end without waiting for their child process to end. From the point of view of '{opsi-winst}/opsi-script', the process is ended and the next command could be started.
 
 .End of process while child process is still running
 image::../images/waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1",width=200]
@@ -4461,7 +4605,7 @@ image::../images/waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2",w
 Using the modifier `/WaitForProcessEnding` helps to avoid such a situation.
 
 * `/TimeOutSeconds` <seconds> +
-A timeout setting. After waiting <seconds>, '{opsi-winst}' will end the process. +
+A timeout setting. After waiting <seconds>, '{opsi-winst}/opsi-script' will end the process. +
 Since version 4.11.3, /TimeOutSeconds may be used without a waiting condition (e.g. `/WaitForProcessEnding`) but not in combination with `/WaitSeconds`. +
 Example: +
 [source,winst]
@@ -4476,7 +4620,7 @@ Starts a process that has a security token with elevated privileges. This modifi
 ** For NT5 it does not change anything.
 ** A process started with this modifier has no network access. So you should copy a program to a temporary local directory, but do not start it from a network share.
 ** You may see problems while using the graphical interface. Therefore true silent installations are the better choice in this case.
-** Functions only in the context of '{opsi-winst}'.
+** Functions only in the context of '{opsi-winst}/opsi-script'.
 
 *  `getLastExitCode` +
 Returns a string that contains the value of the exitcode of the the process that was last called by a WinBatch / DosBatch / ExecWith section. +
@@ -4492,7 +4636,7 @@ resp. +
 `/WaitForWindowVanish` [window title] +
 Both are deprecated. Please use `/WaitForProcessEnding` +
 
-The first option means that '{opsi-winst}' waits until any process lets pop up a window with title window title. With the second option '{opsi-winst}' is waiting as long as a certain window (1) appeared on the desktop and (2) disappeared again. +
+The first option means that '{opsi-winst}/opsi-script' waits until any process lets pop up a window with title window title. With the second option '{opsi-winst}/opsi-script' is waiting as long as a certain window (1) appeared on the desktop and (2) disappeared again. +
 CAUTION: These options only know windows of 32-bit programms
  
 
@@ -4505,9 +4649,9 @@ expecially the sector with '$Flag_winst_winbatch$ = "on"'
 [[opsi-winst-dosbatch]]
 === DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sections
 
-Via DOSBatch (also called ShellBatch) sections a '{opsi-winst}' script uses Windows shell scripts for tasks which cannot be fulfilled by internal commands or for which already a batch script solution exists.
+Via DOSBatch (also called ShellBatch) sections a '{opsi-winst}/opsi-script' script uses Windows shell scripts for tasks which cannot be fulfilled by internal commands or for which already a batch script solution exists.
 
-'{opsi-winst}' waits until the DOS-batch ends, before it is proceeding with the next script-section.  
+'{opsi-winst}/opsi-script' waits until the DOS-batch ends, before it is proceeding with the next script-section.  
  
 A DOSBatch section is simply processed by writing the lines of the sections into the file _winst.bat in c:\tmp and then calling this file in the context of a cmd.exe shell. This explains that a DosBatch section may contain all Windows shell commands can be used. 
 
@@ -4515,7 +4659,7 @@ A DOSBatch section is simply processed by writing the lines of the sections into
 Compared with calling a cmd-file in a WinBatch section, the DOSBatch section 
 presents certain advantages: +
 
-* '{opsi-winst}' variables or constants in the section can be easily used because they will be substituted before execution. 
+* '{opsi-winst}/opsi-script' variables or constants in the section can be easily used because they will be substituted before execution. 
 
 * The output of a DosInAnIcon/ShellInAnIcon call is written to the log file.
 
@@ -4533,7 +4677,7 @@ There are two kinds of parameters which may be passed to the section call:
 
 * Parameters which are directly passed to the called batch file.
 
-* Parameter which modify the way '{opsi-winst}' will handle the section.
+* Parameter which modify the way '{opsi-winst}/opsi-script' will handle the section.
 
 The calling syntax is:
 
@@ -4579,7 +4723,7 @@ pause
 [[opsi-winst-dosbatch-catchout]]
 ==== Catch the output
 
-The output of the shell commands can be captured by using the string list function `getOutStreamFromSection()` from the '{opsi-winst}'-scripts main-section
+The output of the shell commands can be captured by using the string list function `getOutStreamFromSection()` from the '{opsi-winst}/opsi-script'-scripts main-section
 see also: +
 <<opsi-winst-stringlist-getstring>>). 
 
@@ -4594,7 +4738,7 @@ and there look at '$Flag_winst_dos$ = "on"'
 [[opsi-winst-registry]]
 === Registry-Sections
 
-By a Registry section call we can create, patch and delete entries in the Windows registry. As usual, '{opsi-winst}' logs every operation in detail as long as logging is not turned off. 
+By a Registry section call we can create, patch and delete entries in the Windows registry. As usual, '{opsi-winst}/opsi-script' logs every operation in detail as long as logging is not turned off. 
 
 [[opsi-winst-registry-examples]]
 ==== Examples
@@ -4617,7 +4761,7 @@ and there look at '$Flag_subregistry$ = "on"'
 * The standard call of a Registry section has no parameters. This is sufficient as long as the operations aim at the standard registry of a Windows system and all entries can be defined using a globally defined registry path.
 
 * `/AllNTUserDats` +
-'{opsi-winst}' also offers that the patch commands of a Registry section are automatically executed "for all users" which are locally defined. I.e. the patches are made for all user branches of the local registry. This interpretation of the section is evoked by the parameter `/AllNTUserDats`
+'{opsi-winst}/opsi-script' also offers that the patch commands of a Registry section are automatically executed "for all users" which are locally defined. I.e. the patches are made for all user branches of the local registry. This interpretation of the section is evoked by the parameter `/AllNTUserDats`
 
 Further parameters control which syntactical variant of the Registry section shall be valid:
 
@@ -4628,7 +4772,7 @@ The parameter `/regedit` declares that the syntax corresponds the export file sy
 Similarly, the parameter `/addReg` declares that the Registry section syntax is that of an inf-file (as used e.g. for driver installations)
 (see <<opsi-winst-registry-addreg>>).
 
-These not '{opsi-winst}' specific syntactical variants are not defined in this manual since they usually will be generated programmatically.
+These not '{opsi-winst}/opsi-script' specific syntactical variants are not defined in this manual since they usually will be generated programmatically.
 
 There are also the Options:
 
@@ -4641,7 +4785,7 @@ which manipulate the 'registry write redirection' on 64 Bit systems. (see <<opsi
 [[opsi-winst-registry-commands]]
 ==== Commands
 
-The default syntax of a Registry section is oriented at the command syntax of other patch operations in '{opsi-winst}'.
+The default syntax of a Registry section is oriented at the command syntax of other patch operations in '{opsi-winst}/opsi-script'.
 
 There exist the following commands:
 
@@ -4674,7 +4818,7 @@ opens the specified key for reading and (if the user has the necessary privilege
 The registry key is denoted by a registry path name. Under regular circumstances it starts with one of the "high keys" which build the top level of the registry tree data structure (above the "root" ). These are:
 'HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS, HKEY_CURRENT_CONFIG' which may optionally be written as 'HKCR, HKCU, HKLM, HKU'. 
 
-In '{opsi-winst}' syntax of the registry path name, the elements of a path are separated by single backslashs.
+In '{opsi-winst}/opsi-script' syntax of the registry path name, the elements of a path are separated by single backslashs.
 
 All other commands operate on an opened registry key.
 
@@ -4698,7 +4842,7 @@ sets the registry variable <varname> to value <value> of type <registry type>. T
 
 'REG_BINARY'::: (binary values usually given as two-digit hex numbers 00 01 02 .. 0F 10 .., notiert)
 
-'REG_MULTI_SZ'::: (string value arrays, in '{opsi-winst}' we have to use "|" as separator) +
+'REG_MULTI_SZ'::: (string value arrays, in '{opsi-winst}/opsi-script' we have to use "|" as separator) +
 An example for setting a REG_MULTI_SZ: +
 [source,winst]
 ----
@@ -4798,7 +4942,7 @@ openkey [Software\ORL\WinVNC3]
 set "FileTransferEnabled"=reg_dword:0x00000000
 ----
 
-Since '{opsi-winst}' version 4.11.2 you may give the root key 'HKEY_CURRENT_USER' at the `openkey` command. +
+Since '{opsi-winst}/opsi-script' version 4.11.2 you may give the root key 'HKEY_CURRENT_USER' at the `openkey` command. +
 Example:
 [source,winst]
 ----
@@ -4816,7 +4960,7 @@ This has the folloing advantages:
 [[opsi-winst-registry-regedit]]
 ==== Registry Sections in Regedit Format
 
-If a Registry section is called with parameter `/regedit` the section is not expected in '{opsi-winst}' standard format but in the format as produced by the Windows regedit tool.
+If a Registry section is called with parameter `/regedit` the section is not expected in '{opsi-winst}/opsi-script' standard format but in the format as produced by the Windows regedit tool.
 The export files generated by regedit have - not regarding the head line - ini file format. Example:
 
 [source,ini]
@@ -4840,9 +4984,9 @@ REGEDIT4
 "configdrive"="p:"
 "depotdrive"="p:"
 ----
-The sections denote registry keys to be opened. Each line describes some variable setting like the set command in a '{opsi-winst}' registry section.
+The sections denote registry keys to be opened. Each line describes some variable setting like the set command in a '{opsi-winst}/opsi-script' registry section.
 
-But, we cannot really have an internal '{opsi-winst}' section that is constructed from another sections. Therefore Registry section with parameter `/regedit` can only be given as external section or by the function call loadTextFile, e.g.
+But, we cannot really have an internal '{opsi-winst}/opsi-script' section that is constructed from another sections. Therefore Registry section with parameter `/regedit` can only be given as external section or by the function call loadTextFile, e.g.
 
 [source,winst]
 ----
@@ -4852,13 +4996,13 @@ registry "%scriptpath%/opsiorgkey.reg" /regedit
 With Windows XP the registry editor regedit does not produce Regedit4-Format but a new format that is indicated by the head line +
 '"Windows Registry Editor Version 5.00"' +
 
-In this format, Windows offers some additional value types. But more important, the export file is now generated in Unicode. '{opsi-winst}' sections processing is based on Delphi libraries which use 8 bit Strings. To work with a regedit 5 export the coding therefore has to converted. This can be done manually, e.g. by a suitable editor. But we may also feed the original file to '{opsi-winst}' using the String list function `loadUnicodeTextFile`. E.g., if printerconnections.reg be a unicode based export, we can call regedit in the following form which does the necessary code conversion on the fly:
+In this format, Windows offers some additional value types. But more important, the export file is now generated in Unicode. '{opsi-winst}/opsi-script' sections processing is based on Delphi libraries which use 8 bit Strings. To work with a regedit 5 export the coding therefore has to converted. This can be done manually, e.g. by a suitable editor. But we may also feed the original file to '{opsi-winst}/opsi-script' using the String list function `loadUnicodeTextFile`. E.g., if printerconnections.reg be a unicode based export, we can call regedit in the following form which does the necessary code conversion on the fly:
 
 [source,winst]
 ----
 registry loadUnicodeTextFile("%scriptpath%/opsiorgkey.reg") /regedit
 ----
-A registry patch using regedit format can as well be executed "for all NT users" similarly as the common '{opsi-winst}' registry section. That is, a path like 
+A registry patch using regedit format can as well be executed "for all NT users" similarly as the common '{opsi-winst}/opsi-script' registry section. That is, a path like 
 '[HKEY_CURRENT_USER\Software\ORL]' is to replaced by the relative '[Software\ORL].'
 
 
@@ -4902,7 +5046,7 @@ Connection parameters can be defined via
 
 * `/password` <web service user password>
 
-If these parameters, at least the serviceurl, are given '{opsi-winst}' tries to open a connection to an opsi service which has the url.
+If these parameters, at least the serviceurl, are given '{opsi-winst}/opsi-script' tries to open a connection to an opsi service which has the url.
 
 
 The additional option 
@@ -4911,7 +5055,7 @@ The additional option
 
 raises an interactive connect. The user will be asked for confirming the connection data and supplying the password. Of course, this option cannot be used in scripts which shall be executed fully automatically. 
 
-If no connection parameters are supplied '{opsi-winst}' assumes that an existing connection shall be reused.
+If no connection parameters are supplied '{opsi-winst}/opsi-script' assumes that an existing connection shall be reused.
 
 If no connection parameters are given and the interactive option is not specified (neither at this call nor at a call earlier in the script) it is assumed that we are in a standard opsi boot process and, already having a connection to an opsi service, we try to address it. 
 
@@ -5021,17 +5165,17 @@ Observe that the loglevel must be set at least to info (that is 1) if these outp
 [[opsi-winst-execpython-combine]]
 ==== Interweaving a Python Script with the opsi-winst Script
 
-An execPython section is integrated with the surrounding '{opsi-winst}' script by four kinds of shared data:
+An execPython section is integrated with the surrounding '{opsi-winst}/opsi-script' script by four kinds of shared data:
 
 * A parameter list is transferred to the python script.
 
-* Everything that is printed by the python script is written into the '{opsi-winst}' log.
+* Everything that is printed by the python script is written into the '{opsi-winst}/opsi-script' log.
 
-* The '{opsi-winst}' script substitution mechanism for constants and variables when entering a section does its expected work for the execPython section.
+* The '{opsi-winst}/opsi-script' script substitution mechanism for constants and variables when entering a section does its expected work for the execPython section.
 
-* The output of an execPython section can be caught into a stringlist and then used in the ongoing '{opsi-winst}' script.
+* The output of an execPython section can be caught into a stringlist and then used in the ongoing '{opsi-winst}/opsi-script' script.
 
-An example for the first two ways of interweaving the python script with the '{opsi-winst}' script is already given above. We extend it to retrieve the values of some '{opsi-winst}' constants or variables.
+An example for the first two ways of interweaving the python script with the '{opsi-winst}/opsi-script' script is already given above. We extend it to retrieve the values of some '{opsi-winst}/opsi-script' constants or variables.
 
 [source,winst]
 ----
@@ -5109,7 +5253,7 @@ Each of the expressions 'PROGRAM, PROGRAMPARAS, PASSPARAS, WINSTOPTS' may be an 
 
 The key words PASS and WINST may be missing if the respective parts do not exist.
 
-The following '{opsi-winst}'-options are available:
+The following '{opsi-winst}/opsi-script'-options are available:
 
 * `/EscapeStrings`
 
@@ -5129,7 +5273,7 @@ Example: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` calls on a 
 
 Like with ExecPython sections, the output of an ExecWith section may be captured into a String list via the function `getOutStreamFromSection`.
 
-The first one declares that the backslash in '{opsi-winst}' variables and constants is C-like escaped. The second one has the effect (as for 'winBatch' calls) that the called program starts its work in new thread while '{opsi-winst}' is continuing to interpret its script.
+The first one declares that the backslash in '{opsi-winst}/opsi-script' variables and constants is C-like escaped. The second one has the effect (as for 'winBatch' calls) that the called program starts its work in new thread while '{opsi-winst}/opsi-script' is continuing to interpret its script.
 
 Since Version 4.11.3.5, if the interpreter path contains 'powershell.exe', the temporary file is saved with the extension `.ps1`. 
 
@@ -5149,7 +5293,7 @@ A simple
 ExecWith_edit_me "notepad.exe"  WINST /letThemGo
 ----
 
-calls notepad and opens the section lines in it (but without any line that is starting with a semicolon since '{opsi-winst}' regards such lines as comments and eliminates them before handle).
+calls notepad and opens the section lines in it (but without any line that is starting with a semicolon since '{opsi-winst}/opsi-script' regards such lines as comments and eliminates them before handle).
 
 The following example call the 64Bit version of the powershell.exe.
 [source,winst]
@@ -5165,7 +5309,7 @@ For further examples watch the product 'opsi-winst-test' and there especially
 
 A LDAPsearch section defines a search request to a LDAP directory, executes it and receives (and possibly caches) the response. 
 
-Before dwelling on the '{opsi-winst}' commands we do some explanations.
+Before dwelling on the '{opsi-winst}/opsi-script' commands we do some explanations.
 
 In subsection we give an example of the most probable usage of a LDAPsearch.
 The following subsections describe the syntax 
@@ -5206,11 +5350,11 @@ For a given query path, we therefore may be interested
 
 Obviously, handling the amount of possibly returned response information is the main challenge when dealing with LDAP searches.
 
-The following section shows the documentation of a LDAPsearch roughly corresponding to the screenshot above as executed by '{opsi-winst}'.
+The following section shows the documentation of a LDAPsearch roughly corresponding to the screenshot above as executed by '{opsi-winst}/opsi-script'.
 
 Example
 
-Using the '{opsi-winst}' section `ldapsearch_generalConfigs`:
+Using the '{opsi-winst}/opsi-script' section `ldapsearch_generalConfigs`:
 [source,winst]
 ----
 [ldapsearch_generalConfigs] 
@@ -5254,7 +5398,7 @@ Result: 2
 	opsiclientd.global.log_level=
 ----
 
-There are several '{opsi-winst}' options to manage and reduce the complexity of the evaluation of such responses.
+There are several '{opsi-winst}/opsi-script' options to manage and reduce the complexity of the evaluation of such responses.
 
 [[opsi-winst-ldapsearch-params]]
 ==== LDAPsearch Call Parameters
@@ -5370,7 +5514,7 @@ opsiclientd.global.log_level=6
 ----
 There are no LDAP means to reduce this result furthermore!
 
-(But the '{opsi-winst}' function `getValue (key, list)` (cf. <<opsi-winst-stringlist-getstring>>) may help in this case: E.g. +
+(But the '{opsi-winst}/opsi-script' function `getValue (key, list)` (cf. <<opsi-winst-stringlist-getstring>>) may help in this case: E.g. +
 `getValue ("secsuntilconnectiontimeout", list)` +
 would produces the requested number).
 
@@ -5400,7 +5544,7 @@ Here, the distinguished name, the "search path", for the search request can be g
 Default "false", that is, values are retrieved.
 
 * `filter:` +
-A filter for LDAP search has a LDAP specific syntax that is not checked by '{opsi-winst}'. Default is "(objectclass=*)"
+A filter for LDAP search has a LDAP specific syntax that is not checked by '{opsi-winst}/opsi-script'. Default is "(objectclass=*)"
 
 * `attributes:` +
 A comma separated list of attribute names may be given. The default is to take any attribute.
@@ -5480,7 +5624,7 @@ For further examples watch the product 'opsi-winst-test' and there especially
 [[opsi-winst-64bit]]
 == 64 Bit Support
 
-The '{opsi-winst}' is a 32 bit program. In order to make it easy for 32 bit programs to run on 64 bit systems there are special 32 bit areas in the registry as well in the file system. Some accesses from 32 bit programs will be redirected to these special areas to avoid access to areas that reserved for 64 bit programs.
+The '{opsi-winst}/opsi-script' is a 32 bit program. In order to make it easy for 32 bit programs to run on 64 bit systems there are special 32 bit areas in the registry as well in the file system. Some accesses from 32 bit programs will be redirected to these special areas to avoid access to areas that reserved for 64 bit programs.
 
 A access to `c:\windows\system32` will be redirected to `c:\windows\syswow64`
 
@@ -5488,9 +5632,9 @@ But a access to `c:\program files` will be *not* redirected to `c:\program files
 
 A registry access to '[HKLM\software\opsi.org]' will be redirected to '[HKLM\software\wow6432node\opsi.org]'
 
-Therefore '{opsi-winst}' installs as 32 bit program scripts, that run on 32 bit system fine, on 64 bit system correct without any change.
+Therefore '{opsi-winst}/opsi-script' installs as 32 bit program scripts, that run on 32 bit system fine, on 64 bit system correct without any change.
 
-For the installation of 64 bit programs some constants like `%ProgramFilesDir%` returns the wrong values. Therefore we have since '{opsi-winst}' 4.10.8 some new features:
+For the installation of 64 bit programs some constants like `%ProgramFilesDir%` returns the wrong values. Therefore we have since '{opsi-winst}/opsi-script' 4.10.8 some new features:
 
 Normally you may (and should) tell explicit to which place you want to write or from where you want to read. Here we have three variants:
 
@@ -5550,7 +5694,7 @@ Example:
 DosInAnIcon_do_64bit_stuff winst /64Bit
 ----
  
-In addition to these '{opsi-winst}' functions, we copy at the installation of the opsi-client agent the (64 bit) file `c:\windows\system32\cmd.exe` to `c:\windows\cmd64.exe`. Using this `cmd64.exe` with 'ExecWith' sections you may call any 64 bit operations on the command line.
+In addition to these '{opsi-winst}/opsi-script' functions, we copy at the installation of the opsi-client agent the (64 bit) file `c:\windows\system32\cmd.exe` to `c:\windows\cmd64.exe`. Using this `cmd64.exe` with 'ExecWith' sections you may call any 64 bit operations on the command line.
 
 Examples:
 
@@ -5659,12 +5803,12 @@ endif
 [[opsi-winst-cookbook]]
 == Cook Book
 
-This chapter contains a growing collection of examples showing real world problems that can be mastered by simple or sophisticated pieces '{opsi-winst}' scripting.
+This chapter contains a growing collection of examples showing real world problems that can be mastered by simple or sophisticated pieces '{opsi-winst}/opsi-script' scripting.
 
 [[opsi-winst-cookbook-recursive-delete]]
 === 9.1. Delete a File in all Subdirectories
 
-Since '{opsi-winst}' 4.2 there is an easy solution for this task: To remove a file alt.txt from all subdirectories of the user profile directory the following Files call can be used:
+Since '{opsi-winst}/opsi-script' 4.2 there is an easy solution for this task: To remove a file alt.txt from all subdirectories of the user profile directory the following Files call can be used:
 [source,winst]
 ----
 files_delete_Alt /allNtUserProfiles
@@ -5672,7 +5816,7 @@ files_delete_Alt /allNtUserProfiles
 [files_delete_Alt]
 delete "%UserProfileDir%\alt.txt"
 ----
-Neverthelesse we document a workaround which could be used in older '{opsi-winst}' versions. It demonstrates some techniques which may be helpful for other purposes.
+Neverthelesse we document a workaround which could be used in older '{opsi-winst}/opsi-script' versions. It demonstrates some techniques which may be helpful for other purposes.
 
 The following ingredients are needed:
 
@@ -5799,7 +5943,7 @@ ExitWindows /Reboot
 
 * Edit at 'CLIENT_DATA\setup.ins' the variables that are marked with: `Please edit the following values`.
 
-The '{opsi-winst}' script template temporarily generates a user context, executes an installation in it, then removes it. Before using the template the following values are to be set adequately:
+The '{opsi-winst}/opsi-script' script template temporarily generates a user context, executes an installation in it, then removes it. Before using the template the following values are to be set adequately:
 
 * the value for the variable '$Productname$'
 * the value of the variable '$ProductSize$'
@@ -5811,15 +5955,15 @@ The script proceeds as follows:
 * saves the autologon state;
 * inserts opsiSetupAdmin as autologon user;
 * copies the installation files to the client (as defined in $localFilesPath$); among them the installation script that is to be executed in the local user context;
-* creates a RunOnce entry in the registry that calls '{opsi-winst}' with the local script as argument;
+* creates a RunOnce entry in the registry that calls '{opsi-winst}/opsi-script' with the local script as argument;
 * reboots in order to make the registry change work;
-* when '{opsi-winst}' runs again, it calls an ExitWindows /ImmediateLogout, and the second scripting level begins to work:
+* when '{opsi-winst}/opsi-script' runs again, it calls an ExitWindows /ImmediateLogout, and the second scripting level begins to work:
 * By autologon , opsiSetupAdmin is logged on without user interaction.
-* Windows calls the RunOnce command, that is the '{opsi-winst}' call.
-* The '{opsi-winst}' script should now regularly proceed. But at its end, there must be a ExitWindows /ImmediateReboot command. Otherwise the desktop would of the administratrive user opsiSetupAdmin who is already logged at the moment would be accessible.
+* Windows calls the RunOnce command, that is the '{opsi-winst}/opsi-script' call.
+* The '{opsi-winst}/opsi-script' script should now regularly proceed. But at its end, there must be a ExitWindows /ImmediateReboot command. Otherwise the desktop would of the administratrive user opsiSetupAdmin who is already logged at the moment would be accessible.
 * after the reboot, the main script works again cleaning everything (writing back the old autologon state, deleting the local setup files, removing the opsiSetupAdmin profile)
 
-We call the two involved '{opsi-winst}' scripts master script and local script . The first one runs in a system service context, the second which does the specific software installation runs in the context of a local administrator.
+We call the two involved '{opsi-winst}/opsi-script' scripts master script and local script . The first one runs in a system service context, the second which does the specific software installation runs in the context of a local administrator.
 
 
 CAUTION: If the local script requires internal reboots then the master script must be adapted to produce them. As long as the local script is not finished the master script hands over control to the local script by an `ExitWindows /ImmediateLogout`. Of course the RunOnce entry has to be created for each run. Since username and password for the autologon are removed at the beginning of the local script they have to be reset each time as well.
@@ -6193,7 +6337,7 @@ SetAttribute "oor:name" value="$oooTemplateDirectory$"
 [[opsi-winst-cookbook-readxml]]
 === Retrieving Values From a XML File
 
-As treated in <<opsi-winst-cookbook-patchxml>> , '{opsi-winst}' can evaluate and modify XML files. 
+As treated in <<opsi-winst-cookbook-patchxml>> , '{opsi-winst}/opsi-script' can evaluate and modify XML files. 
 
 An example shall demonstrate how a value can be retrieved from a XML file. We assume that the following XML file is:
 [source,winst]
@@ -6256,7 +6400,7 @@ We encapsulate the retrieved Strings by setting their values as a whole into an 
 [[opsi-winst-cookbook-xmlnamespace]]
 === Inserting a Name Space Definition Into a XML File
 
-The '{opsi-winst}' XMLPatch section requires fully declared XML name spaces (as is postulated in the XML RFC). But there are XML configuration files which do not declare „obvious“ elements (and the interpreting programs insist that the file looks this way). Especially patching the lots of XML/XCU configuration files of OpenOffice.org proved to be a hard job. For solving this task, A. Pohl (many thanks!) the functions XMLaddNamespace and XMLremoveNamespace. Its usage is demonstrated by the following example:
+The '{opsi-winst}/opsi-script' XMLPatch section requires fully declared XML name spaces (as is postulated in the XML RFC). But there are XML configuration files which do not declare „obvious“ elements (and the interpreting programs insist that the file looks this way). Especially patching the lots of XML/XCU configuration files of OpenOffice.org proved to be a hard job. For solving this task, A. Pohl (many thanks!) the functions XMLaddNamespace and XMLremoveNamespace. Its usage is demonstrated by the following example:
 [source,winst]
 ----
 DefVar $XMLFile$
@@ -6290,7 +6434,7 @@ Please observe that the XML file must be formatted such that the element tags do
 == Special Error Messages
 
 * No Connection with the opsi Service +
-The '{opsi-winst}' logs: "... cannot connect to service".
+The '{opsi-winst}/opsi-script' logs: "... cannot connect to service".
 
 The information which is shown additionally may give a hint to the problem:
 
