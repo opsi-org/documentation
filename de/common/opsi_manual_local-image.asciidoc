@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      27.06.2013
-:Revision:  4.0.3
+:Date:      01.07.2013
+:Revision:  4.0.3.2
 :toclevels: 6
 
 
@@ -67,7 +67,7 @@ Die Wiederherstellung muss zwingend innerhalb von kurzer Zeit (15 Minuten / Gro�
 
 opsi ist ein Client-Management-System, das seine Stärken in der paketbasierten Installation und Pflege von Windows-Systemen hat. Dabei gibt es im Umgang mit heterogener Hardware deutliche Vorteile gegenüber rein imagebasierten Systemen. Die damit einhergehenden Installationszeiten von etwa 2 Stunden sind aber weit von den oben angegebenen Anforderungen entfernt. imagebasierte Lösungen sind hier prinzipiell schneller. Aber auch rein imagebasierte Systeme können bei dem Versuch, für einen ganzen Klassenraum ein Image herunterzuladen, zu Netzwerkproblemen führen. Dieses Problem kann durch lokal gepufferte Images gelöst werden. Ein solcher Ansatz wird z.B. vom Linux basierten System LinBo (Quelle http://linbo.sourceforge.net/) verfolgt. Doch auch mit lokal gepufferten Images kann es, abhängig von der verwendeten Hardware (Stichwort Festplatten- Performance), zu Zeitproblemen kommen, wenn versucht wird, komplette Images innerhalb von 15 Minuten wiederherzustellen.
 
-Eine weitere mögliche Problemlösung, das Einfrieren eines Betriebssystems und Umlenken sämtlicher Schreibzugriffe in einen externen Container, der bei einem Neustart einfach verworfen werden kann, ist eine möglicher Ansatzpunkt. Für Linux existieren Ansatzpunkte z.B. über FUSE Filesysteme. Für Windows gibt es eingeführte kommerzielle Produkte wie z.B. 'Deep Freeze', welche sich auch über die Kommandozeile (und damit per opsi) steuern ließen. Uns sind allerdings für den Windows Bereich keine entsprechenden Open Source Produkte bekannt. Da wir aber eine Open Source Lösung schaffen wollen, findet dieser Lösungsansatz hier keine weitere Betrachtung.
+Eine weitere mögliche Problemlösung, das Einfrieren eines Betriebssystems und Umlenken sämtlicher Schreibzugriffe in einen externen Container, der bei einem Neustart einfach verworfen werden kann, ist eine möglicher Ansatzpunkt. Für Linux existieren Ansatzpunkte z.B. über FUSE Filesysteme. Für Windows gibt es eingeführte kommerzielle Produkte, welche sich auch über die Kommandozeile (und damit per opsi) steuern ließen. Uns sind allerdings für den Windows Bereich keine entsprechenden Open Source Produkte bekannt. Da wir aber eine Open Source Lösung schaffen wollen, findet dieser Lösungsansatz hier keine weitere Betrachtung.
 
 Der im Folgenden untersuchte Ansatz versucht die Vorteile der jeweiligen Ansätze zu kombinieren, ihre Nachteile zu vermeiden und für eine unterschiedliche Hardware-Ausstattung (langsame / schnelle Rechner) angepasste Möglichkeiten zu bieten. Die Grundidee kann in den folgenden Stichpunkten zusammengefasst werden:
 
@@ -82,19 +82,23 @@ Der im Folgenden untersuchte Ansatz versucht die Vorteile der jeweiligen Ansätz
 [[opsi-manual-localimage-concept-technical]]
 === Technisches Konzept
 
-Der Schulungsrechner wird mit einer statischen Partitionstabelle verwendet:
+Der Schulungsrechner wird mit einer statischen Partitionstabelle verwendet. Dabei kann entweder mit 3 oder 4 Partitionen gearbeitet werden:
 
 * Partition 1 (System) +
 Hier findet sich das aktuell verwendete Betriebssystem (Windows / Linux) +
 Die Größe dieser Partition wird bei der Partitionierung über das Produkt `opsi-local-image-prepare` über ein Property gesteuert.
 
-* Partition 2 (winpe / swap) +
+* Optional: Partition 2 (sysdata) +
+Hier findet sich Anwenderdaten, welche bei einem Restore nicht überschrieben werden. Die Formatierung ist NTFS. +
+Die Größe dieser Partition wird bei der Partitionierung über das Produkt `opsi-local-image-prepare` über ein Property gesteuert.
+
+* Partition 3 (winpe / swap) +
 Die Größe dieser Partition ist statisch auf 4GB festgelegt. +
 Unter Windows XP wird dies Partition nicht verwendet. +
 Unter NT6 (Windows 7) wird diese Partition für das bei der Installation notwendige winpe verwendet und ist im Betrieb nicht sichtbar. +
 Unter Linux wird diese Partition als Swap verwendet.
 
-* Partition 3 (data) +
+* Partition 4 (backup) +
 Diese Partition dient zur Speicherung der gesicherten Images und ihrer Metadaten. +
 Die Größe dieser Partition ergibt sich aus dem nach Erstellung der anderen Partitionen noch vorhandenen freien Platz.
 
@@ -131,6 +135,7 @@ Einer Erweiterung der opsi Service Methoden.
 * `opsi-local-image-prepare` +
 Erstellung der statischen Partitionierung der Festplatte für alle anderen Produkte. +
 Über das Property `system_partition_size` wird die Größe der Partition 1 angegeben (Default = 30G) +
+Über das Property `data_partition_size` wird die Größe der Partition 2 angegeben. Bei eine Größe von '0G' wird keine Partition für Daten angelegt. (Default = 0G) +
 Über das Property `start_os_installation` kann ein Produkt zur Installation eines Betriebssystems ausgewählt werden welches im Anschluß an die Partitionierung automatisch gestartet wird.
 Bei der Installation dieses Produkts werden beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list' gelöscht, da durch die Neupartitionierung diese Daten ungültig geworden sind.
 
@@ -272,8 +277,6 @@ Durch den Aufruf des Produktes `opsi-local-image-restore` mit der Propertyeinste
 
 Durch den Aufruf des Produktes `opsi-local-image-delete` wird das im Property `imagefile` angegebene Image gelöscht.
 
-
-
 [[opsi-manual-localimage-backuppartition]]
 === Backuppartition
 
@@ -288,9 +291,6 @@ Zur Orientierung hier Beispielhaft die Größen von unterschiedlichen Imageverze
 * `opsi-local-image-winxp`: 6.4G
 * `opsi-local-image-win7`: 9.4G
 * `opsi-local-image-win7-x64`: 13G
-
-
-
 
 [[opsi-manual-localimage-ubuntumirror]]
 === Erstellen eines eigenen Ubuntu 'Proxy'
