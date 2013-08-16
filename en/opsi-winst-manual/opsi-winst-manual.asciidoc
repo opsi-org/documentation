@@ -15,7 +15,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      07.06.2013
+:Date:      15.08.2013
 :Revision:  4.0.3
 :doctype:		book
 
@@ -77,14 +77,16 @@ In the following section the availability is marked as:
 [[opsi-winst-linux-importantdiff]]
 === Important differences and hints
 
-'opsi-script' is at the moment a GUI application which needs a running and accessable X Windows. A command line version 'opsi-script-nogui' which can run without any GUI is under development.
+'opsi-script' is a GUI application which needs a running and accessable X Windows. 
+
+'opsi-script-nogui' is a command line version which can run without any GUI.
 
 At Linux the parameter delimiter is not "/" but "-". So instead of calling `opsi-winst /help` you should call `opsi-script -help` at Linux.
 
 [[opsi-winst-linux-path]]
 === opsi-script path
 
-According to the Linux Filesystem Hierachie Standard the files that belong to 'opsi-script' are not at one place but distributed around the system. So here an overview where to find which part:
+According to the Linux Filesystem Hierachy Standard the files that belong to 'opsi-script' are not at one place but distributed around the system. So here an overview where to find which part:
 
 * executable program: `/usr/bin/opsi-script`
 
@@ -277,6 +279,62 @@ SetSkinDirectory "%ScriptPath%\testskin"
 sleepseconds 1
 SetSkinDirectory ""
 ----
+
+[[opsi-winst-encoding]]
+===  '{opsi-winst}/opsi-script' encoding
+
+The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a greek windows system as encoded with cp1253 on a german windows system as cp1252 and under Linux as UTF-8.
+
+Since Version 4.11.4.1 it is possible to define the encoding in the script. This may be done in the main script and in the sub scripts and includes as well. You have to give the command: +
+`encoding=`<encoding> +
+This command can be at any position in the code (Even before [actions]). As <encoding> you may give one of the following values:
+
+.Encodings
+[options="header"]
+|==========================
+|encoding|allowed alias|Remark
+|system	|	|	use the encoding of the running OS
+|auto	|	|	try to guess the encoding
+|UTF-8      |   utf8	| 
+|UTF-8BOM   |   utf8bom	| 
+|Ansi       |   ansi     |		cp1252/ISO 8859-1
+|CP1250     |   cp1250   |		Central and East European Latin
+|CP1251     |   cp1251   |		Cyrillic
+|CP1252     |   cp1252   |		West European Latin
+|CP1253     |   cp1253   |		Greek
+|CP1254     |   cp1254   |		Turkish
+|CP1255     |   cp1255   |		Hebrew
+|CP1256     |   cp1256   |		Arabic
+|CP1257     |   cp1257   |		Baltic
+|CP1258     |   cp1258   |		Vietnamese
+|CP437      |   cp437    |		Original IBM PC hardware code page
+|CP850      |   cp850    |		"Multilingual (Latin-1)" (Western European languages)
+|CP852      |   cp852    |		"Slavic (Latin-2)" (Central and Eastern European languages)
+|CP866      |   cp866    |		Cyrillic
+|CP874      |   cp874    |		Thai
+|CP932      |   cp932    |		Japanese (DBCS)
+|CP936      |   cp936    |		GBK Supports Simplified Chinese (DBCS)
+|CP949      |   cp949    |		Supports Korean (DBCS)
+|CP950      |   cp950    |	Supports Traditional Chinese (DBCS)
+|ISO-8859-1 |   iso8859-1|		Latin-1
+|ISO-8859-2 |   iso8859-2|		Latin-2
+|KOI-8      |   koi8     |		Kyrillisches Alphabet
+|UCS-2LE    |   ucs2le   |		(UTF-16-LE)
+|UCS-2BE    |   ucs2be   |		(UTF-16-BE, Windows NT Standard)
+|==========================
+
+Sources see: +
+https://en.wikipedia.org/wiki/Code_page
+
+http://msdn.microsoft.com/en-us/library/windows/desktop/dd317752%28v=vs.85%29.aspx
+
+http://msdn.microsoft.com/en-us/library/cc195054.aspx
+
+https://de.wikipedia.org/wiki/Ansi
+
+https://de.wikipedia.org/wiki/UTF-8
+
+
 
 [[opsi-winst-script]]
 == The opsi-winst Skript
@@ -650,6 +708,8 @@ EndIf
 `%opsiserviceURL%` : The (usually https://) URL of the opsi service.
 
 `%opsiServer%` : The server name derived from the `%opsiserviceURL%`.
+
+`%opsiDepotId%` : Depot Server
 
 `%opsiserviceUser%` : The user ID for which there is a connection to the opsi service.
 
@@ -2650,8 +2710,12 @@ defines the list of elements starting with the first and ending with the second 
 * `getListContaining(`<list>,<search string>`)` +
 returns the first string from <list> which contains <search string>. Returns empty string if <seach string> is not found.
 
+* `getListContainingList(`<list1>,<list2>`)`  //since 4.11.3.7 [W/L] +
+returns the intersection of list1 and list2.
+
 * `takeFirstStringContaining(`<list>,<search string>`)` +
-Liefert den ersten String von <list> welcher den <search string> enthält. + Liefert einen Leerstring wenn <search string> nicht gefunden wird.
+returns the first string from <list> which contains <search string>. +
+Return en empty string if <search string> is not found.
 
 * `addtolist(`<list>,<string>`)` +
 Appends <string> to the list <list>.
@@ -2667,6 +2731,9 @@ if $list$ is 'a', 'b', 'c', 'd', 'e', by +
 set $list1$ = reverse ($list$)
 ----
 we get the $list1$ 'e', 'd', 'c', 'b', 'a'.
+
+`emptylist (`<list>`)`  //since 4.11.3.7 [W/L] +
+clears the list.
 
 [[opsi-winst-stringlist-misc]]
 ==== Other String Lists
@@ -2946,13 +3013,19 @@ writes additional error messages to the log file and increments the error counte
 writes additional warning messages to the log file and increments the warning counter by one.
 
 * `includelog` <file name> <tail size>   //since 4.11.2.1 +
+
+* `includelog` <file name> <tail size> [<encoding>]  //since 4.11.4.1 [W/L] +
 Includes the file <file name> as a log file, where the last <tail size> lines of the full log are written into this log file.  If you start another program that produces a log file, you could see that other program's log file in the opsi-winst script log using this command. +
-Since version 4.11.3.2, a negative <tail size> can be given, which will then include the first <tail size> lines from the top of the log file (referred to as 'Head' mode). + 
+Since version 4.11.3.2, a negative <tail size> can be given, which will then include the first <tail size> lines from the top of the log file (referred to as 'Head' mode). +
+Since version 4.11.4.1 there is an optional third parameter which may be used to give the encoding of the file to include. You may give one of the well known encodings described in the encodings chapter. If you give 'auto' opsi-script try to detect the encoding (and may fail). The default is 'system' which means the default OS encoding is used. +
 Example: 
 [source,winst]
 ----
 includelog "%Scriptpath%\test-files\10lines.txt" "5"
+includelog "%Scriptpath%\test-files\10lines_utf16.txt" "5" "ucs2be"
 ----
+
+see: <<opsi-winst-encoding,Encoding>>
 
 * `SetConfidential` <secret string> +
 This is to prevent confidential information (like passwords) from being logged. In the logfile the confidential information will be replaced by '***(confidential)***'. +
@@ -3533,7 +3606,7 @@ set "RebootFlag" = "$Flag$"
 ----
 
 [[opsi-winst-commands-isfatalerror]]
-==== Keeping Track of Failed Installations
+==== Abort script and keep track of failed installations
 
 If a product installation fails, then this should be signaled to the server.
 
@@ -3609,6 +3682,15 @@ else
     comment "no error occured"
 endif
 ----
+
+* `isSuccess` //since 4.11.3.7 [W/L] +
+Abort the script as successful.
+
+* `noUpdateScript` //since 4.11.3.7 [W/L] +
+Do not run a update script after setup even if there is one.
+
+* `isSuspended` //since 4.11.4.1 [W/L]
+Abort the script without notice to the server. The action requests remain at setup.
 
 [[opsi-winst-secsections]]
 == Secondary Sections
