@@ -15,8 +15,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      15.08.2013
-:Revision:  4.0.3
+:Date:      5.11.2013
+:Revision:  4.0.4
 :doctype:		book
 
 // Include common opsi terms
@@ -119,6 +119,8 @@ Zur Unterstützung von Linux gibt es folgende Linuxspezifische Funktionen:
 * `getLinuxDistroType`  // 'debian' or 'redhat' or 'suse' [L]
 
 * `getLinuxVersionMap` [L]
+
+* `chmod` in Files Sektionen [L]
 
 
 [[opsi-winst-linux-examples]]
@@ -1553,6 +1555,9 @@ liefert einen String mit dem base64 encodedten Wert von <string>.
 *  `base64DecodeStr(`<string>`)` [W/L] +
 liefert einen String mit dem base64 decodedten Wert von <string>.
 
+*  `reencodestr(`<str>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
+liefert den String <str> mit dem encoding <to> zurück wobei davon ausgegangen wird das <str> gemäß <from> encoded war. <from> und <to> sind dabei encodings wie sie im Kapitel <<opsi-winst-encoding>> aufgelistet sind.
+
 [[opsi-winst-string-functions-others]]
 ==== Weitere String-Funktionen
 
@@ -2491,15 +2496,25 @@ gibt die Zeilen einer aufgerufene Sektion aus.
 
 *  `getOutStreamFromSection (`Sectionname`)` [W/L] +
 „fängt“ – derzeit bei `DosInAnIcon` (`ShellInAnIcon`),`ExecWith` und `ExecPython` Aufrufen – die Ausgabe der Kommandozeilenprogramme in der Form einer String-Liste ein. Z.B. liefert der Ausdruck 
-`getOutStreamFromSection ('DosInAnIcon_netuse')` + 
+`getOutStreamFromSection ('DosInAnIcon_netstart')` + 
 wenn die aufgerufene Sektion definiert ist durch
 [source,winst]
 ----
-	[DosInAnIcon_netuse]
-	net use
+set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart')
+
+[DosInAnIcon_netstart]
+net start
 ----
 
-eine Reihe von Zeilen, die u.a. die Auflistung aller auf dem PC verfügbaren Shares enthalten und dann weiterbearbeitet werden können.
+eine Reihe von Zeilen, die u.a. die Auflistung aller laufenden Dienste enthalten und dann weiterbearbeitet werden können.
+
+Seit 4.11.4.2 gibt es für einfache Befehle und besonders (aber nicht nur) für den Einsatz unter Linux folgende 'Abkürzung':
+
+*  `shellCall (`<command string>`)` [W/L]
+[source,winst]
+----
+set $list$= shellCall('net start')
+----
 
 
 *  `getReturnListFromSection (`Sectionname`)` [W/L] +
@@ -2766,6 +2781,9 @@ also 'e', 'd', 'c', 'b', 'a'.
 
 * `emptylist (`<list>`)`  //since 4.11.3.7 [W/L] +
 Leert die Liste.
+
+*  `reencodestrlist(`<list>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
+liefert die Stringliste <list> mit dem encoding <to> zurück wobei davon ausgegangen wird das <list> gemäß <from> encoded war. <from> und <to> sind dabei encodings wie sie im Kapitel <<opsi-winst-encoding>> aufgelistet sind.
 
 [[opsi-winst-stringlist-iteration]]
 ==== Iteration durch String-Listen [W/L] 
@@ -3806,11 +3824,13 @@ Innerhalb einer Files-Sektion sind die Anweisungen
 
 *  `Copy` [W/L] 
 
-*  `Delete` [W/L] 
+*  `Delete` / `Del` [W/L] 
 
 *  `SourcePath`
 
 *  `CheckTargetPath` [W/L] 
+
+*  `chmod` [L]
 
 definiert. 
 
@@ -3903,6 +3923,9 @@ Festlegung des Verzeichnisses <Quelldirectory> als Vorgabe-Quelldirectory für i
 
 *  `CheckTargetPath` = <Zieldirectory> [W/L] +
 Festlegung des Verzeichnisses <Zieldirectory> als Vorgabe-Zieldirectory für Copy-Aktionen. Wenn <Zieldirectory> nicht existiert, wird der Pfad auch mehrstufig erzeugt. 
+
+`chmod` <mask> <path>   //since 4.11.4.1 [L] +
+Setzt die Rechte von <path> auf <mode>. <mode> ist dabei die Numerische (Octale) angabe der Rechte (z.B. "755").
 
 [[opsi-winst-patches]]
 === Patches-Sektionen [W/L] 
@@ -5381,6 +5404,29 @@ Diese Option hat den Effekt (wie bei `winBatch` Aufrufen), dass das aufgerufene 
 Wie bei ExecPython Sektionen wird die Ausgabe einer ExecWith-Sektion in einer String-Liste über die Funktion `getOutStreamFromSection` erfasst.
 
 Der Inhalt der Sektion wird in eine temporäre Datei (*.bat) gespeichert. Seit Version 4.11.3.5 wird, wenn im angegebene Interpreterpfad 'powershell.exe' vorkommt, die temporäre Datei als `.ps1` gespeichert. 
+
+Note:: Die Ausführung von Skripten ist in der  Powershell per default ausgeschaltet. Um eine Execwith Sektion mit powershell nutzen zu können, muß die Skriptausführung erst erlaubt werden. Dazu führen Sie `powershell.exe set-executionpolicy RemoteSigned` in einer DosInAnIcon Sektion aus. +
+Beispiel
+[source,winst]
+----
+DosInAnIcon_setpolicy
+ExecWith_powershell  powershell.exe
+set $exitcode$ = getLastExitcode
+if not ($exitcode$ = "0")
+	comment "powershell script failed"
+endif
+
+[DosInAnIcon_setpolicy]
+echo "powershell set-executionpolicy RemoteSigned ..."
+powershell.exe set-executionpolicy RemoteSigned
+exit %ERRORLEVEL%
+
+[ExecWith_powershell]
+echo "powershell opsi-winst-test"
+if ($?) {Exit(0)}
+else {Exit(1)}
+----
+
 
 [[opsi-winst-execwith-examples]]
 ==== Weitere Beispiele
