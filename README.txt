@@ -57,8 +57,13 @@ make clean
 make check
 ----
 
-. Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
+. copies an rename the files at build to pub (eg. build\pdf\de\opsi-getting-started\opsi-getting-started.pdf to pub\pdf\opsi-getting-started-de.pdf )
 
+----
+make rename
+----
+
+. Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
 
 ----
 VERBOSE=True make
