@@ -3521,62 +3521,155 @@ Therefore you should avoid using the following autoit commands in '{opsi-winst}'
 * Send()
 
 Because these commands are so widely used, we provide substitutes:
-
 *winwait()* +
-may be replaced by +
-winexists() +
-with the following code (with the additional functionality of a timeout after 30 seconds):
+should be replaced by the function +
+`opsiwinwait($title, $text, $maxseconds, $logname)` +
+which is defined as:
 [source,configfile]
 ----
-$seconds = 0
-$exists = 0
-While ($seconds <= 30) and ($exists = 0)
-    $exists = WinExists("Setup")
-    $seconds = $seconds + 1
-    sleep(1000)
-WEnd
+Func opsiwinwait($title, $text, $maxseconds, $logname)
+	Local $exists = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($exists = 0)
+		$exists = WinExists($title , $text)
+		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
+		$seconds = $seconds + 1
+		sleep(1000)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
 ----
+The parameters are: 
+
+* `$title` the title of the window
+
+* `$text` a part of the readable text in the window
+
+* `$maxseconds` the timeout in seconds
+
+* `$logname` the name of the log file
+
 
 *Send()* +
-should be replaced by +
-controlsend() and controlclick() +
-Therefore, you should use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly:
+should be replaced by the function +
+`opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
+respectively by +
+`opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
+which are defined as:
 [source,configfile]
 ----
-ControlClick("Setup", "", 1)
-----
+Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlClick($title , $text,$id)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
 
-Below is an example from of our jedit installation script. +
+Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlSetText ($title , $text,$id, $sendtext)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+----
+The parameters are: 
+
+* `$title` the title of the window
+
+* `$text` a part of the readable text in the window
+
+* `$id` the numerical ControlId of the button or edit field
+
+* `$sendtext` the text to insert to a edit field
+
+* `$maxseconds` the timeout in seconds
+
+* `$logname` the name of the log file
+
+Therefore, you should use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly:
+
+Below is an example from a script. +
 In this script we produce a log file from the autoit activities, which may be integrated in the '{opsi-winst}' log file with the following commands:
 [source,winst]
 ----
-setloglevel=7
-set $resultlist$ = loadTextFile("c:\tmp\au3.log")
-setloglevel=6
+includelog "c:\tmp\au3.log" "500"
 ----
 
-An example:
+Example:
 [source,configfile]
 ----
 [ExecWith_autoit_confirm]
+Func opsiwinwait($title, $text, $maxseconds, $logname)
+	Local $exists = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($exists = 0)
+		$exists = WinExists($title , $text)
+		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
+		$seconds = $seconds + 1
+		sleep(1000)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlClick($title , $text,$id)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlSetText ($title , $text,$id, $sendtext)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
 ; exact title match
 Opt("WinTitleMatchMode", 3)
 $mylog = FileOpen("C:\tmp\au3.log", 2)
 FileWriteLine($mylog,"auto-it started - waiting for the window")
-; do not use winwait(), it will fail on other desktops than current
-$seconds = 0
-$exists = 0
-While ($seconds <= 30) and ($exists = 0)
-    $exists = WinExists("Setup")
-    FileWriteLine($mylog,"winexists result (1=exists): " & $exists )
-    $seconds = $seconds + 1
-    sleep(1000)
-WEnd
-FileWriteLine($mylog,"window detected - sending answer")
-; say no
-$result = ControlClick("Setup", "", 1)
-FileWriteLine($mylog,"answer sended: result (1=success) : " & $result)
 FileClose($mylog)
+
+opsiwinwait("InstallShield Wizard" , "Wollen Sie wirklich", 200, "C:\tmp\au3.log")
+	opsiControlClick("InstallShield Wizard" , "Wollen Sie wirklich", 6, 5, "C:\tmp\au3.log")
+opsiwinwait("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 400, "C:\tmp\au3.log")
+	opsiControlClick("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 1, 5, "C:\tmp\au3.log")
+
 Sleep(500)
 ;and good bye
 Exit
