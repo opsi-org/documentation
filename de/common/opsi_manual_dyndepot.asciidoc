@@ -8,7 +8,7 @@
 ; english:
 ; http://creativecommons.org/licenses/by-sa/3.0/
 ; http://creativecommons.org/licenses/by-sa/3.0/legalcode
-; 
+;
 ; credits: http://www.opsi.org/credits/
 ////
 
@@ -186,7 +186,7 @@ Durch die Verwendung des Parameters `-D` kann der `opsi-package-manager` angewie
 opsi-package-manager -D -d ALL
 ----
 
-Der opsi-package-manager ist also das Werkzeug, um die Synchronisation auf dem 'push' Weg durchzuführen. Dahingegen ist das Werkzeug `opsi-product-updater` dafür gedacht, um Depots im 'pull' Verfahren zu synchronisieren. Der `opsi-product-updater` kann dazu auf den Depots als cronjob laufen. In der Konfigurationsdatei des `opsi-product-updater` (`/etc/opsi/opsi-product-updater.conf`) ist hierzu in der Sektion '[repository_uib]' der Wert von 'active' auf 'false' zu setzen und in der Sektion '[repository_master]' der Wert von 'active' auf 'true'  zu setzen. Weiterhin wird in der selben Sektion bei 'opsiDepotId' die ID des Depots (FQDN) eingetragen, von dem synchronisiert werden soll. Der `opsi-product-updater` synchronisiert dann gegen die Pakete, die auf dem angegebenen Depot im Verzeichnis `/var/lib/opsi/repository` liegen. 
+Der opsi-package-manager ist also das Werkzeug, um die Synchronisation auf dem 'push' Weg durchzuführen. Dahingegen ist das Werkzeug `opsi-product-updater` dafür gedacht, um Depots im 'pull' Verfahren zu synchronisieren. Der `opsi-product-updater` kann dazu auf den Depots als cronjob laufen. In der Konfigurationsdatei des `opsi-product-updater` (`/etc/opsi/opsi-product-updater.conf`) ist hierzu in der Sektion '[repository_uib]' der Wert von 'active' auf 'false' zu setzen und in der Sektion '[repository_master]' der Wert von 'active' auf 'true'  zu setzen. Weiterhin wird in der selben Sektion bei 'opsiDepotId' die ID des Depots (FQDN) eingetragen, von dem synchronisiert werden soll. Der `opsi-product-updater` synchronisiert dann gegen die Pakete, die auf dem angegebenen Depot im Verzeichnis `/var/lib/opsi/repository` liegen.
 
 CAUTION: Wird auf einem opsi-server ein Paket mit `opsi-package-manager -i` installiert (ohne `-d`), so landet es nicht im repository Verzeichnis. Damit es dorthin kopiert wird, kann man entweder bei der Installation mit -d explizit den Namen des Depots angeben oder mit `opsi-package-manager -u <paketname>` den upload in das Repository-Verzeichnis explizit anweisen.
 
@@ -220,10 +220,11 @@ Auf Basis dieser Informationen kann der Algorithmus nun ein Depot aus der Liste 
 
 [[opsi-manual-dyndepot-selection-template]]
 ===  Template des Auswahlscripts
-Im Templatescript sind zwei Funktionen zur Auswahl eines Depots vor implementiert. +
+Im Templatescript sind drei Funktionen zur Auswahl eines Depots vor implementiert. +
 Die Funktion +depotSelectionAlgorithmByNetworkAddress+ überprüft die Netzwerkadressen der übergebenen Depots und wählt jenes Depot aus, bei dem die eigene aktuelle IP-Nummer im Netz des Depots liegt. +
 Die Funktion +depotSelectionAlgorithmByLatency+ sendet ICMP „Echo-Request“-Pakete (ping) an die übergebenen Depots und wählt das Depot mit der niedrigsten Latenzzeit aus. +
-Die Funktion +getDepotSelectionAlgorithm+ wird vom Client aufgerufen und gibt den Algorithmus zurück, der für die AUswahl des Depots verwendet werden soll.
+Die Funktion +depotSelectionAlgorithmByMasterDepotAndLatency+ ist gedacht für Umgebungen mit mehreren Master-Depots, denen ihrerseits weitere Slave-Depots zugeordnet sein können. Es wird dabei aus der Menge von Masterdepot des Clients und den zugehörigen Slave-Depots das Depot ausgewählt, welches die geringste Latenzzeit vorweisen kann. +
+Die Funktion +getDepotSelectionAlgorithm+ wird vom Client aufgerufen und gibt den Algorithmus zurück, der für die Auswahl des Depots verwendet werden soll.
 Ohne Änderung am Templatescript wird hier die Funktion +depotSelectionAlgorithmByNetworkAddress+ zurückgegeben.
 
 [source,prompt]
@@ -246,7 +247,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 		for i in range(4):
 			n[i] = forceInt(n[i])
 		ip = (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3]
-		
+
 		depots = [ masterDepot ]
 		depots.extend(alternativeDepots)
 		for depot in depots:
@@ -260,9 +261,9 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 				netmask = forceUnicode(socket.inet_ntoa(struct.pack('>I',0xffffffff ^ (1 << 32 - forceInt(netmask)) - 1)))
 			while (netmask.count('.') < 3):
 				netmask = netmask + u'.0'
-			
+
 			logger.debug(u"Testing if ip %s is part of network %s/%s" % (clientConfig['ipAddress'], network, netmask))
-			
+
 			n = network.split('.')
 			for i in range(4):
 				n[i] = int(n[i])
@@ -271,7 +272,7 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 			for i in range(4):
 				n[i] = int(n[i])
 			netmask = (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3]
-			
+
 			wildcard = netmask ^ 0xFFFFFFFFL
 			if (wildcard | ip == wildcard | network):
 				logger.notice(u"Choosing depot with networkAddress %s for ip %s" % (depot.networkAddress, clientConfig['ipAddress']))
@@ -316,7 +317,82 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	return selectedDepot
 '''
 
+global depotSelectionAlgorithmByMasterDepotAndLatency
+depotSelectionAlgorithmByMasterDepotAndLatency = \
+'''
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	def getLatencyInformation(depots):
+		from OPSI.Util.Ping import ping
+		from OPSI.Util.HTTP import urlsplit
+
+		latency = {}
+		for depot in depots:
+			if not depot.repositoryRemoteUrl:
+				continue
+
+			try:
+				(scheme, host, port, baseurl, username, password) = urlsplit(depot.repositoryRemoteUrl)
+				latency[depot] = ping(host)
+
+				if latency[depot]:
+					logger.info(u"Latency of depot %s: %0.3f ms" % (depot, latency[depot]*1000))
+				else:
+					logger.info(u"Latency of depot %s: N/A" % depot)
+			except Exception, e:
+				logger.warning(e)
+		return latency
+
+	def getDepotWithLowestLatency(latency):
+		selectedDepot = None
+		if latency:
+			minValue = 1000
+			for (depot, value) in latency.items():
+				if not value:
+					continue
+				if (value < minValue):
+					minValue = value
+					selectedDepot = depot
+			logger.notice(u"Choosing depot %s with minimum latency %0.3f ms" % (selectedDepot, minValue*1000))
+
+		return selectedDepot
+
+	logger.info(u"Choosing depot from list of depots:")
+	logger.info(u"   Master depot: %s" % masterDepot)
+	for alternativeDepot in alternativeDepots:
+		logger.info(u"   Alternative depot: %s" % alternativeDepot)
+
+	if alternativeDepots:
+		from collections import defaultdict
+
+		# Mapping of depots to its master.
+		# key: Master depot
+		# value: All slave depots + master
+		depotsByMaster = defaultdict(list)
+
+		allDepots = [masterDepot] + alternativeDepots
+
+		for depot in allDepots:
+			if depot.masterDepotId:
+				depotsByMaster[depot.masterDepotId].append(depot)
+			else:
+				depotsByMaster[depot.id].append(depot)
+
+		depotsWithLatency = getLatencyInformation(depotsByMaster[masterDepot.id])
+		depotWithLowestLatency = getDepotWithLowestLatency(depotsWithLatency)
+
+		logger.info('Depot with lowest latency: {0}'.format(depotWithLowestLatency))
+		if not depotWithLowestLatency:
+			logger.info('No depot with lowest latency. Falling back to master depot.')
+			depotWithLowestLatency = masterDepot
+
+		return depotWithLowestLatency
+
+	return masterDepot
+'''
+
+
 def getDepotSelectionAlgorithm(self):
+	#return depotSelectionAlgorithmByMasterDepotAndLatency
 	#return depotSelectionAlgorithmByLatency
 	return depotSelectionAlgorithmByNetworkAddress
 ----
