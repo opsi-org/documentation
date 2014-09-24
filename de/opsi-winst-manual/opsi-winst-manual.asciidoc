@@ -126,10 +126,118 @@ Zur Unterstützung von Linux gibt es folgende Linuxspezifische Funktionen:
 [[opsi-winst-linux-examples]]
 === Beispiel Scripte für Linux
 
+.Run on Linux only
+
 [source,winst]
 ----
 [Actions]
-requiredWinstVersion >= "4.11.4"
+DefVar $OS$
+
+set $OS$ = GetOS
+ 
+if not ($OS$ = "Linux")
+	logError "Installation aborted: wrong OS version: only Linux alowed"
+	isFatalError "wrong OS"
+endif
+----
+
+.Which Linux Version
+
+[source,winst]
+----
+[Actions]
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $distrotype$
+
+
+DefStringList $linuxInfo$
+
+set $distrotype$ = getLinuxDistroType
+set $linuxInfo$ = getLinuxVersionMap
+set $distCodeName$ = getValue("Codename", $linuxInfo$)
+set $distRelease$ = getValue("Release", $linuxInfo$)
+set $distroName$  = getValue("Distributor ID", $linuxInfo$)
+----
+
+.getLinuxVersionMap Result Examples
+[options="header"]
+|==========================
+| Key | Ubuntu | Debian | openSUSE | SLES | CentOS
+|Distributor ID | Ubuntu |  |  | SUSE LINUX | CentOS
+|Release | 12.04 |  |  | 11 | 6.5
+|Codename | precise |  | n/a |  | Final
+|==========================
+
+.ShellInAnIcon call
+
+[source,winst]
+----
+[Actions]
+
+ShellInAnIcon_ls
+
+[ShellInAnIcon_ls]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+ls
+exit $?
+----
+
+It is always a good idea to start with `set -x` for more information in the log and to set the PATH. You should end with `exit $?` so that the exitcode of the last call is the exitcode of the section.
+
+.Installing a package at Ubuntu / Debian
+
+[source,winst]
+----
+[Actions]
+
+ShellInAnIcon_install_wget_debian
+
+[ShellInAnIcon_install_wget_debian]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+export DEBIAN_FRONTEND=noninteractive
+apt-get --yes --force-yes install wget 
+exit $?
+----
+The `DEBIAN_FRONTEND=noninteractive` and the apt-get options `--yes --force-yes` are needed for fully non interactive install.
+
+.Installing a package at SUSE
+
+[source,winst]
+----
+[Actions]
+
+ShellInAnIcon_install_wget_suse
+
+[ShellInAnIcon_install_wget_suse]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+zypper --no-gpg-checks --non-interactive install wget
+exit $?
+----
+
+.Installing a package at CentOS / Redhat
+
+[source,winst]
+----
+[Actions]
+
+ShellInAnIcon_install_wget_redhat
+
+[ShellInAnIcon_install_wget_redhat]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+yum -y install wget
+exit $?
+----
+
+
+[source,winst]
+----
+[Actions]
 
 DefVar $OS$
 DefVar $distro_type$
@@ -147,29 +255,39 @@ endif
 set $distro_type$ = getLinuxDistroType
 set $list$ = getLinuxVersionMap
 
-comment "install openssl ...."
+comment "install wget ...."
 if $distro_type$ = "redhat"
-	ShellInAnIcon_install_ssl_98_redhat
+	ShellInAnIcon_install_wget_redhat
 else
 	if $distro_type$ = "suse"
-		ShellInAnIcon_install_ssl_98_suse
+		ShellInAnIcon_install_wget_suse
 	else
 		if $distro_type$ = "debian"
-			ShellInAnIcon_install_ssl_98_debian
+			ShellInAnIcon_install_wget_debian
 		else
 			LogError "Unknown distro type"
 		endif
 	endif
 endif
 
-[ShellInAnIcon_install_ssl_98_debian]
-apt-get --yes install libssl0.9.8
+[ShellInAnIcon_install_wget_debian]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+export DEBIAN_FRONTEND=noninteractive
+apt-get --yes --force-yes install wget 
+exit $?
 
-[ShellInAnIcon_install_ssl_98_redhat]
-yum install openssl098e
+[ShellInAnIcon_install_wget_redhat]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+yum -y install wget
+exit $?
 
-[ShellInAnIcon_install_ssl_98_suse]
-zypper --non-interactive install libopenssl0_9_8
+[ShellInAnIcon_install_wget_suse]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+zypper --no-gpg-checks --non-interactive install wget
+exit $?
 ----
 
 [[opsi-winst-cliparams]]
