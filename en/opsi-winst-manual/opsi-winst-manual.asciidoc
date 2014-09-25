@@ -126,9 +126,10 @@ For Linux support there are the following special functions:
 * `chmod` in Files sections [L]
 
 [[opsi-winst-linux-examples]]
-=== Example script for Linux
+=== Beispiel Scripte für Linux
 
-.Run on Linux only
+[[opsi-winst-linux-examples_linuxonly]]
+==== Run on Linux only
 
 [source,winst]
 ----
@@ -143,7 +144,8 @@ if not ($OS$ = "Linux")
 endif
 ----
 
-.Which Linux Version
+[[opsi-winst-linux-examples_linuxversion]]
+==== Which Linux Version
 
 [source,winst]
 ----
@@ -167,12 +169,13 @@ set $distroName$  = getValue("Distributor ID", $linuxInfo$)
 [options="header"]
 |==========================
 | Key | Ubuntu | Debian | openSUSE | SLES | CentOS
-|Distributor ID | Ubuntu |  |  | SUSE LINUX | CentOS
-|Release | 12.04 |  |  | 11 | 6.5
-|Codename | precise |  | n/a |  | Final
+|Distributor ID | Ubuntu |  | openSUSE project | SUSE LINUX | CentOS
+|Release | 12.04 |  | 13.1 | 11 | 6.5
+|Codename | precise |  | Bottle | n/a | Final
 |==========================
 
-.ShellInAnIcon call
+[[opsi-winst-linux-examples_shellinanicon]]
+==== ShellInAnIcon call
 
 [source,winst]
 ----
@@ -189,7 +192,176 @@ exit $?
 
 It is always a good idea to start with `set -x` for more information in the log and to set the PATH. You should end with `exit $?` so that the exitcode of the last call is the exitcode of the section.
 
-.Installing a package at Ubuntu / Debian
+[[opsi-winst-linux-examples_addrepo]]
+==== Add a repository 
+
+.Ubuntu / Debian
+
+[source,winst]
+----
+[Actions]
+DefVar $newrepo$
+
+set $newrepo$ = "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0/ ./"
+
+comment "Method 1: use add-apt-repository ..."
+ShellInAnIcon_add_rep_deb
+ShellInAnIcon_add_repokey_deb
+comment "Method 2: use add-apt-repository ..."
+PatchTextFile_add_repo_deb "/etc/apt/sources.list"
+ShellInAnIcon_add_repokey_deb
+
+[ShellInAnIcon_add_rep_deb]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+export DEBIAN_FRONTEND=noninteractive
+apt-get --yes --force-yes install software-properties-common
+apt-get --yes --force-yes install python-software-properties
+add-apt-repository '$newrepo$'
+exit $?
+
+[PatchTextFile_add_repo_deb]
+FindLine_StartingWith "$newrepo$"
+DeleteTheLine
+GoToBottom
+InsertLine "$newrepo$"
+
+[ShellInAnIcon_add_repokey_deb]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+wget --no-check-certificate -O - $newrepo$/Release.key | apt-key add -
+apt-get update
+exit $?
+----
+
+.SUSE
+
+[source,winst]
+----
+[Actions]
+DefVar $newrepo$
+
+set $newrepo$ = "http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/openSUSE_13.1/home:uibmz:opsi:opsi40.repo"
+
+ShellInAnIcon_add_opsi_repository_suse
+
+[ShellInAnIcon_add_opsi_repository_suse]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+zypper --no-gpg-checks --non-interactive --gpg-auto-import-keys ar --refresh $newrepo$
+zypper --no-gpg-checks --non-interactive --gpg-auto-import-keys refresh
+exit $?
+----
+
+.CentOS / Redhat
+
+[source,winst]
+----
+[Actions]
+DefVar $newrepo$
+
+set $newrepo$ = "http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_7/home:uibmz:opsi:opsi40.repo"
+
+comment "Method 1: use wget ..."
+ShellInAnIcon_add_repo_redhat
+ShellInAnIcon_refresh_repo_redhat
+comment "Method 2: use PatchTextFile ..."
+PatchTextFile_add_repo_redhat "/etc/yum.repos.d/mynew.repo"
+ShellInAnIcon_refresh_repo_redhat
+
+ShellInAnIcon_add_repo_redhat
+
+[ShellInAnIcon_add_repo_redhat]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+yum -y install wget
+cd /etc/yum.repos.d
+wget --no-check-certificate $newrepo$
+exit $?
+
+[PatchTextFile_add_repo_redhat]
+AppendLine "[home_uibmz_opsi_opsi40]"
+AppendLine "name=opsi 4.0 (CentOS_7)"
+AppendLine "type=rpm-md"
+AppendLine "baseurl=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_7/"
+AppendLine "gpgcheck=1"
+AppendLine "gpgkey=http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_7/repodata/repomd.xml.key"
+AppendLine "enabled=1"
+
+[ShellInAnIcon_refresh_repo_redhat]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+yum makecache
+yum -y repolist
+exit $?
+----
+
+[[opsi-winst-linux-examples_delrepo]]
+==== Delete a repository 
+
+.Ubuntu / Debian
+
+[source,winst]
+----
+[Actions]
+DefVar $delrepo$
+DefStringlist = $resultlist$
+
+set $delrepo$ = "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0/ ./"
+
+if LineBeginning_ExistsIn($delrepo$, "/etc/apt/sources.list")
+	PatchTextFile_del_repo_deb  "/etc/apt/sources.list"
+	set $resultlist$ = shellCall("apt-get update")
+endif
+
+[PatchTextFile_del_repo_deb]
+FindLine_StartingWith "$delrepo$"
+DeleteTheLine
+----
+
+
+.SUSE
+
+[source,winst]
+----
+[Actions]
+DefVar $delrepo$
+
+comment "$delrepo$ is the section name of the repo file in /etc/zypp/repos.d/"
+comment "$delrepo$ can be found by zypper lr"
+set $delrepo$ = "home_uibmz_opsi_opsi40"
+ShellInAnIcon_del_opsi_repository_suse
+
+[ShellInAnIcon_del_opsi_repository_suse]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+zypper --non-interactive rr  $delrepo$
+exit $?
+----
+
+.CentOS / Redhat
+
+[source,winst]
+----
+[Actions]
+DefVar $delrepo$
+
+comment "$delrepo$ ist the name of the repo file in /etc/yum.repos.d"
+set $delrepo$ = "/etc/yum.repos.d/home:uibmz:opsi:opsi40.repo"
+
+[ShellInAnIcon_del_opsi_repository_redhat]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+rm $delrepo$
+yum makecache
+yum -y repolist
+exit $?
+----
+
+[[opsi-winst-linux-install_package]]
+==== Installing a package 
+
+.Ubuntu / Debian
 
 [source,winst]
 ----
@@ -206,7 +378,7 @@ exit $?
 ----
 The `DEBIAN_FRONTEND=noninteractive` and the apt-get options `--yes --force-yes` are needed for fully non interactive install.
 
-.Installing a package at SUSE
+.SUSE
 
 [source,winst]
 ----
@@ -220,8 +392,9 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 zypper --no-gpg-checks --non-interactive install wget
 exit $?
 ----
+The `zypper`  options `--no-gpg-checks --non-interactive` are needed for fully non interactive install.
 
-.Installing a package at CentOS / Redhat
+.CentOS / Redhat
 
 [source,winst]
 ----
@@ -235,7 +408,10 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 yum -y install wget
 exit $?
 ----
+The `yum`  option`-y` is needed for fully non interactive install.
 
+[[opsi-winst-linux-examples_integrated_example]]
+==== Integrated Example
 
 [source,winst]
 ----
@@ -291,7 +467,6 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 zypper --no-gpg-checks --non-interactive install wget
 exit $?
 ----
-
 
 [[opsi-winst-cliparams]]
 == Start and Command Line Options
