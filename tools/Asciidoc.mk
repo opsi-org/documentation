@@ -97,6 +97,7 @@ epub: $(addsuffix .epub,$(DOCS))
 			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
 				mkdir -p $(DEST_DIR)/$(F)/$(L)/$(basename $@);					\
 				if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
+					--resource '$(TOP_DIR)/$(L)/images'	\
 					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
 					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
 					"$$XSLT_FILE"							\
