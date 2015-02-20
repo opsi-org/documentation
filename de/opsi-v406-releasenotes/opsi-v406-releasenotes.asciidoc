@@ -271,6 +271,8 @@ opsi-setup --update-mysql
 [[opsi-script]]
 == opsi-script / opsi-winst 4.11.5.1
 
+** Security Upgrade zu Windows SSL Libraries 1.0.1L (libeay32.dll, ssleay32.dll)
+
 ** In Files Sektionen:
 
 *** `hardlink` <existing file> <new file> // since 4.11.5 [W/L]
@@ -280,6 +282,8 @@ opsi-setup --update-mysql
 *** `rename` <old filename> <new filename> // since 4.11.5 [W/L]
 
 *** `move` <old filename> <new filename> // since 4.11.5 [W/L]
+
+Die Erstellung von Junctions unter Windows wird noch nicht unterstützt.
 
 Example: 
 [source,winst]
@@ -297,19 +301,91 @@ copy "$HomeTestFiles$\files\dummy2.txt" "$HomeTestFiles$\files\temp\"
 move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
 ----
 
-** For-To Schleife:
+** For-To Schleife [W/L] :
+Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
 
 Syntax:
 
-`for` %<temporary string variable>% `=` <start string> ` to ` <end string> `do` <one statement //since 4.11.5 [W/L]
+`for` %<temporary string variable>% `=` <start string> `to` <end string> `do` <one statement> //since 4.11.5 [W/L]
+
+Die temporäre Variable %<temporary string variable>% muss und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
 
 Example: 
 [source,winst]
 ----
-for %s% = "1" to "5" do sub_iteration_test`
+message "for to loop"
+set $ConstTest$ = "12345"
+set $CompValue$ = ""
+for %s% = "1" to "5" do sub_iteration_test
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[sub_iteration_test]
+set $CompValue$ = $CompValue$ + '%s%'
 ----
 
-** Switch / Case Statement:
+ergibt den Log:
+
+[source,winst]
+----
+message for to loop
+Set  $ConstTest$ = "12345"
+  The value of the variable "$ConstTest$" is now: "12345"
+Set  $CompValue$ = ""
+  The value of the variable "$CompValue$" is now: ""
+
+~~~~~~ Looping through:  '1', '2', '3', '4', '5'
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '1'
+    The value of the variable "$CompValue$" is now: "1"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '2'
+    The value of the variable "$CompValue$" is now: "12"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '3'
+    The value of the variable "$CompValue$" is now: "123"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '4'
+    The value of the variable "$CompValue$" is now: "1234"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '5'
+    The value of the variable "$CompValue$" is now: "12345"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+
+~~~~~~ End Loop
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+** Switch / Case Statement [W/L] :
 
 Syntax:
 
@@ -323,7 +399,7 @@ Syntax:
 `EndSwitch`
 
 
-Example:
+Examples:
 [source,winst]
 ----
 set $ConstTest$ = "5"
@@ -359,19 +435,246 @@ else
 	set $TestResult$ = "not o.k."
 	LogWarning "failed"
 endif
-----.
+----
+
+.
+[source,winst]
+----
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+Switch $ExitCode$
+	Case "0"
+		comment "Looks good: setup program gives exitcode zero"
+	EndCase
+	Case "1605"
+		comment "ERROR_UNKNOWN_PRODUCT	1605"
+		comment "This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	EndCase
+	Case "1641"
+		comment "looks good: setup program gives exitcode 1641"
+		comment "ERROR_SUCCESS_REBOOT_INITIATED	164"	
+		comment "The installer has initiated a restart." 
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	Case "3010"
+		comment "looks good: setup program gives exitcode 3010"
+		comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010"
+		comment "A restart is required to complete the install."
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	DefaultCase
+		logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+		isFatalError "Exit Code: "+ $ExitCode$
+	EndCase
+EndSwitch
+----
+
+** `UpdateEnvironment` [W]: +
+Sendet Windows das Signal das Environment aus der Registry neu einzulesen.
+Anzuwenden nachdem Umgebungsvariablen wie z.B. PATH verändert, gesetzt oder gelöscht wurden.
+ABER: Normale DosBatch oder Winbatch Aufrufe erben trotzdem das 'alte' Environment. Daher danach `winbatch` mit dem Parameter `/RunElevated` verwenden.
+
+Example:
+[source,winst]
+----
+comment "Set Environment Variables and check for it ...."
+Registry_add_environment /sysnative
+UpdateEnvironment
+
+comment "This will not work because the environment is inherited from the running process"
+set $list$ = shellCall('set opsi-script-test')
+
+comment "This will work because this new started process will get a new environment"
+winbatch_check_environment /RunElevated
+if ("42" = getlastExitCode)
+	comment "passed"
+else
+	comment "failed"
+endif
+
+[Registry_add_environment]
+openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment]
+set "opsi-script-test"="deleteme"
+
+[winbatch_check_environment]
+"%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
+----
+
+** Bei `ShellBatch`, `ShellInAnIcon`, `DosBatch`, `DosInAnIcon`, `ExecWith` +
+sind nun als Parameter neben Stringkonstanten auch Stringvariablen erlaubt (aber keine String Funktionen).
+
+Example:
+[source,winst]
+----
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $tmp$ = "world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+----
+
+ergibt den Log:
+
+[source,winst]
+----
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+  
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd world
+    ExitCode 0
+                
+                output:
+                --------------
+                
+                C:\Windows\system32>echo Hello world 
+                Hello world
+    
+    The file: c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $tmp$ = "world"
+  The value of the variable "$tmp$" is now: "world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+  
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd world
+    ExitCode 0
+                
+                output:
+                --------------
+                
+                C:\Windows\system32>echo Hello world 
+                Hello world
+    
+    The file: c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+----
+
+** `sleepseconds` [W/L] +
+Als Parameter für die Anzahl der Sekunden sind nun auch Stringausdrücke erlaubt,
+also auch Stringvariablen und Stringfunktionen.
+
+** Suchpfad für `include_insert` und `include_append` ist um `%SriptPath%/../lib` erweitert worden und gilt nun auch für externe sub-Sektionen.  +
+
+Für alle Funktionen gilt: +
+<file name> ist:
+
+* Ein kompletter Pfad zu einer Datei. [W/L] 
+
+* Eine Datei in `%ScriptPath%` [W/L]
+
+* Eine Datei in `%opsiScriptHelperPath%\lib` [W] +
+Entspricht: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
+
+* Eine Datei in `%SriptPath%/../lib` [W/L]
+
+* Eine Datei in `%WinstDir%\lib` [W]
+
+Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
+
+** `removeFromList(`<search string>`,` <target list>`)` [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen  
+<search string> vorkommt. Der Vergleich ist case insensitiv.
+
+** `removeListFromList(`<search list>`,` <target list>`)` [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen Strings aus <search list> vorkommen. Der Vergleich ist case insensitiv.
+
+** `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+Liefer eine Stringliste mit dem Inhalt von <file name> welcher beim Einlesen von <encoding> in das laufende Encoding des Systems konvertiert wurde.
 
 
+** Logging im `silent_install` Modus:
+Wird opsi-script / opsi-winst aus einem `silent_install` Event gestartet (z.B für die Inventarisierung im Hintergrund), so werden die Logs immer im Append Mode an den Server gesendet als an den vorhandenen Log angehängt.
+
+** opsi-Linux Support:
+
+* Winbatch Sektionen werden jetzt auch unter Linux unterstützt.
+
+* LinkFolder Sektionen werden jetzt auch unter Linux unterstützt. +
+Erlaubte BaseFolder sind: `common_programs`,`common_autostart`,`desktop`, `autostart` +
+Subfolder ist immer "" (leer)
+Die Link Option `icon_index` wird ignoriert. Als zusätzliche Link Option gibt es: `link_categories`. Hier sind folgende durch Semikolon getrennt und abgeschlossene Werte erlaubt: `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
+Die LinkFolder Sektion unter Linux funktioniert für unterschidliche Desktopsysteme.
+
+** `MaximizeWinst` [W/L] +
+Vergrößert das opsi-script Fenster auf das Maximum.
 
 [[opsi-configed]]
 == opsi-configed 4.0.6.
 
+####################
 
 [[opsi-406-releasenotes-bootimage]]
 == opsi-linux-bootimage
-
-include::../common/opsi_manual_linux.asciidoc[]
-
+####################
 
 [[opsi-406-releasenotes-misc]]
 == Sonstiges
@@ -385,6 +688,7 @@ include::../common/opsi_manual_linux.asciidoc[]
 ////
 opsi-configed (4.0.5.1.2-1) testing; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-client-agent]]
 ==== Changelog opsi-client-agent
@@ -392,6 +696,7 @@ opsi-configed (4.0.5.1.2-1) testing; urgency=low
 ////
 opsi-client-agent (4.0.5.1-8) stable; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-script]]
 ==== Changelog opsi-script / opsi-winst
@@ -399,6 +704,7 @@ opsi-client-agent (4.0.5.1-8) stable; urgency=low
 ////
 opsi-winst/opsi-script (4.11.4.10) stable; urgency=low
 ////
+####################
 
 
 [[opsi-406-releasenotes-misc-changelogs-windows-netboot]]
@@ -407,6 +713,7 @@ opsi-winst/opsi-script (4.11.4.10) stable; urgency=low
 ////
 windows (4.0.5-4) stable; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-linux-netboot]]
 ==== Changelog linux netboot products
@@ -435,6 +742,7 @@ centos65_6.5-3 testing; urgency=low
 
 fedora_20_20-4 stable; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-local-image]]
 ==== Changelog opsi-local-image
@@ -472,6 +780,7 @@ opsi-local-image-win* (4.0.5.1-6) stable; urgency=low
 
 opsi-local-image-ubuntu (4.0.5.1-1) stable; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-python-opsi]]
 ==== Changelog python-opsi
@@ -479,59 +788,68 @@ opsi-local-image-ubuntu (4.0.5.1-1) stable; urgency=low
 ////
 python-opsi (4.0.5.15-1) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsipxeconfd]]
 ==== Changelog opsipxeconfd
 ////
 opsipxeconfd (4.0.5.3-6) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsiconfd]]
 ==== Changelog opsiconfd
 ////
 opsiconfd (4.0.5.2-1) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-utils]]
 ==== Changelog opsi-utils
 ////
 opsi-utils (4.0.5.6-2) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-linux-bootimage]]
 ==== Changelog opsi-linux-bootimage
 ////
 opsi-linux-bootimage (20140919-2) stable; urgency=medium
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-depotserver]]
 ==== Changelog opsi-depotserver
 ////
 opsi-depotserver (4.0.5.11-1) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-atftp]]
 ==== Changelog opsi-atftp
 ////
 opsi-atftp (0.7.dfsg-4) stable; urgency=medium
 ////
-
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi4ucs]]
 ==== Changelog opsi4ucs
 ////
 opsi4ucs (4.0.5.5-4) experimental; urgency=low
 ////
+####################
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-swaudit]]
 ==== Changelog opsi-swaudit
 ////
 swaudit (4.0.5-1) stable; urgency=low
 ////
+####################
 
  [[opsi-406-releasenotes-misc-changelogs-opsi-template]]
 ==== Changelog opsi-template
 ////
 opsi-template (4.0.5-1) stable; urgency=low
 ////
+####################
 
