@@ -277,7 +277,8 @@ opsi-setup --update-mysql
 
 *** `hardlink` <existing file> <new file> // since 4.11.5 [W/L]
 
-*** `symlink` <existing file> <new file> // since 4.11.5 [W/L]
+*** `symlink` <existing file> <new file> // since 4.11.5 [W/L] +
+Unter Windows ist `symlink` erst ab NT6 und aufwärts verfügbar !
 
 *** `rename` <old filename> <new filename> // since 4.11.5 [W/L]
 
@@ -311,6 +312,8 @@ Syntax:
 Die temporäre Variable %<temporary string variable>% muss und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
 
 Example: 
+
+Code from opsi-winst-test:
 [source,winst]
 ----
 message "for to loop"
@@ -400,6 +403,8 @@ Syntax:
 
 
 Examples:
+
+Code from opsi-winst-test:
 [source,winst]
 ----
 set $ConstTest$ = "5"
@@ -511,6 +516,8 @@ set "opsi-script-test"="deleteme"
 sind nun als Parameter neben Stringkonstanten auch Stringvariablen erlaubt (aber keine String Funktionen).
 
 Example:
+
+Code from opsi-winst-test:
 [source,winst]
 ----
 comment "Testing parameters for ShellBatch"
@@ -643,16 +650,136 @@ Entspricht: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
-** `removeFromList(`<search string>`,` <target list>`)` [W/L] +
+** `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+Liefert eine Stringliste mit dem Inhalt von <file name> welcher beim Einlesen von <encoding> in das laufende Encoding des Systems konvertiert wurde.
+
+** `removeFromListByContains(`<search string>`,` <target list>`)` [W/L] +
 Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen  
 <search string> vorkommt. Der Vergleich ist case insensitiv.
 
-** `removeListFromList(`<search list>`,` <target list>`)` [W/L] +
-Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen Strings aus <search list> vorkommen. Der Vergleich ist case insensitiv.
+** `removeFromListByContains(`<search list>`,` <target list>`)` [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen ein String aus <search list> vorkommt. Der Vergleich ist case insensitiv.
 
-** `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
-Liefer eine Stringliste mit dem Inhalt von <file name> welcher beim Einlesen von <encoding> in das laufende Encoding des Systems konvertiert wurde.
+Examples:
 
+File "%Scriptpath%\test-files\encoding\10lines.txt" is:
+----
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+----
+
+Code from opsi-winst-test:
+
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+message "removeFromListByContaining"
+set $string1$ = "%Scriptpath%\test-files\encoding\10lines.txt"
+set $list1$ = loadTextFileWithEncoding($string1$, "cp1252")
+comment "search with string"
+comment "search with string constant"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("line 5", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("LINE 5", $list1$)
+comment "the match is case insensitive"
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+
+set $ConstTest$ = "0"
+set $list2$ = removeFromListByContaining("line", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "8"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $list2$ = removeFromListByContaining("1", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string function"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining(trim(" line 5 "), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string variable"
+set $string1$ = "line 5"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining($string1$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list"
+comment "search with string list variable"
+set $list3$ = createStringList ('1', '2', '3', '4', '5')
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining($list3$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list variable"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining(createStringList ('1', '2', '3', '4', '5'), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
 
 ** Logging im `silent_install` Modus:
 Wird opsi-script / opsi-winst aus einem `silent_install` Event gestartet (z.B für die Inventarisierung im Hintergrund), so werden die Logs immer im Append Mode an den Server gesendet als an den vorhandenen Log angehängt.
@@ -663,9 +790,10 @@ Wird opsi-script / opsi-winst aus einem `silent_install` Event gestartet (z.B f�
 
 * LinkFolder Sektionen werden jetzt auch unter Linux unterstützt. +
 Erlaubte BaseFolder sind: `common_programs`,`common_autostart`,`desktop`, `autostart` +
-Subfolder ist immer "" (leer)
-Die Link Option `icon_index` wird ignoriert. Als zusätzliche Link Option gibt es: `link_categories`. Hier sind folgende durch Semikolon getrennt und abgeschlossene Werte erlaubt: `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
-Die LinkFolder Sektion unter Linux funktioniert für unterschidliche Desktopsysteme.
+Subfolder ist immer "" (leer).
+Die Link Option `icon_index` wird ignoriert. +
+Als zusätzliche Link Option gibt es: `link_categories`. Hier sind folgende durch Semikolon getrennt und abgeschlossene Werte erlaubt: `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
+Die LinkFolder Sektion unter Linux funktioniert für unterschiedliche Desktopsysteme.
 
 * `shellCall` liefert jetzt den korrekten exitcode des aufgerufenen Befehls zurück. Technisch gesehen wird der übergebene Befehl durch ` || exit $?` ergänzt, so daß die aufgerufene shell (/bin/bash) den exitcode des eigentlichen Befehls zurück gibt.
 
@@ -704,10 +832,104 @@ opsi-client-agent (4.0.5.1-8) stable; urgency=low
 [[opsi-406-releasenotes-misc-changelogs-opsi-script]]
 ==== Changelog opsi-script / opsi-winst
 
-////
-opsi-winst/opsi-script (4.11.4.10) stable; urgency=low
-////
-####################
+opsi-winst/opsi-script (4.11.5.1) stable; urgency=low
+
+  * osparser: commandline := 'cmd64.exe /c "reg delete ""'+key_completepath+'"" /f'; (fixes #1299)
+  * port of the changes since 4.11.4.6 to Linux
+  * osparser: New files commands hardlink, symlink, rename, move
+  * osfunc: new tuibinstall methods: hardlink, symlink, rename (Linux / Windows ; fixes #1319, #362)
+  * osparser: execDosBatch: The path to temporary file is only quoted if it contains spaces
+  * osparser: execDosBatch: Variables are now allowed as Parameters (but no functions) fixes #1312
+  * osparser: executeWith: Variables are now allowed as Parameters (but no functions)
+  * osparser: doAktionen: Variables and functions are now allowed as sleepsecond Parameters; fixes #1193
+  * osparser: %SriptPath%/../lib as additional Path in Search path for includes; fixes #1201
+  * osparser: searchpath for includes are now works also for sub <file> ; fixes #1201
+  * New loop statement: for %s% = $start$ to $stop$ do <statement> ;  refernces #407
+      - $start$ and $stop$ has to be integer strings
+      - $start$ < $stop$ is required
+      - in fact a stringlist $start$ to $stop$ is generated over which we iterate while loop
+  * osparser: tsLoopForTo  for %s% = $start$ to $stop$ do <statement>
+  * osparser: activating winbatch for linux ; fixes #1170
+  * replacing opsi-winst constants by opsi-script
+  * osparser: produceStringList: New (overloaded) stringlist function (references #1110):
+              - removeFromListByContaining(<search string>, <target list>) removes  <search string> from <target list>
+              - removeFromListByContaining(<search list>, <target list>) removes  <search list> from <target list>
+              - both functions search case insensitive for a matching substring
+  * ospparser: fix for filexists* to detect symlinks
+  * upgrade to ssl Libraries 1.0.1L (libeay32.dll, ssleay32.dll)
+  * osmain: GetParameter + StartProgramModes: more try - except : port from 4.11.4.16
+  * osparser: doOpsiServiceCall: more try - except : port from 4.11.4.16
+  * osparser: doTextPatchMain: do not use CheckFileExists in SaveToFile ; references #171
+  * HowToBuild.txt ; fixes #1372
+  * oswebservice: finishOpsiConf: if runproductlist then Logg-Appendmode := true; references #1379
+  * new Statement: UpdateEnvironment : Triggers Windows to reload Environment from Registry; Win only; references #1364
+  * new Control Statement: Switch  ; references  #740
+    - osparser: Switch <string expr ; normally variable>
+                  Case <string expr; normally const>
+                    statments
+                  EndCase
+                  [Defaultcase
+                    statments
+                  EndCase]
+                EndSwitch
+  * LinkFolder for Linux activated: No BaseFolder, No SubFolder, No Iconindex
+      but link_categories: 'AudioVideo',
+      'Audio', 'Video', 'Development', 'Education', 'Game', 'Graphics',  'Network',
+      'Office', 'Settings', 'System', 'Utility'
+      // from http://standards.freedesktop.org/menu-spec/menu-spec-1.0.html#category-registry
+      changes in osparser, osfunclin and new unit oslindesktop
+  * some more ExpandFilename calls to handle incorrect path delimiter
+  * oswebservice: sendlog: replace old writeLog by new log_write method
+  * New Statement: MaximizeWinst at osparser
+  * New Functions LoadTextFileWithEncoding(file,encoding) strLoadTextFileWithEncoding(file,encoding) at osparser
+  * osencoding: LoadFromFileWithEncoding
+  * oswebservice: sendlog: at Linux do not convert logstrings to uft8
+  * oslog: dependentadd: more try except
+  * osparser: sleepseconds (tsSleep): more try except and more logging
+  * osparser: winbatch: trim targetfilename
+  * osparser: shellBatch: Parameter at Linux (wrong bash parameter)
+  * osmain: User Profile Management (runloginscripts) is now free
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  22 Dec 2014:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.4.14) stable; urgency=low
+
+  * less (only 512 chars) debug output: oswebservice: retrieveJSONObject: log ResultLines.Strings[0] if Result = nil
+  * oswebservice: retrieveJSONObject: FillChar(buffer^, 655360,' '); before read to buffer
+  * manifest extended for win 10: <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  04 Dec 2014:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.4.13) stable; urgency=low
+
+  * more debug output: oswebservice: retrieveJSONObject: log ResultLines.Strings[0] if Result = nil
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  12 Nov 2014:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.4.12) stable; urgency=low
+
+  * fix: osmain: StartProgramModes: correct Path to the opsiclientd.conf in batch mode
+  * Logdevel while writing log to Service decreased
+  * fix: command typo: ErrorsOccuredSinceMark is wrong, now also allowed: ErrorsOccurredSinceMark  fixes #1121
+  * bakup files of log now are opsi-script.log.x where x is 0 - 8
+  * do not run login scripts if user is 'opsisetupadmin' fixes #1248
+
+-- Detlef Oertel <d.oertel@uib.de>  Fri,  24 Oct 2014:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.4.11) stable; urgency=low
+
+  * new unit: SystemCriticalU
+  * osmain: in StartprogramModes set SystemCritical.IsCritical := true;
+  * osmain: in BuildPC set SystemCritical.IsCritical := true;
+  * osmain: in Terminateapp set SystemCritical.IsCritical := false;
+  * osmain: in different execept set SystemCritical.IsCritical := false;
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  09 Oct 2014:15:00:00 +0200
+
 
 
 [[opsi-406-releasenotes-misc-changelogs-windows-netboot]]
