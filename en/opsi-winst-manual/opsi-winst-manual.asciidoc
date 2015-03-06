@@ -23,7 +23,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Revision:  4.0.5
+:Revision:  4.0.6
 :doctype:		book
 
 // Include common opsi terms
@@ -31,7 +31,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst / opsi-script Manual (4.11.4)
+opsi-winst / opsi-script Manual (4.11.5)
 ========================================
 
 // Include common opsi copyright
@@ -3414,8 +3414,40 @@ Beispiel :
 ChangeDirectory "%SCRIPTPATH%\programm"
 ----
 
-*  `sleepSeconds` <Integer>  [W/L] +
-breaks the program execution for <Integer> seconds.
+
+* `UpdateEnvironment` //since 4.11.5.1 [W/L] +
+Sends Windows the signal to reload the environment values from the registry.
+This statement may be called after any rocess that may have changed the environment (e.g. Registry section or setup program).
+Even if the program that runs after the opsi-script get the new environment, the next process that is started (via DosBatch or Winbatch) from this opsi-script instance will still inherit the old environment. To start a subsequent process with the new environment you have to use `winbatch` with the `/RunElevated` parameter.
+
+Example:
+[source,winst]
+----
+comment "Set Environment Variables and check for it ...."
+Registry_add_environment /sysnative
+UpdateEnvironment
+
+comment "This will not work because the environment is inherited from the running process"
+set $list$ = shellCall('set opsi-script-test')
+
+comment "This will work because this new started process will get a new environment"
+winbatch_check_environment /RunElevated
+if ("42" = getlastExitCode)
+	comment "passed"
+else
+	comment "failed"
+endif
+
+[Registry_add_environment]
+openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment]
+set "opsi-script-test"="deleteme"
+
+[winbatch_check_environment]
+"%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
+----
+
+*  `sleepSeconds` <string>  [W/L] +
+breaks the program execution for <string> seconds. <string> has to represent an Integer Value
 
 *  `markTime`  [W/L] +
 sets a time stamp for the current system time and logs it. 
@@ -3541,7 +3573,191 @@ It is designed to be used in 'userLoginScripts'.
 * `isLoginScript`    //since 4.11.2.1 +
 This booleasn function returns 'true' if the script is running as 'userLoginScript'. See also: `GetScriptMode`
 
+[[opsi-winst-commands-for-to-do]]
+=== for to do loop
 
+** For-To Schleife [W/L] :
+Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
+
+Syntax:
+
+`for` %<temporary string variable>% `=` <start string> `to` <end string> `do` <one statement> //since 4.11.5 [W/L]
+
+Die temporäre Variable %<temporary string variable>% muss und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
+
+Example: 
+
+Code from opsi-winst-test:
+[source,winst]
+----
+message "for to loop"
+set $ConstTest$ = "12345"
+set $CompValue$ = ""
+for %s% = "1" to "5" do sub_iteration_test
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[sub_iteration_test]
+set $CompValue$ = $CompValue$ + '%s%'
+----
+
+ergibt den Log:
+
+[source,winst]
+----
+message for to loop
+Set  $ConstTest$ = "12345"
+  The value of the variable "$ConstTest$" is now: "12345"
+Set  $CompValue$ = ""
+  The value of the variable "$CompValue$" is now: ""
+
+~~~~~~ Looping through:  '1', '2', '3', '4', '5'
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '1'
+    The value of the variable "$CompValue$" is now: "1"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '2'
+    The value of the variable "$CompValue$" is now: "12"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '3'
+    The value of the variable "$CompValue$" is now: "123"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '4'
+    The value of the variable "$CompValue$" is now: "1234"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '5'
+    The value of the variable "$CompValue$" is now: "12345"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+
+~~~~~~ End Loop
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+
+
+[[opsi-winst-commands-switch-case]]
+=== switch Statement [W/L]
+
+Syntax:
+----
+Switch <string expression> 
+  Case <string const>
+    <statement(s)> 
+  EndCase
+  [DefaultCase
+    <statement(s)> 
+   EndCase]
+EndSwitch
+----
+
+
+Examples:
+
+Code from opsi-winst-test:
+[source,winst]
+----
+set $ConstTest$ = "5"
+Switch $ConstTest$
+	Case "1"
+		set $CompValue$ = "1"
+	EndCase
+	Case "2"
+		set $CompValue$ = "2"
+	EndCase
+	Case "3"
+		set $CompValue$ = "3"
+	EndCase
+	Case "4"
+		set $CompValue$ = "4"
+	EndCase
+	Case "5"
+		set $CompValue$ = "5"
+	EndCase
+	Case "6"
+		set $CompValue$ = "6"
+	EndCase
+	Case "7"
+		set $CompValue$ = "7"
+	EndCase
+	DefaultCase
+		set $CompValue$ = "notexisting"
+	EndCase
+EndSwitch
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+.
+[source,winst]
+----
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+Switch $ExitCode$
+	Case "0"
+		comment "Looks good: setup program gives exitcode zero"
+	EndCase
+	Case "1605"
+		comment "ERROR_UNKNOWN_PRODUCT	1605"
+		comment "This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	EndCase
+	Case "1641"
+		comment "looks good: setup program gives exitcode 1641"
+		comment "ERROR_SUCCESS_REBOOT_INITIATED	164"	
+		comment "The installer has initiated a restart." 
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	Case "3010"
+		comment "looks good: setup program gives exitcode 3010"
+		comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010"
+		comment "A restart is required to complete the install."
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	DefaultCase
+		logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+		isFatalError "Exit Code: "+ $ExitCode$
+	EndCase
+EndSwitch
+----
 
 [[opsi-winst-commands-if-else]]
 === Conditional Statements (if Statements)
@@ -3695,13 +3911,13 @@ true: if the drive can be accessed
 true: if list is succesfully written to file 
 
 [[opsi-winst-commands-include]]
-==== Include Commands
+=== Include Commands
 
 CAUTION: Using include commands can lead to confusing code. +
 Use with caution if you are a beginner.
 
 [[opsi-winst-commands-include-syntax]]
-===== Include Commands: Syntax
+==== Include Commands: Syntax
 
 The `include_*` commands may be used to add external script files to the currently-running script at runtime. The `include_*` command can include external script files either as an insert (after the current line) or as an append (after the last line). The include commands may be used anywhere in a primary section. The external script files may contain their own include commands. +
 The include commands are available since version 4.11.3
@@ -3777,7 +3993,7 @@ del -f "c:\opsi.org\tmp\dummyt.txt"
 ----
 
 [[opsi-winst-commands-include-library]]
-===== Include Commands: Library
+==== Include Commands: Library
 
 The following include files are shipped with version 4.11.3, and are located in `%WinstDir%\lib`:
 
@@ -4211,15 +4427,24 @@ For more details see <<opsi-winst-64bit>>
 
 In a Files section the following commands are defined:
 
-* `Copy`
+*  `Copy` [W/L] 
 
-* `Delete`
+*  `Delete` / `Del` [W/L] 
 
-* `del`
+*  `SourcePath`
 
-* `SourcePath`
+*  `CheckTargetPath` [W/L] 
 
-* `CheckTargetPath`
+*  `chmod` [L]
+
+* `hardlink`  [W/L]
+
+* `symlink`  [W/L]
+
+* `rename`  [W/L]
+
+* `move` [W/L]
+
 
 `Copy` and `Delete` roughly correspond the the Windows shell commands xcopy resp. del. 
 
@@ -4315,6 +4540,27 @@ Sets <target directory> as default directory for `Copy` command . If the specifi
 
 `chmod` <mask> <path>   //since 4.11.4.1 [L] +
 Sets the access rights for <path> to <mode>. <mode> is the numerical (octal) representation (e.g. "755").
+
+`hardlink` <existing file> <new file> // since 4.11.5 [W/L]
+
+`symlink` <existing file> <new file> // since 4.11.5 [W/L] +
+At Windows `symlink` is only available at NT6 and up.
+
+`rename` <old filename> <new filename> // since 4.11.5 [W/L]
+
+`move` <old filename> <new filename> // since 4.11.5 [W/L]
+
+Creating Junctions at Windows is not supported right now.
+
+Example: 
+[source,winst]
+----
+[Files_link_move]
+hardlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\hardlink.txt"
+symlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\symlink.txt"
+rename "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\rename.txt"
+move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
+----
 
 [[opsi-winst-patches]]
 === Patches-Sections [W/L]
@@ -5257,6 +5503,119 @@ DosBatch_1 today we say winst /64bit
 echo %1 %2 %3 %4
 pause
 ----
+
+Since Version 4.11.5 not only string constants but also string variables are allowed as parameters (but no string functions)
+
+Example:
+
+Code from opsi-winst-test:
+[source,winst]
+----
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $tmp$ = "world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+----
+
+produce the log:
+
+[source,winst]
+----
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+  
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd world
+    ExitCode 0
+                
+                output:
+                --------------
+                
+                C:\Windows\system32>echo Hello world 
+                Hello world
+    
+    The file: c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $tmp$ = "world"
+  The value of the variable "$tmp$" is now: "world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+  
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd world
+    ExitCode 0
+                
+                output:
+                --------------
+                
+                C:\Windows\system32>echo Hello world 
+                Hello world
+    
+    The file: c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world 
+        (string   2)Hello world
+        
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+----
+
 
 [[opsi-winst-dosbatch-catchout]]
 ==== Catch the output

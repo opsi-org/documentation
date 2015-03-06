@@ -24,7 +24,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Revision:  4.0.5
+:Revision:  4.0.6
 :doctype:		book
 
 // Include common opsi terms
@@ -32,7 +32,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 [[opsi-winst-rc]]
-= opsi-winst / opsi-script reference card (4.11.4.4)
+= opsi-winst / opsi-script reference card (4.11.5.1)
 
 // Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
@@ -229,11 +229,13 @@ includelog "%Scriptpath%\test-files\10lines.txt" "5"
 
 `include_append` <file name> // since 4.11.3
 
-`NormalizeWinst` // since 4.11.3: (set normal window state)
+`NormalizeWinst` // (set normal window state) since 4.11.3
 
 `IconizeWinst` // (set minimized window state)
 
-`RestoreWinst` // (set maximized window state)
+`MaximizeWinst` // (set maximized window state) // since 4.11.5.1
+
+`RestoreWinst` // (restore last window state)
 
 `SetSkinDirectory` <path to skin.ini> // since 4.11.3.5
 
@@ -410,6 +412,8 @@ set $list1$ = splitString ("\\server\share\dir","\")
 
 `loadUnicodeTextFile (`<file name>`)` [W]
 
+`loadTextFileWithEncoding(` <file name> `,` <encoding>`)` //since 4.11.5 [W/L]
+
 `composeString (`<string list>, <Link>`)` [W/L]
 
 `takeString (`<index>, <list>`)` [W/L]
@@ -521,6 +525,10 @@ set $list1$ = createStringList ('a','b')
 
 `reencodestrlist(`<list>, <from>, <to>`)` //since 4.11.4.2 [W/L]
 
+`removeFromListByContains(`<search string>`,` <target list>`)` //since 4.11.5.1 [W/L]
+
+`removeFromListByContains(`<search list>`,` <target list>`)` //since 4.11.5.1 [W/L
+
 
 [[opsi-winst-rc-func-bool]]
 ==== Boolean operators and functions
@@ -589,6 +597,10 @@ endif
 requiredWinstVersion >= "4.10"
 ----
 
+`UpdateEnvironment` //since 4.11.5 [W]: +
+Subsequent calls of `winbatch` with the parameter `/RunElevated` will see the changed Environment.
+
+
 [[opsi-winst-rc-flow-control]]
 ==== Flow control
 
@@ -617,6 +629,51 @@ else
 endif
 ----
 
+'for - to - do' Statement //since 4.11.5 [W/L]
+
+`for` %<temporary string variable>% `=` <start string> `to` <end string> `do` <one statement> 
+
+
+Example: 
+[source,winst]
+----
+for %s% = "1" to "5" do sub_iteration_test
+----
+
+'Switch / Case' Statement //since 4.11.5 [W/L]
+
+Syntax:
+----
+Switch <string expression> 
+  Case <string const>
+    <statement(s)> 
+  EndCase
+  [DefaultCase
+    <statement(s)> 
+   EndCase]
+EndSwitch
+----
+
+
+Example:
+
+[source,winst]
+----
+set $ConstTest$ = "5"
+Switch $ConstTest$
+	Case "1"
+		set $CompValue$ = "1"
+	EndCase
+	Case "2"
+		set $CompValue$ = "2"
+	EndCase
+	DefaultCase
+		set $CompValue$ = "notexisting"
+	EndCase
+EndSwitch
+----
+
+
 `isFatalError` [W/L]
 
 `isFatalError` <string>  //since 4.11.3.2 [W/L]
@@ -637,7 +694,7 @@ endif
 
 `ExitWindows /RebootWanted` (deprecated, acts like /Reboot) [W]
 
-`sleepSeconds` <Integer> [W/L]
+`sleepSeconds` <Integer> or <string> [W/L]
 
 `ChangeDirectory` <directory>   //since 4.11.2.6 [W/L]
 
@@ -645,9 +702,9 @@ endif
 == Secondary Sections
 
 [[opsi-winst-rc-winbatch]]
-=== Winbatch [W]
+=== Winbatch [W/L]
 
-Function: execute programs via Windows API
+Function: execute programs via operating system API
 
 `[WinBatch`<identifier>`]` 
 
@@ -798,6 +855,15 @@ Example (*you may forget the trailing Backslash*): +
 `del -sf c:\delete_this_dir`
 
 `chmod` <mask> <path>   //since 4.11.4.1 [L]
+
+`hardlink` <existing file> <new file> // since 4.11.5 [W/L]
+
+`symlink` <existing file> <new file> // since 4.11.5 [W/L] +
+At Windows `symlink` is only available at NT6 and up.
+
+`rename` <old filename> <new filename> // since 4.11.5 [W/L]
+
+`move` <old filename> <new filename> // since 4.11.5 [W/L]
 
 
 
@@ -950,7 +1016,7 @@ preference types are usally: +
 `setValueByKey` <keystr> <valuestr> //since 4.11.4.4 [W/L]
 
 [[opsi-winst-rc-LinkFolder]]
-=== LinkFolder [W]
+=== LinkFolder [W/L]
 
 Function: Startmenue + Desktop Icons
 
@@ -960,28 +1026,34 @@ Commands:
 
 `set_basefolder` <system folder>
 
-`set_subfolder` <folder path>
+`set_subfolder` <folder path> (at Linux set always "")
 
 ----
 set_link
-  name:        <link name>
-  target:      <path and name of the program>
-  parameters:  [command line arguments]
-  working_dir: [working directory]
-  icon_file:   [path and name of icon file, default=target]
-  icon_index:  [number of icon in icon file, default=0]
+  name:            <link name>
+  target:          <path and name of the program>
+  parameters:      [command line arguments]
+  working_dir:     [working directory]
+  icon_file:       [path and name of icon file, default=target]
+  icon_index:      [number of icon in icon file, default=0] [W]
+  link_categories  [list of categories] [L]
 end_link
 ----
 
 `delete_element`   <link name>
 
-`delete_subfolder` <folder path>
+`delete_subfolder` <folder path> [W]
 
-The predefined virtual system folders which can be used are: +
+The predefined virtual system folders which can be used are at Windows: +
 `desktop, sendto, startmenu, startup, programs, desktopdirectory`, +
-`common_startmenu, common_programs, common_startup, common_desktopdirectory`
+`common_startmenu, common_programs, common_startup, common_desktopdirectory` +
+and at Linux: +
+`common_programs`,`common_startup`,`desktop`, `startup`
 
-Example
+Predefined `link_categories` for Linux: +
+`AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility`
+
+Examples
 [source,winst]
 ----
 set_basefolder common_desktopdirectory
@@ -989,6 +1061,21 @@ set_subfolder ""
 set_link
   name: opsi-winst
   target: "%ProgramFiles32Dir%\opsi.org\opsi-client-agent\opsi-winst\winst32.exe"
+end_link
+----
+
+[source,winst]
+----
+[LinkFolder_configed_lin]
+set_basefolder common_programs
+set_subfolder ""
+
+set_link
+  name: opsi-configed-Local
+  target: java 
+  parameters: $parameter$
+  icon_file: "$InstallDir$/opsi.png"
+  link_categories: System;Utility;
 end_link
 ----
 
