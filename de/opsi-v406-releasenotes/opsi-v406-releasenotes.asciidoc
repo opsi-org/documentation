@@ -281,20 +281,29 @@ opsi-setup --update-mysql
 ////
 
 [[opsi-script]]
-== opsi-script / opsi-winst 4.11.5.1
+== opsi-script / opsi-winst 4.11.5.2
 
-** Security Upgrade zu Windows SSL Libraries 1.0.1L (libeay32.dll, ssleay32.dll)
+** Security Upgrade zu Windows SSL Libraries 1.0.2a (libeay32.dll, ssleay32.dll)
 
 ** In Files Sektionen:
 
-*** `hardlink` <existing file> <new file> // since 4.11.5 [W/L]
+*** `hardlink` <existing file> <new file> // since 4.11.5 [W/L] +
+Ein existierender <new file> wird überschrieben. +
+`hardlink` funktioniert nur auf Filesystemen die Hardlinks unterstützen
+wie NTFS und standard Linux Filesysteme.
 
 *** `symlink` <existing file> <new file> // since 4.11.5 [W/L] +
-Unter Windows ist `symlink` erst ab NT6 und aufwärts verfügbar !
+Unter Windows ist `symlink` erst ab NT6 und aufwärts verfügbar ! +
+Ein existierender <new file> wird überschrieben. +
 
-*** `rename` <old filename> <new filename> // since 4.11.5 [W/L]
-
+*** `rename` <old filename> <new filename> // since 4.11.5 [W/L] +
 *** `move` <old filename> <new filename> // since 4.11.5 [W/L]
+Es gibt keine Unterschiede zwischen `rename` und `move`, es sind zwei Namen für die selbe Funktion +
+Ein existierender <new file> wird überschrieben. +
+Windows: <new filename> darf in einem anderen Directory liegen oder auch in einem anderen Volume / Disk. Im zweiten Fall, wird die Datei kopiert und danach das Original gelöscht. +
+Läßt sich das Ziel nicht erstellen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. Das funktioniert natürlich nur wenn das Zielfilesystem zum Reboot-Zeitpunkt verfügbar ist, also nicht auf Netzwerkshares. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
+Linux: <new filename> darf in einem anderen Directory liegen aber nicht in einem anderen Filsystem / Partition. Die Option `-c` wird unter Linux ignoriert.
+
 
 Die Erstellung von Junctions unter Windows wird noch nicht unterstützt.
 
@@ -313,6 +322,10 @@ rename "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\renam
 copy "$HomeTestFiles$\files\dummy2.txt" "$HomeTestFiles$\files\temp\"
 move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
 ----
+
+*** Die Funktion `del` und `delete`  +
+Windows: Läßt sich die Datei nicht löschen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
+Linux: Die Option `-c` wird unter Linux ignoriert.
 
 ** For-To Schleife [W/L] :
 Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
@@ -793,8 +806,16 @@ else
 endif
 ----
 
+** Stringfunktion `unquote2(<string>,<quote-string>)` [W/L] +
+Funktioniert wie `unquote(<string>,<quote-string>)` mit folgenden Unterschieden: +
+Wenn <quote-string> ein Zeichen lang ist, wird diese Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das Ende von <string> genommen. Wenn <quote-string> zwei Zeichen lang ist, wird das erste Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das zweite Zeichen als erwartetes 'Quote Zeichen' für den Ende von <string> genommen. Beispiel: `"()"` +
+Die Funktion liefert <string> unverändert zurück, wenn nicht sowohl für Anfang und Ende die erwarteten 'Quote Zeichen' gefunden werden.
+
 ** Logging im `silent_install` Modus:
 Wird opsi-script / opsi-winst aus einem `silent_install` Event gestartet (z.B für die Inventarisierung im Hintergrund), so werden die Logs immer im Append Mode an den Server gesendet als an den vorhandenen Log angehängt.
+
+** Stringfunktion `GetShortWinPathName(<longpath string>)` [W] +
+Liefert den Shortpath (8.3) von <longpath string>. Lässt sich für <longpath string> kein Shortpath finden, so liefert die Funktion einen leeren String. + Beispiel: `GetShortWinPathName("C:\Program Files (x86)")` liefert `"C:\PROGRA~2"`
 
 ** opsi-Linux Support:
 
@@ -951,6 +972,29 @@ opsi-client-agent (4.0.5.1-8) stable; urgency=low
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-script]]
 ==== Changelog opsi-script / opsi-winst
+
+opsi-winst/opsi-script (4.11.5.2) stable; urgency=low
+
+  * upgrade to ssl Libraries 1.0.2a (libeay32.dll, ssleay32.dll)
+  * files commands move / rename / hardlink / symlink now work with overwrite; fixes #1435
+  * if move / rename fails (file is in use) we retry it with MOVEFILE_DELAY_UNTIL_REBOOT
+    So the move will be done at the next reboot. Reboot will be set automatically if not Option -c is set.
+  * file command del / delete now with option -c and retry to delete on next boot if file in use ; fixes # 788
+  * osfunc: new function opsiunquotestr2
+  * new string function unquote2(s1,s2): like unquote but:
+        removes only quotes if they found at start and end
+        s2 may be two chars long. Then the first char is the start mark
+        and the second char is the end mark
+  * osparser: GetString: new boolean switch requote
+  * osparser: GetString requote=true: change double quoted (""str"") to alternative double quoted ('""');  references #1284
+  * new string function: GetShortWinPathName(longpath) ; fixes #581
+        Windows only
+        Gives short path (8.3) from a long path e.g.
+        GetShortWinPathName("C:\Program Files (x86)") gives "C:\PROGRA~2"
+        In case of Error the result is an empty string
+
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  01 Apr 2015:15:00:00 +0200  
 
 opsi-winst/opsi-script (4.11.5.1) stable; urgency=low
 
