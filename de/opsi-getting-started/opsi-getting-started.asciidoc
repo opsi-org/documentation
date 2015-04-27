@@ -153,7 +153,7 @@ Sie können diese Maschine aber auch in VMware-Server oder ESX betreiben.
 
 Sofern Sie bereits über einen Gastrechner verfügen, auf dem die VMware-Vollversion oder ein VMware-Player installiert ist, erledigen Sie die Grundinstallation des '{opsi-server}' mit wenigen Mausklicks:
 
-* Laden Sie die Datei `opsi4.0.5-1-servervm.zip` aus dem Internet.
+* Laden Sie die Datei `opsi4.0.5-2-servervm.zip` aus dem Internet.
 * Entpacken Sie den Zip-File, das Verzeichnis `opsidemo` wird erzeugt
 * Starten Sie den VMware-Player. +
 Öffnen Sie "Open a Virtual Maschine", suchen Sie in dessen Dateiauswahldialog das Verzeichnis `opsidemo` und darin die Datei `opsidemo.ovf`. Gegebenenfalls müssen Sie ganz unten noch die anzuzeigenden Dateitypen auf ovf ändern.
@@ -161,14 +161,14 @@ Sie können den Server jetzt unter einem eigenen Namen importieren. Der virtuell
 
 *ESXi-Server*
 
-* Laden Sie die Datei `opsi4.0.5-1-servervm.zip` aus dem Internet.
+* Laden Sie die Datei `opsi4.0.5-2-servervm.zip` aus dem Internet.
 * Entpacken Sie den Zip-File, das Verzeichnis `opsidemo` wird erzeugt
 * Starten Sie den vSphere Client. +
 Erstellen Sie sich einen neuen Rechner über 'Datei' / 'OVF-Vorlage bereitstellen....' und die Beantwortung der Folge-Dialoge.
 
 *Virtualbox*
 
-* Laden Sie die Datei `opsi4.0.5-1-servervm.zip` aus dem Internet.
+* Laden Sie die Datei `opsi4.0.5-2-servervm.zip` aus dem Internet.
 * Entpacken Sie den Zip-File, das Verzeichnis `opsidemo` wird erzeugt
 * Starten Sie Virtualbox. +
 Über den Menüpunkt 'Datei' / 'Appliance importieren' können Sie die Datei `opsidemo.ovf` laden.
@@ -553,7 +553,41 @@ Machen Sie daher mit dem Punkt <<opsi-getting-started-installation-config-backen
 [[opsi-getting-started-installation-base-ucs]]
 ==== Installation auf einem Univention Corporate Server (UCS)
 
-opsi 4.0 ist getestet und freigegeben für UCS 3.2.
+opsi 4.0 ist getestet und freigegeben für UCS 3.2 und UCS 4.0.
+
+
+
+[[opsi-getting-started-installation-base-ucs-appcenter]]
+===== Installation im Univention App-Center
+
+Über das Univention App-Center steht eine automatisierte Installation des opsi-Servers zur Verfügung.
+Das Installations-App für opsi befindet sich in der UCS-Management-Oberfläche in der Kategorie "System".
+Bei der Installation geschieht folgendes:
+
+* Es wird die Grundlage für die MySQL-Installation gelegt.
+
+* Die Ignore-List des Samba4-Connectors wird so angepasst, dass der User pcpatch entfernt wird.
+
+* Das MySQL-Backend wird für die Nutzung der Inventarisierungsdaten konfiguriert (Anpassung der dispatch.conf)
+
+* Mit opsi-Bordmitteln wird die Samba-Konfiguration überprüft, um sicherzustellen, dass die für opsi benötigten Samba-Shares richtig angelegt sind.
+
+* Zur Installation des opsi-Servers werden automatisch weitere Pakete installiert:
+opsi4ucs, opsi-atftpd, p7zip-full cabextract, mysql-server, digitec-opsi-listener.
+Dazu wird bei der Installation selbständig geprüft, welche UCS-Systemrolle der Server hat.
+
+* Der 'opsi-product-updater' wird aufgerufen zum Einspielen der minimalen opsi-Produkte. Nach dem Download werden die Pakete auf dem Server installiert.
+
+Mit dem automatischen Einrichten des 'digitec-opsi-listener' über das 'Univention' App-Center werden neu im UCS-Backend angelegte Clients automatisch ins opsi-Backend übernommen.
+Dies gilt jeoch nicht für bereits vorhandene Clients. 
+Soll eine komplette Syncronisation durchgeführt werden, so müssen die entsprechenden Befehle manuell eingegeben werden siehe:
+<<opsi-getting-started-installation-base-ucs-listener>>
+
+Die opsi-Installation auf einem UCS-Server über das 'Univention' App-Center ist damit abgeschlossen. Weiter geht es mit:
+<<opsi-getting-started-installation-config-modules>>
+
+[[opsi-getting-started-installation-base-ucs-3]]
+===== Manuelle opsi-Installation auf einem UCS 3 und UCS 4 (ohne App-Center)
 
 Beachten Sie bitte <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
 
@@ -582,13 +616,6 @@ muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die C
 * mysql-server sollte installiert sein
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
-
-[[opsi-getting-started-installation-base-ucs-3]]
-===== Installation auf einem UCS 3
-
-Für UCS 3 steht das opsi 'univention' Backend nicht mehr zur Verfügung. Das default Backend ist wie bei den anderen Distributionen das file Backend.
-
-WARNING: Aus dem oben genannten Grund darf das opsi4ucs-ldap-schema auf einem UCS 3 System nicht auf dem Master installiert werden. Besonders wenn das UCS 3 System mit Samba4 (default) installiert wurde.
 
 Die Installation von opsi mit dem file oder mysql Backend ist möglich auf den Rollen Master, Backup, Slave.
 
@@ -1784,6 +1811,33 @@ service opsiconfd reload
 ----
 
 
+
+[[opsi-getting-started-installation-config-get-essential-products]]
+=== Einspielen der minimalen opsi-Produkte
+
+Holen Sie sich die aktuellen notwendigen opsi-Pakete im opsi-Paketformat.
+
+Die Pakete finden Sie unter http://download.uib.de/opsi4.0/products/ in den Verzeichnissen netboot/ und localboot/
+
+Nach dem Download müssen Sie die Pakete auf dem Server mit dem Befehl `opsi-package-manager -i <paketname>.opsi` installiert werden
+
+Sie können das interaktiv für jedes einzelne Paket tun. Wir empfehlen Ihnen dies automatisiert zu tun. Hierzu gibt es das Werkzeug `opsi-product-updater`, welches wie in '/etc/opsi/opsi-product-updater.conf' konfiguriert, automatisch die aktuellen Pakete vom opsi Repository holt und auf dem Server installiert.
+
+[source,prompt]
+----
+opsi-product-updater -i -vv
+----
+
+Sollte der `opsi-product-updater` Befehl scheitern, so muss evtl. ein Proxy in der Konfigurationsdatei eingetragen werden unter
+[source,configfile]
+----
+[repository_uib]
+proxy =
+----
+Bitte beachten Sie, dass OS-Installationsprodukte wie winxppro und win2k nach der Installation nicht sofort einsatzbereit sind. Die Installation muss noch durch die Installationsdateien des entsprechenden Installationsmediums ergänzt werden (siehe: <<opsi-getting-started-firststeps-osinstall-fill-base-packages>>).
+
+Wenn Sie wollen, können Sie noch weitere opsi-Produkte von download.uib.de herunterladen und auf die gleiche Weise auf Ihrem {opsi-Server} installieren.
+
 [[opsi-getting-started-installation-config-modules]]
 === Einspielen / Überprüfen der Freischaltdatei
 
@@ -1831,31 +1885,6 @@ Beispiel-Ausgabe:
 
 Wir weisen darauf hin, dass die modules-Datei nur für zusätzliche Funktionalitäten benötigt wird und diese nicht für den „normalen“ Betrieb von opsi benötigt wird.
 
-[[opsi-getting-started-installation-config-get-essential-products]]
-=== Einspielen der minimalen opsi-Produkte
-
-Holen Sie sich die aktuellen notwendigen opsi-Pakete im opsi-Paketformat.
-
-Die Pakete finden Sie unter http://download.uib.de/opsi4.0/products/ in den Verzeichnissen netboot/ und localboot/
-
-Nach dem Download müssen Sie die Pakete auf dem Server mit dem Befehl `opsi-package-manager -i <paketname>.opsi` installiert werden
-
-Sie können das interaktiv für jedes einzelne Paket tun. Wir empfehlen Ihnen dies automatisiert zu tun. Hierzu gibt es das Werkzeug `opsi-product-updater`, welches wie in '/etc/opsi/opsi-product-updater.conf' konfiguriert, automatisch die aktuellen Pakete vom opsi Repository holt und auf dem Server installiert.
-
-[source,prompt]
-----
-opsi-product-updater -i -vv
-----
-
-Sollte der `opsi-product-updater` Befehl scheitern, so muss evtl. ein Proxy in der Konfigurationsdatei eingetragen werden unter
-[source,configfile]
-----
-[repository_uib]
-proxy =
-----
-Bitte beachten Sie, dass OS-Installationsprodukte wie winxppro und win2k nach der Installation nicht sofort einsatzbereit sind. Die Installation muss noch durch die Installationsdateien des entsprechenden Installationsmediums ergänzt werden (siehe: <<opsi-getting-started-firststeps-osinstall-fill-base-packages>>).
-
-Wenn Sie wollen, können Sie noch weitere opsi-Produkte von download.uib.de herunterladen und auf die gleiche Weise auf Ihrem {opsi-Server} installieren.
 
 [[opsi-getting-started-installation-config-configed]]
 === Start der Management-Oberfläche ({opsi-configed})

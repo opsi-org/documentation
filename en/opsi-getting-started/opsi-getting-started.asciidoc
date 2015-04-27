@@ -148,20 +148,20 @@ You may also use VMware ESX.
 
 If you have a server running VMware or a VMware player, it only takes a few mouse clicks to install a base '{opsi-server}':
 
-* Download the file 'opsi4.0.5-1-servervm.zip' from the internet.
+* Download the file 'opsi4.0.5-2-servervm.zip' from the internet.
 * Unzip the file and a directory 'opsidemo' will be generated.
 * Start the VMware player. Open "Open a Virtual Maschine" and search for the file `opsidemo.ovf` in the 'opsidemo' directory. You can import the server with an new name. The virtual machine will still boot.
 
 *ESXi-Server*
 
-* Download the file 'opsi4.0.5-1-servervm.zip' from the internet.
+* Download the file 'opsi4.0.5-2-servervm.zip' from the internet.
 * Unzip the file and a directory 'opsidemo' will be generated.
 * Start the vShere Client. +
 Install a new client with 'File' / 'OVF-Vorlage bereitstellen....' and answer the following questions.
 
 *Virtualbox*
 
-* Download the file 'opsi4.0.5-1-servervm.zip' from the internet.
+* Download the file 'opsi4.0.5-2-servervm.zip' from the internet.
 * Unzip the file and a directory 'opsidemo' will be generated.
 * Start the Virtualbox. +
 At the menue 'File' / 'Import Appliance' select your `opsidemo.ovf` file and import it.
@@ -513,9 +513,44 @@ Assuming all of the above steps completed successfully, we can assume that the n
 [[opsi-getting-started-installation-base-ucs]]
 ==== Installation on a Univention Corporate Server (UCS)
 
+opsi 4.0 is tested and released for UCS 3.2 and UCS 4.0
+
+[[opsi-getting-started-installation-base-ucs-appcenter]]
+===== Installation im Univention App-Center
+
+Über das Univention App-Center steht eine automatisierte Installation des opsi-Servers zur Verfügung.
+Das Installations-App für opsi befindet sich in der UCS-Management-Oberfläche in der Kategorie "System".
+Bei der Installation geschieht folgendes:
+
+* Es wird die Grundlage für die MySQL-Installation gelegt.
+
+* Die Ignore-List des Samba4-Connectors wird so angepasst, dass der User pcpatch entfernt wird.
+
+* Das MySQL-Backend wird für die Nutzung der Inventarisierungsdaten konfiguriert (Anpassung der dispatch.conf)
+
+* Mit opsi-Bordmitteln wird die Samba-Konfiguration überprüft, um sicherzustellen, dass die für opsi benötigten Samba-Shares richtig angelegt sind.
+
+* Zur Installation des opsi-Servers werden automatisch weitere Pakete installiert:
+opsi4ucs, opsi-atftpd, p7zip-full cabextract, mysql-server, digitec-opsi-listener.
+Dazu wird bei der Installation selbständig geprüft, welche UCS-Systemrolle der Server hat.
+
+* Der 'opsi-product-updater' wird aufgerufen zum Einspielen der minimalen opsi-Produkte. Nach dem Download werden die Pakete auf dem Server installiert.
+
+Mit dem automatischen Einrichten des 'digitec-opsi-listener' über das 'Univention' App-Center werden neu im UCS-Backend angelegte Clients automatisch ins opsi-Backend übernommen.
+Dies gilt jeoch nicht für bereits vorhandene Clients. 
+Soll eine komplette Syncronisation durchgeführt werden, so müssen die entsprechenden Befehle manuell eingegeben werden siehe:
+<<opsi-getting-started-installation-base-ucs-listener>>
+
+Die opsi-Installation auf einem UCS-Server über das 'Univention' App-Center ist damit abgeschlossen. Weiter geht es mit:
+<<opsi-getting-started-installation-config-modules>>
+
+
+[[opsi-getting-started-installation-base-ucs-3]]
+===== Not automated opsi-installation on a UCS 3 and UCS 4 System (without App-Center)
+
 Please read <<opsi-getting-started-introduction-software-and-configuration-preconditions>> (if you haven't done so yet).
 
-opsi 4.0 is tested and released for UCS 3.2.
+
 
 It is possible to install opsi4ucs on a UCS Master, Backup, or Slave.
 
@@ -552,15 +587,6 @@ If the result looks different than the example above (contains eg. '127.0.0.1' o
 * mysql-server must be installed
 
 * If the machine should also act as DHCP-server, then the daemon dhcpd has to be configured and should be up and running
-
-[[opsi-getting-started-installation-base-ucs-3]]
-===== Installation on a UCS 3 System
-
-The opsi 'univention' backend is no longer available for UCS 3.
-The default backend is a file backend, which is the same for the other distributions.
-
-WARNING:  Because of the reason mentioned above, it is not possible to install the opsi4ucs-ldap-schema on a
-UCS 3 system that is the Master.  Especially when the UCS 3 System will be installed with Samba4 (default).
 
 The installation of opsi with the file or MySQL backend is possible on a Rolling Master, Backup, and Slave.
 
@@ -1801,6 +1827,41 @@ service opsiconfd reload
 
 
 
+
+[[opsi-getting-started-installation-config-get-essential-products]]
+=== Install the Minimal opsi Products
+
+One important and new feature of opsi 4.0 is a simple tool that updates opsi products from a configured repository with the command `opsi-product-updater`. This tool compares the version of the locally installed products with the versions available at the repository, and then performs an upgrade if necessary. It is also possible to install additional products using `opsi-product-updater`. The `opsi-product-updater` configuration is located in the file `/etc/opsi/{opsi-product}-updater.conf`. The default repository is http://download.uib.de/opsi4.0/products, and there the directories /netboot and /localboot and it may be used to install any new essential opsi products.
+
+The `opsi-product-updater` has the following core features:
+
+* *autoInstall*: +
+Install all available products from the repository.
+
+* *autoUpdate*: +
+Update products from the repository if the server has an older version.
+
+* *autoSetup*:
+After installation of an updated product, switch the requested action to 'setup' for all clients which have this product installed.
+
+For more details regarding this function, refer to the opsi-manual.
+
+You should now download and install the opsi products with the command:
+[source,prompt]
+----
+opsi-product-updater -i -vv
+----
+
+If the `opsi-product-updater` fails, it may be necessary to add a required proxy to the configuration file:
+[source,configfile]
+----
+[repository_uib]
+proxy =
+----
+
+Please notice that the OS-Installation products like winxppro and win7 aren't ready for action after installation. The installation has to be supplemented by the installation files from the corresponding installation media (i.e. CD, see <<opsi-getting-started-firststeps-osinstall-fill-base-packages>>).
+
+
 [[opsi-getting-started-installation-config-modules]]
 === Installing and Checking the Activation File
 
@@ -1852,39 +1913,6 @@ Example:
 ----
 
 Note that only you need the modules-file for additional components, and not for a general use of opsi.
-
-[[opsi-getting-started-installation-config-get-essential-products]]
-=== Install the Minimal opsi Products
-
-One important and new feature of opsi 4.0 is a simple tool that updates opsi products from a configured repository with the command `opsi-product-updater`. This tool compares the version of the locally installed products with the versions available at the repository, and then performs an upgrade if necessary. It is also possible to install additional products using `opsi-product-updater`. The `opsi-product-updater` configuration is located in the file `/etc/opsi/{opsi-product}-updater.conf`. The default repository is http://download.uib.de/opsi4.0/products, and there the directories /netboot and /localboot and it may be used to install any new essential opsi products.
-
-The `opsi-product-updater` has the following core features:
-
-* *autoInstall*: +
-Install all available products from the repository.
-
-* *autoUpdate*: +
-Update products from the repository if the server has an older version.
-
-* *autoSetup*:
-After installation of an updated product, switch the requested action to 'setup' for all clients which have this product installed.
-
-For more details regarding this function, refer to the opsi-manual.
-
-You should now download and install the opsi products with the command:
-[source,prompt]
-----
-opsi-product-updater -i -vv
-----
-
-If the `opsi-product-updater` fails, it may be necessary to add a required proxy to the configuration file:
-[source,configfile]
-----
-[repository_uib]
-proxy =
-----
-
-Please notice that the OS-Installation products like winxppro and win7 aren't ready for action after installation. The installation has to be supplemented by the installation files from the corresponding installation media (i.e. CD, see <<opsi-getting-started-firststeps-osinstall-fill-base-packages>>).
 
 [[opsi-getting-started-installation-config-configed]]
 === Starting the {opsi-configed} Server Interface
