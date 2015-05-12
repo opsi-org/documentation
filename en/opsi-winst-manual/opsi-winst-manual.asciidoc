@@ -1880,6 +1880,11 @@ else
 endif
 ----
 
+`unquote2(<string>,<quote-string>)` [W/L] +
+Acts like `unquote(<string>,<quote-string>)` with the following differences: +
+If <quote-string> contains only one char, so this char will be used as 'start quote char' and 'end quote char'. If <quote-string> contains two chars, so the first char will be used as 'start quote char' and the second char as 'end quote char'. Example: a <quote-string> like "()" will unquote a string like '(hello)'. +
+The function returns the unchanged <string> if not ('start quote char' AND 'end quote char') is found.
+
 * `HexStrToDecStr(`<string>`)` +
 returns the decimal representation of the input string if this was the hexadecimal representation of an integer. Leading chars like '0x' or '$' will be ignored. In case of a converting error the function returns a empty string.
 
@@ -1897,6 +1902,10 @@ assumes that <str> is encoded in <from> and returns the in <to> encoded version 
 
 *  `strLoadTextFile (` <filename> `)`  //since 4.11.4.6 [W/L] +
 returns the content of <filename> as String.
+
+* `GetShortWinPathName(<longpath string>)`  //since 4.11.5.2 [W] +
+Returns the Shortpath (8.3) from <longpath string>. If ther is no short path for <longpath string>, so you will get an empty string. +
+Exmple: `GetShortWinPathName("C:\Program Files (x86)")` returns `"C:\PROGRA~2"`
 
 [[opsi-winst-string-functions-others]]
 ==== Other String Functions
@@ -2839,6 +2848,8 @@ no matter how many blanks or tabs constitute the white space between the words.
 * `loadTextFile (`<file name>`)`  [W/L] +
 reads the file <file name> and generates the string list, that contains all lines of the file.
 
+* `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+reads the file <file name> and generates the string list, that contains all lines of the file. The string will be reencoded from <encoding> to system encoding.
 
 * `loadUnicodeTextFile (`<file name>`)`  [W] +
 reads the unicode text file <file name> and generates the string list, that contains all lines of the file. +
@@ -3204,6 +3215,133 @@ clears the list.
 
 *  `reencodestrlist(`<list>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
 assumes that <list> is encoded in <from> and returns the in <to> encoded version of <list>. <from> and <to> are encodings as listet in chapter <<opsi-winst-encoding>>.
+
+* `removeFromListByContains(`<search string>`,` <target list>`)` [W/L] +
+Returns a copy of <target list> where all lines that contains <search string> are removed. The match to <search string> is case insensitiv.
+
+* `removeFromListByContains(`<search list>`,` <target list>`)` [W/L] +
+Returns a copy of <target list> where all lines are removed that contains a string out of <search list>. The match to <search list> is case insensitiv.
+
+Examples:
+
+File "%Scriptpath%\test-files\encoding\10lines.txt" is:
+----
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+----
+
+Code from opsi-winst-test:
+
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+message "removeFromListByContaining"
+set $string1$ = "%Scriptpath%\test-files\encoding\10lines.txt"
+set $list1$ = loadTextFileWithEncoding($string1$, "cp1252")
+comment "search with string"
+comment "search with string constant"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("line 5", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("LINE 5", $list1$)
+comment "the match is case insensitive"
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+
+set $ConstTest$ = "0"
+set $list2$ = removeFromListByContaining("line", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "8"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $list2$ = removeFromListByContaining("1", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string function"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining(trim(" line 5 "), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string variable"
+set $string1$ = "line 5"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining($string1$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list"
+comment "search with string list variable"
+set $list3$ = createStringList ('1', '2', '3', '4', '5')
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining($list3$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list variable"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining(createStringList ('1', '2', '3', '4', '5'), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
 
 [[opsi-winst-stringlist-iteration]]
 ==== Iterating through String Lists [W/L] 
@@ -3681,7 +3819,7 @@ EndIf
 
 
 [[opsi-winst-commands-switch-case]]
-=== switch Statement [W/L]
+=== Switch / Case Statement [W/L]
 
 Syntax:
 ----
@@ -3946,14 +4084,16 @@ appends the content of <file name> to the running script. This kind of insert is
 
 In both cases <file name> is: +
 
-* A complete path to an existing file.
+* A complete path to an existing file. [W/L]
 
-* A existing file in `%ScriptPath%`
+* A existing file in `%ScriptPath%` [W/L]
 
-* A file in `%opsiScriptHelperPath%\lib` +
+* A file in `%opsiScriptHelperPath%\lib` [W] +
 Is equivalent to: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
-* A existing file in `%WinstDir%\lib`
+* A existing file in `%ScriptPath%/../lib` [W/L]
+
+* A existing file in `%WinstDir%\lib` [W]
 
 The tests for the location of the <file name> are done in the order above. '{opsi-winst}/opsi-script' uses the first file it finds that has a matching name.
 
@@ -4904,9 +5044,12 @@ looks for a key/value pair with the key <keystr>  and set here as value <valuest
 For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_patch_text_file$ = "on"'
 
 [[opsi-winst-linkfolder]]
-=== LinkFolder Sections [W]
+=== LinkFolder Sections [W/L]
 
 In a LinkFolder section start menus entries as well as desktop links are managed. 
+
+[[opsi-winst-linkfolder-windows]]
+=== LinkFolder Sections in Windows  
 
 E.g. the following section creates a folder named "acrobat“ in the common start menu (shared by all users):
 [source,winst]
@@ -5044,6 +5187,23 @@ Set  $list2$ = createStringList ('common_startmenu', 'common_programs', 'common_
 ----
 
 For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_link_folder$ = "on"'.
+
+[[opsi-winst-linkfolder-linux]]
+=== LinkFolder-Sections in Linux  
+
+LinkFolder sections are supported also on Linux since version 4.11.5.2.
+
+Possible bas folders are: +
+`common_programs`,`common_autostart`,`desktop`, `autostart` +
+Subfolder is always "" (empty).
+
+The Link Option `icon_index` is ignored. +
+As additional Link Option we have: `link_categories`. +
+Here you may use the following values seperated and terminated by a semicolon: +
+ `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
+The LinkFolder Sektion will work at Linux with different Desktop systems
+
+
 
 [[opsi-winst-xmlpatch]]
 === XMLPatch Sections [W]
@@ -5320,7 +5480,7 @@ expecially the sector with '$Flag_winst_xml$ = "on"'
 This section type is deprecated.
 
 [[opsi-winst-winbatch]]
-=== WinBatch-Sections [W]
+=== WinBatch-Sections [W/L]
 
 In a WinBatch section any windows executable can be started. +
 E.g, we may start some existing setup program by the following line in a WinBatch section +
@@ -5356,15 +5516,15 @@ Should be combined with `/TimeOutSeconds`.
 Explanation: +
 When starting an external process from a winbatch call, the '{opsi-winst}/opsi-script' waits for the current process to finish before executing the next command in the script.
 
-*  `/32Bit` //since 4.11.3.5 +
+*  `/32Bit` //since 4.11.3.5  [W] +
 This is the default. The paths within the section are assumed to be 32 bit pathes. +
 Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
 
-*  `/64Bit` //since 4.11.3.5 +
+*  `/64Bit` //since 4.11.3.5  [W] +
 The paths within the section are assumed to be 64 bit paths. +
 Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
 
-*  `/SysNative` //since 4.11.3.5 +
+*  `/SysNative` //since 4.11.3.5  [W] +
 The paths within the section are assigned according to the OS architecture interpretiert. +
 Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
 
@@ -5376,7 +5536,7 @@ Winbatch_add_reg /64Bit
 "c:\windows\system32\regedit.exe" /s "%scriptpath%\my64.reg"
 ----
 
-* `/RunAsLoggedonUser` //since 4.11.3.5 +
+* `/RunAsLoggedonUser` //since 4.11.3.5  [W] +
 This is available only in the context of 'userLoginScripts'. The program is executed as the user, who has just logged on.
 This modifier has the following limitation: +
 ** insufficient tested on NT6 and possibly of limited effect.
@@ -5409,7 +5569,7 @@ Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
 "%ScriptPath%\uninstall_starter.exe"
 ----
 
-* `/RunElevated` +
+* `/RunElevated`  [W] +
 Starts a process that has a security token with elevated privileges. This modifier has the following restrictions: +
 ** For NT5 it does not change anything.
 ** A process started with this modifier has no network access. So you should copy a program to a temporary local directory, but do not start it from a network share.
@@ -5420,14 +5580,14 @@ Starts a process that has a security token with elevated privileges. This modifi
 Returns a string that contains the value of the exitcode of the the process that was last called by a WinBatch / DosBatch / ExecWith section. +
 When using a DosBatch or ExecWith section, you will normally get the exitcode of the interpreter that was called. To get the exitcode of your script you have to define it explicitly.
 
-* `/RunAsLoggedOnUser` // since 4.11.3.5 ; works only inside 'userLoginScripts'
+* `/RunAsLoggedOnUser` // since 4.11.3.5  [W] ; works only inside 'userLoginScripts'
 
-* `/32Bit` or `/64Bit` or `/SysNative`	 //since 4.11.3.5 +
+* `/32Bit` or `/64Bit` or `/SysNative`	 //since 4.11.3.5  [W] +
 These modifiers control if the path to a called program is interpreted as 32 or 64 Bit Path. So if want for example call a `%system%\cmd.exe` you call a 32 bit program by default. If you use the /64bit modifier you will get with the same call the 64 bit version.
 
-* `/WaitForWindowAppearing` [window title] +
+* `/WaitForWindowAppearing` [window title]  [W] +
 resp. +
-`/WaitForWindowVanish` [window title] +
+`/WaitForWindowVanish` [window title]  [W] +
 Both are deprecated. Please use `/WaitForProcessEnding` +
 
 The first option means that '{opsi-winst}/opsi-script' waits until any process lets pop up a window with title window title. With the second option '{opsi-winst}/opsi-script' is waiting as long as a certain window (1) appeared on the desktop and (2) disappeared again. +

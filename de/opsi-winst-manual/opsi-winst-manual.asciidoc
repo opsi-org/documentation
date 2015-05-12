@@ -1880,6 +1880,11 @@ set $ConstTest$ = "b"
 		endif
 ----
 
+`unquote2(<string>,<quote-string>)` // since 4.11.5.2 [W/L] +
+Funktioniert wie `unquote(<string>,<quote-string>)` mit folgenden Unterschieden: +
+Wenn <quote-string> ein Zeichen lang ist, wird diese Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das Ende von <string> genommen. Wenn <quote-string> zwei Zeichen lang ist, wird das erste Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das zweite Zeichen als erwartetes 'Quote Zeichen' für den Ende von <string> genommen. Beispiel: `"()"` +
+Die Funktion liefert <string> unverändert zurück, wenn nicht sowohl für Anfang und Ende die erwarteten 'Quote Zeichen' gefunden werden.
+
 *  `HexStrToDecStr(`<string>`)` [W/L] +
 wandelt einen String mit einem hexadezimalen Zahlwert in einen String mit dem entsprechenden decimalen Wert um. Enthält der Eingabe String führende Zeichen wie '0x' oder '$' werden diese ignoriert. +
 Im Fehlerfall: Leerstring
@@ -1900,6 +1905,8 @@ liefert den String <str> mit dem encoding <to> zurück wobei davon ausgegangen w
 *  `strLoadTextFile (` <filename> `)`  //since 4.11.4.6 [W/L] +
 liefert den Inhalt von <filename> als String.
 
+* `GetShortWinPathName(<longpath string>)`  //since 4.11.5.2 [W] +
+Liefert den Shortpath (8.3) von <longpath string>. Lässt sich für <longpath string> kein Shortpath finden, so liefert die Funktion einen leeren String. + Beispiel: `GetShortWinPathName("C:\Program Files (x86)")` liefert `"C:\PROGRA~2"`
 
 [[opsi-winst-string-functions-others]]
 ==== Weitere String-Funktionen
@@ -2819,6 +2826,9 @@ unabhängig davon, wie viele Leerzeichen oder ggf. Tabulatorzeichen zwischen den
 *  `loadTextFile (`Dateiname`)` [W/L] +
 liest die Zeilen der Datei des (als String) angegebenen Namens ein und generiert aus ihnen eine String-Liste. 
 
+* `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+Liefert eine Stringliste mit dem Inhalt von <file name> welcher beim Einlesen von <encoding> in das laufende Encoding des Systems konvertiert wurde.
+
 *  `loadUnicodeTextFile (`Dateiname`)` [W] +
 liest die Zeilen der Unicode-Datei des (als String) angegebenen Namens ein und generiert aus ihnen eine String-Liste. +
 Die Strings in der String-Liste werden dabei (gemäß den Betriebssystem-Defaults) in 8 Bit-Code konvertiert.
@@ -3183,6 +3193,134 @@ Leert die Liste.
 *  `reencodestrlist(`<list>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
 liefert die Stringliste <list> mit dem encoding <to> zurück wobei davon ausgegangen wird das <list> gemäß <from> encoded war. <from> und <to> sind dabei encodings wie sie im Kapitel <<opsi-winst-encoding>> aufgelistet sind.
 
+* `removeFromListByContains(`<search string>`,` <target list>`)` [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen  
+<search string> vorkommt. Der Vergleich ist case insensitiv.
+
+* `removeFromListByContains(`<search list>`,` <target list>`)` [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen ein String aus <search list> vorkommt. Der Vergleich ist case insensitiv.
+
+Examples:
+
+File "%Scriptpath%\test-files\encoding\10lines.txt" is:
+----
+line 1
+line 2
+line 3
+line 4
+line 5
+line 6
+line 7
+line 8
+line 9
+line 10
+----
+
+Code from opsi-winst-test:
+
+[source,winst]
+----
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+message "removeFromListByContaining"
+set $string1$ = "%Scriptpath%\test-files\encoding\10lines.txt"
+set $list1$ = loadTextFileWithEncoding($string1$, "cp1252")
+comment "search with string"
+comment "search with string constant"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("line 5", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining("LINE 5", $list1$)
+comment "the match is case insensitive"
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+
+set $ConstTest$ = "0"
+set $list2$ = removeFromListByContaining("line", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+set $ConstTest$ = "8"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $list2$ = removeFromListByContaining("1", $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string function"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining(trim(" line 5 "), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string variable"
+set $string1$ = "line 5"
+set $ConstTest$ = "9"
+set $list2$ = removeFromListByContaining($string1$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list"
+comment "search with string list variable"
+set $list3$ = createStringList ('1', '2', '3', '4', '5')
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining($list3$, $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment "search with string list variable"
+comment "searchstr 1 will found in 'line 1' and 'line 10'"
+set $ConstTest$ = "4"
+set $list2$ = removeFromListByContaining(createStringList ('1', '2', '3', '4', '5'), $list1$)
+set $CompValue$ = count($list2$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
 [[opsi-winst-stringlist-iteration]]
 ==== Iteration durch String-Listen [W/L] 
 
@@ -3420,6 +3558,38 @@ Beispiel :
 killtask "winword.exe"
 ----
 
+** `UpdateEnvironment` [W]: +
+Sendet Windows das Signal das Environment aus der Registry neu einzulesen.
+Anzuwenden nachdem Umgebungsvariablen wie z.B. PATH verändert, gesetzt oder gelöscht wurden.
+ABER: Normale DosBatch oder Winbatch Aufrufe erben trotzdem das 'alte' Environment. Daher danach `winbatch` mit dem Parameter `/RunElevated` verwenden.
+
+Example:
+[source,winst]
+----
+comment "Set Environment Variables and check for it ...."
+Registry_add_environment /sysnative
+UpdateEnvironment
+
+comment "This will not work because the environment is inherited from the running process"
+set $list$ = shellCall('set opsi-script-test')
+
+comment "This will work because this new started process will get a new environment"
+winbatch_check_environment /RunElevated
+if ("42" = getlastExitCode)
+	comment "passed"
+else
+	comment "failed"
+endif
+
+[Registry_add_environment]
+openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment]
+set "opsi-script-test"="deleteme"
+
+[winbatch_check_environment]
+"%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
+----
+
+
 * `ChangeDirectory` <directory>   //since 4.11.2.6 [W/L] +
 Setzt das angegebene Directory als Arbeitsverzeichnis des '{opsi-winst}/opsi-script'. Wirkt auf alle nachfolgenden Aktionen (z.B. winbatch Sektionen) und wird am Ende einese Scriptes automatisch zurückgesetzt.   
 Beispiel :
@@ -3599,7 +3769,187 @@ Mit dieser boolschen Funktion kann überprüft werden, ob das 'userLoginScript' 
 * `isLoginScript`    //since 4.11.2.1 +
 Diese boolsche Funktion liefert 'true' wenn das aktuelle Script als 'userLoginScript' läuft. Siehe auch: `GetScriptMode`
 
+[[opsi-winst-commands-for-to-do]]
+=== For-To Schleife  [W/L] 
 
+Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
+
+Syntax:
+
+`for` %<temporary string variable>% `=` <start string> `to` <end string> `do` <one statement> //since 4.11.5 [W/L]
+
+Die temporäre Variable %<temporary string variable>% muss und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
+
+Example: 
+
+Code from opsi-winst-test:
+[source,winst]
+----
+message "for to loop"
+set $ConstTest$ = "12345"
+set $CompValue$ = ""
+for %s% = "1" to "5" do sub_iteration_test
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[sub_iteration_test]
+set $CompValue$ = $CompValue$ + '%s%'
+----
+
+ergibt den Log:
+
+[source,winst]
+----
+message for to loop
+Set  $ConstTest$ = "12345"
+  The value of the variable "$ConstTest$" is now: "12345"
+Set  $CompValue$ = ""
+  The value of the variable "$CompValue$" is now: ""
+
+~~~~~~ Looping through:  '1', '2', '3', '4', '5'
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '1'
+    The value of the variable "$CompValue$" is now: "1"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '2'
+    The value of the variable "$CompValue$" is now: "12"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '3'
+    The value of the variable "$CompValue$" is now: "123"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '4'
+    The value of the variable "$CompValue$" is now: "1234"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+  
+  ~~~~~~~ Start Sub ~~~~~~~  sub_iteration_test
+  Set  $CompValue$ = $CompValue$ + '5'
+    The value of the variable "$CompValue$" is now: "12345"
+  
+  ~~~~~~~ End Sub   ~~~~~~~  sub_iteration_test
+  
+
+~~~~~~ End Loop
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+[[opsi-winst-commands-switch-case]]
+=== Switch / Case Statement  [W/L] 
+
+Syntax:
+
+`Switch` <string expression> +
+  `Case` <string const>
+    <statement(s)> +
+   `EndCase` +
+   [`DefaultCase` +
+    ;statement(s) +
+       `EndCase` ] +
+`EndSwitch`
+
+
+Examples:
+
+Code from opsi-winst-test:
+[source,winst]
+----
+set $ConstTest$ = "5"
+Switch $ConstTest$
+	Case "1"
+		set $CompValue$ = "1"
+	EndCase
+	Case "2"
+		set $CompValue$ = "2"
+	EndCase
+	Case "3"
+		set $CompValue$ = "3"
+	EndCase
+	Case "4"
+		set $CompValue$ = "4"
+	EndCase
+	Case "5"
+		set $CompValue$ = "5"
+	EndCase
+	Case "6"
+		set $CompValue$ = "6"
+	EndCase
+	Case "7"
+		set $CompValue$ = "7"
+	EndCase
+	DefaultCase
+		set $CompValue$ = "notexisting"
+	EndCase
+EndSwitch
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+.
+[source,winst]
+----
+[Sub_check_exitcode]
+comment "Test for installation success via exit code"
+set $ExitCode$ = getLastExitCode
+; informations to exit codes see
+; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
+; http://msdn.microsoft.com/en-us/library/aa368542.aspx
+Switch $ExitCode$
+	Case "0"
+		comment "Looks good: setup program gives exitcode zero"
+	EndCase
+	Case "1605"
+		comment "ERROR_UNKNOWN_PRODUCT	1605"
+		comment "This action is only valid for products that are currently installed."
+		comment "Uninstall of a not installed product failed - no problem"
+	EndCase
+	Case "1641"
+		comment "looks good: setup program gives exitcode 1641"
+		comment "ERROR_SUCCESS_REBOOT_INITIATED	164"	
+		comment "The installer has initiated a restart." 
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	Case "3010"
+		comment "looks good: setup program gives exitcode 3010"
+		comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010"
+		comment "A restart is required to complete the install."
+		comment "This message is indicative of a success."
+		ExitWindows /Reboot
+	EndCase
+	DefaultCase
+		logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
+		isFatalError "Exit Code: "+ $ExitCode$
+	EndCase
+EndSwitch
+----
 
 [[opsi-winst-commands-if-else]]
 === Bedingungsanweisungen (if-Anweisungen) [W/L] 
@@ -3784,14 +4134,16 @@ Fügt den Inhalt von <file name> am Ende des laufenden Scriptes ein. Diese Anwei
 Für beide Funktionen gilt: +
 <file name> ist:
 
-* Ein kompletter Pfad zu einer Datei.
+* Ein kompletter Pfad zu einer Datei. [W/L] 
 
-* Eine Datei in `%ScriptPath%`
+* Eine Datei in `%ScriptPath%` [W/L]
 
-* Eine Datei in `%opsiScriptHelperPath%\lib` +
+* Eine Datei in `%opsiScriptHelperPath%\lib` [W] +
 Entspricht: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
-* Eine Datei in `%WinstDir%\lib`
+* Eine Datei in `%ScriptPath%/../lib` //since 4.11.5.2 [W/L]
+
+* Eine Datei in `%WinstDir%\lib` [W]
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
@@ -4335,11 +4687,11 @@ Wenn eine Systemdatei in Benutzung ist, kann sie erst nur nach einem Reboot übe
 **  `r` -> read-only Attribute [W] +
 Nur wenn diese Option gesetzt ist, bleibt ein eventuell vorhandenes read-only-Attribut erhalten (im Gegensatz zu dem default-Verhalten, welches read-only Attribute ausschaltet).
 
-*  `Delete` [-sfd[n]] <Pfad> [W/L] 
+*  `Delete` [-sfcd[n]] <Pfad> [W/L] 
 
 oder
 
-*  `Delete` [-sfd[n]] <Datei(maske)> [W/L] 
+*  `Delete` [-sfcd[n]] <Datei(maske)> [W/L] 
 +
 Löschen einer Datei bzw. eines Verzeichnisses. Mögliche Optionen (die in beliebiger Reihenfolge aufgeführt sein können) sind:
 
@@ -4355,6 +4707,9 @@ Durch den angehängen Backslash ist deutlich, dass Sie ein Verzeichnis meinen. +
 
 **  `f` ->  force +
 Erzwingt ("force") das Löschen auch von read-only-Dateien.
+
+**  `c` ->  continue [W] +
+Wenn eine Datei in Benutzung ist, kann sie erst nur nach einem Reboot gelöscht werden. Das '{opsi-winst}/opsi-script' default-Verhalten ist dabei, dass ein Datei in Benutzung zum Löschen beim nächsten Reboot markiert wird UND die '{opsi-winst}/opsi-script' Reboot Markierung gesetzt wird. Das Setzen der Löschmodifikation "-c" stellt den automatischen Reboot aus. Anstatt das normale Prozesse weiterlaufen (continues) wird das Löschen nur vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
 
 **  `d [n]` ->  date +
 Dateien werden nur gelöscht, sofern sie mindestens n Tage alt sind. Default für n ist 1.
@@ -4384,7 +4739,7 @@ Setzt die Rechte von <path> auf <mode>. <mode> ist dabei die Numerische (Octale)
 `hardlink` <existing file> <new file> // since 4.11.5 [W/L]
 
 `symlink` <existing file> <new file> // since 4.11.5 [W/L] +
-At Windows `symlink` is only available at NT6 and up.
+`symlink` funktioniert erst ab Windows NT6 (Vista).
 
 `rename` <old filename> <new filename> // since 4.11.5 [W/L]
 
@@ -4730,9 +5085,12 @@ Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
 und dort den Bereich '$Flag_winst_patch_text_file$ = "on"'
 
 [[opsi-winst-linkfolder]]
-=== LinkFolder-Sektionen [W] 
+=== LinkFolder-Sektionen [W/L] 
 
 Mit LinkFolder-Sektionen werden u.a. die Einträge im Startmenü, die Links auf dem Desktop u.ä. verwaltet. 
+
+[[opsi-winst-linkfolder-windows]]
+=== LinkFolder-Sektionen in Windows  
 
 Zum Beispiel erzeugt folgende Sektion einen Folder (Ordner) namens 'acrobat' im Programme-Folder des allgemeinen Startmenüs (für alle Nutzer gemeinsam).
 [source,winst]
@@ -4754,7 +5112,7 @@ end_link
 In einer LinkFolder-Sektion muss zuerst bestimmt werden, in welchem virtuellen Systemfolder die nachfolgenden Anweisungen arbeiten sollen. Dafür existiert die Anweisung +
 `set_basefolder` '<virtueller Systemfolder>' 
 
-Virtuelle Systemfolder, die angesprochen werden können, sind:
+Virtuelle Windows Systemfolder, die angesprochen werden können, sind:
 
 'desktop, sendto, startmenu, startup, programs, desktopdirectory, common_startmenu, common_programs, common_startup, common_desktopdirectory'
 
@@ -4762,7 +5120,7 @@ Die Folder sind virtuell, weil erst durch das Betriebssystem(-Version) bestimmt 
 
 Im Rahmen einer normalen 'Maschinen' Installation sind nur die `common*` Systemfolder relevant.
 
-Die Systemfolder 'desktop, sendto, startmenu, startup, programs, desktopdirectory' können nur im Kontext eines eingloggten users bzw. in einem 'userLoginScript' im Rahmen der opsi-Erweiterung 'user Profile Management' verwendet werden.
+Die Windows-Systemfolder 'desktop, sendto, startmenu, startup, programs, desktopdirectory' können nur im Kontext eines eingloggten users bzw. in einem 'userLoginScript' im Rahmen der opsi-Erweiterung 'user Profile Management' verwendet werden.
 
 Im zweiten Schritt werden die Subfolder (bzw. Subfolder-Pfade), in denen Links angelegt werden, mit der Anweisung +
 `set_subfolder` <Folderpath> +
@@ -4793,7 +5151,7 @@ Die Angabe eines 'target' ist erforderlich. Alle andere Einträge haben Defaultw
 *  'icon_file'  ist, wenn nichts anderes angegeben ist, 'target' und
 *  'icon_index' ist per Default 0.
 
-CAUTION: Wenn das referenzierte target auf einem, zum Zeitpunkt der Befehlsausführung nicht erreichbaren, Share liegt, werden alle Bestandteile des Pfades auf das Längenschema 8.3 gekürzt. +
+CAUTION: Windows: Wenn das referenzierte target auf einem, zum Zeitpunkt der Befehlsausführung nicht erreichbaren, Share liegt, werden alle Bestandteile des Pfades auf das Längenschema 8.3 gekürzt. +
 Workaround: +
 Manuelles Erzeugen einer korrekten Verknüpfung zu einem Zeitpunkt, in dem das Laufwerk verbunden ist. +
 Kopieren der korrekten Link-Datei an einen zur Skriptlaufzeit existenten Ort, z.B. C:\Programme. +
@@ -4870,6 +5228,16 @@ Set  $list2$ = createStringList ('common_startmenu', 'common_programs', 'common_
 
 Für weitere Beispiele beachten Sie das Produkt '{opsi-winst}-test'
 und dort den Bereich '$Flag_winst_link_folder$ = "on"'.
+
+[[opsi-winst-linkfolder-linux]]
+=== LinkFolder-Sektionen in Linux  
+
+LinkFolder Sektionen werden jetzt auch unter Linux unterstützt. +
+Erlaubte BaseFolder sind: `common_programs`,`common_autostart`,`desktop`, `autostart` +
+Subfolder ist immer "" (leer).
+Die Link Option `icon_index` wird ignoriert. +
+Als zusätzliche Link Option gibt es: `link_categories`. Hier sind folgende durch Semikolon getrennt und abgeschlossene Werte erlaubt: `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
+Die LinkFolder Sektion unter Linux funktioniert für unterschiedliche Desktopsysteme.
 
 [[opsi-winst-xmlpatch]]
 === XMLPatch-Sektionen [W] 
@@ -5159,7 +5527,7 @@ und dort den Bereich '$Flag_winst_xml$ = "on"'
 Dieser Sektionstyp ist abgekündigt.
 
 [[opsi-winst-winbatch]]
-=== WinBatch-Sektionen [W] 
+=== WinBatch-Sektionen [W/L] 
 
 In einer WinBatch-Sektion kann jedes Windows-Programm als Anweisung verwendet werden. 
 
@@ -5177,15 +5545,15 @@ Es ist abgekündigt (aber noch unterstützt) wie auch aus dem Windows Explorer h
 
 Durch die Parameter des WinBatch-Aufrufs wird festgelegt, wie sich '{opsi-winst}/opsi-script' gegenüber den in der WinBatch-Sektion gestarteten Programmen verhält.
 
-*  `/32Bit` //seit 4.11.3.5 +
+*  `/32Bit` //seit 4.11.3.5  [W] +
 Das ist der Default. Die in der Sektion angegebene Pfade werden als 32 Bit Pfade interpretiert. +
 Beispiel: `c:\windows\system32\regedit.exe` ruft (auch auf einem 64bit System) die 32 Bit 'regedit.exe' auf.
 
-*  `/64Bit` //seit 4.11.3.5 +
+*  `/64Bit` //seit 4.11.3.5  [W] +
 Die in der Sektion angegebene Pfade werden als 64 Bit Pfade interpretiert. +
 Beispiel: `c:\windows\system32\regedit.exe` ruft (auf einem 64bit System) die 64 Bit 'regedit.exe' auf.
 
-*  `/SysNative` //seit 4.11.3.5 +
+*  `/SysNative` //seit 4.11.3.5  [W] +
 Die in der Sektion angegebene Pfade werden gemäß der OS Architektur interpretiert. +
 Beispiel: `c:\windows\system32\regedit.exe` ruft auf einem 64bit System die 64 Bit 'regedit.exe' und auf einem 32bit System die 32 Bit 'regedit.exe'auf.
 
@@ -5208,9 +5576,9 @@ d.h. das sofort die nächste Zeile der WinBatch-Sektion bzw. die nächste Zeile 
 *  `/WaitSeconds` [AnzahlSekunden] +
 Die Parametrisierung /WaitSeconds [AnzahlSekunden] modifiziert das Verhalten dahingehend, dass '{opsi-winst}/opsi-script' jeweils erst nach [AnzahlSekunden] die Skriptbearbeitung fortsetzt. Die angegebene Zeit stoppt '{opsi-winst}/opsi-script' auf jeden Fall. In der Default-Einstellung wird zusätzlich auf das Ende der angestoßenen Prozesse gewartet. Ist letzteres nicht gewünscht, so kann der Parameter mit dem Parameter /LetThemGo kombiniert werden.
 
-*  `/WaitForWindowAppearing` [Fenstertitel] +
+*  `/WaitForWindowAppearing` [Fenstertitel]  [W] +
 bzw. +
-`/WaitForWindowVanish` [Fenstertitel] +
+`/WaitForWindowVanish` [Fenstertitel]  [W] +
 Abgekündigt. Verwenden Sie `/WaitForProcessEnding` +
 Im 1. Fall wartet '{opsi-winst}/opsi-script' solange, bis ein Prozess, der sich durch ein mit [Fenstertitel] benanntes Fenster kenntlich macht, gestartet ist. Im 2. Fall wartet '{opsi-winst}/opsi-script' bis ein, mit [Fenstertitel] benanntes, Fenster auf dem Desktop erst einmal erscheint und dann auch wieder geschlossen wird. Auf diese Weise kann unter geeigneten Umständen geprüft werden, ob sekundäre, indirekt gestartete Prozesse sich beendet haben.
 +
@@ -5253,14 +5621,14 @@ Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
 "%ScriptPath%\uninstall_starter.exe"
 ----
 
-* `/RunElevated` +
+* `/RunElevated`  [W] +
 Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten). Dieser Modifier hat folgende Einschränkungen: +
 ** Unter NT5 hat er keine Auswirkungen
 ** Ein Zugriff auf das Netz ist in dem Prozess nicht möglich. Daher müssen die aufzurufenden Programme von einem Netzlaufwerk in ein temporäres lokales Verzeichnis kopiert werden.
 ** Evtl. kann es zu Problemen bei der Nutzung der grafischen Oberfläche kommen. Daher sind echte silent aufrufe hier zu bevorzugen.
 ** Funktioniert nur im opsi-service Kontext
 
-* `/RunAsLoggedonUser` //seit 4.11.3.5 +
+* `/RunAsLoggedonUser` //seit 4.11.3.5  [W] +
 Nur im Kontext eines 'userLoginScripts' verfügbar. Startet das Programm als der user der sich gerade einlogt.
 Dieser Modifier hat folgende Einschränkungen: +
 ** Unter NT6 wenig getestet und evtl. nur Eingeschränkt wirksam.
@@ -5322,7 +5690,10 @@ DosBatch_1 :
 [source,winst]
 ----
 [Actions]
-DosBatch_1 today we say "Hello World" 
+DefVar $para$
+DosBatch_1 today we say "Hello World"
+set $para$ = "today"
+DosBatch_1 $para$ we say "Hello World"
 
 [DosBatch_1]
 @echo off
