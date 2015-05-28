@@ -50,16 +50,14 @@ Das opsi Service Releases 4.0.6 weist eine Fülle von Neuerungen und Detailverbe
 Sollten Sie opsi auf einer Betriebssystemversion einsetzen, welche oben nicht aufgeführt ist,
 so empfehlen wir Ihnen ein Betriebsystem-Update bevor Sie opsi v4.0.6 einspielen.
 
-
-
 * Neues opsi-bootimage basierend auf Ubuntu Precise / Kernel 3.15.1 mit Unterstützung für aktuelle Hardware
 
 * Windows Netboot Produkte +
 ** winpe Partition jetzt NTFS formatiert
 
-* opsi-winst / opsi-script (4.11.5.1): +
+* opsi-winst / opsi-script (4.11.5.2): +
 
-** Kommandos für Hardlinks, Symbolische Links, Rename und Move in Files Sektionen
+** Files Kommandos für Hardlinks, Symbolische Links, Rename und Move in Files Sektionen
 
 ** For-To Schleife
 
@@ -67,9 +65,24 @@ so empfehlen wir Ihnen ein Betriebsystem-Update bevor Sie opsi v4.0.6 einspielen
 
 ** Neue Stringlistfunktion: `removeFromListByContaining`
 
-** Upgrade der SSL Libraries auf 1.0.1L
+** Neue Stringlistfunktion: `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)`
 
-** Neues Statement `UpdateEnvironment`. Aufruf von UpdateEnvironment fordert Windows auf die Umgebungsvariablen aus der Registry neu einzulesen (NT6 only)
+** Neue Stringfunktion `unquote2(<string>,<quote-string>)`
+
+** Neue Stringfunktion `GetShortWinPathName(<longpath string>)`
+
+** Neue Stringfunktion `GetConfidentialProductProperty (` <PropertyName>, <DefaultValue>`)`
+
+** Neue boolean Funktion `CompareDotSeparatedNumbers(<str1>, <relationstr>, <str2>)`
+
+** Neue boolean Funktion `CompareDotSeparatedStrings(<str1>, <relationstr>, <str2>)`
+
+** Neues Statement `UpdateEnvironment`. Aufruf von `UpdateEnvironment` fordert Windows auf die Umgebungsvariablen aus der Registry neu einzulesen (NT6 only)
+
+** Files Kommando `del`: ACHTUNG verändertes Verhalten: Ähnlich wie schon beim copy Befehl: +
+Wenn eine Datei in Benutzung ist, kann sie im Rahmen eines Reboots gelöscht werden. Das '{opsi-winst}/opsi-script' default-Verhalten ist dabei, dass ein Datei in Benutzung zum Löschen beim nächsten Reboot markiert wird UND die '{opsi-winst}/opsi-script' Reboot Markierung gesetzt wird. Das Setzen der Option `-c` stellt den automatischen Reboot aus. Das Löschen wird in diesem Fall erst dann vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
+
+** Upgrade der SSL Libraries auf 1.0.2a, update des SSL Protokolls auf TLS 1.2
 
 ** Siehe auch gesondertes Kapitel.
 
@@ -283,30 +296,31 @@ opsi-setup --update-mysql
 [[opsi-script]]
 == opsi-script / opsi-winst 4.11.5.2
 
-** Security Upgrade zu Windows SSL Libraries 1.0.2a (libeay32.dll, ssleay32.dll)
+* Security Upgrade zu Windows SSL Libraries 1.0.2a (libeay32.dll, ssleay32.dll) +
+Update des SSL Protokolls auf TLS 1.2
 
-** In Files Sektionen:
+.In Files Sektionen:
 
-*** `hardlink` <existing file> <new file> // since 4.11.5 [W/L] +
+* `hardlink` <existing file> <new file> // since 4.11.5 [W/L] +
 Ein existierender <new file> wird überschrieben. +
 `hardlink` funktioniert nur auf Filesystemen die Hardlinks unterstützen
-wie NTFS und standard Linux Filesysteme.
+wie NTFS und Standard Linux Filesysteme.
 
-*** `symlink` <existing file> <new file> // since 4.11.5 [W/L] +
+* `symlink` <existing file> <new file> // since 4.11.5 [W/L] +
 Unter Windows ist `symlink` erst ab NT6 und aufwärts verfügbar ! +
 Ein existierender <new file> wird überschrieben. +
 
-*** `rename` <old filename> <new filename> // since 4.11.5 [W/L] +
-*** `move` <old filename> <new filename> // since 4.11.5 [W/L]
+* `rename` <old filename> <new filename> // since 4.11.5 [W/L] +
+`move` <old filename> <new filename> // since 4.11.5 [W/L] +
 Es gibt keine Unterschiede zwischen `rename` und `move`, es sind zwei Namen für die selbe Funktion +
 Ein existierender <new file> wird überschrieben. +
+ +
 Windows: <new filename> darf in einem anderen Directory liegen oder auch in einem anderen Volume / Disk. Im zweiten Fall, wird die Datei kopiert und danach das Original gelöscht. +
 Läßt sich das Ziel nicht erstellen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. Das funktioniert natürlich nur wenn das Zielfilesystem zum Reboot-Zeitpunkt verfügbar ist, also nicht auf Netzwerkshares. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
-Linux: <new filename> darf in einem anderen Directory liegen aber nicht in einem anderen Filsystem / Partition. Die Option `-c` wird unter Linux ignoriert.
-
-
-Die Erstellung von Junctions unter Windows wird noch nicht unterstützt.
-
+Die Erstellung von Junctions unter Windows wird noch nicht unterstützt. +
+ +
+Linux: <new filename> darf in einem anderen Directory liegen aber nicht in einem anderen Filsystem / Partition. Die Option `-c` wird unter Linux ignoriert. +
+ +
 Example: 
 [source,winst]
 ----
@@ -323,20 +337,21 @@ copy "$HomeTestFiles$\files\dummy2.txt" "$HomeTestFiles$\files\temp\"
 move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
 ----
 
-*** Die Funktion `del` und `delete`  +
+* Die Funktion `del` und `delete`  +
 Windows: Läßt sich die Datei nicht löschen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
 Linux: Die Option `-c` wird unter Linux ignoriert.
 
-** For-To Schleife [W/L] :
-Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
+.For-To Schleife [W/L] 
 
-Syntax:
+* Zum mehrfachen Ausführen eines Befehls oder einer Subsektion.
+
+* Syntax:
 
 `for` %<temporary string variable>% `=` <start string> `to` <end string> `do` <one statement> //since 4.11.5 [W/L]
 
-Die temporäre Variable %<temporary string variable>% muss und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
+Die temporäre Variable %<temporary string variable>% muss nicht und darf nicht deklariert werden und ist in der aufgerufenen Subsektion als Konstante verfügbar.
 
-Example: 
+* Example: 
 
 Code from opsi-winst-test:
 [source,winst]
@@ -413,21 +428,22 @@ Else
 EndIf
 ----
 
-** Switch / Case Statement [W/L] :
+.Switch / Case Statement [W/L] 
 
-Syntax:
+* Syntax:
+
 
 `Switch` <string expression> +
-  `Case` <string const>
-    <statement(s)> +
+  `Case` <string const> +
+      <statement(s)> +
    `EndCase` +
    [`DefaultCase` +
-    ;statement(s) +
-       `EndCase` ] +
+      <statement(s)> +
+   `EndCase` ] +
 `EndSwitch`
 
 
-Examples:
+* Examples:
 
 Code from opsi-winst-test:
 [source,winst]
@@ -506,38 +522,9 @@ Switch $ExitCode$
 EndSwitch
 ----
 
-** `UpdateEnvironment` [W]: +
-Sendet Windows das Signal das Environment aus der Registry neu einzulesen.
-Anzuwenden nachdem Umgebungsvariablen wie z.B. PATH verändert, gesetzt oder gelöscht wurden.
-ABER: Normale DosBatch oder Winbatch Aufrufe erben trotzdem das 'alte' Environment. Daher danach `winbatch` mit dem Parameter `/RunElevated` verwenden.
+.Parameter für Sektionen
 
-Example:
-[source,winst]
-----
-comment "Set Environment Variables and check for it ...."
-Registry_add_environment /sysnative
-UpdateEnvironment
-
-comment "This will not work because the environment is inherited from the running process"
-set $list$ = shellCall('set opsi-script-test')
-
-comment "This will work because this new started process will get a new environment"
-winbatch_check_environment /RunElevated
-if ("42" = getlastExitCode)
-	comment "passed"
-else
-	comment "failed"
-endif
-
-[Registry_add_environment]
-openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment]
-set "opsi-script-test"="deleteme"
-
-[winbatch_check_environment]
-"%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
-----
-
-** Bei `ShellBatch`, `ShellInAnIcon`, `DosBatch`, `DosInAnIcon`, `ExecWith` +
+* Bei `ShellBatch`, `ShellInAnIcon`, `DosBatch`, `DosInAnIcon`, `ExecWith` +
 sind nun als Parameter neben Stringkonstanten auch Stringvariablen erlaubt (aber keine String Funktionen).
 
 Example:
@@ -650,14 +637,48 @@ Else
 EndIf
 ----
 
-** `sleepseconds` [W/L] +
+.Funktionen und Aufrufe
+
+* `UpdateEnvironment` [W]: +
+Sendet Windows das Signal das Environment aus der Registry neu einzulesen.
+Anzuwenden nachdem Umgebungsvariablen wie z.B. PATH in der Registry verändert, gesetzt oder gelöscht wurden. +
+ABER: Normale DosBatch oder Winbatch Aufrufe erben trotzdem das 'alte' Environment. Daher danach `winbatch` mit dem Parameter `/RunElevated` verwenden. +
+Daher funktioniert diese Funktion nur bei Windows >= NT6.
+
+Example:
+[source,winst]
+----
+comment "Set Environment Variables and check for it ...."
+Registry_add_environment /sysnative
+UpdateEnvironment
+
+comment "This will not work because the environment is inherited from the running process"
+set $list$ = shellCall('set opsi-script-test')
+
+comment "This will work because this new started process will get a new environment"
+winbatch_check_environment /RunElevated
+if ("42" = getlastExitCode)
+	comment "passed"
+else
+	comment "failed"
+endif
+
+[Registry_add_environment]
+openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment]
+set "opsi-script-test"="deleteme"
+
+[winbatch_check_environment]
+"%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
+----
+
+* `sleepseconds` [W/L] +
 Als Parameter für die Anzahl der Sekunden sind nun auch Stringausdrücke erlaubt,
 also auch Stringvariablen und Stringfunktionen.
 
-** `MaximizeWinst` [W/L] +
+* `MaximizeWinst` [W/L] +
 Vergrößert das opsi-script Fenster auf das Maximum.
 
-** Suchpfad für `include_insert` und `include_append` ist um `%ScriptPath%/../lib` erweitert worden und gilt nun auch für externe sub-Sektionen.  +
+* Suchpfad für `include_insert` und `include_append` ist um `%ScriptPath%/../lib` erweitert worden und gilt nun auch für externe `sub` -Sektionen.  +
 
 Für alle Funktionen gilt: +
 <file name> ist:
@@ -675,14 +696,14 @@ Entspricht: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
-** `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+* `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
 Liefert eine Stringliste mit dem Inhalt von <file name> welcher beim Einlesen von <encoding> in das laufende Encoding des Systems konvertiert wurde.
 
-** `removeFromListByContains(`<search string>`,` <target list>`)` [W/L] +
+* `removeFromListByContains(`<search string>`,` <target list>`)` [W/L] +
 Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen  
 <search string> vorkommt. Der Vergleich ist case insensitiv.
 
-** `removeFromListByContains(`<search list>`,` <target list>`)` [W/L] +
+* `removeFromListByContains(`<search list>`,` <target list>`)` [W/L] +
 Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind in denen ein String aus <search list> vorkommt. Der Vergleich ist case insensitiv.
 
 Examples:
@@ -806,26 +827,26 @@ else
 endif
 ----
 
-** Stringfunktion `unquote2(<string>,<quote-string>)` [W/L] +
+* Stringfunktion `unquote2(<string>,<quote-string>)` [W/L] +
 Funktioniert wie `unquote(<string>,<quote-string>)` mit folgenden Unterschieden: +
 Wenn <quote-string> ein Zeichen lang ist, wird diese Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das Ende von <string> genommen. Wenn <quote-string> zwei Zeichen lang ist, wird das erste Zeichen als erwartetes 'Quote Zeichen' für den Anfang und das zweite Zeichen als erwartetes 'Quote Zeichen' für den Ende von <string> genommen. Beispiel: `"()"` +
 Die Funktion liefert <string> unverändert zurück, wenn nicht sowohl für Anfang und Ende die erwarteten 'Quote Zeichen' gefunden werden.
 
-** Logging im `silent_install` Modus:
+* Logging im `silent_install` Modus:
 Wird opsi-script / opsi-winst aus einem `silent_install` Event gestartet (z.B für die Inventarisierung im Hintergrund), so werden die Logs immer im Append Mode an den Server gesendet als an den vorhandenen Log angehängt.
 
-** Stringfunktion `GetShortWinPathName(<longpath string>)` [W] +
+* Stringfunktion `GetShortWinPathName(<longpath string>)` [W] +
 Liefert den Shortpath (8.3) von <longpath string>. Lässt sich für <longpath string> kein Shortpath finden, so liefert die Funktion einen leeren String. + Beispiel: `GetShortWinPathName("C:\Program Files (x86)")` liefert `"C:\PROGRA~2"`
 
-** `GetConfidentialProductProperty (` <PropertyName>, <DefaultValue>`)` //since 4.11.5.2 +
+* `GetConfidentialProductProperty (` <PropertyName>, <DefaultValue>`)` //since 4.11.5.2 +
 verhält sich wie `GetProductProperty` nur das der resultierende Wert als confidential string behandelt und damit nicht gelogged wird. +
 Sinnvoll um z.B. Passwörter aus einem Produktproperty abzufragen. Siehe auch `SetConfidential`
 
-** Boolsche Funktion `CompareDotSeparatedStrings(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
+* Boolsche Funktion `CompareDotSeparatedStrings(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
 vergleicht zwei Strings vom Typ <str>[.<str>[.<str>[.<str>]]] unter Verwendung des <relation str> der eins von den folgenden Werten haben darf: [<,<=,=,>=,>]. +
 siehe auch: Stringfunktion `CompareDotSeparatedStrings(`<string1>, <string2>`)`
 
-** Boolsche Funktion `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
+* Boolsche Funktion `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
 vergleicht zwei Strings vom Typ <zahl>[.<zahl>[.<zahl>[.<zahl>]]] unter Verwendung des <relation str> der eins von den folgenden Werten haben darf: [<,<=,=,>=,>]. +
 siehe auch: Stringfunktion `CompareDotSeparatedNumbers(`<string1>, <string2>`)`
 
@@ -938,7 +959,7 @@ EndIf
 
 
 
-** opsi-Linux Support:
+.opsi-Linux Support:
 
 * Winbatch Sektionen werden jetzt auch unter Linux unterstützt.
 
@@ -1113,9 +1134,20 @@ opsi-winst/opsi-script (4.11.5.2) stable; urgency=low
         Gives short path (8.3) from a long path e.g.
         GetShortWinPathName("C:\Program Files (x86)") gives "C:\PROGRA~2"
         In case of Error the result is an empty string
+  * osfunc: startprocess_cp: translate windows showWindowFlag to TProcess TShowWindowOptions
+  * osparser: doRegistryHack* : fix for not HKCU reg enties in loginscripts; fixes #1538
+  * oswebservice: more log for "unexpected Result from webservice in retrieveJSONObject, number of lines: 0"
+  * new string function: GetConfidentialProductProperty : like GetProductProperty but handles the result as confidential string ; fixes #462
+  * fixes at GetNTVersion for Win10
+  * new boolean function CompareDotSeparatedNumbers(<str1>,<relation str>,<str2>)
+        <relation str> may be: one of [<,<=,=,>=,>]
+  * new boolean function CompareDotSeparatedStrings(<str1>,<relation str>,<str2>)
+        <relation str> may be: one of [<,<=,=,>=,>]
+  * hide non visible processes (SW_HIDE) like winbatch or shellInAnIcon
+  * (Security Update) oswebservice: use TLS1.2 instead of SSLv3
 
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  01 Apr 2015:15:00:00 +0200
 
--- Detlef Oertel <d.oertel@uib.de>  Wed,  01 Apr 2015:15:00:00 +0200  
 
 opsi-winst/opsi-script (4.11.5.1) stable; urgency=low
 
@@ -1129,7 +1161,7 @@ opsi-winst/opsi-script (4.11.5.1) stable; urgency=low
   * osparser: doAktionen: Variables and functions are now allowed as sleepsecond Parameters; fixes #1193
   * osparser: %SriptPath%/../lib as additional Path in Search path for includes; fixes #1201
   * osparser: searchpath for includes are now works also for sub <file> ; fixes #1201
-  * New loop statement: for %s% = $start$ to $stop$ do <statement> ;  refernces #407
+  * New loop statement: for %s% = $start$ to $stop$ do <statement> ;  references #407
       - $start$ and $stop$ has to be integer strings
       - $start$ < $stop$ is required
       - in fact a stringlist $start$ to $stop$ is generated over which we iterate while loop
@@ -1174,9 +1206,9 @@ opsi-winst/opsi-script (4.11.5.1) stable; urgency=low
   * osparser: winbatch: trim targetfilename
   * osparser: shellBatch: Parameter at Linux (wrong bash parameter)
   * osmain: User Profile Management (runloginscripts) is now free
+  * osmain: do not switch opsi-script to setup (even if it is opsi-winst); references # 1437
 
 -- Detlef Oertel <d.oertel@uib.de>  Thu,  22 Dec 2014:15:00:00 +0200
-
 
 opsi-winst/opsi-script (4.11.4.14) stable; urgency=low
 
