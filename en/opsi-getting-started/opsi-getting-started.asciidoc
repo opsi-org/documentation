@@ -23,7 +23,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Revision:  4.0.6
+:Revision:  4.0.5
 :toclevels: 6
 :doctype:		book
 
@@ -331,15 +331,22 @@ Description the Server Interface look <<opsi-getting-started-installation-config
 
 Opsi 4.0 is designed and tested for:
 
-* Debian : Squeeze,Wheezy
+* Debian : Squeeze,Wheezy,Jessie (Testing)
 
 * Ubuntu : Lucid, Precise, Trusty
-
-Please read the chapter <<opsi-getting-started-introduction-software-and-configuration-preconditions>> (if you haven't done so yet).
 
 In this chapter, we assume you are familiar with the debian-package system (you will find information about the debian-package in the appropriate books, in the manual pages, or under http://www.debian.org/doc/).
 
 Please note that an {opsi-server} needs storage in `/var/lib/opsi`. A minimum of 16 GB of free space is recommended.
+
+Please read the chapter <<opsi-getting-started-introduction-software-and-configuration-preconditions>> (if you haven't done so yet).
+
+For the following installation commands the command aptitude should be installed:
+
+[source,prompt]
+----
+apt-get install aptitude
+----
 
 We recommend the following installations:
 
@@ -394,16 +401,22 @@ Ubuntu Trusty:
 deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/xUbuntu_14.04 ./
 ----
 
+Debian Squeeze:
+[source,configfile]
+----
+deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0 ./
+----
+
 Debian Wheezy:
 [source,configfile]
 ----
 deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0 ./
 ----
 
-Debian Squeeze:
+Debian Jessie: (Testing)
 [source,configfile]
 ----
-deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0 ./
+deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Debian_8.0 ./
 ----
 
 Now execute this command in order to import the signature key of the repository:
@@ -429,6 +442,13 @@ Ubuntu Trusty:
 wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/xUbuntu_14.04/Release.key | apt-key add -
 ----
 
+Debian Squeeze:
+
+[source,prompt]
+----
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0/Release.key | apt-key add -
+----
+
 Debian Wheezy:
 
 [source,prompt]
@@ -436,11 +456,11 @@ Debian Wheezy:
 wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0/Release.key | apt-key add -
 ----
 
-Debian Squeeze:
+Debian Jessie:
 
 [source,prompt]
 ----
-wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0/Release.key | apt-key add -
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Debian_8.0/Release.key | apt-key add -
 ----
 
 All: +
@@ -508,60 +528,86 @@ aptitude update
 aptitude install openjdk-7-jre icedtea-plugin
 ----
 
+.Debian 8 (Jessie) specialities: +
+
+The bootimage has issues to mount the `opsi_depot`-Share over mount.cifs.
+The actual tests indicates, that these issue will not prompt if the winbindd daemon is not running.
+
+Disable winbindd start:
+[source,prompt]
+----
+systemctl disable winbind
+----
+or
+[source,prompt]
+----
+insserv -r winbind
+----
+
 Assuming all of the above steps completed successfully, we can assume that the network is properly configured. Next continue on with <<opsi-getting-started-installation-config-backend>>
 
 [[opsi-getting-started-installation-base-ucs]]
 ==== Installation on a Univention Corporate Server (UCS)
 
-opsi 4.0 is tested and released for UCS 3.2 and UCS 4.0
+opsi 4.0 is tested and released for UCS 3.2 and UCS 4.0 (Testing)
 
 [[opsi-getting-started-installation-base-ucs-appcenter]]
-===== Installation im Univention App-Center
+===== Installation over the Univention App-Center
 
-Über das Univention App-Center steht eine automatisierte Installation des opsi-Servers zur Verfügung.
-Das Installations-App für opsi befindet sich in der UCS-Management-Oberfläche in der Kategorie "System". Über das App-Center kann opsi nur auf den UCS-Servern Master und Backup installiert werden. Falls Sie ein Update einer vorhandenen opsi-Umgebung durchführen möchten, lesen Sie bitte auch das darauf folgende Kapitel. +
-Bei der Installation geschieht folgendes:
+In the Univention App-Center are a automatic installation of opsi-Server available.
+The installation-app for opsi can be found in the UCS-Management-Webinterface in the catogorie "System". Over the App-Center can opsi be installed on UCS4-Serverroles Master and Backup. If you want to update a existing opsi4ucs-Installation please check the next Chapter for further information. +
+The following will describe what will be happen during a installation:
 
-* Es wird die Grundlage für die MySQL-Installation gelegt.
+* The prerequires for a MySQL-Installation will be done.
 
-* Die Ignore-List des Samba4-Connectors wird so angepasst, dass der User pcpatch entfernt wird.
+* The Ignore-List of the Samba4-Connector will be modified: the user pcpatch will be removed if found as a entry in the ignorelist.
 
-* Das MySQL-Backend wird für die Nutzung der Inventarisierungsdaten konfiguriert (Anpassung der dispatch.conf)
+* The MySQL-Backend will be configured to use for inventorydata in opsi (dispatch.conf will be modified).
 
-* Mit opsi-Bordmitteln wird die Samba-Konfiguration überprüft, um sicherzustellen, dass die für opsi benötigten Samba-Shares richtig angelegt sind.
+* The opsi-Samba-Shares will be checked, if they are configured in the right way to work with opsi.
 
-* Zur Installation des opsi-Servers werden automatisch weitere Pakete installiert:
-opsi4ucs, opsi-atftpd, p7zip-full cabextract, mysql-server, digitec-opsi-listener.
-Dazu wird bei der Installation selbständig geprüft, welche UCS-Systemrolle der Server hat.
+* Required packages for the opsi-Installation will be installed: opsi4ucs, opsi-atftpd, p7zip-full cabextract, mysql-server, digitec-opsi-listener.
 
-* Der 'opsi-product-updater' wird aufgerufen zum Einspielen der minimalen opsi-Produkte. Nach dem Download werden die Pakete auf dem Server installiert.
+* 'opsi-product-updater' will be called to download and install the minimal opsi-Packages for the first work with the new installation.
 
-Mit dem automatischen Einrichten des 'digitec-opsi-listener' über das 'Univention' App-Center werden neu im UCS-Backend angelegte Clients automatisch ins opsi-Backend übernommen.
-Dies gilt jeoch nicht für bereits vorhandene Clients. 
-Soll eine komplette Syncronisation durchgeführt werden, so müssen die entsprechenden Befehle manuell eingegeben werden siehe:
+With the automatic installation and configuration of the digitec-opsi-listener over the Univention-Appcenter, the system will automated register new Clients in the UCS-Bakcend and synchronize these clients automatically to the opsi-Backend.
+This will not automatically replicate already existing Clients. If a complete replication of existing Clients are required, please have a look in the Chapter:
 <<opsi-getting-started-installation-base-ucs-listener>>
 
-Die opsi-Installation auf einem UCS-Server über das 'Univention' App-Center ist damit abgeschlossen. Weiter geht es mit:
+After the described steps the opsi-Installation on a UCS-Server over the Univention App-Center is finished. Please continue with following Chapter: 
 <<opsi-getting-started-installation-config-modules>>
 
 [[opsi-getting-started-installation-upgrade-appcenter]]
-===== Update vorhandener opsi-Installation von einem UCS 3 auf UCS 4 (über App-Center)
+===== Upgrade a existing opsi-Installation from UCS 3 to UCS 4 (over the App-Center)
 
-Eine der wichtigsten Änderungen, die mit dem Update für opsi 4.0.5 kommen, ist die Unterstützung der Gruppe 'opsifileadmins'. Diese Gruppe ersetzt in UCS
-zukünftig die Gruppe 'pcpach'. Opsifileadmins wurde zwar schon mit der
-Unterstützung von UCS 3.0 eingeführt, es wurde allerdings nur auf
-Installationen eingerichtet, die mit Samba 4 und den Univention
-Directory Services (Samba4-AD) installiert wurden.
-Auf allen anderen Varianten und Rollen, wurde bisher die Gruppe als
-'pcpatch' angelegt. +
-Da dieser Umstand nicht nur im Installationshandling ein Problem darstellt, sondern auch Probleme bei möglichen Migrationen (besonders von Samba3 auf Samba4) verursachen kann, wird mit dem Update für opsi 4.0.5 nun die 'pcpatch'-Gruppe als 'opsifileadmins' Gruppe angelegt, egal welche Kombination von UCS 3.2/4.0 oder Samba3/Samba4 bei der Installation vorgefunden wird.
+One major change is the opsifileadmins group. This
+Group has already been introduced with the support of UCS 3.0,
+but only on installations that had Samba 4 and the Univention
+Directory Services (Samba4-AD). In all other
+Variants and roles the group continues to be, as it was before pcpatch.
+Since this situation represents a problem not only on the installation,
+but could also lead to potential problems with migrations
+(Especially of Samba3 on Samba4) with this release the pcpatch group
+will be created with the id opsifileadmins group,
+no matter what combination of UCS 3.2 / 4.0 or Samba3 / Samba4
+is found during installation.
 
-*WARNUNG:* + 
-Um diese Anforderungen sauber in das Integrationspaket implementieren zu können, wird die Gruppe 'pcpatch', falls vorhanden, automatisch über das Integrationspaket in 'opsifileadmins' umbenannt.
-Dies geschieht über das join-Skript. Falls Ihr Configserver auf einem Master oder Backup betrieben wird, wird das Join-Skript automatisch ausgeführt. +
+WARNING: To implement the integration package in a clean way,
+the group will pcpatch, will be renamed automatically
+on the integration package in opsifileadmins.
+This is done via the join script. If your config server is run on a
+Master or backup, the join script will be automatically
+executed.
 
-Der Hauptgrund für diese drastische Maßnahme ist, dass die manuelle Umbenennung dieser Gruppe nicht trivial ist, da es sich um eine primäre Gruppe handelt. Wir empfehlen vor dem Einspielen dieses Updates zu überprüfen, ob Ihre Gruppe noch pcpatch heißt. Wenn dem so ist, sollte das Update - angefangen beim Configserver - auf allen Depotservern zeitnah eingespielt werden, da ansonsten der Betrieb der Multidepot Umgebung gestört wird. Wenn Ihre Gruppe schon opsifileadmins
-heißt, sollten keine Beeinträchtigungen auftreten. Dennoch wird empfohlen, nach dem Einspielen der Updates alle opsi-Server auf Funktion zu überprüfen.
+The main reason for this drastic measure is that the manual
+Rename of this group is not trivial, because it comes to be a
+primary group. Therefore it is recommended before installing
+this update to make sure that your group is still named pcpatch. If
+so, the update should be started with the config server and soon afterwards
+on the Depot servers as well, otherwise the operation on
+Multi Depots environments could lead to issues. This should not be the case,
+if your group already has a different name. Nevertheless, it is recommended after
+Importing the update to check every opsi server to verify complete functionality.
 
 [[opsi-getting-started-installation-base-ucs-3]]
 ===== Not automated opsi-installation on a UCS 3 and UCS 4 System (without App-Center)
@@ -627,6 +673,8 @@ created as a fully-fledged domain user and is no longer a system user. (Also, th
 'opsifileadmins' group will no longer be fixed at 992, but will be self-assigned in UDM, which will also
 eliminate replication problems with the User and Group).  For more information about this new configuration file,
 please refer to the opsi-manual.
+
+TIP: If you use UCS 4.0 or higher and you have no existing opsi installtion, you can skip the following steps and can continue with adding the repositories.
 
 Before opsi can be installed, some specific preconditions must be met.  At first, it must be ensured that
 pcpatch account will be cleanly replicated to Samba4.  To check that the Univention s4-Connected connector has
@@ -699,18 +747,34 @@ are important, and can be set with the following command:
 ucr set repository/online/unmaintained="yes"
 ----
 
-Next, activate the opsi4ucs repository (UCS 3.2 is also installed from the 3.0 repository):
+*Next, add the opsi4ucs repository in the file /etc/apt/sources.list:*
 
+.UCS 3.2: +
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/ucs3.0 ./" >> /etc/apt/sources.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Univention_3.2 ./" >> /etc/apt/sources.list
+----
+
+.UCS 4.0: +
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Univention_4.0 ./" >> /etc/apt/sources.list
 ----
 
 Now import the key to the repository system with th following command:
 
+.UCS 3.2
+
 [source,prompt]
 ----
-wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/ucs3.0/Release.key | apt-key add -
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Univention_3.2/Release.key | apt-key add -
+----
+
+.UCS 4.0
+
+[source,prompt]
+----
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Univention_4.0/Release.key | apt-key add -
 ----
 
 For the installation the following commands must be entered:
