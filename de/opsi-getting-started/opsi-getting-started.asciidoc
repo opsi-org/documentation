@@ -23,7 +23,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Revision:  4.0.6
+:Revision:  4.0.5
 :toclevels: 6
 :doctype:   book
 
@@ -355,7 +355,7 @@ Zur Beschreibung der Management-Oberfläche gehen Sie zu <<opsi-getting-started-
 
 Opsi 4.0 ist getestet und freigegeben für:
 
-* Debian : Squeeze, Wheezy
+* Debian : Squeeze, Wheezy, Jessie (Testing)
 
 * Ubuntu : Lucid, Precise, Trusty
 
@@ -427,17 +427,24 @@ Ubuntu Trusty:
 deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/xUbuntu_14.04 ./
 ----
 
+Debian Squeeze:
+[source,configfile]
+----
+deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0 ./
+----
+
 Debian Wheezy:
 [source,configfile]
 ----
 deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0 ./
 ----
 
-Debian Squeeze:
+Debian Jessie: (Testing)
 [source,configfile]
 ----
-deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0 ./
+deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Debian_8.0 ./
 ----
+
 
 Führen Sie nun folgende Befehle aus, um die Signatur des Repositories zu importieren:
 
@@ -462,6 +469,13 @@ Ubuntu Trusty:
 wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/xUbuntu_14.04/Release.key | apt-key add -
 ----
 
+Debian Squeeze:
+
+[source,prompt]
+----
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0/Release.key | apt-key add -
+----
+
 Debian Wheezy:
 
 [source,prompt]
@@ -469,12 +483,13 @@ Debian Wheezy:
 wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_7.0/Release.key | apt-key add -
 ----
 
-Debian Squeeze:
+Debian Jessie:
 
 [source,prompt]
 ----
-wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Debian_6.0/Release.key | apt-key add -
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Debian_8.0/Release.key | apt-key add -
 ----
+
 
 Alle: +
 Prüfen Sie ob der Import erfolgreich war:
@@ -545,6 +560,23 @@ Um die Java Laufzeitumgebung zu installieren geben Sie nun ein:
 ----
 aptitude update
 aptitude install openjdk-7-jre icedtea-plugin
+----
+
+.Debian 8 (Jessie) Besonderheiten: +
+
+Das bootimage hat Probleme die `opsi_depot`-Freigabe per mount.cifs zu mounten.
+Es sieht nach bisherigen Tests so aus, das diese Probleme nicht
+auftauchen, wenn auf dem Server der winbindd nicht läuft.
+
+Winbindd start disablen mit:
+[source,prompt]
+----
+systemctl disable winbind
+----
+oder
+[source,prompt]
+----
+insserv -r winbind
 ----
 
 Da Sie opsi auf einer existierenden Maschine eingespielt haben, gehen wir davon aus, dass Ihre Netzwerkkonfiguration korrekt ist. +
@@ -645,6 +677,8 @@ Bitte beachten:
 
 Die klassischen Installationsvariante mit dem Benutzer: `pcpatch` mit der primären Gruppe: `pcpatch` konnte für UCS 3 nicht eingehalten werden. Da Samba4 den grundlegenden Restriktionen von Active-Directory unterliegt, sind Gruppen mit der gleichen Bezeichnung wie User (wie in Unix/Linux üblich) nicht mehr erlaubt. Aus diesem Grund wurde für UCS 3 eine neue Konfigurationsdatei eingeführt: `/etc/opsi/opsi.conf`, über die gesteuert wird, wie die Gruppe für den Samba-Zugriff auf die Freigaben bestimmt wird. Speziell bei UCS 3 wird nun über diese Datei der Gruppenname `pcpatch` umbenannt und heißt von nun an: `opsifileadmins`. Das bedeutet, dass die User, die Zugriffsrechte für die Freigaben von opsi erhalten müssen (opsi-Paketierer) unter UCS 3 nicht Mitglied der Gruppe `pcpatch` werden können, sondern Mitglied der Gruppe `opsifileadmins` sein müssen. Diese Besonderheit gilt vorerst nur für UCS 3 und unterscheidet sich von den anderen Distributionen und eventuell in weiterführenden Kapiteln der opsi-Dokumentationen. Des weiteren ist seit UCS 3 auch neu, dass der User pcpatch nun als vollwertiger Domänenbenutzer angelegt wird und nicht mehr als Systemuser. (Auch die UID von pcpatch und die GID der opsifileadmins-Gruppe wird nun nicht mehr fest auf 992 vorgegeben, sondern vom UDM selbst bestimmt, um spätere Replikationsprobleme mit dem User und dieser Gruppe zu vermeiden.) Nähere Informationen über diese neue Konfigurationsdatei entnehmen Sie bitte dem opsi-manual.
 
+TIP: Wenn Sie UCS 4.0 oder höher verwenden und opsi vorher nicht installiert war, können Sie die folgenden Schritte überspringen und direkt mit dem hinzufügen der Repositories fortfahren.
+
 Bevor opsi installiert werden kann, sind zunächst einige spezielle Vorbedingungen zu erfüllen. Dafür muss als erstes dafür gesorgt werden, dass das pcpatch-Konto sauber zu Samba4 repliziert wird. Dazu muss geprüft werden, ob der s4-Connector von Univention das Konto pcpatch in seiner Ignore-Liste stehen hat. Dazu führen Sie auf dem UCS-Master folgende Befehle aus:
 
 [source,prompt]
@@ -708,18 +742,34 @@ Nachdem diese Einstellungen gemacht wurden, kann man anfangen das opsi4ucs zu in
 ucr set repository/online/unmaintained="yes"
 ----
 
-Als nächstes wird das opsi4ucs-Repository aktiviert (UCS 3.2 wird aus dem 3.0 Repository installiert):
+*Um nun opsi zu installieren, tragen Sie das entsprechende Repository in die Datei '/etc/apt/sources.list' ein:*
 
+.UCS 3.2: +
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/ucs3.0 ./" >> /etc/apt/sources.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Univention_3.2 ./" >> /etc/apt/sources.list
+----
+
+.UCS 4.0: +
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Univention_4.0 ./" >> /etc/apt/sources.list
 ----
 
 Nun muss noch der Schlüssel des Repositories ins System importiert werden:
 
+.UCS 3.2
+
 [source,prompt]
 ----
-wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/ucs3.0/Release.key | apt-key add -
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Univention_3.2/Release.key | apt-key add -
+----
+
+.UCS 4.0
+
+[source,prompt]
+----
+wget -O - http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40-testing/Univention_4.0/Release.key | apt-key add -
 ----
 
 Für die Installation führen Sie nun folgende Befehle aus:
