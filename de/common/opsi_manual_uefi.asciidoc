@@ -181,7 +181,13 @@ Alle notwendigen Pakete sind ab der opsi Version 4.0.5 automatisch installiert.
 [[opsi-manual-uefi-dhcpd]]
 === Konfiguration des DHCP Servers
 
-Beispiel aus einer Konfiguration eines Linux isc-dhcp-server:
+Damit Uefi-Clients auch per PXE-Boot betankt werden können, benötigen sie einen anderen Bootfile Eintrag, als den herkömmlichen für Bios-Clients. Als Bootfile ist einzutragen: 'linux/pxelinux.cfg/elilo32.efi'. 
+Da in der Praxis vermutlich beide Varianten in einer opsi-Umgebung betrieben werden sollen, muss der DHCP-Server je nach Clienttyp das entsprechende Bootfile auf dem opsi-Server zuweisen. Hierzu folgen Beispielkonfigurationen für DHCP-Server auf Basis von Linux- oder Windows-Systemen.
+
+[[opsi-manual-uefi-dhcpd-linux]]
+==== Beispiel aus einer Konfiguration eines Linux isc-dhcp-server
+
+Auf einem Linux-Server kann in die dhcpd.conf folgende Weiche konfiguriert werden:
 
 ----
 filename "linux/pxelinux.0";
@@ -200,11 +206,68 @@ else if substring (option vendor-class-identifier , 19,1 ) = "7" {
         filename "linux/pxelinux.cfg/elilo.efi";
 }
 else {
-        log (info, concat ( "Unhandled vendor class Arch: ", substring (option vendor-class-identifier , 19,1 )));
+        log (info, concat ( "Unhandled vendor class Arch: ", substring (option
+        vendor-class-identifier , 19,1 )));
 }
 ----
 
 http://docs.fedoraproject.org/en-US/Fedora/17/html/Installation_Guide/s1-netboot-pxe-config.html
+
+[[opsi-manual-uefi-dhcpd-winsrv]]
+==== Beispiel für die Konfiguration auf einem Windows DHCP-Server 2012 R2
+
+* Als Standard wird in dieser Variante der PXE-Bootfile für Uefi 64Bit Installationen eingetragen. Dafür werden die DHCP-Optionen 66 und 67 wie folgt angepasst: +
+066 Hostname des Startservers: <IP des Opsiservers> +
+067 Name der Startdatei: linux/pxelinux.cfg/elilo.efi
+
+* Zur Unterscheidung der Bios-Clients muss auf dem DHCP-Server ein Herstellerklasse-Identifier (PXEClient:Arch:00000:UNDI:002001) definiert werden: +
+    
+----
+	Herstellerklasse definieren
+	Neue Herstellerklasse hinzufügen
+	Klasse bearbeiten
+		Anzeigename: Legacy BIOS
+		Asci: PXEClient:Arch:00000:UNDI:002001
+----
+* Die vordefinierten Optionen müssen dem Hestellerklasse-Identifier zugeordnet werden:
+----
+	Vordefinierte Optionen einstellen
+	Optionen hinzufügen
+		Optionsklasse: Legacy BIOS
+		Hinzufügen
+	Optionstyp anpassen
+		Name: Legacy BIOS
+		Datentyp: Zeichenfolge
+		Code: 60
+		Beschreibung:  PXEClient Class Legacy BIOS
+	Vordefinierte Optionen und Werte
+		Zeichenfolge: PXEClient
+----		
+* DHCP-Richtlinie definieren, die den Bootfile für PXE-Boot(BIOS) der Herstellerklasse zuordnet:
+----
+	Neue Richtlinie
+		Richtlinienname: PXE BootFile Legacy BIOS
+		weiter
+	Bedingungen hinzufügen
+		Kriterien: Herstellerklasse
+		Operator: ist gleich
+		Wert: Legacy BIOS
+			hinzufügen
+	Möchten Sie einen IP-Adressbereich für die folgende Richtlinie 
+	konfigurieren: Nein
+	Herstellerklasse: DHCP Standard Options
+		067 Name der Startdatei
+		Dateieingabe
+			Zeichenfolgenwert: linux/pxelinux.0
+----			
+* In den Bereichsoptionen gibt es dann zwei Einträge für die Startdatei, in einem Fall jedoch an eine Richtlinie gekoppelt:
+----
+067 Name der Startdatei: linux/pxelinux.cfg/elilo.efi	Richtlinie: Keine
+067 Name der Startdatei: linux/pxelinux.0		Richtlinie: PXE BootFile
+								    Legacy BIOS
+----
+
+Referenz: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 
 [[opsi-manual-uefi-goodbios]]
 === Kriterien für ein 'gutes' BIOS
