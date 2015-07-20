@@ -1,0 +1,87 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      20.07.2015
+:Revision:  4.0.6
+:toc:
+:numbered:
+:website: http://opsi.org
+
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-samba4]]
+== Remarks to Samba4
+
+[[opsi-manual-samba4-opsifileadmins]]
+== The /etc/opsi/opsi.conf: pcpatch and opsifileadmins
+
+
+The classical installation, with the user: 'pcpatch' in the group: 'pcpatch', does not work with Samba 4. Samba 4 has placed fundamental restrictions on the Active-Directory, such as groups with the same name as the user (usually in Unix/Linux) are no longer allowed. For this reason, a new configuration file has
+been introduced:  `/etc/opsi/opsi.conf`, which will control how the groups will access Samba-Access. More specifically, for Samba 4 installations the group name 'pcpatch' will be called 'opsifileadmins'.  This means that the user who belonged to the group 'pcpatch' under Samba 3, must now belong to the group 'opsifileadmins'.
+This means that a user, who must have access rights for opsi-packages under Samba 3 cannot be a member of 'pcpatch', but must be a member of the group 'opsifileadmins'. 
+
+????????????????????????????????????????????????
+
+Furthermore, since UCS 3, the user 'pcpatch' is created as a fully-fledged domain user and is no longer a system user. (Also, the UID of 'pcpatch' and the GID of the 'opsifileadmins' group will no longer be fixed at 992, but will be self-assigned in UDM, which will also eliminate replication problems with the User and Group). 
+
+[[opsi-manual-samba4-share-configuration]]
+== Share Configuration
+
+Samba 4 becomes the new standard and the old Samba 3 vanishes. 
+
+Depending on the Distribution these Samba 4 Packages are not suitable to manage whole domains, but act like Samba 4 regarding the shares.
+
+With Samba 3 the default was, that every file or directory was executable on the clients. This behaviour changed with Samba 4. Now all files, that shall be executable from the share, must also have the executable bit set on the Unix side.
+
+This results in a basic problem with running opsi. It is not possible to bypass this behaviour from the rights management, for it would require fundamental changes of the rights management of opsi, that can't be done with opsi{nbsp}4.
+
+So for handling this problem with opsi{nbsp}4.0 there are two ways:
+
+**Option 1:** for the affected shares this behaviour can be supressed by elevating the share privileges of each member of the pcpatch group from the share configuration by setting the following option: +
+admin users = @pcpatch
+
+This fix elevates the privileges of the Samba processes and has already been used by opsi for some time for UCS{nbsp}>={nbsp}3 with Samba{nbsp}4.
+
+opsi installs per default for Samba{nbsp}4 distributions with opsi-setup --auto-configure-samba this option for the opsi_depot share. This share is mounted read only, so the safety and security risk can be estimated as low.
+
+**Option 2:** instead the following global option can be set in the smb.conf: +
+allow general executable = True
+
+With this option for all shares a behaviour like Samba{nbsp}3 is restored.
+
+To restore the old behaviour for all shares, the setting of the first option can be done for every share manually, or the second option can be set globally in the smb.conf. Using the second option changes the behaviour for all shares, not only for the opsi shares.
+
+[[opsi-manual-samba4-clientconfig-depot-user]]
+== Access to the shares: clientconfig.depot.user
+
+Using samba 4 it may be necessary to provide exactly which domain and user combination should be used in order to mount the depot share. +
+The default is to use just as user `pcpatch` and nothing as domain. If this fails becaus the mount command defaults to the wrong domain you should configure the correct daomain (in most cases: the hostname of the opsi-server).
+The config has the name: `clientconfig.depot.user`
+The value of this config has the syntax: `<domain name>\<user name>`
+A config: +
+`clientconfig.depot.user = opsiserver\pcpatch` +
+tells that mounting the opsi depot share as domain we should use `opsiserver` and as user `pcpatch`.
+You may creat such a config using the opsi-configed:
+Serverconfiguration / clientconfig / right mouse button: Add standard configuration entry. +
+You may also use the command line to create this configuration (replace 'pcpatch' by the string you need e.g. 'opsiserver\pcpatch':
+[source,prompt]
+----
+opsi-admin -d method config_createUnicode clientconfig.depot.user "clientconfig.depot.user" pcpatch
+----
+This system wide configuration may be changed client specific (e.g at the opsi-configed 

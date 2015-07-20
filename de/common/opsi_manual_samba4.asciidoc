@@ -1,0 +1,82 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      20.07.2015
+:Revision:  4.0.6
+:toc:
+:numbered:
+:website: http://opsi.org
+
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-samba4]]
+== Hinweise zu Samba 4
+
+[[opsi-manual-samba4-opsifileadmins]]
+== Die /etc/opsi/opsi.conf: pcpatch und opsifileadmins
+
+Die klassischen Installationsvariante mit dem Benutzer: `pcpatch` mit der primären Gruppe: `pcpatch` kann für Installationen mit Samba 4 nicht eingehalten werden. Da Samba 4 den grundlegenden Restriktionen von Active-Directory unterliegt, sind Gruppen mit der gleichen Bezeichnung wie User (wie in Unix/Linux üblich) nicht mehr erlaubt. Aus diesem Grund wurde für Samba 4 Installationen eine neue Konfigurationsdatei eingeführt: `/etc/opsi/opsi.conf`, über die gesteuert wird, wie die Gruppe für den Samba-Zugriff auf die Freigaben bestimmt wird. Im Fall von Samba 4 Installationen wird nun über diese Datei der Gruppenname `pcpatch` umbenannt und heißt von nun an: `opsifileadmins`. Das bedeutet, dass die User, die Zugriffsrechte für die Freigaben von opsi erhalten müssen (opsi-Paketierer) unter Samba 4 nicht Mitglied der Gruppe `pcpatch` werden können, sondern Mitglied der Gruppe `opsifileadmins` sein müssen. 
+
+??????????????????????
+
+Des weiteren ist seit UCS 3 auch neu, dass der User pcpatch nun als vollwertiger Domänenbenutzer angelegt wird und nicht mehr als Systemuser. (Auch die UID von pcpatch und die GID der opsifileadmins-Gruppe wird nun nicht mehr fest auf 992 vorgegeben, sondern vom UDM selbst bestimmt, um spätere Replikationsprobleme mit dem User und dieser Gruppe zu vermeiden.) 
+
+[[opsi-manual-samba4-share-configuration]]
+== Share Konfiguration
+
+Immer mehr Distributionen werden nun mit Samba 4 ausgeliefert.
+
+Diese Pakete sind teilweise (je nach Distribution) von sich aus nicht dazu geeignet ganze Domänen zu verwalten, haben aber bei den Freigaben das Verhalten von Samba 4.
+
+In Samba 3 war es allgemein erlaubt, jede Datei oder Verzeichnis auf den Clients auszuführen. Dieses Verhalten wurde in Samba 4 komplett verändert. Nun müssen alle Dateien, die über den Share ausführbar sein sollen, auch auf der Unix-Seite das Executable-Bit setzen.
+
+Dies stellt ein allgemeines Problem für den Betrieb von opsi dar. Es ist nicht möglich dieses Verhalten über die Rechteverwaltung von opsi zu umgehen, da dies eine komplette Überarbeitung des Rechtesystems von opsi erfordern würde. Dies ist in opsi 4 nicht möglich.
+
+Um das Problem mit opsi 4.0 dennoch zu umgehen, gibt es zwei Möglichkeiten.
+
+**Variante 1:** auf den betroffenen Freigaben kann über die Freigabenkonfiguration über die Option:
+admin users = @pcpatch
+
+für jedes Mitglied der pcpatch-Gruppe (Freigaben-User) dieses Verhalten ausgehebelt werden. Diesen Fix setzt opsi schon seit längerem auch bei UCS >= 3 mit Samba 4 ein. Bei diesem Fix wird der Samba-Prozess der User mit erhöhten Rechten ausgeführt.
+
+opsi setzt automatisch bei Samba 4 Distributionen über opsi-setup --auto-configure-samba diese Option für den opsi_depot Share. Da dieser nur readonly gemounted wird, ist das Sicherheitsrisiko relativ gering.
+
+**Variante 2:** Man kann global folgende Option in der smb.conf setzen:
+allow general executable = True
+
+Durch diese Option wird für alle Freigaben das Verhalten von Samba 3 wiederhergestellt.
+
+Sollte es gewünscht sein, dass die anderen Shares von diesem Problem nicht mehr betroffen sind, kann man entweder die erste Variante für jeden Share manuell setzen oder die Option von Variante zwei global in die smb.conf setzen. Die zweite Option gilt dann aber für alle Freigaben, auch für die, die nicht von und für opsi bereitgestellt werden.
+
+[[opsi-manual-samba4-clientconfig-depot-user]]
+== Zugriff auf die shares: clientconfig.depot.user
+
+Im Rahmen der Verwendung von Samba4 kann es notwendig sein zum mounten des depotshares explizit anzugeben mit welche Domain / User Kombination dies erfolgen soll. Dazu gibt es den neuen config: `clientconfig.depot.user`. Gibt es diesen config nicht, so wird der user `pcpatch` genommen.
+Der Wert des config hat den Syntax: `<domain name>\<user name>`
+Ein config: +
+`clientconfig.depot.user = opsiserver\pcpatch` +
+gibt an, dass bei dem Mount des depotshares zur Authentifizierung als domain `opsiserver` und als user `pcpatch`  angegeben werden soll.
+Die Erstellung eines solchen config kann über den opsi-configed erfolgen:
+Serverkonfiguration / clientconfig / Rechte Maustaste: Standard Konfigurationseintrag hinzufügen. +
+Die Erstellung eines solchen config kann auch auf der Kommandozeile erfolgen (wobei 'pcpatch' durch den gewünschten string  z.B. 'opsiserver\pcpatch' ersetzt werden muß:
+[source,prompt]
+----
+opsi-admin -d method config_createUnicode clientconfig.depot.user "clientconfig.depot.user" pcpatch
+----
+Dieser Systemweite config kann (z.B. im configed im Reiter Hostparameter) clientspezifisch angepasst werden.
