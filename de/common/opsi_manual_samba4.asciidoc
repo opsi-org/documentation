@@ -28,23 +28,33 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-samba4]]
 == Hinweise zu Samba 4
 
+Mit dem erreichen des  stable-Status von Samba4 wurde die Entwicklungs- und Maintaincearbeiten für den Samba3-Zweig eingestellt. Als Folge daraus werden fast alle gängigen Linux-Distributionen (Client- und Server-Varianten) mit Samba4 statt Samba3 ausgestattet. Daraus ergeben sich einige Besonderheiten, die in diesem Kapitel dokumentiert werden sollen.
+
+Samba-Freigaben sind zentraler Bestandteil für die Funktion von opsi. Durch das "generelle" Update auf Samba4 gibt es einige Dinge zu beachten, die in folgenden Kapiteln kurz erläutert werden sollen.
+
+Zunächst muss unterschieden werden, in welchem Betriebsmodus Samba ausgeführt wird. Eine besondere Eigenschaft von Samba4 ist die Möglichkeit einen vollwertigen ActiveDirectory-Kompatiblen Domain Controller zu betreiben. In diesem Betriebsmodus (der aus Vereinfachungsgründen in den folgenden Kapiteln als PDC-Modus bezeichnt wird) gibt es Ristriktionen, die aus Kompatibilitätsgründen vom ActiveDirectory übernommen werden mussten. In der Regel sind die neuen Distributionen mit Samba4 ausgestattet, allerdings nur mit dem normalen Freigaben-Betriebsmodus. Eine vollwertige ActiveDirectory Domain zu betreiben, ist mit den Standardpaketen von den Distributionen in der Regel nicht möglich. Eine Ausnahme stellt hier der Univention Corporate Server, diese haben auch in Ihren Standardpaketen den PDC-Modus mit integriert.
+
 [[opsi-manual-samba4-opsifileadmins]]
-== Die /etc/opsi/opsi.conf: pcpatch und opsifileadmins
+=== Die /etc/opsi/opsi.conf: pcpatch und opsifileadmins
 
-Die klassischen Installationsvariante mit dem Benutzer: `pcpatch` mit der primären Gruppe: `pcpatch` kann für Installationen mit Samba 4 nicht eingehalten werden. Da Samba 4 den grundlegenden Restriktionen von Active-Directory unterliegt, sind Gruppen mit der gleichen Bezeichnung wie User (wie in Unix/Linux üblich) nicht mehr erlaubt. Aus diesem Grund wurde für Samba 4 Installationen eine neue Konfigurationsdatei eingeführt: `/etc/opsi/opsi.conf`, über die gesteuert wird, wie die Gruppe für den Samba-Zugriff auf die Freigaben bestimmt wird. Im Fall von Samba 4 Installationen wird nun über diese Datei der Gruppenname `pcpatch` umbenannt und heißt von nun an: `opsifileadmins`. Das bedeutet, dass die User, die Zugriffsrechte für die Freigaben von opsi erhalten müssen (opsi-Paketierer) unter Samba 4 nicht Mitglied der Gruppe `pcpatch` werden können, sondern Mitglied der Gruppe `opsifileadmins` sein müssen. 
+TIP: Die Restriktion, die in diesem Kapitel beschrieben wird, betrifft nur den PDC-Modus von Samba4.
 
-??????????????????????
+Die klassische Installationsvariante mit dem Benutzer: `pcpatch` mit der primären Gruppe: `pcpatch` kann für Installationen mit Samba4 nicht eingehalten werden. Da Samba4 den grundlegenden Restriktionen von Active-Directory unterliegt, sind Gruppen mit der gleichen Bezeichnung wie User (wie in Unix/Linux üblich) nicht mehr erlaubt. Aus diesem Grund wurde für Samba4 Installationen eine neue Konfigurationsdatei eingeführt: `/etc/opsi/opsi.conf`, über die gesteuert wird, wie die Gruppe für den Samba-Zugriff auf die Freigaben bestimmt wird. Im Fall von Samba4 Installationen wird nun über diese Datei der Gruppenname `pcpatch` umbenannt und heißt von nun an: `opsifileadmins`. Das bedeutet, dass die User, die Zugriffsrechte für die Freigaben von opsi erhalten müssen (opsi-Paketierer) unter Samba4 nicht Mitglied der Gruppe `pcpatch` werden können, sondern Mitglied der Gruppe `opsifileadmins` sein müssen. 
 
-Des weiteren ist seit UCS 3 auch neu, dass der User pcpatch nun als vollwertiger Domänenbenutzer angelegt wird und nicht mehr als Systemuser. (Auch die UID von pcpatch und die GID der opsifileadmins-Gruppe wird nun nicht mehr fest auf 992 vorgegeben, sondern vom UDM selbst bestimmt, um spätere Replikationsprobleme mit dem User und dieser Gruppe zu vermeiden.) 
+Weiterhin muss in diesem Fall der User `pcpatch` nun als vollwertiger Domänenbenutzer angelegt werden und nicht mehr als Systemuser, da er ansonsten auf die Domänenfreigaben nicht zugreifen kann. 
+
+Diese Schritte werden bei einer Installation von opsi auf einem Univention Corporate Server automatisch ausgeführt, wenn bei der Installation erkannt wird, dass das Samba4 im PDC-Modus läuft.
+
+Da es außer den UCS-Installationen noch keine Standard-ActiveDirectory Konfiguration existiert, müssen diese Schritte bei einem manuell aufgesetzten Samba4 ActiveDirectory Domaincontoller manuell konfiguriert werden. Wenn das opsi System bei einer späteren Aktualisierung merkt, dass die User schon exisitieren, werden Sie bei der Aktualisierung nicht mehr angelegt.
+
+Für Rückfragen kontaktieren Sie bitte den Support von opsi. Falls Sie keinen Supportvertrag haben, wenden Sie sich bitte an info(at)uib.de.
 
 [[opsi-manual-samba4-share-configuration]]
-== Share Konfiguration
+=== Freigaben-Konfiguration
 
-Immer mehr Distributionen werden nun mit Samba 4 ausgeliefert.
+TIP: Die Änderungen, die in diesem Kapitel beschrieben werden betreffen alle Betriebsmodis von Samba4.
 
-Diese Pakete sind teilweise (je nach Distribution) von sich aus nicht dazu geeignet ganze Domänen zu verwalten, haben aber bei den Freigaben das Verhalten von Samba 4.
-
-In Samba 3 war es allgemein erlaubt, jede Datei oder Verzeichnis auf den Clients auszuführen. Dieses Verhalten wurde in Samba 4 komplett verändert. Nun müssen alle Dateien, die über den Share ausführbar sein sollen, auch auf der Unix-Seite das Executable-Bit setzen.
+In Samba3 war es allgemein erlaubt, jede Datei oder Verzeichnis auf den Clients auszuführen. Dieses Verhalten wurde in Samba4 komplett verändert. Nun müssen alle Dateien, die über den Share ausführbar sein sollen, auch auf der Unix-Seite das Executable-Bit gesetzt haben.
 
 Dies stellt ein allgemeines Problem für den Betrieb von opsi dar. Es ist nicht möglich dieses Verhalten über die Rechteverwaltung von opsi zu umgehen, da dies eine komplette Überarbeitung des Rechtesystems von opsi erfordern würde. Dies ist in opsi 4 nicht möglich.
 
@@ -53,9 +63,11 @@ Um das Problem mit opsi 4.0 dennoch zu umgehen, gibt es zwei Möglichkeiten.
 **Variante 1:** auf den betroffenen Freigaben kann über die Freigabenkonfiguration über die Option:
 admin users = @pcpatch
 
-für jedes Mitglied der pcpatch-Gruppe (Freigaben-User) dieses Verhalten ausgehebelt werden. Diesen Fix setzt opsi schon seit längerem auch bei UCS >= 3 mit Samba 4 ein. Bei diesem Fix wird der Samba-Prozess der User mit erhöhten Rechten ausgeführt.
+für jedes Mitglied der pcpatch-Gruppe (Freigaben-User) dieses Verhalten ausgehebelt werden. Diesen Fix setzt opsi schon seit längerem auch bei UCS >= 3 mit Samba4 ein. Bei diesem Fix wird der Samba-Prozess der User mit erhöhten Rechten ausgeführt.
 
-opsi setzt automatisch bei Samba 4 Distributionen über opsi-setup --auto-configure-samba diese Option für den opsi_depot Share. Da dieser nur readonly gemounted wird, ist das Sicherheitsrisiko relativ gering.
+opsi setzt automatisch bei Samba4 Distributionen über opsi-setup --auto-configure-samba diese Option für den opsi_depot Share. Da dieser nur readonly gemounted wird, ist das Sicherheitsrisiko relativ gering.
+
+CAUTION: Für alle anderen Freigaben, die auch Read-Write gemounted werden können, bleibt zu bedenken, dass durch diesen Fix der Samba-Prozess mit erhöhten Rechten ausgeführt wird. Dies kann zu einer potentiellen Gefahr werden. Zur Zeit sind allerdings keine Exploits bekannt, die diesen Umstand als Schwachstelle ausnutzen würden, dennoch ist das natürlich keine Garantie, dass ein solcher Exploit nicht doch existiert.  
 
 **Variante 2:** Man kann global folgende Option in der smb.conf setzen:
 allow general executable = True
@@ -64,8 +76,12 @@ Durch diese Option wird für alle Freigaben das Verhalten von Samba 3 wiederherg
 
 Sollte es gewünscht sein, dass die anderen Shares von diesem Problem nicht mehr betroffen sind, kann man entweder die erste Variante für jeden Share manuell setzen oder die Option von Variante zwei global in die smb.conf setzen. Die zweite Option gilt dann aber für alle Freigaben, auch für die, die nicht von und für opsi bereitgestellt werden.
 
+Diese Variante funktioniert bei Univention Corporate Server nicht, da hier eine sehr stark angepasste Samba4 Variante eingesetzt wird.
+
 [[opsi-manual-samba4-clientconfig-depot-user]]
-== Zugriff auf die shares: clientconfig.depot.user
+=== Zugriff auf die Freigaben: clientconfig.depot.user
+
+Diese Restriktion betrifft alle Betriebsmodis von Samba4.
 
 Im Rahmen der Verwendung von Samba4 kann es notwendig sein zum mounten des depotshares explizit anzugeben mit welche Domain / User Kombination dies erfolgen soll. Dazu gibt es den neuen config: `clientconfig.depot.user`. Gibt es diesen config nicht, so wird der user `pcpatch` genommen.
 Der Wert des config hat den Syntax: `<domain name>\<user name>`
