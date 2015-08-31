@@ -28,24 +28,33 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-samba4]]
 == Remarks to Samba4
 
-[[opsi-manual-samba4-opsifileadmins]]
-== The /etc/opsi/opsi.conf: pcpatch and opsifileadmins
+Mit dem erreichen des  stable-Status von Samba4 wurde die Entwicklungs- und Maintaincearbeiten für den Samba3-Zweig eingestellt. Als Folge daraus werden fast alle gängigen Linux-Distributionen (Client- und Server-Varianten) mit Samba4 statt Samba3 ausgestattet. Daraus ergeben sich einige Besonderheiten, die in diesem Kapitel dokumentiert werden sollen.
 
+Samba-Freigaben sind zentraler Bestandteil für die Funktion von opsi. Durch das "generelle" Update auf Samba4 gibt es einige Dinge zu beachten, die in folgenden Kapiteln kurz erläutert werden sollen.
+
+Zunächst muss unterschieden werden, in welchem Betriebsmodus Samba ausgeführt wird. Eine besondere Eigenschaft von Samba4 ist die Möglichkeit einen vollwertigen ActiveDirectory-Kompatiblen Domain Controller zu betreiben. In diesem Betriebsmodus (der aus Vereinfachungsgründen in den folgenden Kapiteln als PDC-Modus bezeichnt wird) gibt es Ristriktionen, die aus Kompatibilitätsgründen vom ActiveDirectory übernommen werden mussten. In der Regel sind die neuen Distributionen mit Samba4 ausgestattet, allerdings nur mit dem normalen Freigaben-Betriebsmodus. Eine vollwertige ActiveDirectory Domain zu betreiben, ist mit den Standardpaketen von den Distributionen in der Regel nicht möglich. Eine Ausnahme stellt hier der Univention Corporate Server, diese haben auch in Ihren Standardpaketen den PDC-Modus mit integriert.
+
+[[opsi-manual-samba4-opsifileadmins]]
+=== The /etc/opsi/opsi.conf: pcpatch and opsifileadmins
+
+TIP: Die Restriktion, die in diesem Kapitel beschrieben wird, betrifft nur den PDC-Modus von Samba4.
 
 The classical installation, with the user: 'pcpatch' in the group: 'pcpatch', does not work with Samba 4. Samba 4 has placed fundamental restrictions on the Active-Directory, such as groups with the same name as the user (usually in Unix/Linux) are no longer allowed. For this reason, a new configuration file has
 been introduced:  `/etc/opsi/opsi.conf`, which will control how the groups will access Samba-Access. More specifically, for Samba 4 installations the group name 'pcpatch' will be called 'opsifileadmins'.  This means that the user who belonged to the group 'pcpatch' under Samba 3, must now belong to the group 'opsifileadmins'.
 This means that a user, who must have access rights for opsi-packages under Samba 3 cannot be a member of 'pcpatch', but must be a member of the group 'opsifileadmins'. 
 
-????????????????????????????????????????????????
+Furthermore,  the user 'pcpatch' has to be created as a fully-fledged domain user and is not longer as a system user. 
 
-Furthermore, since UCS 3, the user 'pcpatch' is created as a fully-fledged domain user and is no longer a system user. (Also, the UID of 'pcpatch' and the GID of the 'opsifileadmins' group will no longer be fixed at 992, but will be self-assigned in UDM, which will also eliminate replication problems with the User and Group). 
+Diese Schritte werden bei einer Installation von opsi auf einem Univention Corporate Server automatisch ausgeführt, wenn bei der Installation erkannt wird, dass das Samba4 im PDC-Modus läuft.
+
+Da es außer den UCS-Installationen noch keine Standard-ActiveDirectory Konfiguration existiert, müssen diese Schritte bei einem manuell aufgesetzten Samba4 ActiveDirectory Domaincontoller manuell konfiguriert werden. Wenn das opsi System bei einer späteren Aktualisierung merkt, dass die User schon exisitieren, werden Sie bei der Aktualisierung nicht mehr angelegt.
+
+Für Rückfragen kontaktieren Sie bitte den Support von opsi. Falls Sie keinen Supportvertrag haben, wenden Sie sich bitte an info(at)uib.de.
 
 [[opsi-manual-samba4-share-configuration]]
-== Share Configuration
+=== Share Configuration
 
-Samba 4 becomes the new standard and the old Samba 3 vanishes. 
-
-Depending on the Distribution these Samba 4 Packages are not suitable to manage whole domains, but act like Samba 4 regarding the shares.
+TIP: Die Änderungen, die in diesem Kapitel beschrieben werden betreffen alle Betriebsmodis von Samba4.
 
 With Samba 3 the default was, that every file or directory was executable on the clients. This behaviour changed with Samba 4. Now all files, that shall be executable from the share, must also have the executable bit set on the Unix side.
 
@@ -60,6 +69,8 @@ This fix elevates the privileges of the Samba processes and has already been use
 
 opsi installs per default for Samba{nbsp}4 distributions with opsi-setup --auto-configure-samba this option for the opsi_depot share. This share is mounted read only, so the safety and security risk can be estimated as low.
 
+CAUTION: Für alle anderen Freigaben, die auch Read-Write gemounted werden können, bleibt zu bedenken, dass durch diesen Fix der Samba-Prozess mit erhöhten Rechten ausgeführt wird. Dies kann zu einer potentiellen Gefahr werden. Zur Zeit sind allerdings keine Exploits bekannt, die diesen Umstand als Schwachstelle ausnutzen würden, dennoch ist das natürlich keine Garantie, dass ein solcher Exploit nicht doch existiert.  
+
 **Option 2:** instead the following global option can be set in the smb.conf: +
 allow general executable = True
 
@@ -67,8 +78,10 @@ With this option for all shares a behaviour like Samba{nbsp}3 is restored.
 
 To restore the old behaviour for all shares, the setting of the first option can be done for every share manually, or the second option can be set globally in the smb.conf. Using the second option changes the behaviour for all shares, not only for the opsi shares.
 
+Diese Variante funktioniert bei Univention Corporate Server nicht, da hier eine sehr stark angepasste Samba4 Variante eingesetzt wird.
+
 [[opsi-manual-samba4-clientconfig-depot-user]]
-== Access to the shares: clientconfig.depot.user
+=== Access to the shares: clientconfig.depot.user
 
 Using samba 4 it may be necessary to provide exactly which domain and user combination should be used in order to mount the depot share. +
 The default is to use just as user `pcpatch` and nothing as domain. If this fails becaus the mount command defaults to the wrong domain you should configure the correct daomain (in most cases: the hostname of the opsi-server).

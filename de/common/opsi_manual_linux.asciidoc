@@ -22,8 +22,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      28.08.2014
-:Revision:  4.0.5
+:Date:      28.08.2015
+:Revision:  4.0.6
 :toclevels: 6
 
 
@@ -32,6 +32,8 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-linux]]
 == opsi Linux Support
 
+
+include::../common/opsi_manual_supportmatrix-linclient.asciidoc[]
 
 [[opsi-manual-linux-preconditions]]
 === Vorbedingungen für den opsi Linux Support
@@ -80,8 +82,329 @@ Die Distributionen:
 
 werden gleichwertig unterstützt.
 
-[[opsi-manual-linux-netboot]]
-=== Linux Netboot Produkte
+[[opsi-manual-linux-netboot-v406]]
+=== Linux Netboot Produkte v406 auf Basis des Distributionseigenen Installers
+
+Während bei den opsi-linux Netboot Produkten welche mit opsi v405 veröffentlicht wurden die Installation des Ziel Linux weitgehend vom Netboot Produkt gesteuert wurde, setzen die entsprechenden Produkte ab v406 auf den Distributions eigenen Installer.
+
+Dies ist ein grundsätzlicher Umbau, der dazu führt, das sowohl Aufbau als auch Verhalten der Produkte unterschiedlich zu den bisherigen Produkten sind. +
+Hier eine Übersicht:
+
+* Ähnlich wie bei der Windows Installation wird für den Installer eine Antwortdatei bereit gestellt welche vom Installer zur nichtinteraktiven Installation genutzt wird.
+
+* Der distributionseigene Installer ist nicht wie bei Windows ein Programm das aufgerufen wird, sondern in einer Kombination aus Distributions eigenem Kernel und initrd implementiert.
+
+* Die gesamte Grundinstallation inclusive Partitionierung, LVM, Basissoftware, etc. liegt in der Hand des Installers und wird nicht mehr durch das bootimage durchgeführt.
+
+* Bei den Suse- und RedHat-artigen Distributionen werden die Installationsquellen von Ihnen bereit gestellt, in dem Sie die Installations DVD als ISO-Datei auf dem Depotshare ablegen. Dieses Verfahren ähnelt der Situation unter Windows, nur dass der Ablageort ein anderer ist und sie bei Windows den Inhalt der Installations DVD ablegen und nicht den ISO-File.
+
+* Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert.
+
+* Zur weiteren Pflege der Installation kann der opsi-linux-client-agent im Rahmen der Basisinstalltion mit installiert werden.
+
+Abläufe der neuen Installationsmimik:
+
+. Das opsi-linux-bootimage wird gebootet, löscht die Partitionstabelle und erstellt eine kleine temporäre Hilfsparition.
+
+. Das opsi-linux-bootimage holt sich das Distributions eigene initrd und entpackt es auf der Hilfspartition.
+
+. Das opsi-linux-bootimage holt sich die generische Vorlage für die Antwortdatei, patcht (personalisiert) diese und legt sie dann in das initrd Verzeichnis
+
+. Das opsi-linux-bootimage erstellt weitere Hilfscripte und Konfigurationsdateien (z.B. zur Installation des opsi-linux-client-agent) und legt sie dann in das initrd Verzeichnis.
+
+. Das opsi-linux-bootimage packt das gepatchte initrd Verzeichnis wieder zusammen
+
+. Das opsi-linux-bootimage bootet den Distributions Kernel mit dem gepatchten Distributions initrd per kexec.
+
+. Der Distributionskernel mit dem gepatchten initrd installiert das Zielsystem unattended und installiert abschließend den opsi-linux-client-agent.
+
+Vorteile:
+
+* Die Installation findet exakt gemäß den Anforderungen des Distributors statt. Dies ist immer ein Vorteil aber natürlich im Unternehmensumfeld als Ausgangsbedingung für Supportverträge besonders wichtig.
+
+* Die Integration neuer Releases in opsi wird einfacher (schneller).
+
+* Bei den Suse- und RedHat-artigen Distributionen findet die Installation aus auf dem opsi-server liegenden Installationsquellen statt und ist damit schneller und unempfindlich gegen Störungen als beim Zugriff auf Repositories aus dem Internet
+
+Nachteile:
+
+* Im Moment noch keine Unterstützung für UEFI-Rechner. Die Informationen über die UEFI Umgebung gehen im Moment noch bei dem kexec Boot verloren. Wir hoffen, das wir dieses Problem mit einem neueren bootimage irgendwann beheben können.
+
+[[opsi-manual-linux-netboot-v406-prepare]]
+==== Bereitstellung und der Installationsmedien auf dem Server
+
+Die Bereitstellung der Installationsmedien für die Suse- und RedHat-artigen Distributionen erfolgt auf einem neuen / zusätzlichen nfs share: `opsi_nfs_share`.
+
+Zur Einrichtung des shares muß ein NFS-Server auf dem opsi-server installiert und konfiguriert sein:
+
+In opsi v406 Stable wird dies über eingesondertes Paket `opsi-linux-support` erfolgen. Diese Paket wird nicht per default installiert und muß einmalig nachinstalliert werden z.B.
+
+----
+apt-get install opsi-linux-support
+----
+
+Was dieses Paket macht ist (als händige Anleitung) im folgenden Beschrieben:
+
+* Auf dem opsi-server muß das entsprechende nfs-server Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: nfs-kernel-server. Auf Centos, Fedora, Redhat ist es das Paket nfs-utils.
+
+* Der share `opsi_nfs_share` muß angelegt und exportiert werden:
+
+** Verzeichnis erzeugen: +
+`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
+
+** In der Datei /etc/exports den Eintrag: +
+`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
+erzeugen.
+
+** Zum aktivieren des Exports aufrufen: +
+`exportfs -r`
+
+** Zur Kontrolle des erfolgreichen exports aufrufen: +
+`showmount -e localhost` +
+Die Ausgabe sollte sein: +
+`Export list for localhost: +
+/var/lib/opsi/depot/opsi_nfs_share *`
+
+* Der share `opsi_nfs_share` hat folgenden Verzeichnisaufbau: +
+`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
+zum Beispiel: +
+`opsi_nfs_share/opensuse13-2/64/openSUSE-13.2-DVD-x86_64.iso` +
+Die Installationsdatei muß als Extension `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert welche verwendet wird.
+
+* Kopieren Sie die Installations DVD an den entsprechenden Platz im `opsi_nfs_share` und führen Sie aus: +
+`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
+WICHTIG: Verwenden Sie die Standard Installations DVD's der Distribution. Modifizierte Installations DVD's haben eventuell einen anderen Aufbau und funktionieren nicht.
+
+* Sollten Sie aus irgendwelchen Gründen das Verzeichnis `/var/lib/opsi/depot/opsi_nfs_share` nicht vom opsi-server aus per NFS exportieren können (z.B. weil der Depotshare vom opsiserver per NFS von einem NAS eingebunden ist), so kann der zu verwendende NFS-share über ein Serverweites config angegeben werden. Z.B. `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
+
+Die opsi v406 Netbootprodukte für Debian und Ubuntu beziehen Ihre Installations Dateien nicht aus einem ISO-File. Vielmehr werden diese von uns mit dem Standard Netboot Kernel und initrd ausgeliefert. Alle weiteren benötigten Pakete werden über das Internet bezogen. Zur Entlastung Ihrer Netzwekverbindung kann bei vielen Installationen daher die Verwendung eines apt-cache sinnvoll sein. +
+Siehe auch Kapitel <<opsi-manual-linux-debproxy>>
+
+[[opsi-manual-linux-netboot-v406-generalproperties]]
+==== Allgemeine Properties der opsi v406 Linux Netboot Produkte
+
+Die folgenden Properties finden Sie zur Steuerung der Linuxinstallation in allen v406 Netbootprodukten:
+
+* `askbeforeinst`: +
+Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='true')
+
+* `architecture`: +
+Architektur Auswahl, beeinflusst die Auswahl des bootimages und die Installationsarchitektur.  (Default='64bit')
+
+* `language` oder `locale`: +
+Welche Sprache / locale soll installiert werden.  (Default=Distributionsabhängig / 'de')
+
+* `console_keymap`: +
+Zu installierendes Tastaturlayout.  (Default=Distributionsabhängig / 'de')
+
+* `timezone`: +
+Welche Zeitzone soll verwendet werden?. (Default='Europe/Berlin')
+
+* `root_password`: +
+Passwort für root.  (Default='linux123')
+
+* `user_password`: +
+Passwort für user.  (Default='linux123')
+
+* `online_repository`: +
+Repository der Distribution für die Installation. (Nicht bei SLES) (Default=Distributionsabhängig)
+
+* `opsi_online_repository`: +
+Repository der opsi-server Pakete. (Default=Distributionsabhängig)
+
+* `proxy`: +
+Proxystring (wenn benötigt) in der Form: `http://<ip>:<port>`. (Default=pass:[''])
+
+* `install_opsi-client-agent`: +
+Installiere den Linux opsi-client-agent (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules) . (Default='false')
+
+* `setup_after_install`: +
+Welche opsi Produkte sollen zum Abschluss der Betriebssysteminstallation auf setup gestellt werden. (Default='')
+
+[[opsi-manual-linux-netboot-v406-special]]
+==== Die einzelnen Netboot Produkte
+
+[[opsi-manual-linux-netboot-v406-special-ubuntu14-04]]
+===== Die Produkte: debian7 , debian8 und ubuntu14-04
+
+Die Basis Installation erfolgt direkt aus dem Netz.
+
+Das Produkt hat produktiven Status..
+
+Das Produkt hat folgende zusätzliche Properties:
+
+----
+name: encrypt_password
+multivalue: False
+editable: True
+description: Password for disk encryption (only if encrypt_logical_volumes=true)
+values: ["linux123"]
+default: ["linux123"]
+
+name: partition_disk
+multivalue: False
+editable: True
+description: Disk to use first or complete device path
+values: ["first", "/dev/sda", "/dev/sdb"]
+default: ["first"]
+
+name: partition_method
+multivalue: False
+editable: False
+description: regular: use the usual partition types for your architecture / lvm: use LVM to partition the disk / crypto: use LVM within an encrypted partition
+values: ["regular", "lvm", "crypto"]
+default: ["lvm"]
+
+name: partition_recipe
+multivalue: False
+editable: False
+description: atomic: all files in one partition / home: separate /home partition / multi: separate /home, /usr, /var, and /tmp partitions
+values: ["atomic", "home", "multi"]
+default: ["atomic"]
+
+name: desktop_package
+multivalue: True
+editable: False
+description: Desktop package to install (standard = no desktop)
+values: ["ubuntu-desktop", "kubuntu-desktop", "lubuntu-desktop", "xubuntu-desktop", "ubuntu-gnome-desktop"]
+default: ["standard"]
+
+name: language_packs
+multivalue: True
+editable: False
+description: language packages to install 
+values: ["ar", "bg", "by", "cf", "de", "dk", "en", "es", "et", "fa", "fi", "fr", "gr", "il", "it", "kg", "kk", "lt", "mk", "nl", "no", "pl", "ro", "ru", "sg","sr", "ua", "uk", "us", "wo"]
+default: ["de"]
+----
+
+.Videos (Zeitraffer)
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/debian7_406_1fps.mp4
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/debian8_406_1fps.mp4
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/ubuntu14-04_406_1fps.mp4
+
+[[opsi-manual-linux-netboot-v406-special-opensuse13-02]]
+===== Das Produkt opensuse13-2
+
+
+Das Produkt hat folgende zusätzliche Properties:
+
+----
+name: install_unattended
+description: If false then do interactive installation
+default: True
+----
+
+Das Property:
+----
+name: networkdevice
+multivalue: False
+editable: True
+description: interface to conigure (vbox:enp0s3 / esxi:ens32)
+values: ["eno1", "ens1", "ens32", "enp0s1","enp0s2","enp0s3"]
+default: ["enp0s3"]
+----
+existiert nur aus Gründen der Rückwärtskompatibilität zu alten bootimages
+und wird bei dem Betrieb mit einem aktuellen bootimage ( >= 20150818) ignoriert,
+da hier die automatische Erkennung der 'predictable network interface names' funktioniert.
+
+.Videos (Zeitraffer)
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/opensuse13-2_406_1fps.mp4
+
+[[opsi-manual-linux-netboot-v406-special-sles12]]
+===== Das Produkt sles12
+
+Das Produkt hat folgende zusätzliche Properties:
+
+----
+name: productkey
+multivalue: False
+editable: True
+description: email:regcode-sles for suse_register. Is only used if the  host parameter  `license-management.use` is set to  false . If it set to  True  the license key will be get from the license management module. / La clé de licence pour l'installation. Est utilisée uniquement si dans "Réseau et paramètres supplémentaires" `license-management.use` est défini à false (faux) . Si c'est réglé sur True (vrai) la clé de licence sera obtenue du module de gestion des licences.
+values: ["", "myemail@example.com:xxxxxxxxxxxxxx"]
+default: [""]
+
+name: suse_register
+description: set to false, if you don't want to register your system online, if you set this to false you have to give local repositories
+default: True
+
+name: local_repositories
+multivalue: True
+editable: True
+description: list of local repositories to use. Syntax: "repository description", example entry: "http://sles.example.com/suse/repo NameForRepo"
+values: [""]
+default: [""]
+
+name: install_unattended
+description: If false then do interactive installation
+default: True
+----
+
+Das Property:
+----
+name: networkdevice
+multivalue: False
+editable: True
+description: interface to conigure (vbox:enp0s3 / esxi:ens32)
+values: ["eno1", "ens1", "ens32", "enp0s1","enp0s2","enp0s3"]
+default: ["enp0s3"]
+----
+existiert nur aus Gründen der Rückwärtskompatibilität zu alten bootimages
+und wird bei dem Betrieb mit einem aktuellen bootimage ( >= 20150818) ignoriert,
+da hier die automatische Erkennung der 'predictable network interface names' funktioniert.
+
+.Videos (Zeitraffer)
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/sles12_406_1fps.mp4
+
+[[opsi-manual-linux-netboot-v406-special-redhat70]]
+===== Die Produkte redhat70 und centos70
+
+Das Produkt hat folgende zusätzliche Properties:
+
+----
+name: install_unattended
+description: If false then do interactive installation
+default: True
+
+name: selinux_mode
+multivalue: False
+editable: False
+description: In which mode should SELinux run ?
+values: ["enforcing", "permissive", "disabled"]
+default: ["permissive"]
+
+name: partition_method
+multivalue: False
+editable: False
+description: plain: Regular partitions with no LVM or Btrfs. / lvm: The LVM partitioning scheme. / btrfs: The Btrfs partitioning scheme. / thinp: The LVM Thin Provisioning partitioning scheme. 
+values: ["plain", "lvm", "btrfs", "thinp"]
+default: ["lvm"]
+
+name: productkey
+multivalue: False
+editable: True
+description: email:regcode for subscription_register. Is only used if the  host parameter  `license-management.use` is set to  false . If it set to  True  the license key will be get from the license management module. / La clé de licence pour l'installation. Est utilisée uniquement si dans "Réseau et paramètres supplémentaires" `license-management.use` est défini à false (faux) . Si c'est réglé sur True (vrai) la clé de licence sera obtenue du module de gestion des licences.
+values: ["", "myemail@example.com:xxxxxxxxxxxxxx"]
+default: [""]
+
+name: subscription_register
+description: set to false, if you don't want to register your system online, if you set this to false you have to give local repositories
+default: True
+----
+
+.Videos (Zeitraffer)
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/centos70_406_1fps.mp4
+
+* http://download.uib.de/opsi4.0/experimental/opsi-v406/products/opsi-linux/videos/redhat70_406_1fps.mp4
+
+
+[[opsi-manual-linux-netboot-405]]
+=== Linux Netboot Produkte v405 ohne Distributionseigenen Installer
 
 *Basis-Installation des OS per Netboot*
 
@@ -95,8 +418,8 @@ Die opsi Netboot Produkte zur Linuxinstallation sind bereits als Open Source fre
 
 Bedingt dadurch, dass die Basisinstallation aus dem Standard opsi-linux-bootimage erfolgt, gibt es distributionsabhängig unterschiedlich bestimmte Dinge, welche sich erst in der Umgebung nach dem ersten Boot des Systems konfigurieren bzw. installieren lassen. Beispiele hierfür sind die se-linux Installation bei den 'RedHat artigen' bzw. die Konfiguration der Tastatur bei den 'Debian artigen'. Hierfür gibt es ein Standard Localbootprodukt `l-os-postinst` welches diese Aufgaben übernimmt.
 
-[[opsi-manual-linux-netboot-generalproperties]]
-==== Allgemeine Properties der Linux Netboot Produkte
+[[opsi-manual-linux-netboot-generalproperties-405]]
+==== Allgemeine Properties der v405 Linux Netboot Produkte
 
 Die folgenden Properties finden Sie zur Steuerung der Linuxinstallation in allen Netbootprodukten:
 
@@ -195,14 +518,6 @@ Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_ops
 Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPM Dateien.
 Von daher gibt es für jedes Release ein eigenes Produkt.
 
-.OpenSuse 12.3
-
-Das Produkt hat produktiven Status.
-
-Das Produkt ist *nicht* UEFI kompatibel.
-
-Beachten Sie, das es für neue Releases evtl. noch keine opsi-server Pakete gibt und damit die Propertyeinstellung 'install_opsi_server=true' zu Fehlern führen kann.
-
 .OpenSuse 13.1
 
 Das Produkt hat produktiven Status.
@@ -213,8 +528,8 @@ Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_ops
 
 Known Bugs: Bei bestimmter Hardware (z.B. VMWare ESXi) scheiter die korrekte Vorhersage des Netzwerkinterface Namens und das Netzwerkinterface bleibt unkonfigiriert.
 
-[[opsi-manual-linux-netboot-special-sles]]
-===== SLES
+[[opsi-manual-linux-netboot-special-sles11]]
+===== sles11sp3
 
 Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPM Dateien.
 Von daher gibt es für jedes Release ein eigenes Produkt.
@@ -249,43 +564,6 @@ email Adresse und der Key der Registrierung in der Form `email:productkey` (fall
 Leerzeichen getrennte Liste von Repositories welche per zypper eingebunden werden in der Form: "http://myserver.local Description"
 
 Das Property `online_repository` entfällt.
-
-[[opsi-manual-linux-netboot-special-centos]]
-===== CentOS 
-
-Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPM Dateien.
-Von daher gibt es für jedes Release ein eigenes Produkt.
-
-.CentOS 6.5
-
-Das Produkt ist noch in Entwicklung. Bekannte Probleme sind: die Lokalisierung.
-
-Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_opsi_server=true' installiert werden können.
-
-Das Produkt ist *nicht* UEFI kompatibel.
-
-.CentOS 7
-
-Das Produkt ist noch nicht verfügbar.
-
-[[opsi-manual-linux-netboot-special-fedora]]
-===== Fedora
-
-Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPMs.
-Von daher gibt es für jedes Release ein eigenes Produkt.
-
-.Fedora 20
-
-Das Produkt hat testing Status.
-
-Beachten Sie, das es für neue Releases evtl. noch keine opsi-server Pakete gibt und damit die Propertyeinstellung 'install_opsi_server=true' zu Fehlern führen kann.
-
-Das Produkt ist *nicht* UEFI kompatibel .
-
-[[opsi-manual-linux-netboot-special-rhel]]
-===== RHEL
-
-Das produkt ist noch nicht verfügbar.
 
 [[opsi-manual-linux-clientagent]]
 === opsi-linux-client-agent
@@ -556,7 +834,7 @@ exit $?
 Hier einige Lokalbootprodukte welche zum Standardumfang des opsi Linuxsupports gehören.
 
 [[opsi-manual-linux-localboot-l-os-postinst]]
-==== l-os-postinst
+==== l-os-postinst für v405 Netboot installationen
 
 Dieses Produkt übernimmt jene Teile der Basisinstallation welche sich vom bootimage nicht korrekt ausführen lassen.
 
@@ -566,9 +844,6 @@ Dies ist für die unterschiedlichen Distributionen:
 
 ** Installation von se-linux
 
-* Fedora: 
-
-** Installation von se-linux
 
 Das Produkt hat eine Abhängigkeit zu dem Produkt 'l-system-update' welches vor dem Lauf von 'l-os-postinst' aufgerufen wird. +
 Das Produkt hat eine hohe Priorität, d.h. es wird vor 'normalen' Produkten ausgeführt.
@@ -633,7 +908,10 @@ Die Softwareinventarisierung basiert auf den Daten des Paketmanagements der verw
 [[opsi-manual-linux-uefi]]
 === UEFI / GPT Unterstützung
 
-Ab opsi v 4.0.5 sind eine zunehmende Anzahl von Linuxprodukten auch UEFI/GPT kompatibel. Details siehe hierzu in der obigen Auflistung der Netbootprodukte.
+Einige der opsi v4.0.5 Linuxprodukte sind UEFI/GPT kompatibel. Details siehe hierzu in der obigen Auflistung der Netbootprodukte.
+
+Die opsi v4.0.6 Linuxprodukte sind leider noch nicht UEFI/GPT kompatibel.
+Die Informationen über die UEFI Umgebung gehen im Moment noch bei dem kexec Boot verloren. Wir hoffen, das wir dieses Problem mit einem neueren bootimage irgendwann beheben können.
 
 [[opsi-manual-linux-roadmap]]
 === Roadmap
@@ -641,7 +919,6 @@ Ab opsi v 4.0.5 sind eine zunehmende Anzahl von Linuxprodukten auch UEFI/GPT kom
 Die Linux Unterstützung von opsi ist neu. Das bedeutet auch, dass wir im ersten Release noch nicht alle Features verwirklicht haben. +
 Weitere Features werden folgen wie:
 
-* Portierung des opsiclientd nach Linux
 * Frei konfigurierbare Partitionierung
 * Logical Volume Management
 * Patchen von XML- und JSON-Dateien
@@ -656,5 +933,4 @@ Eine brauchbare Anleitung zur Erstellung eines eigenen Ubuntu Proxy finden Sie h
 http://wiki.ubuntuusers.de/Lokale_Paketquellen/Apt-Cacher-ng
 
 http://www.gambaru.de/blog/2011/10/26/apt-cacher-ng-ein-proxy-server-fur-debian-und-ubuntu/
-
 
