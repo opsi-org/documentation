@@ -104,7 +104,7 @@ Dies ist eine Liste von opsi Produkten welche auf setup gestellt werden wenn der
 
 * python-opsi:
 
-** Zahlreiche Verbesserungen und Features in der Python-Library von opsi +
+** Many improvements, new features and bugfixes. +
 See special chapter: <<opsi-406-releasenotes-python-opsi>>
 
 
@@ -1179,111 +1179,141 @@ Technical background: The called command is extended by ` || exit $?` so that it
 [[opsi-406-releasenotes-python-opsi]]
 == python-opsi 4.0.6.
 
-Die von opsi verwendeten Python-Bibliotheken haben zahlreiche
-Verbesserungen und Fehlerkorrekturen erhalten.
+The Python-library used by opsi has received a lot of improvements and
+bugfixes.
 
-Weiterhin wurden einige Funktionalitäten von externen Scripten direkt in
-die Library verlagert, damit diese bei geringerem Pflegeaufwand einfach
-an unterschiedlichen Stellen verwendet werden können.
+Functionality used by external scripts have been moved into python-opsi
+to reduce maintenance efforts and make the functionality usable in other
+applications.
 
-In diesem Rahmen gibt es die folgenden neuen Module:
-`OPSI.Util.Task.Rights` beinhaltet Methoden zum Setzen von Ordner- und
-Dateirechten.
-OPSI.Util.Task.UpdateBackend.MySQL` beinhaltet Methoden zum
-Aktualisieren des MySQL-Backends.
+This process has resulted in the following new modules:
+`OPSI.Util.Task.Rights` allows setting the rights for opsi on files and
+directories.
+`OPSI.Util.Task.UpdateBackend.MySQL` can be used to update the MySQL
+backend.
+`OPSI.Util.Task.Samba` can be used to configure Samba for the use with
+opsi.
 
-Die Funktion `OPSI.Types.forceList` erkennt nun Tupel und Generatoren
-und wandelt diese in eine Liste um. Generatoren werden dabei
-aufgebraucht.
+The sourcecode of the new modules was improved in many place to be
+future-proff and more efficent.
 
-Bei der Zertifikatserstellung mit Methoden aus dem Modul
-`OPSI.Util.Task.Certificate` wird nun eine Seriennummer zufällig
-erstellt, falls keine Seriennummer vorhanden ist.
-Bei einer vorhandenen Seriennummer wird diese erhöht.
-Dadurch wird der Beschreibung in RFC5820 gefolgt und vermieden, dass die
-Seriennummer unterschiedlicher Zertifikate gleich ist.
-Dies findet bei der Verwendung von `opsi-setup --renew-opsiconfd-cert`.
+The function `OPSI.Types.forceList` is now able to work with tuples and
+generators. Generators will be consumed if they are converted into a
+list.
 
-Die Arbeitsweise des Moduls `OPSI.SharedAlgorithm` wurde geändert, so
-dass das Modul nun nicht mehr aus Strings besteht, die evaluiert werden,
-da diese Möglichkeit von keiner offiziellen Komponente verwendet wurde.
-Die Methode `backend_getSharedAlgorithm` wird bei Verwendung jetzt einen
-Fehler werfen.
+Typechecks inside many methods have been reworked so that not only the
+baseclasses `dict` and `list` but also there subclasses are recognized.
 
-Die Methoden zur Bestimmung der Produktreihenfolge wurden überarbeitet. Wenn eine
-zirkuläre Abhängigkeit erkannt wird, wird jetzt bei jeder Methode ein Fehler geworfen. 
-Außerdem wird jetzt bei jeder Methode eine Warnung 
-in die Logdatei geschrieben, wenn eine Produktabhängigkeit definiert ist, 
-die im Widerspruch zu einer definierten Priorität steht und dann zu 
-unvorhersehbaren Resultaten führen kann. 
+We improved error messages to be more helpful when creating new objects
+through the commandline.
 
-Die Methode `OPSI.System.Windows.mount` akzeptiert durch einen
-freundlicherweise von Markus Kötter eingereichten Patch nun als Ziel
-den Wert `dynamic`. Dadurch wird es möglich, dass an einen
-eigenständig ermittelten Punkt ein Laufwerk eingehangen wird.
-Somit kann ein Rechner mit aktuellem opsi-client-agent selbst einen
-freien Laufwerksbuchstaben ermitteln, an welchem der Depot-Share
-eingehangen wird.
-Um dieses Feature zu nutzen, muss das Property
-`clientconfig.depot.drive` eines Clients auf den Wert `dynamic` gesetzt
-werden. Die Ergänzung des Properties auf dem opsi-Server um diesen Wert
-kann mittels `opsi-setup --init-current-config` angestoßen werden.
-Dieses Feature benötigt den aktuellen `opsi-client-agent` auf dem Client.
+The module `OPSI.Util.Task.Certificate` now follows RFC5820 and increases
+existing serial numbers for certificates. If no serial number is found
+a randome one will be generated. This avoids problems caused by equal
+serial numbers.
+This gets used i.e. when running `opsi-setup --renew-opsiconfd-cert`.
 
-Die Treiberintegration behandelt Ordner, die auf einen Unterstrich enden,
-genau so wie Ordner, die auf einen Punkt enden. Dadurch werden Probleme
-mit Dateisystembeschränkungen unter Windows vermieden.
-Beispiel: Für ByAudit-Treiberintegration für einen Rechner vom Hersteller
-`Dilbert Inc.` nennen Sie den Ordner `Dilbert Inc_`.
+`OPSI.SharedAlgorithm` now does not rely on evaluating strings anymore
+because this wasn't used by any official component.
 
-* opsi Serverkomponenten: +
-Diverse Verbesserungen und Bugfixes in den Serverpaketen.
+Alongside this change the methods for defining the ordering of products
+for installation have been overhauled. Creating a circular dependency
+will result in an error being thrown in any method.
+In addition to this a logentry will be created for every product
+depedency that is contrary to any product priority and would lead to
+unforseeable results.
+For easier log interpretation many backend objects now have improved
+representations.
 
-** Auf der Info-Page des opsi-Servers wird eine Statistik über die Anzahl +
-der von außen aufgerufenen Methoden bereit gestellt.
+Calling `backend_getSharedAlgorithm` will now result in throwing an
+exception.
 
-** Die Kürzung der Logfiles durch den opsiconfd ist nun konfigurierbar.
-Zuvor wurden die Logfiles auf ~5MB begrenzt, um zu verhindern, dass
-durch große Mengen übertragener Logdateien die Festplatte des Servers
-gefüllt wird.
-Dieses Verhalten wird standardmaßig beibehalten, es kann jedoch über das
-Attribut `max log size` in der Sektion `global` der Datei
-`/etc/opsi/opsiconfd.conf` geändert oder deaktiviert werden.
+The method `OPSI.System.Windows.mount` now accepts `dynamic` as a mount
+target. This makes it possible to let the agent find a free mountpoint
+for the depot share.
+To use this feature you need to set the property
+`clientconfig.depot.drive` of a client to `dynamic`. Adding the property
+on the opsi configserver can be achieved by running
+`opsi-setup --init-current-config`.
+Thanks to Markus Kötter for the initial patch.
 
-Um dennoch ein einfaches Aufräumen der Logfiles zu ermöglichen, wird eine
-erweiterte logrotate-Konfiguration ausgeliefert. Diese ist zu finden
-`/etc/logrotate.d/opsiconfd`.
-In dieser Datei findet sich auch ein Konfigurationsabschnitt für die Datei
-`/var/log/opsi/package.log`. Bei dieser Datei fand in der Vergangenheit
-keine Kürzung statt.
+Driver integration now handles directories with names ending in an
+underscore as if they were ending on a dot. This fixes problems
+regarding filesystem limitations on Windows.
+As an example if you'd be using the integration of drivers via byAudit
+for computers of a company called `Dilbert. Inc.` you now would name the
+folder `Dilbert Inc_`.
 
-** Im MySQL-Backend haben nun alle Spalten, welche auf die ID eines
-Hosts referenzieren die gleiche Länge - 255 Zeichen.
-Neue Backends werden automatisch korrekt erstellt.
-Um bestehende Backends anzupassen, führen Sie bitte
-`opsi-setup --update-mysql` aus.
+The cleanup of backends through `OPSI.Util.Task.CleanupBackend` has
+received speed improvements. Mass operations will be split into smaller
+parts to avoid performance bottlenecks.
 
-** Bei der Initialisierung des MySQL-Backends wird, wenn bei der
-Initialisierung die Verbindung zur Datenbank nicht hergestellt werden
-kann, 5 Sekunden gewartet, bevor ein weiterer Verbindungsversuch
-unternommen werden kann.
+The packaging has been overhauled to follow current recommendations and
+requirements of the various disitributions. Users or groups will not be
+created with an specific ID anymore to avoid conflicts with the IDs
+being already in use.
 
-** Die Werkzeuge `opsi-product-updater`, `opsi-newprod` und
-`opsi-package-manager` nutzen jetzt alle die gleiche Funktion zum Setzen
-der Datei-Zugriffsrechte, damit diese konsistent gesetzt sind.
+Communicating with the webservice currently leads to a a HTTP header
+"content-type" that does not match the real content encoding.
+It now is possible to activate a RFC 2616 compatible behaviour by
+creating the file `/etc/opsi/opsi.header.fix.enable` and restarting the
+service. This makes it easier to communicate with the client through
+third party applications.
+Because this new beheviour may lead to communication failures with clients
+expecting the broken behaviour this is disabled by default.
+The client components provided with this release have been updated so
+that they can work with both.
 
-** Ein freundlicherweise von Antoine Guevara eingereichter Patch
-ermöglicht es einen beliebigen Betreff für durch das Werkzeug
-`opsi-product-updater` versendete E-Mails anzugeben.
-Der Betreff kann durch das Attribut `subject` in der Sektion
-`notification` in der Datei `/etc/opsi/opsi-product-updater.conf`
-festgelegt werden.
+* opsi server parts: +
 
-** Das Werkzeug `opsi-admin` hat einen neuen Task bekommen: +
+There are many improvements and bugfixes.
+
+** The info page for the opsi server now collects information about the
+amount of methods called.
+
+** The size limit for logfiles created through opsiconfd can now be
+configured. Due to historical reasons there was a limit of ~5MB per file.
+This behaviour will be kept as default. To change the behaviour the
+attribute `max log size` in the sektion `global` in `/etc/opsi/opsiconfd.conf`
+can be adjusted. A value of 0 disables the limiting.
+
+To avoid logs growing unlimited the configuration file for logrotate
+has been updated. You can find it at `/etc/logrotate.d/opsiconfd`.
+This file contains a new configuration regarding `/var/log/opsi/package.log`.
+The package log was not limited in size before.
+
+opsiconfd is able to recognize rotated logs and also uses them when
+reading logs through the service.
+
+** In the MySQL backend all columns referencing the ID of a host are now
+the same size of 255 characters. Newly created backend automatically
+receive this size. Old backends have to be adjusted manually through
+running `opsi-setup --update-mysql`.
+
+** If the connection to the databse fails during initialisating the
+MySQL backend there will be a 5 seconds wait with an additional try to
+connect to the database.
+
+** The tools  `opsi-product-updater`, `opsi-newprod` and
+`opsi-package-manager` now al use the same function to set the rights
+to avoid inconsistent access rights.
+
+** A patch provided by Antoine Guevara allows to use arbitrary subjects
+for e-mails sended by `opsi-product-updater`.
+The subject can be set through the attribute `subject` in the section
+`notification` in `/etc/opsi/opsi-product-updater.conf`.
+
+** The tool `opsi-admin` gained a new task: +
 setActionRequestWhereOutdatedWithDependencies
-Dieser imitiert das Verhalte von setActionRequestWhereOutdated, arbeitet
-aber auch mit den entsprechenden Dependencies des Produkt.
-Vielen Dank an Daniel Koch für das Einsenden das Patches.
+It has similar behaviour like setActionRequestWhereOutdated but also
+takes any depedencies into account.
+Thanks for Daniel Koch for providing the patch.
+
+** Running `opsi-admin` in non-interactive mode now will return exitcodes
+other than 0 if any problems occured.
+To keep the previous behaviour where any action would result in an
+exitcode 0 you must supply `--exit-zero` to the call.
+
 
 [[opsi-406-releasenotes-netboot-windows]]
 == opsi Support Matrix Windows Clients
