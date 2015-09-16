@@ -62,7 +62,8 @@ Das opsi Service Release 4.0.6 weist eine Fülle von Neuerungen und Detailverbes
 ** winpe Partition jetzt NTFS formatiert (auf nicht UEFI Systemen)
 Siehe auch gesondertes Kapitel: <<opsi-406-releasenotes-win10notes>>.
 
-* Neues opsi-bootimage basierend auf Ubuntu Trusty / Kernel 4.1.0 mit Unterstützung für aktuelle Hardware
+* Neues opsi-bootimage basierend auf Ubuntu Trusty / Kernel 4.1.0 / PXELinux 6.03 mit Unterstützung für aktuelle Hardware
+** HINWEIS: Das neue pxelinux.0 schreibt keine punkte mehr beim Laden des bootimages. Man muß also ohne Rückmeldung auf den start des bootimages warten.
 
 
 * opsi-configed: 
@@ -153,20 +154,23 @@ Wenn eine Datei in Benutzung ist, kann sie im Rahmen eines Reboots gelöscht wer
 == Paketliste
 
 .Server-Pakete:
-
 * opsi-depotserver_4.0.6.4-1
 * opsi-linux-support_1.0-4
-* opsi-utils_4.0.6.6-2
-* opsiconfd_4.0.6.6-1
-* python-opsi_4.0.6.15-1
-* opsi-linux-bootimage_20150818-1
+* opsi-utils_4.0.6.6-4
+* opsiconfd_4.0.6.10-2
+* python-opsi_4.0.6.23-1
+* opsi-linux-bootimage_20150916-1
 
 
 .opsi-Pakete (Localboot):
-* opsi-client-agent (4.0.6.2-1)
+* opsi-client-agent_4.0.6.3-1
+* opsi-configed_4.0.6.3.5-1
+* windomain_1.0-8
+* opsi-uefi-netboot_4.0.5-3
+* config-win10_4.0.6-3.opsi
 
 .opsi-Pakete (netboot):
-* win* 4.0.6.1-1 (inclusive Windows 10 Pakete)
+* win* 4.0.6.1-2 (inclusive Windows 10 Pakete)
 * opsi-clonezilla (4.0.6-1)
 * memtest86 5.01-1
 
@@ -179,10 +183,10 @@ Wenn eine Datei in Benutzung ist, kann sie im Rahmen eines Reboots gelöscht wer
 * Ubuntu15-04_4.0.6-2
 * opensuse13-2_4.0.6.2-2
 * sles12_4.0.6.2-2
-* opsi-linux-client-agent ??????
 
 .opsi-Pakete (opsi-local-image):
-* opsi-local-image-win* 4.0.6.1-1
+* opsi-local-image-win* 4.0.6.1-2
+* opsi-local-image-capture 4.0.6.1-2
 
 
 
@@ -1344,6 +1348,14 @@ opsi-configed (4.0.6.0.5-1) experimental; urgency=medium
 [[opsi-406-releasenotes-misc-changelogs-opsi-client-agent]]
 ==== Changelog opsi-client-agent
 
+opsi-client-agent (4.0.6.3-1) testing; urgency=low
+
+  * New version of opsiclientd_shutdown_starter.exe (4.0.85) (port from 4.0.5.7-2)
+  * update to opsi-winst 4.11.5.14
+  * setup.opsiscript: Set $INST_Debug$ = "off"
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu, 10 Sep 2015 15:00:00 +0100
+
 opsi-client-agent (4.0.6.2-1) testing; urgency=low
 
   * Avoid having a cmd window popup on shutdown.
@@ -1352,6 +1364,7 @@ opsi-client-agent (4.0.6.2-1) testing; urgency=low
   * new property: setup_after_install (do 15.7.) fixes  #1613
   * update to openssl 1.0.2d
   * service_setup.cmd: better handling of /u ; fixes #503
+  * 50_opsi-client-agent.cmd: log goes to c:\opsi.org\log
 
 -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 10 Jul 2015 10:31:25 +0100
 
@@ -1398,6 +1411,111 @@ opsi-client-agent (4.0.6.1-1) experimental; urgency=low
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-script]]
 ==== Changelog opsi-script / opsi-winst
+
+opsi-winst/opsi-script (4.11.5.14) stable; urgency=low
+
+  * oswebservice: assume opsiservice version=4 in retrieveJSON*
+    to avoid access to opsidata which fails if we use local_opsidata
+    fixes Access Violations in initial opsi-client-agent installation
+  * osfunc: FuncSaveToFile / SaveToFile: logging content on Loglevel 9 ; references #1679
+  * osfuncwin: fix broken Shellbatch /showoutput
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  10 Sep 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.13) stable; urgency=low
+
+  * do not try to run non existing external sub sections
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  21 Aug 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.12) stable; urgency=low
+
+  * Bugfix: osparser: doAktionen: fullfilename not initialized:
+    causes causes double load of include or sub if searched file is not existing ; fixes #1656
+  * Bugfix: osparser: Filexists*: do not check for existing file with dir/ls if trim(filename)=''
+    fixes: https://forum.opsi.org/viewtopic.php?f=6&t=7697
+    (FileExists auf leere Variable gibt wahr zurück)
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  20 Aug 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.11) stable; urgency=low
+
+  * Bugfix: (FileExist call) changes (GetLastExitCode Result Value):
+    (because it call execshellCall to detect symlinks correctly):
+    osparser: new parameter for execshellCall: FetchExitCodePublic
+    if false result is on FLastPrivateExitCode
+    if false true is on FLastExitCodeOfExe (GetLastExitCode)
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  13 Aug 2015:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.5.10) stable; urgency=low
+
+  * oswebservice: retreiveJSONObject
+     * start with (new) correct Mimetype and AcceptEncoding
+       and fall back to old (wrong) parameters
+  * osfunc: FileCopyWin: more log on file in use
+  * osfunc: FileCopyWin: fix for Err 32 on setTimeForFile
+  * osfunc: TuibRegistry.Create(myforce64: boolean; readonly: boolean);
+  * osparser: GetRegistrystringvalue* works now with readonly registry ; fixes #1647
+  * osmain: BuildPC: speed up: only ask for changed action request if there was one (uib#2015080710000015)
+
+-- Detlef Oertel <d.oertel@uib.de>  Tue,  21 Jul 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.9) stable; urgency=low
+
+  * osmain: initproduct before run update script: refresh getProductMap
+  * osmain: but still use setup as lastaction even if was setup+update
+  * oswebservice: new procedure TOpsi4Data.setActualProductActionRequest
+
+-- Detlef Oertel <d.oertel@uib.de>  Fri,  17 Jul 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.8) stable; urgency=low
+
+  * new statement LoadProductProperties <clientId> <productId> (re-loads productproperty list from Server if possible)
+  * GetProductpropertyList: do not try to use also local_opsidata or opsidata
+  * GetProductproperty: do not try to use also local_opsidata or opsidata
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  09 Jul 2015:15:00:00 +0200
+
+opsi-winst/opsi-script (4.11.5.7) stable; urgency=low
+
+  * GetProductproperty: try / except added
+
+-- Detlef Oertel <d.oertel@uib.de>  Tue,  07 Jul 2015:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.5.6) stable; urgency=low
+
+  * GetProductpropertyList: also with list as second (default) parameter ; fixes #1602
+  * GetProductpropertyList: try to use also local_opsidata, log using default
+  * GetProductproperty: if empty try to use also local_opsidata or opsidata, log using default
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  02 Jul 2015:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.5.5) stable; urgency=low
+
+  * upgrade to ssl Libraries 1.0.2c (libeay32.dll, ssleay32.dll); fixes #1586
+  * osfuncwin2: updateEnvironment: do not try to run updateEnvironment on windows < 6; fixes #1591
+  * osmain: BuildPC: process product only if we have a original action request wich is still set
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  25 Jun 2015:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.5.4) stable; urgency=low
+
+  * Working with ssl protocol: sslvSSLv23 - auto negotation
+
+-- Detlef Oertel <d.oertel@uib.de>  Tue,  02 Jun 2015:15:00:00 +0200
+
+
+opsi-winst/opsi-script (4.11.5.3) stable; urgency=low
+
+  * (Security Update) oswebservice: use TLS1.2 instead of SSLv3 and fallback downto SSLv3
+
+-- Detlef Oertel <d.oertel@uib.de>  Mon,  01 Jun 2015:15:00:00 +0200
+
 
 opsi-winst/opsi-script (4.11.5.2) stable; urgency=low
 
@@ -1532,10 +1650,40 @@ opsi-winst/opsi-script (4.11.4.11) stable; urgency=low
 
 -- Detlef Oertel <d.oertel@uib.de>  Wed,  09 Oct 2014:15:00:00 +0200
 
+[[opsi-406-releasenotes-misc-changelogs-windomain]]
+==== Changelog windomain
 
+windomain (1.0-8) stable; urgency=low
+
+	* win 10 compatibiliy
+
+ -- detlef oertel <d.oertel@uib.de>  Fri,  28 Aug 2015 17:00:00 +0200
+
+windomain (1.0-7) stable; urgency=low
+
+	* Setting priority to 20 for an earlier execution.
+
+ -- Niko Wenselowski <d.oertel@uib.de>  Tue,  20 Dec 2013 17:00:13 +0200
+
+[[opsi-406-releasenotes-misc-changelogs-opsiuefinetboot]]
+==== Changelog opsi-uefi-netboot
+
+opsi-uefi-netboot (4.0.5-3) stable; urgency=low
+
+	* added always action request (with no reboot) ; idea / patch by M. Salm <M.Salm@lmz-bw.de> 11.03.2015
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 09 Apr 2015 15:00:00 +0200
 
 [[opsi-406-releasenotes-misc-changelogs-windows-netboot]]
 ==== Changelog windows netboot products
+
+windows (4.0.6.1-2) stable; urgency=low
+
+  * new unattend.xml for win10
+  * preinst: delete unchanged unattend.xml from custom
+  * show_drivers now offers --help and --version (nw 10.9.)
+
+-- Detlef Oertel <d.oertel@uib.de>  Tue,  10 Sep 2015:15:00:00 +0200
 
 windows (4.0.6.1-1) stable; urgency=low
 
@@ -1671,6 +1819,34 @@ Ubuntu15-04_4.0.6-2 stable; urgency=low
 
 [[opsi-406-releasenotes-misc-changelogs-opsi-local-image]]
 ==== Changelog opsi-local-image
+
+opsi-local-image-capture (4.0.6.1-2) stable; urgency=low
+
+	* set empty image_description to "no description given"
+	* new opsi-winst versions (32/64) 4.11.5.14 (do 10.9.)
+	* update ssl Libraries (32/64)
+	* getmsversion fix for win10
+	* check for exitance of c:\tmp and c:\drv before remove ; fixes #1668
+	* run chkdsk for drive to capture before capture
+	* new property opsi_depot_rw_host: If not empty: the host from which we mount the opsi_depot_rw share.
+
+-- detlef oertel <d.oertel@uib.de>  Wed, 02 Sep 2015 15:00:00 +0200
+
+opsi-local-image-capture (4.0.6.1-1) stable; urgency=low
+
+	* link opsisetuplib.py from os-products
+	* update opsisetuplib.py
+
+-- detlef oertel <d.oertel@uib.de>  Tue, 04 Aug 2015 15:00:00 +0200
+
+
+windows (4.0.6.1-2) stable; urgency=low
+
+  * new unattend.xml for win10
+  * preinst: delete unchanged unattend.xml from custom
+  * show_drivers now offers --help and --version (nw 10.9.)
+
+-- Detlef Oertel <d.oertel@uib.de>  Tue,  10 Sep 2015:15:00:00 +0200
 
 opsi-local-image-win* (4.0.6.1-1) stable; urgency=low
 
