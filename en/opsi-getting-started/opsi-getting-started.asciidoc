@@ -3147,7 +3147,7 @@ requiredWinstVersion:: Minimum required version of {opsi-winst}
 
 This third template should be used as a rough guide whenever you create your own opsi product. Do not cut-and-paste from this manual, but instead look at http://download.uib.de for a new version of the 'opsi-template' product package. Using the opsi-package-manager command you may install 'opsi-template' (-i) or extract (-x) at your server and then grab the scripts.
 
-.setup32.ins: installation script
+.setup32.opsiscript: installation script
 [source,winst]
 ----
 ; Copyright (c) uib gmbh (www.uib.de)
@@ -3156,26 +3156,31 @@ This third template should be used as a rough guide whenever you create your own
 ; credits: http://www.opsi.org/en/credits/
 
 [Actions]
-requiredWinstVersion >= "4.11.2.6"
+requiredWinstVersion >= "4.11.4.6"
+ScriptErrorMessages=off
 
 DefVar $MsiId$
 DefVar $UninstallProgram$
 DefVar $LogDir$
-DefVar $ProductId$
+DefVar $ProductId$  
 DefVar $MinimumSpace$
 DefVar $InstallDir$
 DefVar $ExitCode$
 DefVar $LicenseRequired$
 DefVar $LicenseKey$
 DefVar $LicensePool$
+DefVar $displayName32$
+DefVar $displayName64$
 
-Set $LogDir$ = "%SystemDrive%\tmp"
+DefStringlist $msilist$
+
+Set $LogDir$ = "%opsiLogDir%"
 
 ; ----------------------------------------------------------------
 ; - Please edit the following values                             -
 ; ----------------------------------------------------------------
 ;$ProductId$ should be the name of the product in opsi
-; therefore please: only lower letters, no umlauts,
+; therefore please: only lower letters, no umlauts, 
 ; no white space use '-' as a seperator
 Set $ProductId$       = "opsi-template"
 Set $MinimumSpace$    = "1 MB"
@@ -3187,38 +3192,38 @@ Set $LicensePool$     = "p_" + $ProductId$
 
 if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
 	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
-	isFatalError
+	isFatalError "No Space"
 	; Stop process and set installation status to failed
 else
 	comment "Show product picture"
 	ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
-
-	if FileExists("%ScriptPath%\delsub32.ins")
+	
+	if FileExists("%ScriptPath%\delsub32.opsiscript")
 		comment "Start uninstall sub section"
-		Sub "%ScriptPath%\delsub32.ins"
+		Sub "%ScriptPath%\delsub32.opsiscript"
 	endif
-
+	
 	Message "Installing " + $ProductId$ + " ..."
-
+	
 	if $LicenseRequired$ = "true"
 		comment "Licensing required, reserve license and get license key"
 		Sub_get_licensekey
 	endif
-
+	
 	comment "Start setup program"
 	ChangeDirectory "%SCRIPTPATH%"
 	Winbatch_install
 	Sub_check_exitcode
-
+	
 	comment "Copy files"
 	Files_install /32Bit
-
+	
 	comment "Patch Registry"
 	Registry_install /32Bit
-
+	
 	comment "Create shortcuts"
 	LinkFolder_install
-
+	
 endif
 
 [Winbatch_install]
@@ -3239,7 +3244,8 @@ endif
 ;
 ; === InstallShield =====================================================================================
 ; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
-; "%ScriptPath%\setup.exe" /s /sms /f1"%ScriptPath%\setup.iss" /f2"$LogDir$\$ProductId$.install_log.txt"
+; You may use an answer file by the parameter /f1"c:\setup.iss"
+; "%ScriptPath%\setup.exe" /s /sms /f2"$LogDir$\$ProductId$.install_log.txt"
 ;
 ; === Inno Setup ========================================================================================
 ; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
@@ -3307,11 +3313,11 @@ if opsiLicenseManagementEnabled
 	; DefVar $WindowsSoftwareId$
 	; $WindowsSoftwareId$ = "..."
 	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
-
+	
 	DefVar $ServiceErrorClass$
 	set $ServiceErrorClass$ = getLastServiceErrorClass
 	comment "Error class: " + $ServiceErrorClass$
-
+	
 	if $ServiceErrorClass$ = "None"
 		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
 	else
@@ -3319,7 +3325,7 @@ if opsiLicenseManagementEnabled
 			LogError "Fatal: license configuration must be corrected"
 			LogError getLastServiceErrorMessage
 			isFatalError
-		else
+		else 
 			if $ServiceErrorClass$ = "LicenseMissingError"
 				LogError "Fatal: required license is not supplied"
 				isFatalError
@@ -3362,14 +3368,13 @@ else
 endif
 ----
 
-.delsub32.ins: external deinstallation sub section
+.delsub32.opsiscript: external deinstallation sub section
 [source,winst]
 ----
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This sourcecode is owned by uib gmbh
 ; and published under the Terms of the General Public License.
 ; credits: http://www.opsi.org/en/credits/
-
 
 Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
 Set $UninstallProgram$ = $InstallDir$ + "\uninstall.exe"
@@ -3407,12 +3412,11 @@ LinkFolder_uninstall
 ; === Inno Setup ========================================================================================
 ; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
 
-
 [Winbatch_uninstall_msi]
 msiexec /x $MsiId$ /qb-! REBOOT=ReallySuppress
 
 [Files_uninstall]
-; Example for recursively deleting the installation directory (don't forget the trailing backslash):
+; Example for recursively deleting the installation directory:
 ;
 ; del -sf "$InstallDir$\"
 
@@ -3432,20 +3436,16 @@ msiexec /x $MsiId$ /qb-! REBOOT=ReallySuppress
 ; set_basefolder common_desktopdirectory
 ; set_subfolder ""
 ; delete_element $ProductId$
+
 [Sub_check_exitcode]
 ;(.... see above .....)
 ----
 
-.uninstall32.ins: deinstallation script
+.uninstall32.opsiscript: deinstallation script
 [source,winst]
 ----
-; Copyright (c) uib gmbh (www.uib.de)
-; This sourcecode is owned by uib gmbh
-; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/en/credits/
-
-[Actions]
-requiredWinstVersion >= "4.11.2.6"
+requiredWinstVersion >= "4.11.4.6"
+ScriptErrorMessages=off
 
 DefVar $MsiId$
 DefVar $UninstallProgram$
@@ -3456,7 +3456,7 @@ DefVar $InstallDir$
 DefVar $LicenseRequired$
 DefVar $LicensePool$
 
-Set $LogDir$ = "%SystemDrive%\tmp"
+Set $LogDir$ = "%opsiLogDir%"
 
 ; ----------------------------------------------------------------
 ; - Please edit the following values                             -
@@ -3473,9 +3473,9 @@ ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 
 Message "Uninstalling " + $ProductId$ + " ..."
 
-if FileExists("%ScriptPath%\delsub32.ins")
+if FileExists("%ScriptPath%\delsub32.opsiscript")
 	comment "Start uninstall sub section"
-	Sub "%ScriptPath%\delsub32.ins"
+	Sub "%ScriptPath%\delsub32.opsiscript"
 endif
 
 if $LicenseRequired$ = "true"
