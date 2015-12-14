@@ -22,8 +22,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      01.08.2014
-:Revision:  4.0.5
+:Date:      01.12.2015
+:Revision:  4.0.6
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -62,6 +62,7 @@ Opsi bietet eine gute Basis, um automatisiert Windows Rechner zu installieren un
 . Initiale Installation mit abschließender lokaler Image-Sicherung
 . Schnelle Wiederherstellung auf Basis unterschiedlicher Techniken
 . Systempflege mit abschließender lokaler Image-Sicherung
+. Integration von Capturing von vorhandenen Installationen zu WIM
 . Integration von Linuxclients in das Backup/Restore Verfahren.
 
 [[opsi-manual-localimage-concept]]
@@ -69,13 +70,32 @@ Opsi bietet eine gute Basis, um automatisiert Windows Rechner zu installieren un
 
 Die Anforderungen edukativer Computernetze unterscheiden sich teilweise von denen anderer Netzwerke. Eine wesentliche Anforderung, die im Folgenden diskutiert wird, ist die schnelle Wiederherstellung von Rechnern in einen definierten Zustand, den Sie im Rahmen einer temporären Nutzung verloren haben. Konkret geht es um die Bereitstellung von Rechnern in schulischen Computerräumen, wobei die Problemlage auch auf kommerzielle Computerräume oder universitäre Computerpools zutrifft. 
 
-Die Wiederherstellung muss zwingend innerhalb von kurzer Zeit (15 Minuten / Große Pause) erfolgen und sollte soweit möglich einen Rechner nicht nur 'zurücksetzen' sondern auf eine andere Basisinstallation (z.B. Win XP / Win 7 / Linux) umschalten können. Weiterhin muss es möglich sein, dass eine kontinuierliche Pflege der Systeme mit Sicherheitsupdates gewährleistet ist.
+Die Wiederherstellung soll innerhalb von kurzer Zeit (ca. 15 Minuten) erfolgen und sollte soweit möglich einen Rechner nicht nur 'zurücksetzen' sondern auf eine andere Basisinstallation (z.B. Win XP / Win 7 / Linux) umschalten können. +
+Weiterhin muss es möglich sein, dass eine kontinuierliche Pflege der Systeme mit Sicherheitsupdates gewährleistet ist.
 
-opsi ist ein Client-Management-System, das seine Stärken in der paketbasierten Installation und Pflege von Windows-Systemen hat. Dabei gibt es im Umgang mit heterogener Hardware deutliche Vorteile gegenüber rein imagebasierten Systemen. Die damit einhergehenden Installationszeiten von etwa 2 Stunden sind aber weit von den oben angegebenen Anforderungen entfernt. Imagebasierte Lösungen sind hier prinzipiell schneller. Aber auch rein imagebasierte Systeme können bei dem Versuch, für einen ganzen Klassenraum ein Image herunterzuladen, zu Netzwerkproblemen führen. Dieses Problem kann durch lokal gepufferte Images gelöst werden. Ein solcher Ansatz wird z.B. vom Linux basierten System LinBo (Quelle http://linbo.sourceforge.net/) verfolgt. Doch auch mit lokal gepufferten Images kann es, abhängig von der verwendeten Hardware (Stichwort Festplatten- Performance), zu Zeitproblemen kommen, wenn versucht wird, komplette Images innerhalb von 15 Minuten wiederherzustellen.
+Die Üblichen Techiken zur Installation von PC's haben verschiedene spezifische Vor- und Nachteile:
 
-Eine weitere mögliche Problemlösung, das Einfrieren eines Betriebssystems und Umlenken sämtlicher Schreibzugriffe in einen externen Container, der bei einem Neustart einfach verworfen werden kann, ist eine möglicher Ansatzpunkt. Für Linux existieren Ansatzpunkte z.B. über FUSE Filesysteme. Für Windows gibt es eingeführte kommerzielle Produkte, welche sich auch über die Kommandozeile (und damit per opsi) steuern ließen. Uns sind allerdings für den Windows Bereich keine entsprechenden Open Source Produkte bekannt. Da wir aber eine Open Source Lösung schaffen wollen, findet dieser Lösungsansatz hier keine weitere Betrachtung.
+.Vor- und Nachteile von Unattend und Image Lösungen
+[options="header"]
+|==========================
+| Feature | Unattend | Image
+| Geschwindigkeit | (-) langsam | (+) schnell
+| Empfindlichkeit gegen heterogene Hardware | (+) gering | (-) hoch 
+| Netzwerkbelastung | (-) hoch | (-) hoch
+|==========================
 
-Der im Folgenden untersuchte Ansatz versucht die Vorteile der jeweiligen Ansätze zu kombinieren, ihre Nachteile zu vermeiden und für eine unterschiedliche Hardware-Ausstattung (langsame / schnelle Rechner) angepasste Möglichkeiten zu bieten. Die Grundidee kann in den folgenden Stichpunkten zusammengefasst werden:
+Das Konzept von opsi-local-image versucht die Vorteile beider klassischen Konzepte miteinander zu kombinieren:
+
+.opsi-local-image
+[options="header"]
+|==========================
+| Feature | Unattend 
+| Geschwindigkeit | (+) schnell
+| Empfindlichkeit gegen heterogene Hardware | (+) gering
+| Netzwerkbelastung | (+) gering
+|==========================
+
+Das Konzept kann in den folgenden Stichpunkten zusammengefasst werden:
 
 * Initiale Windowsinstallation per PXE-Boot paketbasiert mit individueller Treiberintegration unter Verwendung des opsi-Linux-Bootimage
 
@@ -110,34 +130,100 @@ Die Größe dieser Partition ergibt sich aus dem nach Erstellung der anderen Par
 
 Die Netbootprodukte zur Betriebssystem Installation verwenden nur die ersten zwei oder drei Partitionen (XP nur die erste) und lassen die letzte Backup-Partition unberührt. Somit bleiben die auf der Partition 4 (backup) liegenden Images auch bei der Installation eines neuen Betriebssystems erhalten.
 
+[[opsi-manual-localimage-proceedings]]
+==== Abläufe
+
+[[opsi-manual-localimage-proceedings-initial]]
+===== Initiale Installation
+
+Über das Produkt `opsi-local-image-prepare` wird zunächst die notwendige statische Partitionierung erzeugt.
+
+.Schema: Statische Partitionierung mit opsi-local-image-prepare
+image::oli-prepare.png["Schema: Statische Partitionierung mit opsi-local-image-prepare", width=332]
+
+Anschließend können über die Produkte `opsi-local-image-win`* und andre verschiedene Betriebssysteme mit unterschiedlicher Ausstattung an Anwendungssoftware installiert werden. 
+
+.Schema: OS Installation mit opsi-local-image-win*
+image::oli-os-install.png["Schema: OS Installation mit opsi-local-image-win*", width=332]
+
+Diese werden per default nach Ihrer Installation automatisch als Image gesichert.
+
+.Schema: Image Backup mit opsi-local-image-backup
+image::oli-backup-1.png["Schema: Image Backup mit opsi-local-image-backup", width=332]
+
+
+[[opsi-manual-localimage-proceedings-restore]]
+===== Restore eines Images
+
+Der einfache Aufruf des Produktes `opsi-local-image-restore` stellt automatisch das letzte erstellte Image wieder her. Soll ein anderes Image wieder hergestellt werden, so muß dies im Property `imagefile` angegeben werden.
+
+.Schema: Image Restore mit opsi-local-image-restore
+image::oli-restore-image.png["Schema: Image Restore mit opsi-local-image-restore", width=332]
+
+[[opsi-manual-localimage-proceedings-delete]]
+===== Löschen eines Images
+
+.Schema: Löschen eines gespeicherten Images
+image::oli-delete-image.png["Schema: Löschen eines gespeicherten Images", width=332]
+
+Durch den Aufruf des Produktes `opsi-local-image-delete` wird das im Property `imagefile` angegebene Image gelöscht.
+
+
+[[opsi-manual-localimage-proceedings-update]]
+==== Update eines Images: Automatisierter Workflow
+
+.Schema: Ablauf des automatischen Upgrades eines gespeicherten Images
+image::oli-image-upgrade-flow.png["Schema: Ablauf des automatischen Upgrades eines gespeicherten Images", width=332]
+
+Durch den Aufruf des Produktes `opsi-local-image-restore` mit der Propertyeinstellung `update_and_backup` = 'true' wird:
+
+. das angegebene Image (inklusive seiner opsi Meta-Daten) restored, 
+. anhand der restorten Meta-Daten festgestellt welche Produkt per opsi Upgedatet werden können
+. die Updates werden durchgeführt
+. Von der aktualisierten Systempartition wird wieder durch 'backup' ein Image erzeugt.
+
 
 [[opsi-manual-localimage-components]]
-==== Komponenten
+==== Die opsi-local-image Produkte
 
-Das Paket 'opsi-local-image' besteht aus mehreren Komponenten:
+Das Paket 'opsi-local-image' besteht aus folgenden Produkten
 
-Den Netbootprodukten:
+Das Netbootprodukt zur Partitionierung
 
 * `opsi-local-image-prepare`
+
+Die Netbootprodukte zur Betriebssystem Installation:
+
 * `opsi-local-image-winxp`
 * `opsi-local-image-win7`
 * `opsi-local-image-win7-x64`
-* `opsi-local-image-win8`
-* `opsi-local-image-win8-x64`
 * `opsi-local-image-win81`
 * `opsi-local-image-win81-x64`
+* `opsi-local-image-win10`
+* `opsi-local-image-win10-x64`
+
 * `opsi-local-image-ubuntu`
+* `opsi-local-image-opensuse13-2`
+
+Den Netbootprodukten zum Handling der lokalen Images
+
 * `opsi-local-image-backup`
 * `opsi-local-image-restore`
 * `opsi-local-image-delete`
-* `opsi-local-image-capture`
 
-Den Lokalbootprodukten:
+Dem Lokalbootprodukt zur Ablaufsteuerung:
 
 * `opsi-local-image-backup-starter`
-* `opsi-local-image-sysprep`
 
-Einer Erweiterung der opsi Service Methoden.
+[[opsi-manual-localimage-components-uefi]]
+===== UEFI Kompatibilität
+
+Die opsi-local-image Produkte sind UEFI kompatibel mit wenigen Ausnahmen.
+
+Nicht UEFI kompatibel sind die Produkte:
+
+* `opsi-local-image-opensuse13-2`
+
 
 [[opsi-manual-localimage-components-part]]
 ===== Netboot Produkt zur Partitionierung
@@ -168,20 +254,20 @@ Administrator Passwort = `nt123`.
 Installation von Windows 7 64 Bit.
 Administrator Passwort = `nt123`.
 
-* `opsi-local-image-win8` +
-Installation von Windows 8 32 Bit.
-Administrator Passwort = `nt123`.
-
-* `opsi-local-image-win8-x64` +
-Installation von Windows 8 64 Bit.
-Administrator Passwort = `nt123`.
-
 * `opsi-local-image-win81` +
 Installation von Windows 8.1 32 Bit.
 Administrator Passwort = `nt123`.
 
 * `opsi-local-image-win81-x64` +
 Installation von Windows 8.1 64 Bit.
+Administrator Passwort = `nt123`.
+
+* `opsi-local-image-win10` +
+Installation von Windows 10 32 Bit.
+Administrator Passwort = `nt123`.
+
+* `opsi-local-image-win10-x64` +
+Installation von Windows 10 64 Bit.
 Administrator Passwort = `nt123`.
 
 Diese Produkte haben folgende 'opsi-local-image' spezifische Properties:
@@ -225,6 +311,31 @@ Welches Release von Ubuntu soll installiert werden. (Default="trusty")
 ** `install_opsi-client-agent`: +
 Installiere den Linux opsi-client-agent (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules) . (Default='false')
 
+* `opsi-local-image-opensuse13-2` +
+Installation von OpenSuse Linux 13.2 32Bit/64Bit. +
+Das installierte System kennt 2 user: `root` und `user`. Für 'root' wird das im Produktproperty `root_password` festgelegte Passwort gesetzt (Default: `linux123`). Für 'user' wird das im Produktproperty `user_password` festgelegte Passwort gesetzt (Default: `linux123`).
+Details der Installation werden über Produktproperties gesteuert. Die wesentlichen Produktproperties sind dabei: 
+** `askbeforeinst`: +
+Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='true')
+** `architecture`: +
+Architektur Auswahl, beeinflusst die Auswahl des bootimages und die Installationsarchitektur.  (Default='64bit')
+** `language`: +
+Welche Sprache / locale soll installiert werden.  (Default='de')
+** `console_keymap` +
+steuert in welches Tastaturlayout installiert wird. (Default='de-latin1-nodeadkeys')
+** `timezone`: +
+Welche Zeitzone soll verwendet werden?. (Default='Europe/Berlin')
+** `partition_disk`: +
+Welche Platte soll verwender werden? (Default='first')
+** `proxy`: +
+Proxystring (wenn benötigt) in der Form: `http://<ip>:<port>`. (Default = pass:[''])
+** `backup_after_install` +
+('true'/'false') Default = 'true'. Nach der Installation wird sofort eine Imagesicherung der Installation durchgeführt.
+** `setup_after_install` +
+Hier können ein oder mehrere Produkte angegeben werden, welche auf 'setup' gestellt werden und somit nach Abschluß der Betriebssysteminstallation installiert werden. Dabei werden auch die Abhängigkeiten dieser Produkte mit aufgelöst.
+** `install_opsi-client-agent`: +
+Installiere den Linux opsi-client-agent (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules) . (Default='false')
+
 
 [[opsi-manual-localimage-components-backuprestore]]
 ===== Netboot Produkte zum Backup und Restore
@@ -233,12 +344,23 @@ Installiere den Linux opsi-client-agent (Kofinanzierungsprojekt: Sie benötigen 
 Dieses Produkt sichert das aktuell auf Partition 1 installierte Betriebssystem in einer Imagedatei auf Partition 4. Als Image Namen wird der im Property gesetzte Name verwendet. Wenn dieser leer ist, so wird der Name des opsi Netbootproduktes verwendet, welcher aktuell auf 'installed' steht (z.B. `opsi-local-image-winxp`). Dieser Name wird beim Produkt `opsi-local-image-restore` als Produktproperty 'imagefile' gesetzt, so daß ein nachfolgender Aufruf von `opsi-local-image-restore` per default genau dieses Image wiederherstellt. Dieser Name wird beim Produkt `opsi-local-image-restore` dem Produktproperty 'imagefiles_list' hinzugefügt. Damit enthält dieses Property die Liste aller verfügbaren Images. Weiterhin werden (für die Windows-Produkte) die aktuellen opsi-Produktstände zusammen mit dem Image gesichert, damit auch diese im Rahmen des restores wiederhergestellt werden können. +
 Als Sicherungsmethode wird partclone verwendet. +
 Properties:
+** `askbeforeinst`: +
+Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='false')
+** `free_on_backup`: +
+Dies ist ein read-only property welches aktuelle Informationen zur Backuppartition anzeigt: device, size, used, remaining, use in %, mount point
 ** `imagefile` +
-Name der zu erstellenden Imagedatei (default = leer = automatische Namenswahl). Der Name darf Leerzeichen aber keine Umlaute enthalten. (Im Fall von Leerzeichen werden diese intern als Unterstich behandelt. D.h. 'mein image' = 'mein_image'.
+Name der zu erstellenden Imagedatei (default = leer = der Name des aktuell installierten opsi-local-image Produktes wird verwendet). Der Name darf Leerzeichen aber keine Umlaute enthalten. (Im Fall von Leerzeichen werden diese intern als Unterstich behandelt. D.h. 'mein image' = 'mein_image'.
+** `setup_after_install` +
+Hier können ein oder mehrere Produkte angegeben werden, welche auf 'setup' gestellt werden und somit nach Abschluß installiert werden. Dabei werden auch die Abhängigkeiten dieser Produkte mit aufgelöst.
+
 
 * `opsi-local-image-restore` +
 Dieses Produkt spielt das im Produktproperty 'imagefile' angegebene Image wieder auf der Partition 1 ein und sorgt dafür, dass es gebootet werden kann. Weiterhin werden (für die Windows-Produkte) die für das Image gesicherten opsi-Produktstände zusammen mit dem Image wiederhergestellt. +
 Properties:
+** `askbeforeinst`: +
+Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='true')
+** `architecture`: +
+Architektur Auswahl, beeinflusst die Auswahl des bootimages und die Installationsarchitektur.  (Default='64bit')
 ** `imagefile` +
 Name des Images welches restored werden soll. Der Wert dieses Properties wird automatisch durch das letzte Backup gesetzt. Die Liste der verfügbaren Images findet sich im Property `imagefiles_list`.
 ** `imagefiles_list` +
@@ -293,45 +415,6 @@ Liefert die Liste der Imagefile Namen, welche das `opsi-local-image-backup` auf 
 Diese Methoden werden zu einem späteren Zeitpunkt in die Standardpakete von opsi integriert. Bis dahin steht Ihnen in der Auslieferung eine Datei `40_groupActions.conf` zur Verfügung die Sie bitte mit 'root' Rechten nach `/etc/opsi/backendManager/extend.d` kopieren. Führen Sie danach aus: 
 `opsi-setup --set-rights /etc/opsi`.
 
-[[opsi-manual-localimage-proceedings]]
-==== Abläufe
-
-[[opsi-manual-localimage-proceedings-initial]]
-===== Initiale Installation
-
-Über das Produkt `opsi-local-image-prepare` wird zunächst die notwendige statische Partitionierung erzeugt.
-
-.Schema: Statische Partitionierung mit opsi-local-image-prepare
-image::oli-prepare.png["Schema: Statische Partitionierung mit opsi-local-image-prepare", width=332]
-
-Anschließend können über die Produkte `opsi-local-image-winxp`, `opsi-local-image-win7`, `opsi-local-image-win7-x64` und `opsi-local-image-ubuntu` verschiedene Betriebssysteme mit unterschiedlicher Ausstattung an Anwendungssoftware installiert werden. 
-
-.Schema: OS Installation mit opsi-local-image-win*
-image::oli-os-install.png["Schema: OS Installation mit opsi-local-image-win*", width=332]
-
-Diese werden per default nach Ihrer Installation automatisch als Image gesichert.
-
-.Schema: Image Backup mit opsi-local-image-backup
-image::oli-backup-1.png["Schema: Image Backup mit opsi-local-image-backup", width=332]
-
-
-[[opsi-manual-localimage-proceedings-restore]]
-===== Restore eines Images
-
-Der einfache Aufruf des Produktes `opsi-local-image-restore` stellt automatisch das letzte erstellte Image wieder her. Soll ein anderes Image wieder hergestellt werden, so muß dies im Property `imagefile` angegeben werden.
-
-.Schema: Image Restore mit opsi-local-image-restore
-image::oli-restore-image.png["Schema: Image Restore mit opsi-local-image-restore", width=332]
-
-[[opsi-manual-localimage-proceedings-update]]
-===== Update eines Images
-
-Durch den Aufruf des Produktes `opsi-local-image-restore` mit der Propertyeinstellung `update_and_backup` = 'true' wird das angegebene Image restored, alle Anwendungssoftware upgedated (soweit Updates auf dem Server vorhanden) und anschließend automatisch wieder eine Sicherung durch geführt.
-
-[[opsi-manual-localimage-proceedings-delete]]
-===== Löschen eines Images
-
-Durch den Aufruf des Produktes `opsi-local-image-delete` wird das im Property `imagefile` angegebene Image gelöscht.
 
 [[opsi-manual-localimage-backuppartition]]
 ==== Backuppartition
@@ -378,6 +461,14 @@ Den Lokalbootprodukten:
 ////
 * `opsi-client-agent` >= Version 4.0.4.5-3
 
+sowie die 'Zielprodukte' welche dafür gedacht sind, das gecapturte Image aufzunehmen:
+
+* `opsi-local-image-win7-capture`
+* `opsi-local-image-win7-x64-capture`
+* `opsi-local-image-win81-capture`
+* `opsi-local-image-win81-x64-capture`
+* `opsi-local-image-win10-capture`
+* `opsi-local-image-win10-x64-capture`
 
 [[opsi-manual-localimage-wimcapture-proceedings]]
 ===== Capture Images (WIM) Abläufe
@@ -389,11 +480,21 @@ Dieser wird mit 'opsi-local-image' als Rechner erstellt und kann dabei Software 
 .Sysprep: Depersonalisieren des Masters: +
 
 Damit ein capture Image als Basis für eine Installation dienen kann muß es zunächst dafür vorbereitet werden. Dabei wird der Rechner depersonalisiert, d.h. Der Rechner hat danach keine Identität mehr und ist gut geeignet als Vorlage für eine Neuinstallation aber als Rechner selber kaum noch brauchbar. +
-Daher kann beim opsi-local-image-sysprep Produkt über Produkt Properties gesteuert werden ob vor der eigentlichen Depersonalisierung noch ein Backup angelegt werden soll: +
-`always_backup_before_sysprep` (true/false) Default=true: Startet immer ein Backup vor dem sysprep Vorgang. +
-`abort_on_no_backup` (true/false) Default=true: Prüft ob auf der Backuppartition ein Backup zu diesem Produkt vorhanden ist und bricht ab falls nicht. +
-Nach dem sysprep Vorgang wird üblicherweise der eigentliche capture Vorgang gestartet, der durch das netboot Produkt 'opsi-local-image-capture' durchgeführt wird. Ob der Start automatisch durchgeführt wird entscheidet das Property: +
-`startcapture` (true/false) Default=true: Setze das Produkt `opsi-local-image-capture` auf 'setup' und reboot den Rechner
+Daher kann beim opsi-local-image-sysprep Produkt über Produkt Properties gesteuert werden ob vor der eigentlichen Depersonalisierung noch ein Backup angelegt werden soll: 
+
+* `always_backup_before_sysprep`: +
+(true/false), Default=true, +
+Startet immer ein Backup vor dem sysprep Vorgang. 
+* `abort_on_no_backup`: +
+(true/false), Default=true, +
+Prüft ob auf der Backuppartition ein Backup zu diesem Produkt vorhanden ist und bricht ab falls nicht. +
+Nach dem sysprep Vorgang wird üblicherweise der eigentliche capture Vorgang gestartet, der durch das netboot Produkt 'opsi-local-image-capture' durchgeführt wird. Ob der Start automatisch durchgeführt wird entscheidet das Property: 
+* `startcapture`: +
+(true/false), Default=true, +
+Setze das Produkt `opsi-local-image-capture` auf 'setup' und rebootet den Rechner
+* `disabled`: +
+(true/false), Default=false, +
+Wenn true wird das Produkt nicht ausgeführt. Dies dient dazu Endlosschleifen zu vermeiden wenn ein Image restored wird, in dessen Meta-Daten `opsi-local-image-sysprep` auf `setup` steht.
 
 .Capture Images: Configed: opsi-local-image-sysprep
 image::oli-capture-configed-sysprep.jpg["Capture Images: Configed: opsi-local-image-sysprep", width=500]
@@ -402,25 +503,31 @@ image::oli-capture-configed-sysprep.jpg["Capture Images: Configed: opsi-local-im
 
 Im Rahmen dieses Mehrstufigen Prozesses wird der vorhandene Rechner ausgelesen und als WIM Image in ein vorhandenes opsi Windows Installationsprodukt integriert. Von daher gibt es naheliegender Weise ein Produktproperty über das angegeben werden kann in welches Produkt das ausgelesene Image integriert werden soll:
 
-`target_product`: Name des Ziel Produktes  (Default = pass:['']) 
+* `target_product`: +
+Name des Ziel Produktes  (Default = pass:['']) 
 
 IMPORTANT: Dieses Property ist nicht 'schlau', es wird nicht überprüft ob das ausgelesene Image zum Zielprodukt passt. Sie können also ohne Fehlermeldung ein win7-32Bit Image in ein Win81-64Bit Produkt schreiben. Das sollten Sie aber nicht! Wir empfehlen die Verwendung von gesonderten Produkten, welche nur als Ziel dienen (z.B. `opsi-local-image-win81-x64-capture`).
 
 Das Zielprodukt muß genauso wie ein normales Produkt zur Windows Installation vorbereitet werden. Als Zieldatei innerhalb des Zielproduktes dient die `install.wim` Datei (`installfiles/sources/install.wim`) welche auch die von Microsoft gelieferten Images enthält. Ob das ausgelese Image nun an diese Datei angehängt werden soll oder eine neue install.wim erzeugt werden soll, steuert das Property:
 
-`capture_mode` (append/always_create) Default='append':
+* `capture_mode`: +
+(append/always_create) Default='append':
 
 Bei `append` wird das neu erstellte Image an die vorhandene install.wim angehängt.
 
-IMPORTANT: Enthält die install.wim schon ein Image gleichen Namens wird dieses *ohne Nachfrage gelöscht*. Bei `always_create` wird eine neue install.wim erstellt.
+IMPORTANT: Enthält die install.wim schon ein Image gleichen Namens wird dieses *ohne Nachfrage gelöscht*. Bei `always_create` wird eine neue install.wim erstellt. +
+`always_create` funktioniert nicht mit winpe installationen die auf Windows < 8 basieren.
 
 Die Install.wim Datei ist ein Container der mehrere Images enthalten kann. Die Images haben einen Namen und eine Beschreibung. Der Name und die Beschreibung des neu erstellten Images werden durch die folgenden Properties gesteuert:
 
-`imagename`  Default = pass:[''] 
+* `imagename`: +
+Default = pass:[''] 
 
-`image_description`  Default = pass:[''] 
+* `image_description`: +
+Default = pass:[''] 
 
-Das Property `start_after_capture` ist ein Liste von Produkten, welche nach dem Abschluß des Capturevorgangs auf 'setup' gestellt werden sollen. Eine gute Idee ist hier zum Beispiel opsi-local-image-restore, welches das vor dem sysprep erstellte backup wiederherstellt.
+* Das Property `start_after_capture` +
+ist ein Liste von Produkten, welche nach dem Abschluß des Capturevorgangs auf 'setup' gestellt werden sollen. Eine gute Idee ist hier zum Beispiel opsi-local-image-restore, welches das vor dem sysprep erstellte backup wiederherstellt.
 
 .Capture Images: Configed: opsi-local-image-capture
 image::oli-capture-configed-capture.jpg["Capture Images: Configed: opsi-local-image-capture", width=500]
