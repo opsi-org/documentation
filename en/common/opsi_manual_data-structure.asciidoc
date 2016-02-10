@@ -1110,6 +1110,76 @@ Writes a opsi log file to the server. +
 Parameters: `logType data *objectId *append` +
 Logtypes and objectId see above, `append` (true/false) (Default = false) should the log be appended to an existing log.
 
+[[opsi-manual-api-datastructure-opsi4-group-tutorial]]
+====== Tutorial: Working with groups
+
+The following tutorial will show how to use the opsi interface from the commandline and work with groups of hosts in opsi.
+
+We want to work with group objects and therefore need to work with those functions whose names start with 'group'.
+Opsi does distinguish between groups of the type 'ProductGroup' and 'HostGroup'. The first is used for product groupings and the latter is used for grouping hosts.
+
+Creating a group of hosts is possible through the method *group_createHostGroup*. The parameters of the method are 'id', a 'description', 'notes' and the 'parentGroupId' (ID of the parent group). Only the ID is required - everything else is optional. The ID is also the name of the group.
+
+IMPORTANT: In opsi 4.0 groups are identified by their ID. This ID must be unique throughout opsi's groups.
+
+
+
+To create a first group from the commandline we can now issue the following comand:
+[source,prompt]
+----
+opsi-admin -d method group_createHostGroup rechner_wenselowski "Nikos Rechner"
+----
+
+To check if our group was created we use *group_getObjects*.
+[source,prompt]
+----
+opsi-admin -d method group_getObjects '' '{"id": "rechner_*", "type": "HostGroup"}'
+----
+
+To create some hierarchy we need to also specify the ID of the parent group.
+[source,prompt]
+----
+opsi-admin -d method group_createHostGroup "rechner_wenselowski2" "Untergruppe" "" "rechner_wenselowski"
+----
+
+We can use the call to *group_getObjects* from earlier to see that our group was indeed created.
+
+Opsi has a default group that behaves like a directory service - i.e. OpenLDAP - in terms that a client can only be member of one group. There is a root group with the ID *clientdirectory* that assumes that exact behaviour for any group / client inside. Any client not in a subgroup of *clientdirectory* will be moved to another special group with the ID *NOT_ASSIGNED*.
+Anyone working with that groups is responsible that clients are not member of multiple subgroups of *clientdirectory*.
+
+Working with the clients is easy now. You probably have noticed that our earlier query to opsi did not show us any signs of clients. That is because the assignment from a client to a group is taken care of another type of object: *objectToGroup*.
+
+To have a client at hand we will first create one:
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient "wenselowski-test.uib.local"
+----
+
+This client we now want to add to the group we created previously.
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_create "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+----
+
+Noticed the *HostGroup* as the first parameter? That is again our group type.
+To check if the creation was a succes we can execute the following command:
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_getObjects '' '{"groupType": "HostGroup", "groupId": "rechner_wenselowski2"}'
+----
+
+If for some reason we want to remove a client we can do this aswell. Just execute the following:
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_delete "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+----
+
+Finally you may want to clean up the groups we created earlier. The following statements will do this for you:
+[source,prompt]
+----
+opsi-admin -d method group_delete "rechner_wenselowski"
+----
+
 [[opsi-manual-api-datastructure-opsi3]]
 ==== Action oriented methods
 The action oriented methods where introduced in opsi 3.
