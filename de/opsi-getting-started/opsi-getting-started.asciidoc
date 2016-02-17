@@ -2410,70 +2410,102 @@ Statt vom {opsi-Server} aus unter Linux können Sie die Dateien auch über das W
 
 Um diese Betriebssysteme installieren zu können, muss einmalig ein sogenanntes WinPE als "DOS-Ersatz" erstellt werden.
 (für 32-Bit Installationen ein 32-Bit PE, bzw. für 64-Bit ein 64-Bit PE) 
+Wir empfehlen die Verwendung des PE entsprechend der Betriebssystem - Version (Win 7/8/10)
 
 "Um eine 64-Bit-Version von Windows zu installieren, müssen Sie eine 64-Bit-Version von Windows PE verwenden. Um eine 32-Bit-Version von Windows zu installieren, müssen Sie eine 32-Bit-Version von Windows PE verwenden." +
 http://technet.microsoft.com/de-de/library/cc766093.aspx
 
-Hierzu benötigen Sie das Windows Automated Installation Kit (Windows AIK) und ein, in der Liste für unterstützte Betriebssysteme aufgelistetes, Windows (die Architektur ist hierbei anscheinend nicht wichtig, beide PEs wurden unter einem 64-Bit Windows 7 erfolgreich erstellt): +
-http://www.microsoft.com/downloads/details.aspx?familyid=696DD665-9F76-4177-A811-39C26D3B3B34&displaylang=de
-Version vom 06.08.2009 in deutscher Sprache.
+Hierzu benötigen Sie das Windows Automated Installation Kit (Windows AIK; bis Windows 7), bzw dessen Nachfolger "Assessment and Deployment Kit" (ADK), und ein, in der Liste für unterstützte Betriebssysteme aufgelistetes, Windows (die Architektur ist hierbei anscheinend nicht wichtig, beide PEs wurden unter einem 64-Bit Windows 7 erfolgreich erstellt): +
 
-Sie können das ISO brennen oder z.B. mit Deamon Tools mounten und dann installieren.
-Für ein Win10- PE folgen Sie bitte der Anleitung unter https://forum.opsi.org/viewtopic.php?&p=33997 . 
+WAIK Windows 7: http://www.microsoft.com/downloads/details.aspx?familyid=696DD665-9F76-4177-A811-39C26D3B3B34&displaylang=de
+Version vom 06.08.2009 in deutscher Sprache. Sie können das ISO brennen oder z.B. mit Deamon Tools mounten und dann installieren.
+ADK Windows 8: https://www.microsoft.com/de-de/download/confirmation.aspx?id=30652
+ADK Windows 10 : http://go.microsoft.com/fwlink/p/?LinkId=526740
+Installieren Sie das ADK (nach Möglichkeit auf einer 64Bit- Maschine) in den vorgeschlagenen Pfad. wählen Sie nur die "Windows-Vorinstallationsumgebung (Windows PE)" aus; Abhängigkeiten werden automatisch ausgewählt.
+
+ 
 
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-pe]]
 ==== Erstellen eines PE
 
 Die Befehle für 32- und 64-Bit sind nahezu identisch, nur müssen die Einträge *<ARCH>* mit entweder *x86* , *amd64* oder *ia64* ersetzt werden.
 
-* Erstellen einer WinPE Umgebung: +
-Als Administrator die Eingabeaufforderung starten (Start => Programme => Zubehör =>mit rechter Maustaste auf "Eingabeaufforderung" => Ausführen als ... => Administrator) und folgenden Befehl eingeben:
+* Anpassen des WinPE (WAIK / Windows 7): +
+Alles als Administrator aus der Eingabeaufforderung mit erweiterten Rechten ausführen (Start => Programme => Zubehör =>mit rechter Maustaste auf "Eingabeaufforderung" => Ausführen als ... => Administrator)
+
+* WinPE kopieren:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
 ----
 
-* Image bearbeiten: +
-Als Administrator die Eingabeaufforderung starten und folgenden Befehl eingeben:
+* Image mounten/einhängen: +
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
 ----
 
-oder unter Verwendung des aktuelleren dism - Befehls
-[source,prompt]
-----
-dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
-----
-
-* Nächstes Kommando:
+* Startnet.cmd ersetzen:
 [source,prompt]
 ----
 echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
 ----
 (Hinweis: `c:\opsi\startnet.cmd` wird vom opsi-linuxbootimage in der `setup.py` erstellt nebst dem oben entfernten wpeinit-Aufruf).
 
-* Nächstes Kommando:
+* Image wieder aushängen:
 [source,prompt]
 ----
 "%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
 ----
 
-oder unter Verwendung von dism
-[source,prompt]
-----
-dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
-----
-
-* Nächstes Kommando:
+* Verschieben des fertigen WinPE - (von dort werden mehrere Files auf den Server verschoben).
 [source,prompt]
 ----
 move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
 ----
 
-Achtung: dieses Verzeichnis heißt in neueren AIKs C:\winpe\media , der Inhalt ist genauso zur Erstellung des PE geeignet.
+* Den Inhalt von `C:\winpe\ISO` nach `/var/lib/opsi/depot/win7/winpe` bzw. `/var/lib/opsi/depot/win2008/winpe` kopieren. +
+Rechte anpassen (z.B.):
+[source,prompt]
+----
+opsi-setup --set-rights /var/lib/opsi/depot/win7/winpe
+----
 
-* Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/var/lib/opsi/depot/win7/` bzw. `/var/lib/opsi/depot/win2008` kopieren. +
+* Anpassen des WinPE (ADK / Windows 8 und 10): +
+Führen Sie  > Start > Programme > Windows Kits > Windows ADK > "Umgebung für Bereitstellungs- und Imageerstellungstools" aus; eine Eingabe-Aufforderung erscheint (jedoch sind in der Folge benötigte Umgebungsvariablen gesetzt)
+
+* WinPE kopieren:
+[source,prompt]
+----
+copype.cmd <ARCH> C:\winpe
+----
+
+* Image mounten/einhängen: +
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* Startnet.cmd ersetzen:
+[source,prompt]
+----
+echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
+----
+(Hinweis: `c:\opsi\startnet.cmd` wird vom opsi-linuxbootimage in der `setup.py` erstellt nebst dem oben entfernten wpeinit-Aufruf).
+
+* Image wieder aushängen:
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Verschieben des fertigen WinPE - (von dort werden mehrere Files auf den Server verschoben).
+[source,prompt]
+----
+move "C:\winpe\winpe.wim" "C:\winpe\media\sources\boot.wim"
+----
+
+* Den Inhalt von `C:\winpe\media`  nach `/var/lib/opsi/depot/win7/winpe` bzw. `/var/lib/opsi/depot/win2008/winpe` kopieren. +
 Rechte anpassen (z.B.):
 [source,prompt]
 ----
