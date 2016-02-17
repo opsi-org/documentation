@@ -72,20 +72,21 @@ Dazu dient das Produkt opsi-wim-capture. Im Rahmen dieses Produktes wird im Kern
 [[opsi-manual-wimcap-overview]]
 ==== Abläufe Übersicht
 
-. Installation von Windows mit PreservePE
-. opsi-clonezilla Backup der Platte (System+PE)
+. Installation von Windows mit der Property Einstellung: 'preserve_winpe_partition=true'
+. opsi-clonezilla Backup der Platte (System- und winpe-Partition)
 . Backup opsi Metadaten
-. PE bootfähig machen und PE script erstellen
-. Sysprep (Depersonalisierung)
-. PE-Boot Capture und schreiben ins Zielprodukt
-. opsi-clonezilla Restore der Platte (System+PE)
+. winpe Partition bootfähig machen und winpe script (work.cmd) erstellen
+. Sysprep des installierten Systems (Depersonalisierung)
+. winpe-Boot, Capture des Systems und schreiben ins Zielprodukt
+. opsi-clonezilla Restore der Platte (System- und winpe-Partition)
 
 
 [[opsi-manual-wimcap-sequence]]
-==== Abläufe
+==== Abläufe Details
 
 .Vorbereitung
 
+Installation von Windows mit der Property Einstellung: 'preserve_winpe_partition=true', da die winpe Partition später noch gebraucht wird.
 
 .Schema: Installation des Orginal Windows auf der Systempartition
 image::opsi-wim-cap-pre1.png["Schema: Installation des Orginal Windows auf der Systempartition", width=332]
@@ -94,6 +95,15 @@ image::opsi-wim-cap-pre1.png["Schema: Installation des Orginal Windows auf der S
 image::opsi-wim-cap-pre2.png["Schema: Installation von Produkten auf dem installierten System", width=332]
 
 .opsi-wim-capture
+
+Es wird Anhand des Properties #### geprüft ob ein Backup gemacht werden soll.
+Wenn ja, so wird für opsi-clonezilla das runcommand: "####" und das Produkt opsi-clonzilla auf setup gesetzt. Damit das Produkt opsi-clonzilla startet ist nun ein Reboot nötig.
+
+Um eine Endlosschleife zu vermeiden wird nun ein Rebootflag gesetzt, damit nach beendigung des Backup erkannt werden kann, das dieser Schritt bereits erledigt ist.
+
+Technischer Hinweis: Hier entseht das Problem, das der Rebootflag auch in dem Backup landet aber nach einem Restore nicht mehr erwünscht ist. Daher wird der Rebootflag als Timestamp gesetzt. Ein Rebootflag der älter als 0,1 Tage (=2,4 Stunden) ist wird ignoriert.
+
+Die Maschine wir rebootet, dabei bleibt das Produkt 'opsi-wim-capture' auf 'setup' stehen. Nun startet das Netboot Produkt opsi-clonzilla und führt das Bakup aus.
 
 .Schema: Backup der Platte mit opsi-clonezilla
 image::opsi-wim-cap-backup.png["Schema: Backup der Platte mit opsi-clonezilla", width=332]
@@ -110,6 +120,8 @@ restoreten opsi-clonezilla Images ausführen
 
 .Schema: Sicherung der opsi-meta-daten nach c:\opsi.org\tmp
 image::opsi-wim-cap-backup2.png["Schema: Sicherung der opsi-meta-daten nach c:\opsi.org\tmp", width=332]
+
+Nach c:\opsi.org\tmp\productonclients.json
 
 .Schema: Deaktivierung des opsi-client-agenten
 image::opsi-wim-cap-deactivate-oli.png["Schema: Deaktivierung des opsi-client-agenten", width=332]
