@@ -570,15 +570,30 @@ Das Property `online_repository` entfällt.
 
 Der opsi-client-agent für Linux ist Bestandteil des Kofinanzierungsprojektes 'Linux Agent' und derzeit kostenpflichtig.
 
+CAUTION: Ein Rechner kann *nicht* gleichzeitig am selben opsi-config-server Client *und* Server (z.B. depot-server / config-server) sein. +
+Dies ist ein Problem mit der derzeitigen Datenstruktur in opsi und wird zu einem späteren Zeitpunkt gelöst. +
+Ein config-server kann sich also auch nicht selbst als Client haben. Es ist aber durchaus möglich einen Linuxclient als opsi-server zu installieren der dann selber als config-server agiert oder als depot-server für einen anderen config-server. Wenn sie auf diese Weise einen opsi-server aufgesetzt haben und wollen diesen als Depotserver an dem config-server registrieren an dem diese Maschine auch Client ist, müssen Sie den Rechner als Client vorher löschen. 
+
 Der opsi-client-agent für Windows besteht im Kern aus zwei Komponenten:
 
 . dem Service `opsiclientd`
+
+. dem Hilfsprogramm `opsiscriptstarter`
 
 . dem Actionprocessor `opsi-winst / opsi-script`
 
 Der opsi-client-agent für Linux basiert auf einer Portierung des Windows Clientagenten nach Linux.
 
-Der `opsiclientd` ist im ersten Release noch nicht fertig portiert und ist deshalb zunächst durch das Programm `opsiscriptstarter` ersetzt, welcher die Aufgaben des `opsiclientd` beim Systemstart übernimmt:
+Der `opsiclientd` ist derzeit nicht für alle unterstützten Distributionen verfügbar und ist deshalb für alle anderen Distributionen zunächst durch das Programm `opsiscriptstarter` ersetzt
+
+Der `opsiclientd` steht auf folgenden Distributionen / Releases zur Verfügung:
+
+* Debian 7 / 8
+* Ubuntu 12.04 / 14.04
+* openSuse 13.2
+* SLES 12
+
+Steht kein opsiclientd zur Verfügung, wird der `opsiscriptstarter` so installiert, das er die Aufgaben des `opsiclientd` beim Systemstart übernimmt:
 
 * Kontakt mit dem opsi-Server: Prüfen ob Aktionen gesetzt sind
 * Mounten des Depot Shares
@@ -603,8 +618,131 @@ Das Logging des opsi-script ist analog zur dem des opsi-winst unter Windows.
 
 Anders als bei Windows gibt es den opsi-script neben einer grafischen Version für die Arbeit unter X-Windows zusätzlich in einer noGUI Version für Systeme ohne grafische Oberfläche.
 
+
+[[opsi-manual-linux-clientagent-installation-servicesetup]]
+===== opsi-linux-client-agent: Installation: service_setup.sh
+
+Diese Methode dient zur Installation auf einzelnen Rechnern. Für ein Massen Rollout siehe weiter unten.
+
+. Loggen Sie sich mit `root` Rechten auf dem Client ein.
+. Mounten Sie den share `//<opsiserver>/opsi_depot` an eine beliebige Stelle.
+. Starten Sie das Script `opsi-linux-client-agent/service_setup.sh`
+
+Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint eine Art Login-Fenster mit Service-URL user und password. Dort kann die Operation mit dem Accountdaten eines Mitglieds der Gruppe {opsiadmin} autorisiert werden.
+
+CAUTION: Der Client rebootet nach der Installation.
+
+
+[[opsi-manual-linux-clientagent-installation-opsideploy]]
+===== opsi-linux-client-agent: Installation: opsi-deploy-client-agent
+
+Das `opsi-deploy-client-agent` Skript verteilt den opsi-client-agent direkt vom {opsi-server} auf die Clients. Voraussetzung hierfür sind bei den Clients:
+
+* ssh Zugang als root oder als user der sudo ohne Passwort ausführen darf
+
+Das Skript erzeugt serverseitig den Client, kopiert die Installations-Dateien und Konfigurationsinformationen, wie bspw. den pckey, auf den Client und startet dort die Installation.
+
+
+Mit dem `opsi-deploy-client-agent` Skript kann auch eine ganze Liste von Clients bearbeitet werden.
+Dazu können entweder beliebig viele Clients als letzter Parameter übergeben werden oder mit der Option '-f' die Clients aus einer Datei eingelesen werden.
+Bei der Verwendung einer Datei, muss in jeder Zeile ein Client stehen.
+
+Das Script kann mit IP-Adressen, Hostnamen und FQDNs arbeiten. Es wird versuchen automatisch zu erkennen welche Art von Adresse übergeben wurde.
+
+Mit dem `opsi-deploy-client-agent` Skript kann auch eine ganze List von Clients bearbeitet werden. Das Skript findet sich unter '/var/lib/opsi/depot/opsi-linux-client-agent' +
+Führen Sie das Script mit 'root' Rechten aus.
+
+
+[source,prompt]
+----
+bonifax:/var/lib/opsi/depot/opsi-linux-client-agent# ./opsi-deploy-client-agent  --help
+usage: opsi-deploy-client-agent [-h] [--version] [--verbose]
+                                [--debug-file DEBUGFILE] [--username USERNAME]
+                                [--password PASSWORD]
+                                [--use-fqdn | --use-hostname | --use-ip-address]
+                                [--ignore-failed-ping]
+                                [--reboot | --shutdown | --start-opsiclientd]
+                                [--hosts-from-file HOSTFILE]
+                                [--skip-existing-clients]
+                                [--threads MAXTHREADS]
+                                [--keep-client-on-failure | --remove-client-on-failure]
+                                [host [host ...]]
+
+Deploy opsi client agent to the specified clients. The clients must be
+accessible via SSH. The user must be allowed to use sudo non-interactive.
+
+positional arguments:
+  host                  The hosts to deploy the opsi-client-agent to.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --debug-file DEBUGFILE
+                        Write debug output to given file.
+  --username USERNAME, -u USERNAME
+                        username for authentication (default: root). Example
+                        for a domain account: -u "<DOMAIN>\\<username>"
+  --password PASSWORD, -p PASSWORD
+                        password for authentication
+  --use-fqdn, -c        Use FQDN to connect to client.
+  --use-hostname        Use hostname to connect to client.
+  --use-ip-address      Use IP address to connect to client.
+  --ignore-failed-ping, -x
+                        try installation even if ping fails
+  --reboot, -r          reboot computer after installation
+  --shutdown, -s        shutdown computer after installation
+  --start-opsiclientd, -o
+                        start opsiclientd service after installation
+  --hosts-from-file HOSTFILE, -f HOSTFILE
+                        File containing list of clients (one hostname per
+                        line). If there is a space followed by text after the
+                        hostname this will be used as client description for
+                        new clients.
+  --skip-existing-clients, -S
+                        skip known opsi clients
+  --threads MAXTHREADS, -t MAXTHREADS
+                        number of concurrent deployment threads
+  --keep-client-on-failure
+                        If the client was created in opsi through this script
+                        it will not be removed in case of failure. (DEFAULT)
+  --remove-client-on-failure
+                        If the client was created in opsi through this script
+                        it will be removed in case of failure.
+----
+
+[[opsi-manual-linux-clientagent-installation-netboot]]
+===== opsi-linux-client-agent: Installation: Durch die opsi netbootprodukte
+
+Wenn Sie ein Linux über die opsi Netboot produkte installieren, wird der opsi-linux-client-agent automatisch mit installiert, wenn das Property `install_opsi-client-agent` auf 'true' steht.
+
+[[opsi-manual-linux-clientagent-opsiclientd-configuration]]
+===== opsi-linux-client-agent: opsiclientd Konfiguration
+
+Der Linux `opsiclientd` ist eine Portierung des opsiclientd unter Windows und arbeitet mit einer analogen Konfigurations Datei: `/etc/opsi-client-agent/opsiclientd.conf`.
+
+Eine ausführliche Beschreibung dieser Konfiguration findet sich im Kapitel zum opsi-client-agent: <<opsi-manual-clientagent-configuration>>
+
+Dabei sind nicht alle Features und Events auch unter Linux verfügbar. +
+Verfügbar sind:
+
+* Start beim Systemstart (bzw. start des `opsiclientd`) unter Linux ist der Name des Events `opsiclientd_start` (und nicht `gui_startup`)
+
+* `event_on_demand`
+* Das `event_timer` aber nur mit der Einstellung: `super = default`
+
+
+Nicht verfügbar sind (derzeit):
+
+* Alles was mit dem lokalen Cache ('WAN-Erweiterung') zu tun hat.
+* Die Modifikation der Events durch Preconditions
+* Der opsiclientd Notifier
+* Das `event_net_connection`
+* Das `event_on_shutdown`
+* Das `event_silent_install` 
+
 [[opsi-manual-linux-clientagent-places]]
-==== opsi-linux-client-agent: Pfade
+===== opsi-linux-client-agent: Pfade
 
 Wie 'sich das gehört' verteilt sich der linux-opsi-client-agent weitläufig:
 
@@ -614,15 +752,19 @@ Die Binaries:
 
 `/usr/bin/opsi-script-nogui` (ohne X11)
 
-`/usr/bin/opsiscriptstarter` (vorläufiger opsiclientd Ersatz)
+`/usr/bin/opsiscriptstarter` (Hilfsprogramm bzw. opsiclientd Ersatz)
 
-Die Hilfsdateien:
+`/usr/bin/opsiclientd` 
 
-`usr/bin/winstskin/`
+Die Hilfsdateien für den opsi-script finden sich in:
+
+`/usr/share/opsi-client-agent/opsi-script/skin`
+
+`/usr/share/locale/`<LANG>`/LC_MESSAGES/opsi-script.po`
 
 Die Konfigurationen:
 
-`/etc/opsi-client-agent/opsiclientd.conf` (Konfiguration des opsiscriptstarter/opsiclientd)
+`/etc/opsi-client-agent/opsiclientd.conf` (Konfiguration des opsiscriptstarter / opsiclientd)
 
 `/etc/opsi-client-agent/opsi-script.conf` (in Vorbereitung)
 
@@ -630,8 +772,12 @@ Die Logs / Temps:
 
 `/var/log/opsi-client-agent`
 
+`/var/log/opsi-client-agent/opsiclientd`
+
+`/var/log/opsi-client-agent/opsi-script`
+
 [[opsi-manual-linux-clientagent-knownbugs]]
-==== opsi-linux-client-agent: Known Bugs
+===== opsi-linux-client-agent: Known Bugs
 
 Das kopieren von vielen Dateien von einem smb-share ist abhängig von der Samba Version fehlerhaft. Es werden nicht alle Dateien kopiert.
 
@@ -654,7 +800,7 @@ tar cf - installfiles | ( cd "$target$/installfiles/" ; tar xf - )
 
 
 [[opsi-manual-linux-scriptexample]]
-===== Beispiel Scriptteile
+==== Beispiel Scriptteile
 
 Unter Windows gilt für die Softwareverteilung: Die Installation von Software ist genauso wichtig wie die anschließende Konfiguration der Software. +
 Unter Linux stehen die meisten Pakete über die Repositories der Distribution zur Verfügung. Dadurch wird der Installationsanteil kleiner, der Konfigurationsanteil aber bleibt. Weiterhin gibt es auch Applikationen, welche nicht über die Standardrepositories verfügbar sind. Hier müssen
