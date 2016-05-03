@@ -1,0 +1,340 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+////
+;***************************************************************************
+; Subversion:
+; $Rev: 894 $ $Author: oertel $
+; $Date: 2015-12-14 22:02:54 +0100 (Mo, 14 Dez 2015) $
+;***************************************************************************
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      01.12.2015
+:Revision:  4.0.6
+:toclevels: 6
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-wimcap]]
+=== opsi extension 'opsi WIM Capture'
+
+[[opsi-manual-wimcap-preconditions]]
+==== Prerequisites for the opsi extension 'opsi wim capture'
+
+This module is currently a
+http://www.opsi.org/en/opsi-extensions[co-funded opsi extension]. +
+Some preconditions are required to work with that module, which is to get a suitable modules file to unlock the feature. You can get this unlock file by purchasing the extension module. For evaluation you can get a time limited modules unlock file without charge. ( -> mail to info@uib.de). +
+////
+For further details see <<opsi-manual-modules>>.
+////
+
+Technical requirements are opsi 4.0.6 with packet versions:
+
+.required packets
+[options="header"]
+|==========================
+|opsi-package|version
+|opsi-linux-bootimage|>= 20160111
+|opsi-client-agent|>= 4.0.6.3-8
+|Windows Netboot >=7|>= 4.0.6.1-3
+|opsi-clonezilla|
+|==========================
+
+CAUTION: For the product `opsi-wim-capture` the share `opsi_depot_rw` must have write permission for 'pcpatch'. Check your Samba configuration.
+
+
+[[opsi-manual-wimcap-introduction]]
+==== Introduction
+
+With NT6 (i.e. from Vista), Microsoft has introduced a new Image Format/ Container for OS Installation. Its called *Windows Imaging Format (WIM)*.
+A WIM Image is not exactly an image of a disk or partition, but rather an archive of files and Metadata. A WIM file can contain several images. The default installation of an NT6 operating system works like this:
+setup.exe unzips an image from an install.wim file, configures it, and adds some additional drivers.
+
+This way, an installation is quicker than with NT5. But then installation of Hotfixes with NT6 takes significantly longer, so that the basic install of Windows 7 will take 30 minutes, but adding all required Hotfixes may take several hours.
+
+With this opsi extension, it is possible to read an installed Windows OS, including installed software, Hotfixes and configurations, and save it as a WIM image. This WIM file can then be used as a source for fresh Windows Installation.
+
+Our product opsi-wim-capture is made just for this purpose. Roughly, we boot off a PE partition, so that the PE can read the system partition and save it into a WIM.
+
+[[opsi-manual-wimcap-overview]]
+==== Overview of the Sequence
+
+Capturing an installed Windows happens like this:
+
+Preparation:
+
+* opsi - installation of a Windows OS with set property: 'preserve_winpe_partition=true'
+
+run the product `opsi-wim-capture`. +
+All the following steps will be controlled by the product `opsi-wim-capture`:
+
+. via opsi-clonezilla, make backup of disk (OS and winpe partition)
+. backup opsi metadata
+. make winpe partition bootable, create winpe script (work.cmd)
+. sysprep of the installed systems (depersonalization)
+. boot winpe, capture of OS disk, write to destination product
+. restore of the original disk (OS und winpe partition) via opsi-clonezilla
+
+
+[[opsi-manual-wimcap-sequence]]
+==== Sequence Details
+
+*Preparation*
+
+
+Installation of a Windows OS with property 'preserve_winpe_partition=true', because the winpe partition will be needed later.
+
+.Schema: Deployment of Windows OS
+image::opsi-wim-cap-pre1.png["Schema: Deployment of Windows OS", width=332]
+
+After the Windows OS installation you can install additional Software and Hotfixes, or configure the system manually or via opsi .
+
+
+.Schema: Installation of opsi products
+image::opsi-wim-cap-pre2.png["Schema: Installation of opsi products", width=332]
+
+*opsi-wim-capture*
+
+The whole sequence will need some time, at least an hour. It will work unattended, though.
+
+In case the property `disabled` is set to 'true' (default=false), the process will be canceled immediately. This switch is for development only.
+
+The setting of the property 'always_backup_before_sysprep' will be checked.
+If yes, we'll make a backup of the system via opsi-clonezilla.
+
+[NOTE]
+===============================
+In opsi-clonezilla, the runcommand is `ocs-sr -q2 --batch -j2 -rm-win-swap-hib -i 2000 -p true savedisk imagefile sda` . Within this command, `imagefile` will be set according to the value of the property 'clonezilla_imagefile' . In case its set to 'auto' (default), we'll configure the value for 'imagefile' automatically. This will be done with the help of property values and the client name according to the following pattern: +
+`<FQDN of client>_<target_product>_<imagename>` +
+If the value is not 'auto', the value contained will be used as 'imagefile'. Furthermore, we'll set the product opsi-clonzilla to setup. In order to initiate opsi-clonzilla, reboot.
+
+In order to avoid a neverending loop, we write a reboot flag, so that after writing the backup, we can see that this step has already been done.
+
+Technical note: We do not want to reboot again after restoring the backup, though (but the reboot flag is contained in the backup). Thats why the reboot flag is beeing set as a time stamp. In case the time stamp is older than 0.1 days (i.e. 2.4 hrs), it will be ignored.
+===============================
+
+The system will reboot now, leaving the product 'opsi-wim-capture' set to 'setup'. opsi-clonzilla will start up and do the backup.
+
+.Schema: Backing up the disk via opsi-clonezilla
+image::opsi-wim-cap-backup.png["Schema: Backing up the disk via opsi-clonezilla", width=332]
+
+TIP: Why backup via opsi-clonezilla ? +
+The sysprep action to follow will leave the OS partition unusable. +
+An OS, that is set up from a captured WIM Image, will contain information about the sysprep run. Thus, it cannot be used for further capturing via opsi-wim-capture. +
+Only perform repeat capturing using a previously restored opsi-clonezilla image.
+
+The product opsi-clonzilla is now beeing configured in a way that it will perform a restore on next run.
+
+.Schema: Saving opsi-meta-data to c:\opsi.org\tmp
+image::opsi-wim-cap-backup2.png["Schema: Saving opsi-meta-data to c:\opsi.org\tmp", width=332]
+
+Now information about the installed opsi-products (and versions) will be stored on the client.
+
+[NOTE]
+===============================
+The productOnClient objects of all Localboot Products are being written to  `c:\opsi.org\tmp\productonclients.json` .
+===============================
+
+.Schema: Deactivating the opsi-client-agent
+image::opsi-wim-cap-deactivate-oli.png["Schema: Deactivating the opsi-client-agent", width=332]
+
+The machine's opsi-client-agent is now beeing deactivated, so that it cannot run after deployment based on this image.
+
+.Schema: Depersonalization of the OS partition via 'sysprep'
+image::opsi-wim-cap-sysprep.png["Schema: Depersonalization of the OS partition via 'sysprep'", width=332]
+
+In order to be able to deploy the captured image like a default Windows Setup to any machine, it needs to be depersonalized. This is beeing done via `sysprep` .
+
+TIP: This does not mean 'any' software will be depersonalized. Its well possible, that installed software 'keeps in mind' what machine it was originally installed on. A config of that kind will be likely to cause problems, if you deploy the image to different machines. Might be a good idea to not capture all your software in the image.
+
+If the property `startcapture` is set to 'false' (default=true), we'll stop working after sysprepping, and shut down the machine. This makes sense only if you plan to take an image of the machine using a different tool.
+
+.Schema: Activating and boot-enable the PE partition
+image::opsi-wim-cap-activate-pe.png["Schema: Activating and boot-enable the PE partition", width=332]
+
+For reading the OS partition and writing into the WIM file, we have to use a Windows OS, which cannot be the Windows OS we want to read (for obvious reasons). Therefore, we use the Windows PE we created and preserved at the initial installation.
+
+* Activation of the WinPE as bootable partition, creation of the required boot record, (if necessary) deactivation of drive letters of other partitions
+
+* Reading opsi metadata concerning installed products on the client, saving the data to a temporary folder on the client
+
+* some cleaning on the system we want to capture
+
+.Schema: Creating work.cmd inside the PE
+image::opsi-wim-cap-work-cmd.png["Schema: Creating work.cmd inside the PE", width=332]
+
+* Writing of a command file, which will initiate the capturing at next WinPE boot.
+
+* Provisioning of further data for the WinPE run, like list of products from the property `start_after_capture`
+
+* Reboot the client
+
+.Schema: Capturing the OS partition when on PE
+image::opsi-wim-cap-capture.png["Schema: Capturing the OS partition when on PE", width=332]
+
+Now the WinPE starts and will do the actual capturing. Here are the details:
+
+* Mounting the 'opsi_depot_rw' share, so that we can write to it.
+
+* Checking the architecture of the WinPE (32/64 Bit); start of the corresponding opsi-script interpreter.
+
+* Establishing a connection to the opsi-webservice
+
+* Re-activation of the drive letters
+
+* If the property `check_disk_before_capture` contains the value 'true' (default=false), we perform `chkdsk` on the Windows OS partition. That will take a while.
+
+* Checking for existence of the target product stated in the property `target_product` on our 'opsi_depot_rw' share, and whether it contains an `install.wim` file in the right place.
+
+* Checking and creation of a lock file within the `target_product` folder. If this file exists already, we cancel the process in order to prevent several capturing processes writing to the same WIM file.
+
+* If the property `force_imagex` is set to 'true' (default=true), then we use the `imagex` command of our product 'opsi-wim-capture' for capturing, even if the Windows PE has a `dism` command. Otherwise `dism` will be used, if available. `Dism` is faster, but might produce images that cannot be used for successful deployment.
+
+* If the property `capture_mode` is set to `append`: Check, if there is an image of that name contained in the `install.wim`, and delete it. +
+The value `always_create` will only be accepted, if `dism` is being used. In this case, a new `install.wim` file will be created.
+
+* Start of the capture process. The previously mentioned tool (`imagex` vs `dism`) and the `capture_mode` chosen will be used. The name of the image is set by the property `imagename`. The property `image_description` will determine the description of the image. +
+This can last a long time.
+
+CAUTION: Keep in mind the Name of the Image !
+The name of the image created can not be automatically added to the list of installable images at the current time. You have to keep the name in mind and state the image name when deploying!
+
+* Deleting of the lock file in the `target_product` folder.
+
+* Merging the resulting log files.
+
+////
+* Verification ...
+* Überprüfung der Liste der Images im modifizierten install.wim und setzten dieser Namensliste in das Produktproperty `Imagenames` des Zielproduktes, so das das neu erstellte Image auch zur Installation ausgewählt werden kann.
+////
+
+* Request action 'setup' for products contained in the property `setup_after_capture`. +
+At this time, also product dependencies will be resolved. +
+The property is a list and can contain several product IDs.
+
+TIP: leave settings so that opsi-clonzilla will be set to setup !
+The machine will be depersonalized after the capture run, and thus remain unusable. Our product opsi-clonzilla is prepared, so that the backup taken earlier will be restored automatically.
+
+* Deactivation of the WinPE partition, and re-activation of the OS partition (Windows).
+
+* Transfer of the logfile to the server. It will be appended to the existing logfile of the opsi-wim-capture run.
+
+* Reboot
+
+If the product `opsi-clonezilla` has been set to 'setup', a restore of the disk is beeing performed automatically.
+
+.Schema: Restore using opsi-clonezilla
+image::opsi-wim-cap-restore.png["Schema: Restore using opsi-clonezilla", width=332]
+
+[[opsi-manual-wimcap-products]]
+==== Products
+
+[[opsi-manual-wimcap-products-main]]
+===== Main Product opsi-wim-capture
+
+The product opsi-wim-capture contains the following product properties:
+
+* `always_backup_before_sysprep`: +
+(true/false), Default=true, +
+Always make an opsi-clonezilla backup before sysprep.
+
+* `startcapture`: +
+(true/false), Default=true, +
+Sets the product `opsi-local-image-capture` to 'setup', and reboots the machine
+
+* `disabled`: +
+(true/false), Default=false, +
+If set to true, nothing will happen. Its only there for debugging.
+
+* `target_product`: +
+Name of the target product: (Default = pass:[''])
+
+IMPORTANT: This property is not 'intelligent', i.e. we do not check, if the image being copied matches the target product. You could easily write a win7-32Bit Image into a Win81-64Bit product without errors. But you shoud not do that! Furthermore, we recommend separated products for capturing, that are only target products in the capture process. (for instance `win7-x64-captured`).
+
+The target product has to be prepared for deployment like any other Windows OS product. The target file within the target product will be the `install.wim` file (`installfiles/sources/install.wim`), which also contains the images provided by Microsoft. Our new OS image will either be created as a new `install.wim` , or be appended to the existing file. This is being controlled by the property :
+
+* `capture_mode`: +
+(append/always_create) Default='append':
+
+`append` will append the newly created image to the existing install.wim .
+
+IMPORTANT: If the install.wim contains an image that's named ilke the new one, it will be deleted *without warning*. `always_create` will always create a new install.wim . +
+`always_create` will not work with a WinPE based on Windows < 8 .
+
+An Install.wim file is a container, that can contain several images. All of them have a name and a description, which can be controlled by the following properties:
+
+* `imagename`: +
+Default = pass:['']
+
+* `image_description`: +
+Default = pass:['']
+
+* The property `start_after_capture` +
+this is a list of products that will be set to 'setup' after completion of the capture process. Could be good to use for instance opsi-clonezilla, which will restore the backup taken before sysprep.
+
+* `force_imagex`: +
+true/false (default=true) This will use the `imagex` tool, even if `dism` is available.
+
+[[opsi-manual-wimcap-products-target]]
+===== Target Products
+
+The target products shall host the captured images.
+
+Why target products ?
+
+The target products do not differ from default opsi Windows netboot products. Technically, a standard `win7-x64` they can be used as a target product. +
+We recommend the usage of dedicated target products, so that it is easily possible to tell modified installations (opsi-wim-capture) from unmodified installations (original Microsoft DVD). +
+Furthermore, it might be wise to keep a fallback product you can switch to in case the captured `install.wim` becomes unusable for some reason.
+Finally, this decision is left to you.
+
+We provide the following target products:
+
+* `win7-x64-captured`
+* `win81-x64-captured`
+* `win10-x64-captured`
+
+These products have to be equipped with required files from the OS DVDs like any other Windows netboot product (see our opsi-getting-started document).
+
+Still, folders like `winpe` or `drivers/drivers/additional/byAudit` can be symbolic links to a directory in a suitable non-target product. Watch out: the Subfolder `installfiles` needs to be physically there (copy from Windows DVD).
+
+[[opsi-manual-wimcap-installfrom-target]]
+==== Windows Installation via Target Product
+(Deployment from a captured Image)
+
+For deployment of images previously captured, the former `target_product` is now being used. Within the netboot product's properties, use the corresponding `imagename` as an installation source.
+This way, this netboot product can now be used for Microsoft Windows deployments like your original one, including defaults like driver integration and installation of the opsi-client-agent.
+
+*Recovery of opsi data concerning installed products*
+
+Whenever an OS is being deployed to a computer via opsi, any localboot product marked as 'installed' from previous installations, will be set to setup (and thus will be reinstalled).
+
+This is  different when deploying a captured image. +
+When deploying a 'captured' image, only those products will be automatically installed, that were marked for `setup` before deployment of the OS. This can have happened due to your activity, or by means of the `setup_after_install` property.
+
+Why is that the default ? +
+The image contains a backup of the opsi data, which was put there during capture. This is being discovered on installation of the opsi-client-agent, and imported into the opsi server. This way, all products that were installed in the 'captured' image, are marked with status `installed` for the newly deployed machine .
+If we set more products to setup again, at least some software already deployed could be re-installed again. That's not what's desired. +
+
+[[opsi-manual-wimcap-knownproblems]]
+==== Known Restrictions and Problems
+
+The following restrictions are known as of today (19.2.2016):
+
+* UEFI +
+opsi-wim-capture won't work with UEFI Machines. This is mainly due to the fact that the current version of opsi-clonezilla is not yet capable of handling UEFI. we will enable UEFI in opsi-wim-capture, as soon as opsi-clonezilla is UEFI - enabled.
+
+* RAID-Controller non /dev/sda +
+The disk backup started by opsi-wim-capture does not yet work on machines, whose 1st disk is not being seen as `/dev/sda` in Linux (and therefore in opsi-clonezilla). This will be built later.

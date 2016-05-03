@@ -22,17 +22,17 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      01.08.2014
-:Revision:  4.0.5
+:Date:      01.12.2015
+:Revision:  4.0.6
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
 
 [[opsi-manual-localimage]]
-== opsi extension 'opsi local image'
+=== opsi extension 'opsi local image'
 
 [[opsi-manual-localimage-preconditions]]
-=== Preconditions for the opsi extension 'opsi local image'
+==== Preconditions for the opsi extension 'opsi local image'
 
 This module currently is a 
 http://www.opsi.org/en/opsi-extensions[cofunding project]. +
@@ -53,28 +53,52 @@ As a technical precondition opsi 4.0.3 is required with the packet versions:
 |opsi-linux-bootimage|>= 20130207-1
 |==========================
 
+CAUTION: For the product `opsi-local-image-capture` the share `opsi_depot_rw` must have write permission for 'pcpatch'. Check your Samba configuration.
+
+
 [[opsi-manual-localimage-introduction]]
-=== Introduction
+==== Introduction
 
 Opsi is a good point to start the automated installation and maintenance of Windows clients - especially when there is heterogenous hardware to be managed. But the opsi standard installation technique based on installation packets is not fast enough to restore class room workstations in short time, like during the break between two classes. So this module is introducing a new concept, by saving the result of the package based installation as an image on a second partition. From this partition the recovery can performed in short time.
 
 . Initial installation with mit concluding local image backup
 . Fast recovery based on different techniques
 . System maintenance with concluding local image backup
+. Integration of capturing installations to WIM
 . Integration of Linux clients into the Backup/Restore procedure.
 
 [[opsi-manual-localimage-concept]]
-=== Concept
+==== Concept
 
 The requirements of computer networks for education / trainings / class rooms differ from those of other networks. An important requirement, which will be discussed in the following, is the fast recovery of workstations to regain a clean and well known installation status, which has been spoiled by temporary use. This is required for workstations in class rooms, but also for computer pools at universities or any networks for commercial trainings. 
 
-The restore must be completed within reliable short time (like the 15 minutes break between two classes) and should also be able to switch the workstations to a differnet base installation (like Win XP / Win 7 / Linux). Also the continuous system maintenance by installing security updates must be included.
+The restore must be completed within reliable short time (about 15 minutes) and should also be able to switch the workstations to a differnet base installation (like Win XP / Win 7 / Linux). Also the continuous system maintenance by installing security updates must be included.
 
-opsi is a client management system, that features the packet based installation and maintenance of Windows systems. Its advantage, compared to image based concepts, is especially the handling of heterogenous hardware. The average installation time of two hours is not fast enough to meet the requirements stated above. Image based solutions can be much faster, but also might run into network problems when trying to restore the workstations for a whole class room at once. This problem can be solved by local buffered images. This concept is used for instance by the Linux based system LinBo (Source http://linbo.sourceforge.net/). But even with local buffered images the time limit of 15 minutes might be exceeded because on the hardware in use (like hard disc performance).
+The standard approaches for the system maintainment have different advantages and disadvantages:
 
-Another possible solution would be to lock the system state and redirect all write access to an external container, that can be discarded at system reset. For Linux this approach is used e.g. with FUSE file systems. For windows there exist some commercial products, that can be controlled from the command line and thereby could be used from opsi. But as far as we know, there are no Open Source products available for Windows. So this approach is not available for Open Source solutions.
+.Advantages and disadvantages of the Unattend and Image based solutions
+[options="header"]
+|==========================
+| Feature | Unattend | Image
+| Performance | (-) slow | (+) fast
+| Sensitivity to heterogenous Hardware | (+) low | (-) high 
+| Network load | (-) high | (-) high
+|==========================
 
-The resulting solution, that is introduced here, is trying to combine the advantages of the different approaches, to avoid the disadvantages and to provide some scalability to support differing hardware performances. The main features of this combined concept are:
+The concept of opsi-local-image is trying to combine the advantages of the different approaches and to avoid the disadvantages. 
+
+.opsi-local-image
+[options="header"]
+|==========================
+| Feature | Unattend 
+| Performance | (+) fast
+| Sensitivity to heterogenous Hardware | (+) low
+| Network load | (+) low
+|==========================
+
+
+
+The main features of this combined concept are:
 
 * Initial Windows installation per PXE boot, packet based with individual driver integration by using the opsi-Linux-Bootimage
 
@@ -85,7 +109,7 @@ The resulting solution, that is introduced here, is trying to combine the advant
 * Maintenance of the local installation (security updates) by using the opsi system and storing the updated system to the local backup-image by using the opsi-Linux-Bootimage
 
 [[opsi-manual-localimage-concept-technical]]
-=== Technical Concept
+==== Technical Concept
 
 The workstation is being used with a static partition table of three or four partitions.:
 
@@ -109,51 +133,113 @@ The size of this partition is whatever is left by the other partitions.
 
 The netboot products for the operating system installation use the first two or three partitions (XP the first one only) and do not touch the last partiton. So the backup images on partiton four are still available after installating a new operating system.
 
+[[opsi-manual-localimage-proceedings]]
+==== Process steps
+
+[[opsi-manual-localimage-proceedings-initial]]
+===== Initial Installation
+
+The product `opsi-local-image-prepare` first generates the required static partitioning.
+
+.schema: static partitioning with opsi-local-image-prepare
+image::oli-prepare.png["schema: static partitioning with opsi-local-image-prepare", width=332]
+
+Then the products `opsi-local-image-win*` or others can install several operating systems with different client configuration and different application software. 
+
+.schema: OS installation with opsi-local-image-win*
+image::oli-os-install.png["schema: OS installation with opsi-local-image-win*", width=332]
+
+Per default after the installation they will be backuped as image.
+
+.schema: image backup with opsi-local-image-backup
+image::oli-backup-1.png["schema: image backup with opsi-local-image-backup", width=332]
+
+
+[[opsi-manual-localimage-proceedings-restore]]
+===== Restoring an image
+
+Executing the product `opsi-local-image-restore` per default restores the image that has been generated recently. In case a different image is to be restored, the name of the image has to be specified by the property `imagefile`.
+
+.schema: image restore with opsi-local-image-restore
+image::oli-restore-image.png["schema: image restore with opsi-local-image-restore", width=332]
+
+[[opsi-manual-localimage-proceedings-delete]]
+===== Deleting an image
+
+.Schema: Deleteing an Image
+image::oli-delete-image.png["Schema: Deleteing an Image", width=332]
+
+By executing the product `opsi-local-image-delete` the image that is specified by the property `imagefile` will be deleted.
+
+
+[[opsi-manual-localimage-proceedings-update]]
+===== Updating an image: automatic work flow
+
+.Schema: Steps of automatic image upgrade work flow
+image::oli-image-upgrade-flow.png["Schema: Steps of automatic image upgrade work flow", width=332]
+
+By executing the product `opsi-local-image-restore` with the property setting `update_and_backup` = 'true' the given image will be restored, all application software will be updated (as updates are available on the server) and finally a backup is generated.
+
+
 
 [[opsi-manual-localimage-components]]
-=== Components
+==== The opsi-local-image products
 
-The packet 'opsi-local-image' consists of several components:
+The packet 'opsi-local-image' consists of several products:
 
-The netboot products
+The netboot product used for partitioning
 
 * `opsi-local-image-prepare`
+
+The netboot products fr OS installation:
+
 * `opsi-local-image-winxp`
 * `opsi-local-image-win7`
 * `opsi-local-image-win7-x64`
-* `opsi-local-image-win8`
-* `opsi-local-image-win8-x64`
 * `opsi-local-image-win81`
 * `opsi-local-image-win81-x64`
+* `opsi-local-image-win10`
+* `opsi-local-image-win10-x64`
+
 * `opsi-local-image-ubuntu`
+* `opsi-local-image-opensuse13-2`
+
+The netboot products for the local image handling:
 * `opsi-local-image-backup`
 * `opsi-local-image-restore`
 * `opsi-local-image-delete`
-* `opsi-local-image-capture`
 
-The local boot products:
+The local boot product for the process control:
 
 * `opsi-local-image-backup-starter`
-* `opsi-local-image-sysprep`
 
-and an extension of the opsi service methods.
+
+[[opsi-manual-localimage-components-uefi]]
+===== UEFI Compatibility
+
+The opsi-local-image Products are UEFI enabled with some exceptions.
+
+Not UEFI enabled are the following opsi-local-image products:
+
+* `opsi-local-image-opensuse13-2`
+
+
 
 [[opsi-manual-localimage-components-part]]
-==== netboot product for partitioning
+===== netboot product for partitioning
  
 * `opsi-local-image-prepare` +
 To create the static partitioning of the hard disc for all other products. +
-The property `system_partition_size` defines the size of partition 1 (Default = 30G) 
+The property `system_partition_size` defines the size of partition 1 (Default = 30G) +
 
-The property `data_partition_size` defines the size of the partition 2. When set to '0G', no partition will be created for data (default = 0G).
-
+The property `data_partition_size` defines the size of the partition 2. When set to '0G', no partition will be created for data (default = 0G). +
 The property `start_os_installation` selects a product for installing an operating system and to be started after the partitioning automatically.
 When installing this product, the product properties 'imagefile' and 'imagefiles_list' of the product `opsi-local-image-restore` are deleted, for they have become invalid after the repartitioning.
 
 IMPORTANT: Use this product only for the initial preparation of the disc for it deletes all existing images.
 
 [[opsi-manual-localimage-components-win]]
-==== netboot products for installing Windows
+===== netboot products for installing Windows
 
 The special netboot products for installing Windows are derived from the opsi standard products for windows installation. Therefore the structure and the driver integration are the same as with the standard. For details please refer to the 'opsi-getting-started' manual.
 
@@ -169,20 +255,20 @@ Administrator password = `nt123`.
 Installation of Windows 7 64 Bit.
 Administrator password = `nt123`.
 
-* `opsi-local-image-win8` +
-Installation of Windows 8 32 Bit.
-Administrator password = `nt123`.
-
-* `opsi-local-image-win8-x64` +
-Installation von Windows 8 64 Bit.
-Administrator password = `nt123`.
-
 * `opsi-local-image-win81` +
 Installation von Windows 8.1 32 Bit.
 Administrator password = `nt123`.
 
 * `opsi-local-image-win81-x64` +
 Installation von Windows 8.1 64 Bit.
+Administrator password = `nt123`.
+
+* `opsi-local-image-win10` +
+Installation von Windows 10 32 Bit.
+Administrator password = `nt123`.
+
+* `opsi-local-image-win10-x64` +
+Installation von Windows 10 64 Bit.
 Administrator password = `nt123`.
 
 The following products have special properties for 'opsi-local-image':
@@ -193,7 +279,7 @@ The following products have special properties for 'opsi-local-image':
 Here one or more products can be listed, that after the OS installation shall be set to 'setup'. This includes the dependencies of these products.
 
 [[opsi-manual-localimage-components-linux]]
-==== Netboot products for installing Linux
+===== Netboot products for installing Linux
 
 * `opsi-local-image-ubuntu` +
 Installation of Ubuntu Linux 12.04/14.04 32Bit/64Bit. +
@@ -226,20 +312,56 @@ Ubuntu release to be installed  (default="trusty")
 ** `install_opsi-client-agent`: +
 The Linux opsi-client-agent is to be installed if 'true' (this is a co-funding project and requires activation by /etc/opsi/modules)  (default='false')
 
+* `opsi-local-image-opensuse13-2` +
+Installation of OpenSuse Linux 13.2 32Bit/64Bit. +
+The installed system has 2 users: `root` and `user`. The password for 'root' will be set according to the product property `root_password` (default: `linux123`). For 'user' the password will be set according to `user_password` (default: `linux123`).
+Details of the installation can be configured with some product properties. The main product properties are: 
+** `askbeforeinst`: +
+Has the start of the installation to be confirmed at the client? (default='true')
+** `architecture`: +
+architecture selection, affects the selection of the bootimage and the installation architecture  (default='64bit')
+** `language`: +
+language / locale to be installed  (default='de')
+** `console_keymap` +
+keyboard layout to be installed  (default='de-latin1-nodeadkeys')
+** `timezone`: +
+timezone to be set  (default='Europe/Berlin')
+** `partition_disk`: +
+Which disk should be used? (Default='first') 
+** `proxy`: +
+Proxystring (if required) with following syntax: `http://<ip>:<port>`  (default = pass:[''])
+** `backup_after_install` +
+('true'/'false') default = 'true'. If true, after the installation an image backup will be generated.
+** `setup_after_install` +
+Here one or more products can be listed, that are to be set to 'setup' and so will be installed after the OS installation. This also includes the dependencies of these products.
+** `install_opsi-client-agent`: +
+The Linux opsi-client-agent is to be installed if 'true' (this is a co-funding project and requires activation by /etc/opsi/modules)  (default='false')
+
 
 [[opsi-manual-localimage-components-backuprestore]]
-==== Netboot product for backup and restore
+===== Netboot product for backup and restore
 
 * `opsi-local-image-backup` +
 This product saves the OS which is installed on partition 1 as an image on partition 3. The image name will be set according to the property `imageFile`. If this is empty, the name of the opsi netboot product will be used, that currently is set to 'installed' (e.g. `opsi-local-image-winxp`). This name also is set as the product property 'imagefile' of the product `opsi-local-image-restore`, so that a following call of `opsi-local-image-restore` is going to restore this image. This name also will be added to the product property 'imagefiles_list' of the product `opsi-local-image-restore`. So this property holds the list of all available images. Furthermore (for Windows products) the current opsi product settings will be saved together with the image, so they also can be restored. +
 The backup tool in use is partclone. +
 Properties:
+** `askbeforeinst`: +
+Has the start of the installation to be confirmed at the client? (default='false')
+** `free_on_backup`: +
+This is a read-only property which shows you the some infos about the backup partition: device, size, used, remaining, use in %, mount point
 ** `imagefile` +
-name of the image file to be generated (default = empty = automated name setting). The name may include spaces, but no umlauts (like ä, ö, ü). (In case of spaces they will internally be treated as underscore. So 'my image' = 'my_image'.
+name of the image file to be generated (default = empty = the name of the installed opsi-local-image operating system product will be used). The name may include spaces, but no umlauts (like ä, ö, ü). (In case of spaces they will internally be treated as underscore. So 'my image' = 'my_image'.
+** `setup_after_install` +
+Here one or more products can be listed, that are to be set to 'setup' and so will be installed after tis product is finished. This also includes the dependencies of these products.
+
 
 * `opsi-local-image-restore` +
 This product restores the image defined by the product property 'imagefile' to partition 1 and makes it bootable. Furthermore (for Windows products) the product settings connected with this image will be restored. +
 Properties:
+** `askbeforeinst`: +
+Has the start of the installation to be confirmed at the client? (default='true')
+** `architecture`: +
+architecture selection, affects the selection of the bootimage and the installation architecture  (default='64bit')
 ** `imagefile` +
 Name of the image to be restored. The value of this property has been set automatically by the last backup. The list of available images is to be found in the property `imagefiles_list`.
 ** `imagefiles_list` +
@@ -259,7 +381,7 @@ This product deletes the image given by the product property 'imagefile' from th
 Name of the image to be deleted (default = empty, results in an error when executing)
 
 [[opsi-manual-localimage-components-helper]]
-==== Localboot product for process control
+===== Localboot product for process control
 
 * `opsi-local-image-backup-starter` +
 This localboot product sets the Netboot product `opsi-local-image-backup` to 'setup' and reboots the client. This product has a very low priority of -98. This means, that all usual localboot products will be installed first. This feature can be used as follows: +
@@ -275,7 +397,7 @@ This results in the following process order:
 . backup of the updated  operating system
 
 [[opsi-manual-localimage-service-methods]]
-=== Extended opsi service methods
+==== Extended opsi service methods
 
 With this extension the clients of a training classroom can be listed as a opsi-client group. The following extensions have been implemented to provide comfortable collective action management for all clients of a classroom:
 
@@ -294,48 +416,9 @@ gets the list of present imagefile names that have been generated by `opsi-local
 These methods will be integrated into the opsi standard packets at a later date. Until then these extensions are available by executing the file `40_groupActions.conf`, which is part of this release. Please copy it with  'root' rights to `/etc/opsi/backendManager/extend.d` and execute: 
 `opsi-setup --set-rights /etc/opsi`.
 
-[[opsi-manual-localimage-proceedings]]
-=== Process steps
-
-[[opsi-manual-localimage-proceedings-initial]]
-==== Initial Installation
-
-The product `opsi-local-image-prepare` first generates the required static partitioning.
-
-.schema: static partitioning with opsi-local-image-prepare
-image::oli-prepare.png["schema: static partitioning with opsi-local-image-prepare", width=332]
-
-Then the products `opsi-local-image-winxp`, `opsi-local-image-win7`, `opsi-local-image-win7-x64` and `opsi-local-image-ubuntu` can install several operating systems with different client configuration and different application software. 
-
-.schema: OS installation with opsi-local-image-win*
-image::oli-os-install.png["schema: OS installation with opsi-local-image-win*", width=332]
-
-Per default after the installation they will be backuped as image.
-
-.schema: image backup with opsi-local-image-backup
-image::oli-backup-1.png["schema: image backup with opsi-local-image-backup", width=332]
-
-
-[[opsi-manual-localimage-proceedings-restore]]
-==== Restoring an image
-
-Executing the product `opsi-local-image-restore` per default restores the image that has been generated recently. In case a different image is to be restored, the name of the image has to be specified by the property `imagefile`.
-
-.schema: image restore with opsi-local-image-restore
-image::oli-restore-image.png["schema: image restore with opsi-local-image-restore", width=332]
-
-[[opsi-manual-localimage-proceedings-update]]
-==== Updating an image
-
-By executing the product `opsi-local-image-restore` with the property setting `update_and_backup` = 'true' the given image will be restored, all application software will be updated (as updates are available on the server) and finally a backup is generated.
-
-[[opsi-manual-localimage-proceedings-delete]]
-==== Deleting an image
-
-By executing the product `opsi-local-image-delete` the image that is specified by the property `imagefile` will be deleted.
 
 [[opsi-manual-localimage-backuppartition]]
-=== Backup partition
+==== Backup partition
 
 The backup partion is (with MBR BIOS without data partition) the third partition of disc one. +
 It contains:
@@ -350,10 +433,10 @@ To give an idea about file sizes, here as an example the sizes of different imag
 * `opsi-local-image-win7-x64`: 13G
 
 [[opsi-manual-localimage-wimcapture]]
-=== Capture Images (WIM) generating and distribution
+==== Capture Images (WIM) generating and distribution
 
 [[opsi-manual-localimage-wimcapture-introduction]]
-==== Capture Images (WIM) Introduction
+===== Capture Images (WIM) Introduction
 
 Starting with NT6 (Vista) Microsoft has introduced the new image format *Windows Imaging Format (WIM)* for installation.
 A WIM image is not a disc or partition image anymore, but a file and meta archive. A WIM file can hold several images. The standard installation of a NT6 client is based on a setup.exe extracting an installation image from the file install.wim which is then to be configured and equipped with additional drivers.
@@ -361,7 +444,7 @@ A WIM image is not a disc or partition image anymore, but a file and meta archiv
 From an existing client the Windows operating system including the installed software and configuration can be extracted and saved in form of a WIM. Then such a WIM can be the starting point for a new installation.
 
 [[opsi-manual-localimage-wimcapture-components]]
-==== Capture Images (WIM) Components
+===== Capture Images (WIM) Components
 
 The packet 'opsi-local-image' consists of several components:
 
@@ -378,9 +461,32 @@ The localboot products:
 ////
 * `opsi-client-agent` >= Version 4.0.4.5-3
 
+and the 'target products' which should be used to hold the captured images:
+
+* `opsi-local-image-win7-capture`
+* `opsi-local-image-win7-x64-capture`
+* `opsi-local-image-win81-capture`
+* `opsi-local-image-win81-x64-capture`
+* `opsi-local-image-win10-capture`
+* `opsi-local-image-win10-x64-capture`
 
 [[opsi-manual-localimage-wimcapture-proceedings]]
-==== Capture Images (WIM) Processing
+===== Capture Images (WIM) Processing
+
+*Overview:* +
+Do the following steps in this sequence:
+
+. Inital prepare with `opsi-local-image-prepare`
+. Install the OS with `opsi-local-image-win*`
+. Install and configure additional software with 'opsi' or / and manually
+. Configure the product properties of the netboot product `opsi-local-image-capture` (but do not switch it to setup)
+. Start the localboot product `opsi-local-image-sysprep`
+. `opsi-local-image-sysprep` starts (according to it's product properties) an `opsi-local-image-backup` run
+. `opsi-local-image-sysprep` runs sysprep in order to depersonalize the OS installation
+. `opsi-local-image-sysprep` starts (according to it's product properties) `opsi-local-image-capture`
+. `opsi-local-image-capture` configures the winpe partition for boot and capture and reboots
+. The PC boots from winpe and will do the capture process. The log is appended to the `opsi-local-image-capture` bootimag log
+
 
 *Generating the master client:* +
 this will be generated with 'opsi-local-image' as client and can get software and configuration per opsi as well as manually.
@@ -389,13 +495,20 @@ this will be generated with 'opsi-local-image' as client and can get software an
 for that an image can be the starting point of an installation, at first it must be prepared. The client has to be depersonalised, so that the client has no identity anymore and so can be the template for new installations. But being depersonalised it can not be used as a working client anymore. +
 So with the product 'opsi-local-image-sysprep' by special properties can be configured, whether there has to be created a backup before depersonalisation: 
 
-`always_backup_before_sysprep` (true/false) default=true: always make a backup before starting the sysprep. 
+* `always_backup_before_sysprep`: +
+(true/false), default=true, +
+always make a backup before starting the sysprep. 
 
-`abort_on_no_backup` (true/false) default=true: check whether the backup partition has a backup for this product and abort if not. After the sysprep usually the actual capture will be started, which is performed by the netboot product 'opsi-local-image-capture'. Whether it starts automatically is set by the property: 
+* `abort_on_no_backup`: +
+(true/false) default=true, +
+check whether the backup partition has a backup for this product and abort if not. After the sysprep usually the actual capture will be started, which is performed by the netboot product 'opsi-local-image-capture'. Whether it starts automatically is set by the property: 
 
-`startcapture` (true/false) default=true: set the product 
+* `startcapture`: +
+(true/false), default=true: set the product `opsi-local-image-capture` to 'setup' and reboots
 
-`opsi-local-image-capture` to 'setup' and reboot the client.
+* `disabled`: +
+(true/false), Default=false, +
+If true nothing will be done. This avoids loops that may start after restoring an image that has `opsi-local-image-sysprep` with action request `setup` in the restored meta data.
 
 .capture images: configed: opsi-local-image-sysprep
 image::oli-capture-configed-sysprep.jpg["capture images: configed: opsi-local-image-sysprep", width=500]
@@ -403,24 +516,30 @@ image::oli-capture-configed-sysprep.jpg["capture images: configed: opsi-local-im
 *capture: read the existing installation and provide for installation:* +
 within this multi-stage process the existing client will be readout and integrated as WIM into an existing opsi Windows installation product. So there is a product property to define, in which product the image readout is to be integrated:
 
-`target_product`: name of target product (default = pass:['']) 
+* `target_product`: +
+name of target product (default = pass:['']) 
 
 IMPORTANT:  this property isn't smart, so it does not check whether the image matches the specified target. So you could by mistake integrate a Win7-32Bit into a Win81-64Bit product without getting an error or warning message. So you must take care not to do so! We recommend using special capture target products (like `opsi-local-image-win81-x64-capture`). 
 
 The target product, like the standard product for Windows installation must be prepared. The target file within the target product is `install.wim` (`installfiles/sources/install.wim`), that also includes the images provided by Microsoft. Whether the image readout has to be appended to this file or a new `install.wim` has to be generated, is defined by the property:
 
-`capture_mode` (append/always_create) default = 'append': +
+* `capture_mode`: +
+(append/always_create) default = 'append': +
 with `append` the new image will be appended to the existing `install.wim`.
 
-IMPORTANT: In case the `install.wim` contains an image with the same name it will be *deleted without notice*. With `always_create` a new `install.wim` will be created. 
+IMPORTANT: In case the `install.wim` contains an image with the same name it will be *deleted without notice*. With `always_create` a new `install.wim` will be created. +
+`always_create` does not works only with winpe that are based on windows < 8.x.
 
 The `install.wim` file is a container that can hold several images. The images have a name and a description. The name and the description of the new created images is set by these properties:
 
-`imagename`  default = pass:[''] 
+* `imagename` +
+default = pass:[''] 
 
-`image_description`  default = pass:['']
+* `image_description` +
+default = pass:['']
 
-The property `start_after_capture` is a list of products, which have to be set to 'setup' after the capture. This could be for instance 'opsi-local-image-restore', which restores the client from the backup that had been generated before the sysprep.
+* The property `start_after_capture` +
+is a list of products, which have to be set to 'setup' after the capture. This could be for instance 'opsi-local-image-restore', which restores the client from the backup that had been generated before the sysprep.
 
 .capture images: configed: opsi-local-image-capture
 image::oli-capture-configed-capture.jpg["capture images: configed: opsi-local-image-capture", width=500]
@@ -499,7 +618,7 @@ One important aspect has to be taken into account: if on the client the image ha
 
 
 [[opsi-manual-localimage-ubuntumirror]]
-=== Creating an own Ubuntu 'proxy'
+==== Creating an own Ubuntu 'proxy'
 For a helpful manual for creating an own Ubuntu proxy refer to:
 
 http://wiki.ubuntuusers.de/Lokale_Paketquellen/Apt-Cacher-ng

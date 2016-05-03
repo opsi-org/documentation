@@ -84,7 +84,6 @@ html: $(addsuffix .html,$(DOCS))
 epub: $(addsuffix .epub,$(DOCS))
 %.epub: FORMAT = epub
 
-
 %: FORMAT ?= $(subst html,xhtml,$(FORMATS))
 %:
 	@$(foreach L,$(LANG),\
@@ -102,6 +101,7 @@ epub: $(addsuffix .epub,$(DOCS))
 					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
 					"$$XSLT_FILE"							\
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
+					cp $(TOP_DIR)/conf/stylesheets/docbook-xsl.css $(DEST_DIR)/$(F)/$(L)/$(basename $@);	\
 					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
 				else	\
 					echo "ERROR: Document $@ could not be built for language $(L)";	\
@@ -113,4 +113,3 @@ epub: $(addsuffix .epub,$(DOCS))
 			;									\
 		)	\
 	)
-

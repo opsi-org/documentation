@@ -22,15 +22,18 @@
 include::../common/opsi_terms.asciidoc[]
 
 [[opsi-manual-api-datastructure-opsi]]
-== Web service / API Methoden
+=== Web service / API Methoden
+
+Seit opsi 4 gibt es zwei unterschiedliche Arten von API Methoden:
+
+* 'objekt orientierte' Methoden
+* 'aktions orientierte' Methoden
 
 [[opsi-manual-api-datastructure-opsi4]]
-=== Web service / API Methoden seit opsi 4.0
+==== Web service / API Methoden seit opsi 4.0
 
 [[opsi-manual-api-datastructure-opsi4-overview]]
-==== Übersicht
-
-Für opsi 4.0 wurden die Backends und die dazugehörigen Methoden komplett überarbeitet.
+===== Übersicht
 
 Die opsi4-Backends basieren auf Objekten.
 Ein Objekt hat eine Reihe von Eigenschaften.
@@ -163,8 +166,6 @@ Das aufgeführte Design ermöglicht es:
 Hierdurch wird eine verbesserte Stabilität und höhere Performanz erreicht.
 
 
-[[opsi-manual-api-datastructure-opsi4-storage]]
-==== Die Objekte zur Datenspeicherung
 
 [[opsi-manual-api-datastructure-opsi4-storage-host]]
 ===== 'host'  (server und clients)
@@ -1007,7 +1008,7 @@ Beispiel für ein `licensePool` Objekt:
 ----
 
 [[opsi-manual-api-datastructure-opsi4-changeobjekts]]
-==== Beispiel für die Änderung eines Keys in mehreren Objekten
+===== Beispiel für die Änderung eines Keys in mehreren Objekten
 
 Hier soll erläutert werden, wie Änderungen an einem Objekt durch geführt werden können.
 Als Beispiel wird das `host` Objekt verwendet, welches über die Auswahl auf den Typ `OpsiDepotserver` eingeschränkt wird:
@@ -1077,15 +1078,190 @@ opsi-admin -d method host_createObjects < /tmp/maxBand.json
 ----
 
 [[opsi-manual-api-datastructure-opsi4-special]]
-==== Die spezial Objekte
+====== Spezielle Methoden
 
-NOTE: This chapter has to be written ...
+Es gibt eine Reihe von speziellen Methoden.
+Einige davon werden nachfolgend vorgestellt.
+
+[[opsi-manual-api-datastructure-opsi4-special-getClientToDepotserver]]
+====== 'configState_getClientToDepotserver'
+Diese Methode liefert uns Informationen darüber welchem Depot ein Client zugordnert ist.
+
+Die Syntax ist:
+[source,configfile]
+----
+ method configState_getClientToDepotserver *depotIds *clientIds
+*masterOnly *productIds
+----
+
+Beispiel:
+[source,configfile]
+----
+method configState_getClientToDepotserver [] "pcbon4.uib.local"
+[
+          {
+          "depotId" : "bonifax.uib.local",
+          "alternativeDepotIds" :
+                    [
+
+                    ],
+          "clientId" : "pcbon4.uib.local"
+          }
+]
+----
+
+[[opsi-manual-api-datastructure-opsi4-special-hostControl]]
+====== Kommunikation mit Hosts
+
+Die 'hostControl'-Methoden werden verwendet um mit den Clients zu kommunizieren und diese zu steuern.
+Seit opsi 4.0.3 empfehlen wird die Verwendung der 'hostControlSafe'-Methoden.
+Beide Varianten haben einen Parameter 'hostIds'. Bei 'hostControl' ist dieser optional - ohne Angabe werden die Aktionen gegen alle Clients durchgeführt.
+Bei 'hostControlSafe' ist der Parameter zwingend. Falls alle Clients angesprochen werden sollen, muss hier `"*"` angegeben werden.
+Bei Befehlen wie 'hostControl_reboot' kann das Weglassen der Host-IDs zum versehentlichen Neustart aller Clients führen, weshalb in opsi 4.0.3 die Abwärtskompatibilität gebrochen wurde und bei den Befehlen 'hostControl_reboot' und 'hostControl_shutdown' das Weglassen des Parameters nun zu einem Fehler führt.
+
+
+* `hostControlSafe_execute` +
+Führt einen Befehl auf den Clients aus. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und weist sie an `command` auszuführen. +
+Parameter: `command hostIds`
+
+* `hostControlSafe_fireEvent` +
+Führt ein opsiclientd-Event auf den Clients aus.
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und weist ihn an das Event zu starten. +
+Parameter: `event hostIds`
+
+* `hostControlSafe_getActiveSessions` +
+Liest die angemeldeten Benutzer aus. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und fragt die aktiven Sessions ab. +
+Parameter: `hostIds`
+
+* `hostControlSafe_opsiclientdRpc` +
+Für die angegebene Methode auf dem Service des opsiclientd aus. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und führt die Methode `method` mit den gegebenen `params` als Parameter aus. +
+Das ist die generischste Methode, da sich hierüber beliebige weitere Methoden starten lassen. +
+Der einfachste Weg die verfügbaren Methoden zu erfahren ist sich auf das Control-Interface des Zielclients zu verbinden. Dieses ist zu erreichen unter https://<clientId>:4441. +
+Parameter: `method *params hostIds`
+
+* `hostControlSafe_reachable` +
+Überprüft, ob der opsiclientd erreichbar ist. +
+Baut dazu eine Verbindung zum opsiclientd der gegebenen Clients auf, aber führt keinen Login durch. +
+Parameter: `hostIds`
+
+* `hostControlSafe_reboot` +
+Startet die Clients neu. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und führt einen Neustart aus. +
+Parameter: `hostIds`
+
+* `hostControlSafe_showPopup` +
+Zeigt eine Nachricht in einem Popup auf den Clients. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und zeigt die gegebene Nachricht in einem Popup-Fenster. +
+Parameter: `message hostIds`
+
+* `hostControlSafe_shutdown` +
+Fährt die Clients herunter. +
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und fährt den Client herunter. +
+Parameter: `hostIds`
+
+* `hostControlSafe_start` +
+Sendet ein Wake-On-Lan-Signal an die Clients. +
+Das ist die einzige 'hostControlSafe'-Methode, welche nicht den opsiclientd eines Clients verwendet. +
+Parameter: `hostIds`
+
+* `hostControlSafe_uptime` +
+Fragt Clients nach ihrer Uptime.
+Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und liest die Uptime in Sekunden aus. +
+Parameter: `hostIds`
+
+[[opsi-manual-api-datastructure-opsi4-special-log]]
+====== Arbeit mit Logs
+
+Die folgenden Methoden drehen sich um die Arbeit mit Logs.
+
+* `log_read` +
+Liest ein opsi-Log vom Server.  +
+Parameter: `logType *objectId *maxSize` +
+Mögliche Log-Arten sind 'instlog' (opsi-winst), 'clientconnect' (opsiclientd), 'userlogin', 'bootimage' sowie 'opsiconfd'. +
+Als Parameter 'objectId' wird normalerweise die 'clientId' des Clients dessen Log man möchte angegeben.
+
+* `log_write` +
+Schreibt eine Logdatei zum Server. +
+Parameter: `logType data *objectId *append` +
+Log-Arten und 'objectId' werden unter *log_read* beschrieben. +
+Mittels `append` wird gesteuert, ob der neue Inhalt an ein eventuell bestehendes Logfile angehangen wird. Der Wert kann `true` oder `false` sein. Letzteres ist der Standard.
+
+[[opsi-manual-api-datastructure-opsi4-group-tutorial]]
+====== Tutorial: Arbeit mit Gruppen
+
+Sie arbeiten mit Gruppen-Objekten. Die Methoden beginnen also mit 'group'.
+Dann gibt es zwei Arten von Gruppen: Host-Gruppen und Produkt-Gruppen. Für die Treeview benötigen wir die erste Variante, das heisst beim Erstellen oder Abfragen muss `type` auf `HostGroup` gesetzt werden.
+
+Das Erstellen von Hostgruppen ist vereinfacht durch die Methode `group_createHostGroup`.
+Die Parameter sind `id`, `description` (Beschreibung), `notes` (Notizen) und `parentGroupId` (ID der übergeordneten Gruppe). Davon ist nur die id zwingend zu vergeben und diese muss einzigartig sein.
+
+IMPORTANT: In opsi 4.0 werden Gruppen anhand ihrer ID identifiziert. Diese ID muss gruppenübergreifend einzigartig sein.
+
+
+
+Das Anlegen einer Gruppe ist nun so möglich:
+[source,prompt]
+----
+opsi-admin -d method group_createHostGroup rechner_wenselowski "Nikos Rechner"
+----
+
+Wollen Sie nun die angelegte Gruppe anschauen, so können Sie mittels group_getObjects die Gruppen abfragen. Hier die Abfrage nach der soeben angelegten Gruppe:
+[source,prompt]
+----
+opsi-admin -d method group_getObjects '' '{"id": "rechner_*", "type": "HostGroup"}'
+----
+
+Wollen Sie Untergruppen anlegen, so müssen Sie als parentGroupId die ID der übergeordneten Gruppe angeben. Hier als Beispiel eine Untergruppe zur gerade angelegten Gruppe:
+[source,prompt]
+----
+opsi-admin -d method group_createHostGroup "rechner_wenselowski2" "Untergruppe" "" "rechner_wenselowski"
+----
+
+Die Abfrage von vorher sollte nun auch die neue Gruppe ausgeben.
+
+Wenn Sie nun mit dem Directory arbeiten wollen, so wird dieses intern als Gruppe mit der ID clientdirectory behandelt.
+Clients dürfen im Directory immer nur in einer Gruppe sein - per Default sind sie der Gruppe mit der ID NICHT_ZUGEWIESEN zugewiesen. Verwenden Sie opsi in einer anderen Sprache, kann der Gruppenname abweichen.
+Dafür, dass die Clients nur immer in einer Gruppe sind, wenn sie im Directory sein sollen, muss vom jeweiligen Programmierer gemanaged werden, da das Backend an dieser Stelle nicht eingreift.
+
+Die Zuordnung von Clients zur Gruppe geschieht über objectToGroup-Objekte.
+Wir legen einen Client mit dem folgenden Befehl an:
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient "wenselowski-test.uib.local"
+----
+
+Diesen fügen wir nun der Untergruppe von vorhin hinzu:
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_create "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+----
+
+Um das nun zu überprüfen, können wir wie folgt die Zuordnung abfragen:
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_getObjects '' '{"groupType": "HostGroup", "groupId": "rechner_wenselowski2"}'
+----
+
+Um den Client aus der Gruppe zu entfernen, können Sie so vorgehen:
+[source,prompt]
+----
+opsi-admin -d method objectToGroup_delete "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+----
+
+Um zu guter letzt eine Gruppe zu löschen, können Sie das wie folgt machen:
+[source,prompt]
+----
+opsi-admin -d method group_delete "rechner_wenselowski"
+----
 
 [[opsi-manual-api-datastructure-opsi3]]
-=== opsi3-Methoden
+==== Aktions-orientierte Methoden
 
-Die mit opsi 3 eingeführten Methoden stehen als 'Legacy' Methoden weiterhin zur Verfügung,
-werden aber ab opsi 4.0 intern auf die neuen Methoden 'gemappt'.
+Die mit opsi 3 eingeführten 'aktions orientierten' Methoden stehen weiterhin zur Verfügung und werden weiter gepflegt.
+Diese Methodenwerden aber ab opsi 4.0 intern auf die 'objekt orientierten' Methoden 'gemappt'.
 
 Hier eine Liste der Methoden (dargestellt in der Form des Aufrufs mit 'opsi-admin') mit einer kurzen Beschreibung.
 Diese dient zur Orientierung und nicht als Referenz.
@@ -1094,25 +1270,10 @@ um diese Methode tatsächlich zu verwenden.
 
 [source,prompt]
 ----
-method addHardwareInformation hostId, info
-----
-
-Fügt Hardwareinformationen zum Rechner 'hostid' hinzu. Übergeben wird der Hash 'info'.
-Vorhandene Informationen werden überschrieben, wenn die Keys über einstimmen. Es sind nur bestimmte Keys zulässig
-
-[source,prompt]
-----
 method authenticated
 ----
 
 Überprüfen ob die Authentifizierung am Service erfolgreich war.
-
-[source,prompt]
-----
-method checkForErrors
-----
-
-Überprüft auf Inkonsistenzen im Backend (bisher nur implementiert für Backend File)
 
 [source,prompt]
 ----
@@ -1133,7 +1294,7 @@ Erzeugt eine Gruppe von Clients wie sie vom {opsi-Configed} verwendet wird.
 method createLicenseKey productId, licenseKey
 ----
 
-Weist dem Produkt 'produktid' einen (weiteren) Lizenzkey zu.
+Weist dem Produkt 'productId' einen (weiteren) Lizenzkey zu.
 
 [source,prompt]
 ----
@@ -1207,20 +1368,6 @@ Löscht einen Lizenzkey.
 
 [source,prompt]
 ----
-method deleteNetworkConfig objectId
-----
-
-Löscht Netzwerkkonfiguration (z.B. depotshare Eintrag) für Client oder Domain.
-
-[source,prompt]
-----
-method deleteOpsiHostKey hostId
-----
-
-Löscht einen pckey aus der pckey-Datenbank.
-
-[source,prompt]
-----
 method deleteProduct productId
 ----
 
@@ -1278,13 +1425,6 @@ Liefert eine Beschreibung der auf dem opsi-server konfigurierten Backends und we
 
 [source,prompt]
 ----
-method getBootimages_list
-----
-
-Liefert die Liste der zur Auswahl stehenden Bootimages.
-
-[source,prompt]
-----
 method getClientIds_list serverId = None, groupId = None, productId = None, installationStatus = None, actionRequest = None
 ----
 
@@ -1296,13 +1436,6 @@ method getClients_listOfHashes serverId = None, groupId = None, productId = None
 ----
 
 Liefert die Liste der Clients, welche den angegebenen Kriterien entsprechen, zusammen mit Beschreibung, Notizen und 'Lastseen'.
-
-[source,prompt]
-----
-method getDefaultNetBootProductId clientId
-----
-
-Liefert das Netboot-Produkt (z.B. Betriebssystem) welches beim Aufruf des bootimages 'install' installiert wird.
 
 [source,prompt]
 ----
@@ -1326,7 +1459,7 @@ Liefert die Liste der gespeicherten Clientgruppen.
 
 [source,prompt]
 ----
-opsi-admin -d -S method auditHardwareOnHost_getObjects '[]' '{"hostId":"<hostId>"}'
+method auditHardwareOnHost_getObjects '[]' '{"hostId":"<hostId>"}'
 ----
 
 Liefert die Hardwareinformationen zu dem angegebenen Rechner.
@@ -1634,13 +1767,6 @@ Sendet ein WakeOnLan-Signal an die angegebene MAC.
 
 [source,prompt]
 ----
-method setBootimage bootimage, hostId, mac=None
-----
-
-Setzt 'bootimage' als Bootimage beim Start des angegebenen Clients.
-
-[source,prompt]
-----
 method setGeneralConfig config, objectId = None
 ----
 
@@ -1676,24 +1802,10 @@ Trägt für einen Client seine MAC-Adresse in die Datenbank ein.
 
 [source,prompt]
 ----
-method setNetworkConfig objectId, serverId='', configDrive='', configUrl='', depotDrive='', depotUrl='', utilsDrive='', utilsUrl='', winDomain='', nextBootServiceURL=''
-----
-
-Setzt für einen Client die angegebene Netzwerkdaten für den opsi-client-agent.
-
-[source,prompt]
-----
 method setOpsiHostKey hostId, opsiHostKey
 ----
 
 Setzt für einen Rechner den 'pckey'.
-
-[source,prompt]
-----
-method setPXEBootConfiguration hostId *args
-----
-
-Schreibt die Pipe für dne PXE-Boot mit *args in der 'append'-Liste.
 
 [source,prompt]
 ----
@@ -1725,27 +1837,13 @@ Setzt {Product-properties} für das angegebene Produkt (und den angegebenen Clie
 
 [source,prompt]
 ----
-method unsetBootimage hostId
-----
-
-Setzt einen Bootimage-Start für den angegebenen Client zurück.
-
-[source,prompt]
-----
-method unsetPXEBootConfiguration hostId
-----
-
-Löscht die PXE-Boot-Pipe.
-
-[source,prompt]
-----
 method unsetProductActionRequest productId, clientId
 ----
 
 Setzt einen {Action-request} auf 'none'.
 
 [[opsi-manual-api-datastructure-opsi-backend-extensions]]
-=== Backend-Erweiterungen
+==== Backend-Erweiterungen
 
 Durch die in opsi 4 implementierten Funktionalität des Backend-Extenders
 können auf der Basis der opsi4-API-Methoden oder des Funktionskerns jederzeit
