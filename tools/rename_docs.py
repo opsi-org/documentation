@@ -22,9 +22,9 @@ if __name__=="__main__":
 	if not len(sys.argv) > 3:
 		print "Usage: python rename_docs.py [path] [type] [dest]"
 		sys.exit(1)
+
 	try:
 		rename_docs(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3])
-		sys.exit(0)
 	except Exception, e:
 		print >> sys.stderr, e
 		sys.exit(1)
