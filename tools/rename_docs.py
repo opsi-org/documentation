@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
-import os, sys, shutil
+import os
+import shutil
+import sys
+
 
 def rename_docs(path, t, dest):
 
