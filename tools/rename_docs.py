@@ -26,6 +26,7 @@ def rename_docs(path, t, dest):
 				print("Copying {0!r} to {1!r}".format(source, destination))
 				shutil.copy2(source, destination)
 
+
 if __name__=="__main__":
 	if not len(sys.argv) > 3:
 		print "Usage: python rename_docs.py [path] [type] [dest]"
@@ -33,6 +34,6 @@ if __name__=="__main__":
 
 	try:
 		rename_docs(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3])
-	except Exception, e:
+	except Exception as e:
 		print >> sys.stderr, e
 		sys.exit(1)
