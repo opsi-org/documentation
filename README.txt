@@ -6,6 +6,18 @@ Building the opsi manuals requires the following software to be installed on you
 * asciidoc >= 8.6.3
 * dblatex  >= 0.3
 
+Additional packages on Ubuntu
+-----------------------------
+
+Since Ubuntu 13.04 you need the following additional packages:
+* texlive-lang-german
+* texlive-lang-english
+* texlive-lang-french
+* lmodern
+
+See also:
+http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option-francais
+
 How to build an opsi manual
 ==========================
 
