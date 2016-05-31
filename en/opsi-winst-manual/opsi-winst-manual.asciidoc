@@ -2909,9 +2909,11 @@ net start
 ----
 `$list1$` contains among some surrounding stuff the list of all mounted shares of a PC. 
 
-Since 4.11.4.2 there is a shortcut for simple calls to the shell. At Windows this command runs in the sysnative mode.
+there are 3 shortcuts for simple calls to the shell. At Windows these commands runs in the sysnative mode.
 
-*  `shellCall (`<command string>`)` [W/L]
+
+* `shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L] +
+Executing <command string> with the standard shell (cmd.exe / bash)
 [source,winst]
 ----
 set $list$= shellCall('net start')
@@ -2920,6 +2922,36 @@ Is a shortcut for this expression:
 [source,winst]
 ----
 set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart winst /sysnative')
+
+[DosInAnIcon_netstart]
+net start
+----
+
+* `shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+
+[DosInAnIcon_netstart]
+net start
+----
+
+
+* `shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+set $exitcode$ = shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+set $exitcode$ = getLastExitcode
 
 [DosInAnIcon_netstart]
 net start
@@ -3331,6 +3363,9 @@ else
 endif
 ----
 
+* `setStringInListAtIndex(`<newstring>,<list>,<indexstr>`) : stringlist`   //since 4.11.6 [W/L] +
+Replaces in the existing stringlist <list> the existing string at <index> by <newstring>
+
 [[opsi-winst-stringlist-iteration]]
 ==== Iterating through String Lists [W/L] 
 
@@ -3363,6 +3398,124 @@ Such, finally line has value 'abcde' . If we omitted the citation marks around %
 
 Please note: The note variable is only valid in the directly called procedure. If it is needed in sub programs of it its value must be transferred to a global variable.
 
+[[opsi-winst-json]]
+=== opsiservicecall and json Related functions [W/L]
+
+`jsonIsValid(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+`jsonIsArray(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+`jsonIsObject(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+`jsonAsObjectHasKey(`<jsonstr>,<keystr>`) : boolean`  //since 4.11.6: [W/L]
+
+`jsonAsArrayCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L]
+
+`jsonAsObjectCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L]
+
+`jsonAsArrayGetElementByIndex(`<jsonstr>, <indexstr>`) : jsonstring`  //since 4.11.6: [W/L]
+
+`jsonAsObjectGetValueByKey(`<jsonstr>, <keystr>`) : valuestring`  //since 4.11.6: [W/L]
+
+`jsonAsObjectSetValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L]
+
+`jsonAsObjectSetStringtypeValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L]
+
+`jsonAsArrayPutObjectByIndex(`<jsonstr>, <indexstr>, <objectstr>`) : jsonstring`  //since 4.11.6: [W/L]
+
+`jsonAsArrayToStringList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L]
+
+`jsonStringListToJsonArray(`<strlist>`) : jsonstr`  //since 4.11.6: [W/L]
+
+`jsonAsObjectGetKeyList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L]
+
+
+Example: Restoring productOnClient entries from a file to the server: 
+
+[source,winst]
+----
+DefVar $poc_file$
+DefVar $objectStr$
+DefVar $ArrayStr$
+DefVar $pid$
+
+DefStringlist $resultlist$
+DefStringlist $resultlist1$
+DefStringlist $productIdList$
+DefStringlist $pocList$
+
+
+Message "Delete productOnClient from opsi backend ..."
+set $resultlist$ = getReturnListFromSection("opsiservicecall_getPOC")
+Set $ArrayStr$ = takestring(0, $resultlist$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from Service"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from Service"
+	isFatalError
+endif
+comment "extract productIds ..."
+comment "clean target list"
+set $productIdList$ = emptylist($productIdList$)
+comment "get stringlist "
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+for %aktpoc% in $pocList$ do sub_fill_product_ids
+for %aktProductId% in $productIdList$ do opsiServiceCall_del_productOnClient
+
+Message "Restore productOnClient from file ..."
+comment " get Restore data from file ..."
+Set $ArrayStr$ = strLoadTextFile($poc_file$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from file"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from file"
+	isFatalError
+endif
+
+comment "get list from array"
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+comment "loop over list"
+for %pocindex% = "0" to calculate(count($pocList$)+"-1") do sub_set_clientid_in_poclist
+comment "convert modified list to jason array"
+set $ArrayStr$ = jsonStringListToJsonArray($pocList$)
+set $ArrayStr$ = unquote2($ArrayStr$,"[]")
+comment "write back"
+opsiServiceCall_updatePOC
+
+[sub_fill_product_ids]
+set $objectstr$ = '%aktpoc%'
+set $pid$ = jsonAsObjectGetValueByKey($objectstr$, "productId" )
+set $productIdList$ = addToList($productIdList$,$pid$)
+
+[sub_set_clientid_in_poclist]
+set $objectStr$ = takeString("%pocindex%", $poclist$)
+set $objectStr$ = jsonAsObjectSetStringtypeValueByKey(($objectStr$, "clientId","%opsiserviceUser%")
+set $poclist$ = setStringInListAtIndex($objectStr$,$poclist$,"%pocindex%")
+
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+					'$ArrayStr$',
+					]
+
+[opsiservicecall_getPOC]
+	"method": "productOnClient_getObjects"
+	"params":[
+           "[]",
+           '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct"}'
+           ]
+
+[opsiServiceCall_del_productOnClient]
+"method": "productOnClient_delete"
+"params": [
+					'%aktProductId%',
+					'%opsiserviceuser%',
+					]
+----
 [[opsi-winst-numbers]]
 === Calculating with numbers [W/L] 
 
@@ -3535,6 +3688,105 @@ endif
 ----
 For more examples refer to the product 'opsi-winst-test'
 at the section '$Flag_calculate$ = "on"'
+
+[[opsi-winst-process]]
+=== Process and Script Related functions [W/L]
+
+* `waitForPackageLock(`<seconds timeout string>,<bool should we kill>`) : bool` //since 4.11.6.1 [L] +
+Returns `true` if the Linux package system is not locked by an other process. If it is locked, it waits <seconds timeout string> to get the lock. If the timeout is reached and <bool should we kill> is `true` than the lockin process is killed but using this feature ist *not recommended*.
+
+* `processIsRunning(`<process name>`) : boolean`  //since 4.11.6.1 [W/L] +
+Returns `true` if <process name> is found in the process list
+
+* `shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L] +
+Executing <command string> with the standard shell (cmd.exe / bash)
+[source,winst]
+----
+set $list$= shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart winst /sysnative')
+
+[DosInAnIcon_netstart]
+net start
+----
+
+* `shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+
+[DosInAnIcon_netstart]
+net start
+----
+
+
+* `shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+set $exitcode$ = shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+set $exitcode$ = getLastExitcode
+
+[DosInAnIcon_netstart]
+net start
+----
+
+* `startProcess(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+Starts the command binary <string> as process and returns te exitcode +
+[source,winst]
+----
+set $exitcode$ = startProcess('setup.exe /S')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+Winbatch_setup
+set $exitcode$ = getLastExitcode
+
+[Winbatch_setup]
+setup.exe /S
+----
+In fact it is internal a winbatch call, so all the `winbatch` modifiers are also allowed for `startProcess`
+
+* `/LetThemGo` +
+This is the contrary to `/WaitOnClose`. It is used if '{opsi-winst}/opsi-script' shall proceed while the started processes run in their own threads.
+
+* `/TimeOutSeconds` <seconds> +
+A timeout setting. After waiting <seconds>, '{opsi-winst}/opsi-script' will end the process. +
+Since version 4.11.3, /TimeOutSeconds may be used without a waiting condition (e.g. `/WaitForProcessEnding`) but not in combination with `/WaitSeconds`. +
+Since version 4.11.4.6 the time progress from start until timeout is displayed by the progressbar. +
+
+* `/WaitSeconds` [number of seconds] +
+If a call includes the parameter /WaitSeconds [number of seconds], then '{opsi-winst}/opsi-script' is waiting for [number of seconds] before proceeding. In the default configuration, we also wait for any programs that are currently running to finish. If we combine the parameter /WaitSeconds with the option `/LetThemGo`, then '{opsi-winst}/opsi-script' continues processing after the waiting time is finished.
+ 
+* `/WaitForProcessEnding` <program name> +
+Waits for the process called <program name> to end. +
+Should be combined with `/TimeOutSeconds`.
+
+*  `/32Bit` //since 4.11.3.5  [W] +
+This is the default. The paths within the section are assumed to be 32 bit pathes. +
+Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
+
+*  `/64Bit` //since 4.11.3.5  [W] +
+The paths within the section are assumed to be 64 bit paths. +
+Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
+
+*  `/SysNative` //since 4.11.3.5  [W] +
+The paths within the section are assigned according to the OS architecture interpretiert. +
+Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
+
 
 
 [[opsi-winst-special-commands]]
