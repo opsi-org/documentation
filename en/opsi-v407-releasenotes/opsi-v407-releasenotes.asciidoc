@@ -49,9 +49,11 @@ we recommend updating the OS before installing opsi v4.0.7.
 
 The Highlights of this Release are:
 
-* ######
+* Ubuntu 16.04 (Xenial) support
 * New opsi bootimage
-* New opsi-linux netboot products
+* New opsi-linux netboot products and client-agent
+* Product sorting while installation for (standard) algorithm 1 is fixed
+* New opsi-client-agent
 
 The opsi Service Release 4.0.7 comes with a whole bunch of new features and improvements.
 Here is a summary:
@@ -69,6 +71,14 @@ Here is a summary:
 
 
 * opsi-client-agent: +
+** Neuer opsiclientd
+** Neuer Client für den Kioskmode
+** Upgrade de SSL libraries zu 1.0.2h
+
+* opsi-winst / opsi-script (4.11.6.1)
+** Many new functions
+** Upgrade of the SSL libraries to 1.0.2h
+** See special chapter: <<opsi-407-releasenotes-opsi-script>>
 
 
 * python-opsi:
@@ -77,16 +87,18 @@ Here is a summary:
 See special chapter: <<opsi-407-releasenotes-python-opsi>>
 
 
+* opsi-clonezilla:
+** new version
+** runcommand 'ocs-live' is working again
+** UEFI Support
 
+* opsi-linux-support:
+** New opsi-linux-client-agent (with 15 free starts)
+** debian8 product that may use a local http repository
+** ubunt16-04 product that may use a local http repository
+** Posibillity to provide local http repositories for Linux OS installations 
+** Produkt l-opsi-server für die automatisierte Installation von opsi-server Paketen auf einer Linux Maschine (z.B. zur Erstellung eines neuen Depotservers)
 
-* opsi-winst / opsi-script (4.11.6.1)
-
-
-** Upgrade of the SSL libraries to 1.0.2h, update of the SSL protocol to TLS autonegotiation
-
-
-
-* Linux netboot products:
 
 
 
@@ -139,11 +151,12 @@ For details please refer to the opsi-v405-releasenotes manual and the revised op
 To execute opsi-winst scripts as the current user during logon 'User Profile Management'.
 
 * opsi-linux-client-agent: +
-A real service, that also provides 'push installations'.
+** A real opsiclientd service for the following distributions: +
+RedHat 7 +
+CentOS 7 
+
 
 * opsi-linux 4.0.7 netboot products: uefi support
-
-* opsi-clonezilla: uefi support
 
 
 
@@ -336,6 +349,15 @@ opsi-setup --update-mysql
 ----
 ////
 
+[[opsi-407-releasenotes-clientagent]]
+== New opsi-client-agent
+
+* New opsiclientd
+* New Agent for kiosk mode (software on demand)
+
+image::opsi-client-kiosk.png["{opsi-kiosk-client}: opsi-kiosk-client", width=400]
+
+
 [[opsi-407-releasenotes-linux]]
 == Linuxsupport
 
@@ -344,7 +366,7 @@ opsi-setup --update-mysql
 include::../common/opsi_manual_linux.asciidoc[]
 ////
 
-[[opsi-script]]
+[[opsi-407-releasenotes-opsi-script]]
 == opsi-script / opsi-winst 4.11.6
 
 * Security Upgrade to Windows SSL libraries 1.0.2h (libeay32.dll, ssleay32.dll) +
@@ -394,17 +416,103 @@ include::../common/opsi_manual_linux.asciidoc[]
 [[opsi-winst-rc-process]]
 === Process and Script Related functions [W/L]
 
-`processIsRunning(`<process name>`) : boolean`  //since 4.11.6.1 [W/L]
+`waitForPackageLock(`<seconds timeout string>,<bool should we kill>`) : bool` //since 4.11.6.1 [L] +
+Returns `true` if the Linux package system is not locked by an other process. If it is locked, it waits <seconds timeout string> to get the lock. If the timeout is reached and <bool should we kill> is `true` than the locking process is killed but using this feature ist *not recommended*.
 
-`shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L]
+* `processIsRunning(`<process name>`) : boolean`  //since 4.11.6.1 [W/L] +
+Returns `true` if <process name> is found in the process list
 
-`shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L]
+* `shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L] +
+Executing <command string> with the standard shell (cmd.exe / bash)
+[source,winst]
+----
+set $list$= shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart winst /sysnative')
 
-`shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L]
+[DosInAnIcon_netstart]
+net start
+----
 
-`startProcess(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L]
+* `shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
 
-`waitForPackageLock(`<seconds timeout string>,<bool should we kill>`) : bool` //since 4.11.6.1 [L]
+[DosInAnIcon_netstart]
+net start
+----
+
+
+* `shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+set $exitcode$ = shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+set $exitcode$ = getLastExitcode
+
+[DosInAnIcon_netstart]
+net start
+----
+
+* `startProcess(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+Starts the command binary <string> as process and returns te exitcode +
+[source,winst]
+----
+set $exitcode$ = startProcess('setup.exe /S')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+Winbatch_setup
+set $exitcode$ = getLastExitcode
+
+[Winbatch_setup]
+setup.exe /S
+----
+In fact it is internal a winbatch call, so all the `winbatch` modifiers are also allowed for `startProcess`
+
+* `/LetThemGo` +
+This is the contrary to `/WaitOnClose`. It is used if '{opsi-winst}/opsi-script' shall proceed while the started processes run in their own threads.
+
+* `/TimeOutSeconds` <seconds> +
+A timeout setting. After waiting <seconds>, '{opsi-winst}/opsi-script' will end the process. +
+Since version 4.11.3, /TimeOutSeconds may be used without a waiting condition (e.g. `/WaitForProcessEnding`) but not in combination with `/WaitSeconds`. +
+Since version 4.11.4.6 the time progress from start until timeout is displayed by the progressbar. +
+
+* `/WaitSeconds` [number of seconds] +
+If a call includes the parameter /WaitSeconds [number of seconds], then '{opsi-winst}/opsi-script' is waiting for [number of seconds] before proceeding. In the default configuration, we also wait for any programs that are currently running to finish. If we combine the parameter /WaitSeconds with the option `/LetThemGo`, then '{opsi-winst}/opsi-script' continues processing after the waiting time is finished.
+ 
+* `/WaitForProcessEnding` <program name> +
+Waits for the process called <program name> to end. +
+Should be combined with `/TimeOutSeconds`.
+
+*  `/32Bit` //since 4.11.3.5  [W] +
+This is the default. The paths within the section are assumed to be 32 bit pathes. +
+Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
+
+*  `/64Bit` //since 4.11.3.5  [W] +
+The paths within the section are assumed to be 64 bit paths. +
+Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
+
+*  `/SysNative` //since 4.11.3.5  [W] +
+The paths within the section are assigned according to the OS architecture interpretiert. +
+Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
+
+
+
 
 [[opsi-winst-rc-cryptfunc]]
 === Crypt / Hash related functions [W/L]
