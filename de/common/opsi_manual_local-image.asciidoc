@@ -231,10 +231,26 @@ Nicht UEFI kompatibel sind die Produkte:
  
 * `opsi-local-image-prepare` +
 Erstellung der statischen Partitionierung der Festplatte für alle anderen Produkte. +
-Über das Property `system_partition_size` wird die Größe der Partition 1 angegeben (Default = 30G) +
-Über das Property `data_partition_size` wird die Größe der Partition 2 angegeben. Bei eine Größe von '0G' wird keine Partition für Daten angelegt. (Default = 0G) +
-Über das Property `start_os_installation` kann ein Produkt zur Installation eines Betriebssystems ausgewählt werden, welches im Anschluß an die Partitionierung automatisch gestartet wird.
+Properties:
+
+** `ask_before_inst`: +
+Soll am Client vor dem Start bestätigt werden. (Default='true')
+** `system_partition_size` +
+Gibt die Größe der Partition 1 (system) an (Default = 30G) 
+** `data_partition_size` +
+Gibt die Größe der Partition 2 (data) an. Bei eine Größe von '0G' wird keine Partition für Daten angelegt. (Default = 0G) 
+`start_os_installation` +
+Hier kann das Produkt zur Installation eines Betriebssystems ausgewählt werden, welches im Anschluß an die Partitionierung automatisch gestartet wird.
 Bei der Installation dieses Produkts werden beim Produkt `opsi-local-image-restore` die Produktproperties 'imagefile' und 'imagefiles_list' gelöscht, da durch die Neupartitionierung diese Daten ungültig geworden sind.
+** `delay_for_reboot` +
+Sekunden zwischen Beendigung des Scriptes und dem Reboot um dem Server Zeit zugeben die Netboot-Pipe zu erstellen.
+** `minimal_backup_partition_size` + 
+Diese Property dient zu einer Plausibilitätsüberprüfung der gemachten Angaben. +
+Die Größe der Backuppartition ergibt sich aus: +
+Größe der Festplatte - (`system_partition_size` + `data_partition_size` + `winpe_partition_size`). +
+Üblicherweise verwendet man opsi-local-image, weil ein lokales Backup der Systempartition gemacht werden soll. Dazu ist Voraussetzung, das für die Backuppartition genügend Platz ist. Wird bei der Berechnung der Partitionierung festgestellt das der verbleibende Platz für die Backuppartition kleiner ist als der Wert von `minimal_backup_partition_size` wird mit einem Fehler abgebrochen. +
+(Default=55%)
+** `winpe_partition_size`: Größe der winpe Partition (Default=4G)
 
 IMPORTANT: Verwenden Sie dieses Produkt nur zur initialen Vorbereitung der Platte. Es löscht alle gespeicherten Images.
 
@@ -500,6 +516,15 @@ Daher kann beim opsi-local-image-sysprep Produkt über Produkt Properties gesteu
 * `always_backup_before_sysprep`: +
 (true/false), Default=true, +
 Startet immer ein Backup vor dem sysprep Vorgang. 
+
+[NOTE]
+===============================
+`always_backup_before_sysprep`='true' bedeutet, das Produkt `opsi-local-image-backup` wird auf setup gestellt und ein Reboot durchgeführt. 
+Um eine Endlosschleife zu vermeiden, wird nun ein Rebootflag gesetzt, damit nach Beendigung des Backup erkannt werden kann, dass dieser Schritt bereits erledigt ist.
+
+Technischer Hinweis: Hier entseht das Problem, dass der Rebootflag auch in dem Backup landet, aber nach einem Restore nicht mehr erwünscht ist. Daher wird der Rebootflag als Timestamp gesetzt. Ein Rebootflag, der älter als 0,1 Tage (=2,4 Stunden) ist wird ignoriert.
+===============================
+
 * `abort_on_no_backup`: +
 (true/false), Default=true, +
 Prüft ob auf der Backuppartition ein Backup zu diesem Produkt vorhanden ist und bricht ab falls nicht. +
@@ -619,6 +644,14 @@ image::oli-capture-append-image-dism.jpg["Capture Images: Capture: Capture und A
 Zum Ausrollen des erstellten Images dient das per `target_product` angegebene 'Zielprodukt'. Hier wählen Sie bei `imagename` das erstellte Image aus und können dieses jetzt ganz normal wie eine andere Windowsinstallation installieren. D.h. sämtliche Standards wie Treiberintegration, Installation des opsi-client-agent finden genauso statt wie wenn Sie ein Original Microsoft Image ausrollen. +
 Ein wichtiger Punkt bleibt zu beachten: Waren auf dem Rechner von dem das Image erstellt wurde, Software per opsi installiert, so werden diese Installationsdaten bei der Installation des opsi-client-agent wieder hergestellt. Dies hat den Nebeneffekt das anders als 'normaler weise' nicht alle Produkte die auf installed standen bevor die Installation des Betriebssystems begann nun auf setup gesetzt werden. Dieses 'normale' Verhalten würde hier ja dazu führen, dass alle schon im Image installierten Produkte nochmal installiert werden. Daher werden in diesem Fall auch nur die Produkte installiert, welche Sie vor der Installation des Betriebssystems auf 'setup' gestellt haben. 
 
+[[opsi-manual-localimage-wim-info]]
+==== Hilfsprodukt opsi-wim-info
+
+Das Produkt `opsi-wim-info` kann verwendet werden um schnell informationen über die in einer install.wim gespeicherten Images auszulesen. Diese Informationen werden dann in der Logdatei gespeichert. +
+Properties:
+
+* `target_produkt` +
+ProductId des Produktes in dem die 'install.wim' gesucht wird.
 
 [[opsi-manual-localimage-ubuntumirror]]
 ==== Erstellen eines eigenen Ubuntu 'Proxy'
