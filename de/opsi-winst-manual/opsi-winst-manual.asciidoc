@@ -30,7 +30,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst / opsi-script Handbuch (4.11.5)
+opsi-winst / opsi-script Handbuch (4.11.6)
 ==========================================
 
 
@@ -565,17 +565,23 @@ Siehe hierzu im opsi-manual das Kapitel 'User Profile Management'.
 Die Skripte werden per default im Batchmodus abgearbeitet. 
 
 [[opsi-winst-logpath]]
-=== Protokoll Pfade
+=== Loging Dateien und Pfade
 
-Note:: Für Linux siehe: <<opsi-winst-linux-path>>
+Die Default Logdatei heist `opsi-script.log`.
+Es werden bis zu 8 Sicherungskopien angelegt: `opsi-script.log.0` bis `opsi-script.log.8`.
 
-Die default Protokolldateien werden in das Verzeichnis 'c:\opsi.org\log' geschrieben, welches der '{opsi-winst}/opsi-script' zu erstellen versucht. Wenn der '{opsi-winst}/opsi-script' nicht erfolgreich bei der Erstellung diese Protokollverzeichnisses ist, wird das Benutzer TEMP-Verzeichnis zum Speichern der Protokolldatei genutzt. 
+Die Logdateien werden im Encoding UTF-8 angelegt.
 
-Der vorgegebene Name dieser Protokolldatei ist 'opsi-script.log'. Der Name der Protokolldatei und der Speicherort können durch eine spezifizierte Kommandozeile überschrieben werden.
+Die default Protokolldateien werden unter Windows in das Verzeichnis 'c:\opsi.org\log' geschrieben, welches der '{opsi-winst}/opsi-script' zu erstellen versucht. Wenn der '{opsi-winst}/opsi-script' nicht erfolgreich bei der Erstellung diese Protokollverzeichnisses ist, wird das Benutzer TEMP-Verzeichnis zum Speichern der Protokolldatei genutzt. 
+
+Logdateien unter Linux:
+Ausgeführt als root (default): /var/log/opsi-agent/opsi-script
+Ausgeführt als user: /tmp
+
+Der Name der Protokolldatei und der Speicherort können durch eine spezifizierte Kommandozeile überschrieben werden.
 
 In dem Fall, dass der '{opsi-winst}/opsi-script' ein Skript im `/batch` mode und mit einem spezifizierten (und funktionierenden) User Kontext aufgerufen wird, ist der voreingestellte Protokollpfad `opsi/tmp` in dem Anwendungsverzeichnis des Benutzers. Dieses wird überschreiben, wenn eine anderer Protokollpfad angegeben ist.
 
-Zusammenfassend ist zu sagen, dass der '{opsi-winst}/opsi-script' die Protokollverzeichnisse zum Sichern bestimmter temporärer Dateien nutzt.
 
 [[opsi-winst-configuration-options]]
 == Weitere Konfigurationsoptionen
@@ -3344,6 +3350,15 @@ else
 	LogWarning "failed"
 endif
 ----
+
+`removeFromListByMatch(`<searchstring>,<target list>`) : stringlist`   //since 4.11.6 [W/L] +
+Liefert eine Kopie von <target list> bei der alle Zeilen entfernt sind die gleich <search string> sind. Der Vergleich ist case insensitiv.
+
+* `setStringInListAtIndex(`<newstring>,<list>,<indexstr>`) : stringlist`   //since 4.11.6 [W/L] +
+Liefert eine Kopie von <list> bei dem der String an <index> durch <newstring> ersetzt ist. Wenn <index> zu groß ist wird <newstring> angehängt. +
+Im Fehlerfall ist das Ergebnis eine leere Liste.
+
+Replaces in the existing stringlist <list> the existing string at <index> by <newstring>
 
 [[opsi-winst-stringlist-iteration]]
 ==== Iteration durch String-Listen [W/L] 
@@ -6496,7 +6511,42 @@ Ein Hash, der eine Namensliste mit Wertepaaren enthält, wird durch den folgende
 	]
 ----
 
-CAUTION: Die opsiservicecall Sektionen sind für opsi 3.x Methoden entwickelt worden und für die opsi 4.x Methoden häufig nicht verwendbar. So sind '*_getIdents' Aufrufe zwar möglich, '*_getObjects' Aufrufe aber nicht.
+.Objekt orientierte Methoden
+
+Der Umgang mit JSON Objekten aus dem Webservice erforet ein Grundverständnis von JSON, den opsi Objekten und den JSON bezogenen Methoden in opsi-script.
+Siehe dazu auch :
+opsi-manual: Kapitel: "Web service / API Methoden seit opsi 4.0"
+In diesem Manual: ##########
+
+Gemäß folgendem Code Beispiel können Sie Objekte vom Service holen.
+In diesem Beispiel werden Alle productOnClient Objekte geholt, welche zum aktuellen Rechner gehören (`%opsiserviceUser%` ist im Service Kontext der FGDN des Clients), Localboot Produkte sind und bei denen der Actionrequest auf 'setup' steht.
+[source,winst]
+----
+DefStringlist $resultlist$
+set $resultlist$ = getReturnListFromSection("opsiServiceCall_get_productOnClient_setup_objects")
+[opsiServiceCall_get_productOnClient_setup_objects]
+"method": "productOnClient_getObjects"
+"params": [
+          "[]",
+          '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct","actionRequest":"setup"}',
+          ]
+----
+Das Ergebnis ist ein JSON Array String welcher in der ersten Zeile von `$resultlist$` steht.
+
+
+Sie können auch (veränderte) Objekte wieder zurückschreiben.
+Folgendes Beispiel zeigt das Prinzip:
+Die String Variable `$ArrayStr$` muss ein gültiges JSON Array enthalten.
+[source,winst]
+----
+DefVar $ArrayStr$
+(...)
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+           '$ArrayStr$'
+          ]
+----
 
 [[opsi-winst-opsiservicecall-examples]]
 ==== Beispiele
