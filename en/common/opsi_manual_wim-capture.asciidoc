@@ -318,19 +318,55 @@ Still, folders like `winpe` or `drivers/drivers/additional/byAudit` can be symbo
 ==== Windows Installation via Target Product
 (Deployment from a captured Image)
 
-For deployment of images previously captured, the former `target_product` is now being used. Within the netboot product's properties, use the corresponding `imagename` as an installation source.
-This way, this netboot product can now be used for Microsoft Windows deployments like your original one, including defaults like driver integration and installation of the opsi-client-agent.
+*Restore of the opsi metadata from installed Products*
 
-*Recovery of opsi data concerning installed products*
+*The Problem:*
 
-Whenever an OS is being deployed to a computer via opsi, any localboot product marked as 'installed' from previous installations, will be set to setup (and thus will be reinstalled).
+If you reinstall a Windows with opsi, e.g. `win7-x64`, then during the installation of the opsi-client-agent all the local Boot products, which in this computer were previously marked as` installed`, will automatically be set to setup and thus reinstalled later. +
+This can not be completely carried out exactly in the rolling of a 'captured' Image. +
+In the image is the backup from the opsi data that was stored during the capture process. This will be discovered when you install the opsi-client-agent and re-imported into the depot server. With it the products that were installed in the 'captured' Image, now are on the newly installed computer mark as `installed`.
+Should now all the products that are mark as `installed` set to` setup`, this would imply that all products installed already in the image will be re-installed. This is not desirable.
 
-This is  different when deploying a captured image. +
-When deploying a 'captured' image, only those products will be automatically installed, that were marked for `setup` before deployment of the OS. This can have happened due to your activity, or by means of the `setup_after_install` property.
 
-Why is that the default ? +
-The image contains a backup of the opsi data, which was put there during capture. This is being discovered on installation of the opsi-client-agent, and imported into the opsi server. This way, all products that were installed in the 'captured' image, are marked with status `installed` for the newly deployed machine .
-If we set more products to setup again, at least some software already deployed could be re-installed again. That's not what's desired. 
+By the restoration of the opsi metadata of installed products there are two alternatives available now with opsi 4.0.7: +
+
+* Alternative 1: +
+Restoring the metadata and retention of 'setup' -Action Requests. +
+Products that are mark as 'installed' will *not* be set to 'setup'. +
+This is the default, and the behavior before opsi 4.0.7
+
+
+* Alternative 2: +
+Restoring the metadata. Products that are mark as 'installed' will be set to 'setup' except those which were contained in the restore metadata. +
+
+*Alternative 1* +
+By the deploy from a 'captured' image, after the install, only the products which were already from the beginning of the OS-install set to 'setup' will be automatically installed. These can be done through your intervention, or through the property 'setup_after_install'.
+Therefore only the products which stood at `setup` before installing the operating system will be installed in this case. +
+This is the default, and the behavior before opsi 4.0.7 +
+
+*Alternative 2* +
+Variant 2 behaves similar to what would be the case of an installation without a captured Image: +
+* Restore of the metadata. +
+* Products that are mark as 'installed' are then set to 'setup' except those which were contained in the restore metadata. +
+This behavior is only available since opsi 4.0.7 and is not the default. Option 2 is made possible by enhancements to the opsi script and is part of the opsi-client-agent of 4.0.7. +
+In order to be able to apply this behavior a 'config' must be set on ( 'Host parameters') : +
+The Boolean configuration entry: `clientconfig.capture.switch_installed_products_to_setup`. If the entry for this client has the value 'true' then variant 2 is applied, otherwise variant 1 +
+
+About this '{opsi-config-objects}' can then specific client events activated or deactivated.
+The '{opsi-config-objects}' can be applied using the '{opsi-configed}' or '{opsi-admin}'.
+
+To create the '{opsi-config-objects}' over the '{opsi-admin}' the following commands are to be executed on the'{opsi-configserver}':
+
+[source,prompt]
+----
+opsi-admin -d method config_createBool clientconfig.capture.switch_installed_products_to_setup "capture.switch_installed_products_to_setup" true
+----
+With that you set for *all* computers 'Alternative 2'.
+
+To create the '{opsi-config-objects}' over the '{opsi-server}' select there 'Server Configuration' / 'ClientConfig' / And on the right side with the right mouse button: `Add Boolean configuration entry`.
+
+
+
 
 [[opsi-manual-wimcap-wim-info]]
 ==== Helper product opsi-wim-info
