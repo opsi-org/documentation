@@ -58,7 +58,9 @@ or opsi 4.0.5 with the following package and product versions:
 |==========================
 
 CAUTION: For the product `opsi-clonezilla` the share `opsi_images` must have write permission for 'pcpatch'. Check your Samba configuration. +
-For use with UEFI you need at least opsi 4.0.7
+For use with UEFI you need at least opsi 4.0.7 +
+Set for the property `imageshare` a share as value. This share should have the format `//server/share`. Please note the use of slashes instead of back slashes. This share should be mountable by the opsi user `pcpatch` with the password as known by the opsi-server. This is normally the share opsi_images from the opsi-server.
+
 
 
 [[opsi-manual-clonezilla-introduction]]
@@ -222,7 +224,14 @@ By setting the desired command as the product property `runcommand` opsi-clonezi
 
 * Set the property `imageshare` to a share, that can be mounted by the user `pcpatch` with the password as known by the opsi-server. The format for the share is `//server/share` (attention: use forward slashes, not backward slashes).
 
-* Set the property `runcommand` to the non interactive command.
+* Set the property `runcommand` to the non interactive command. Recommended Parameters:
+
+** Always: '--batch'
+
+** At restore: '--skip-check-restorable-r'
+
+** Always remove: '-c'
+
 
 Here are some non interactive versions of the examples from above (without -c and with --batch). Since opsi 4.0.5 the parameter `-z1` can be omitted. This accelerates the compression with multi processor kernels:
 
@@ -235,6 +244,88 @@ Here are some non interactive versions of the examples from above (without -c an
 * `/opt/drbl/sbin/ocs-sr --batch -g auto -e1 auto -e2 -r -j2 -k -p true restore parts partimg sda1` +
 
 Furthermore in these examples the image names `2014-06-11-12-img` or `partimg` can be replaced by the string 'imagefile'. In this case the string 'imagefile' will be substituted by the value of the property `imagefile`.
+
+Wenn man nun bei diesen Beispielen die Devicenamen `sda` bzw. `sda1` durch den string 'diskdevice' bzw. 'partdevice' ersetzt, so wird dieser String jeweils durch einen für diese Maschine korrekten Wert gemäß der der Properties `disk_number` bzw. 'part_number' ersetzt. +
+Beispiele für disk_number=1 und part_number=1: +
+sda / sda1 +
+cciss/c0d0 / cciss/c0d0p1 +
+
+Daraus ergeben sich dann folgende Beispiele: +
+
+* `ocs-sr -g auto -e1 auto -e2 --skip-check-restorable-r --batch -r -j2 -p true restoredisk imagefile diskdevice`
+
+* `ocs-sr -q2 --batch -j2 -rm-win-swap-hib -i 2000 -p true savedisk imagefile diskdevice`
+
+* `ocs-sr -q2 -c -j2 -z1 -i 2000 -sc -p true saveparts imagefile partdevice`
+
+[[opsi-manual-clonezilla-properties]]
+==== opsi-clonezilla properties
+
+
+*  `askbeforeinst` +
+** description: Should there be a confirmation dialog before start installing ? / Faut-il y avoir une confirmation avant de démarrer l'installation ?
+** default: False
+
+* `mount_image_share` +
+** description: Should there be a confirmation dialog before start installing ? / Faut-il y avoir une confirmation avant de démarrer l'installation ?
+** default: True
+
+* `imageshare` +
+** editable: True
+** description: smb/cifs share in the format //server/share
+** values: ["//opsiserver/opsi_images"]
+** default: ["//opsiserver/opsi_images"]
+
+* `runcommand` +
+** editable: True
+** description: Clonezilla command to be executed
+** values: ["", "ocs-live", "ocs-sr -g auto -e1 auto -e2 --skip-check-restorable-r --batch -r -j2 -p true restoredisk imagefile diskdevice", +
+"ocs-sr -q2 --batch -j2 -rm-win-swap-hib -i 2000 -p true savedisk imagefile diskdevice", +
+"ocs-sr -q2 -c -j2 -z1 -i 2000 -sc -p true saveparts imagefile partdevice"]
+** default: ["ocs-live"]
+
+* `disk_number` +
+** editable: True
+** description: Number (first=1) of the disk ; if string 'diskdevice' in the runcommand it will be replaced by valid deive path (eg sda)
+** values: ["1", "2"]
+** default: ["1"]
+
+* `part_number` +
+** editable: True
+** description: Number (first=1) of the partition of 'disk_number' ; if string 'partdevice' in the runcommand it will be replaced by valid deive path (eg sda1)
+** values: ["1", "2", "3", "4", "5"]
+** default: ["1"]
+
+* `imagefile` +
+** editable: True
+** description: name of the imagefile ; will replace the string 'imagefile' in the runcommand
+** values: ["myimagefile"]
+** default: ["myimagefile"]
+
+* `drbl_ocs_conf` +
+** editable: True
+** description: Directory for post run scripts (Entries in /etc/drbl/drbl-ocs.conf)
+** values: ["", "OCS_POSTRUN_DIR=\"/home/partimag/postrun\"", "OCS_PRERUN_DIR=\"/home/partimag/prerun\""]
+
+* `rebootflag` +
+** editable: False
+** description: Should the Client reboot after running the script
+** values: ["keepalive", "reboot", "shutdown"]
+** default: ["reboot"]
+
+* `setup_after_install` +
+** multivalue: True
+** editable: True
+** description: Which opsi product(s) should we switch to setup after clonezilla work is finished ?
+** values: [""]
+** default: [""]
+
+* `architecture` +
+** editable: False
+** description: Architektur Auswahl, beeinflusst die Auswahl des bootimages und die Installationsarchitektur.
+** values: ["32bit", "64bit"]
+** default: ["32bit"]
+
 
 [[opsi-manual-clonezilla-known-bugs]]
 ==== opsi-clonezilla known bugs
