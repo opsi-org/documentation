@@ -256,6 +256,51 @@ To handle these different situations, we configure the +event_on_demand+ in the 
 
 * At the configuration +event_on_demand\{user_logged_in\}+ we set  +shutdown_warning_time = 300+ (warning with 300 seconds timeout).
 
+[[opsi-407-releasenotes-clientagent-configuration-proxysupport]]
+===== Proxysupport-Configuration
+
+In the global section of opsiclientd.conf you have the option to define a proxyserver, that will be used from opsi-client-agent.
+If a proxyserver is defined in config, all HTTP- and HTTPS-Connection of opsiclientd will be redirected to this proxyserver.
+
+[source,ini]
+----
+# Use a proxy for connecting configservice
+# proxy_mode:
+#   'system' will try to check the system setting,
+#   'static' to use proxyurl from configfile/hostparameter
+# proxy_url usage: http://<user>:<password>@<proxy-url>:<proxy-port>
+# Example: http://proxyuser:proxypass123@proxy.domain.local:8080
+proxy_mode = static
+proxy_url =
+----
+
+This proxysettings allows also to use a proxyserver, that require authentication. 
+In that case you must define the credentails how is shown in configuration snippet.
+
+WARNING: The option proxy_mode is reserved for the value 'system' to use the system proxy settings. This feature is not implemented yet. Therefor the only option that works at the moment is the 'static' mode.
+
+
+[[opsi-407-releasenotes-clientagent-configuration-eventcontrol_over_productgroups]]
+===== Eventconfiguration to control which products will be processed 
+
+With this configuration-option it's possible to control the list of products, that will be processed in Events with productgroups:
+
+Generally you have two ways to use this control:
+
+Blacklisting (excluding):
+
+The option `exclude_product_group_ids` allows to configure a comma seperated list of productGroups. The members of these groups will be excluded from the actual Event. Also if actionrequest is set for this products. These products will be ignored in this event, but the actionrequests will not be touched.
+
+Whitlisting (including):
+
+The option `include_product_group_ids` allows to also configure a comma seperated list of productsGroups. The members of these groups are the only products, that will be processed from the actual event if they have actionrequests set.
+
+You can use these options globally from the default-Event. From that point this settings will be used in every event. You can also set these options in special event. If you use these option on event_on_demand, you can control which products will not be installed in push installations although they have actionrequests set. On normal restart of the client, this products will be installed from gui_startup (default event) at startup.
+
+CAUTION: For Clients that work in WAN/VPN-mode you must set this options in sync-event and also in the cacheservice-section, because the cacheservice have no access to the configuration of main sync-event. 
+
+WARNING: Productdependencies will not be regarded from this feature. You have to observe to prevent dependency issues.
+
 [[opsi-manual-clientagent-configuration-file]]
 ===== Configuration via configuration file
 
@@ -281,7 +326,7 @@ A sample `opsiclientd.conf`:
 [global]
 
 # Location of the log file.
-log_file = c:\\tmp\\opsiclientd.log
+log_file = c:\\opsi.org\\log\\opsiclientd.log
 
 # Set the log (verbosity) level
 # (0 <= log level <= 9)
@@ -310,6 +355,15 @@ wait_for_gui_timeout = 120
 # Application to run while blocking login
 block_login_notifier = %global.base_dir%\\notifier.exe -s notifier\\block_login.ini
 
+# Use a proxy for connecting configservice
+# proxy_mode:
+#   'system' will try to check the system setting,
+#   'static' to use proxyurl from configfile/hostparameter
+# proxy_url usage: http://<user>:<password>@<proxy-url>:<proxy-port>
+# Example: http://proxyuser:proxypass123@proxy.domain.local:8080
+proxy_mode = static
+proxy_url =
+
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     config service settings                                         -
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -323,6 +377,9 @@ connection_timeout = 30
 
 # The time in seconds after which the user can cancel the connection establishment
 user_cancelable_after = 30
+
+# If this option is set, the local system time will be synced with time from service
+sync_time_from_service = false
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     depot server settings                                           -
@@ -348,6 +405,10 @@ username = pcpatch
 [cache_service]
 # Maximum product cache size in bytes
 product_cache_max_size = 5000000000
+# Members of this ProductGroups will be excluded from processing
+exclude_product_group_ids = 
+# Only members of this ProductGroups will be excluded from processing
+include_product_group_ids =
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     control server settings                                         -
@@ -370,6 +431,10 @@ ssl_server_key_file = %global.base_dir%\\opsiclientd\\opsiclientd.pem
 
 # The location of the static files
 static_dir = %global.base_dir%\\opsiclientd\\static_html
+
+# The maximum number of authentication failures before a client ip
+# is blocked for an amount of time.
+max_authentication_failures = 5
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     notification server settings                                    -
@@ -453,6 +518,10 @@ write_log_to_service = true
 shutdown = false
 # Reboot machine after action processing has finished (bool)
 reboot = false
+# Members of this ProductGroups will be excluded from processing
+exclude_product_group_ids = 
+# Only members of this ProductGroups will be excluded from processing
+include_product_group_ids = 
 
 ; === Sync/cache settings
 # Sync configuration from local config cache to server (bool)
