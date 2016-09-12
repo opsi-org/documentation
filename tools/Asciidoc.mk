@@ -27,6 +27,11 @@ ifdef VERBOSE
 MAK_VERB := -v
 endif
 
+ifdef SLIDE
+ASCIIDOC_OPTS := $(ASCIIDOC_OPTS) --backend slidy
+endif
+
+
 REFERENCE_LANG := de
 
 LANG := de en fr nl

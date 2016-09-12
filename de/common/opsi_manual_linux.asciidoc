@@ -55,9 +55,41 @@ Dieser opsi-linux-client-agent ist eine
 http://uib.de/de/opsi-erweiterungen/erweiterungen/[kofinanzierte opsi Erweiterung]. +
 Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
 Weitere Details zum Umgang mit Modulen finden Sie im opsi manual.
-////
-<<opsi-manual-modules>>.
-////
+
+[[opsi-manual-linux-freestart]]
+==== opsi-linux-client-agent: 15 Freistarts
+
+Seit opsi 4.0.7 beinhaltet der opsi-linux-client-agent 15 Freistarts bei denen der Agent auch ohne Freischaltung verwendet werden kann.
+
+Genauer formuliert: Nach der initalen Installation des opsi-linux-client-agent kann der der opsi-script 15 mal im Servicekontext gestartet werden ohne eine Freischaltung zu fordern. +
+Dies gibt Ihnen die Möglichkeit einen Linuxrechner aufzusetzen und mit den entsprechenden opsi-Produkten für den geplanten Einsatz zu konfigurieren.
+Beispielsweise können Sie nach der Installation das Produkt `l-opsi-server` aufrufen um aus dem frisch installierten Rechner einen opsi-server zu machen.
+
+Für eine dauerhafte Pflege des installierten Linuxrechners über diese 15 Freistarts hinaus benötigen Sie aber eine Freischaltung dieses Features.
+
+[[opsi-manual-linux-getit]]
+==== Einspielen der Produkte
+
+Die Linux bezogenen Localboot und Netbootproukte können über den opsi-product-updater geladen werden. +
+Dazu muss sichergestellt sein, dass in der `/etc/opsi/opsi-product-updater.conf` auch die entsprechenden Verzeichnisse eingetragen sind. Am einfachsten ist es, wenn sich folgende Sektion in der Konfigurationsdatei findet: +
+[source,ini]
+----
+[repository_uib_linux]
+active = true
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/opsi-linux
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+Dann können Sie mit dem folgenden Aufruf die opsi-linux Produkte einspielen:
+[source,prompt]
+----
+opsi-product-updater -i -vv
+----
 
 [[opsi-manual-linux-introduction]]
 ==== Einführung
@@ -98,7 +130,8 @@ Hier eine Übersicht:
 
 * Bei den Suse- und RedHat-artigen Distributionen werden die Installationsquellen von Ihnen bereitgestellt, in dem Sie die Installations-DVD als ISO-Datei auf dem Depotshare ablegen. Dieses Verfahren ähnelt der Situation unter Windows, nur dass der Ablageort ein anderer ist und dass Sie bei Windows den Inhalt der Installations-DVD ablegen anstatt einer ISO-Datei.
 
-* Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert.
+* Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert. +
+Ab opsi 4.0.7 können für bestimmte Netbootprodukte hier auch lokale http Repositories bereit gestellt werden.
 
 * Zur weiteren Pflege der Installation kann der opsi-linux-client-agent im Rahmen der Basisinstalltion mit installiert werden.
 
@@ -133,7 +166,7 @@ Es ergeben sich aber auch folgende Nachteile:
 [[opsi-manual-linux-netboot-v406-prepare]]
 ===== Bereitstellung und der Installationsmedien auf dem Server
 
-Die Bereitstellung der Installationsmedien für die Suse- und RedHat-artigen Distributionen erfolgt auf einem neuen nfs share: `opsi_nfs_share`.
+Die Bereitstellung der Installationsmedien für die Suse- und RedHat-artigen Distributionen erfolgt auf einem nfs share: `opsi_nfs_share`.
 
 Zur Einrichtung des shares muß ein NFS-Server auf dem opsi-server installiert und konfiguriert sein.
 
@@ -144,6 +177,10 @@ Auf Debian-artigen Betriebssystemen kann das durch den folgenden Befehl erreicht
 ----
 apt-get install opsi-linux-support
 ----
+
+Beim Einsatz einer Firewall auf Ihrem Server muss diese noch so konfiguriert
+werden, dass TCP-Verbindungen auf Port 80 akzeptiert werden.
+Bitte konsultieren Sie hierzu das entsprechende Handbuch.
 
 Was dieses Paket macht ist (als händige Anleitung) im folgenden Beschrieben:
 
@@ -180,7 +217,44 @@ WICHTIG: Verwenden Sie die Standard Installations-DVD's der Distribution. Modifi
 * Sollten Sie aus irgendwelchen Gründen das Verzeichnis `/var/lib/opsi/depot/opsi_nfs_share` nicht vom opsi-server aus per NFS exportieren können (z.B. weil der Depotshare vom opsiserver per NFS von einem NAS eingebunden ist), so kann der zu verwendende NFS-share über ein Serverweites config angegeben werden. Z.B. `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
 
 Die opsi v4.0.6 Netbootprodukte für Debian und Ubuntu beziehen Ihre Installations-Dateien nicht aus einem ISO-File. Vielmehr werden diese von uns mit dem Standard Netboot-Kernel und initrd ausgeliefert. Alle weiteren benötigten Pakete werden über das Internet bezogen. Zur Entlastung Ihrer Netzwekverbindung kann bei vielen Installationen daher die Verwendung eines lokalen apt-cache sinnvoll sein. +
+Die Pakete debian8 und ubuntu16-04 können auch auf ein lokales http-Repository zugreifen. +
 Siehe auch Kapitel <<opsi-manual-linux-debproxy>>
+
+Siehe auch Kapitel <<opsi-manual-linux-netboot-v406-local-http-deb-repo>>
+
+[NOTE]
+.Startreihenfolge beteiligter Dienste unter SLES 11
+===================================================
+
+Es kann vorkommen, dass der `showmount`-Befehl mit einer Fehlermeldung wie nachfolgend abbricht:
+
+[source,prompt]
+----
+# showmount -e localhost
+clnt_create: RPC: Program not registered
+----
+
+Bitte stellen Sie sicher, dass nach der Installation des NFS-Servers ein
+Neustart stattgefunden hat.
+Anschließend müssen die Dienste 'rpcbind' und 'nfsserver' in genau dieser Reihenfolge gestartet werden.
+
+Ein Neustart der Dienste kann wie folgt durchgeführt werden:
+[source,prompt]
+----
+# service rpcbind restart
+# service nfsserver restart
+----
+
+Anschließend liefert showmount das gewünschte Ergebnis:
+
+[source,prompt]
+----
+# showmount -e localhost
+Export list for localhost:
+/var/lib/opsi/depot/opsi_nfs_share *
+----
+
+===================================================
 
 [[opsi-manual-linux-netboot-v406-generalproperties]]
 ===== Allgemeine Properties der opsi v4.0.6 Linux Netboot Produkte
@@ -209,32 +283,28 @@ Passwort für root.  (Default='linux123')
 * `user_password`: +
 Passwort für user.  (Default='linux123')
 
-* `online_repository`: +
-Repository der Distribution für die Installation. (Nicht bei SLES) (Default=Distributionsabhängig)
-
-* `opsi_online_repository`: +
-Repository der opsi-server Pakete. (Default=Distributionsabhängig)
-
 * `proxy`: +
 Proxystring (wenn benötigt) in der Form: `http://<ip>:<port>`. (Default=pass:[''])
 
 * `install_opsi-client-agent`: +
-Installiere den opsi-client-agent für Linux (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules). (Default='false')
+Installiere den opsi-client-agent für Linux (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules). (Default='true')
 
 * `setup_after_install`: +
 Welche opsi-Produkte sollen zum Abschluss der Betriebssysteminstallation auf *setup* gestellt werden. (Default='')
 
-[[opsi-manual-linux-netboot-v406-special]]
-===== Die einzelnen Netboot Produkte
 
 [[opsi-manual-linux-netboot-v406-special-ubuntu14-04]]
-====== Die Produkte: debian7 , debian8 und ubuntu14-04
+===== Die Produkte: debian7 , debian8 und ubuntu14-04, ubuntu16-04
 
-Die Basis-Installation erfolgt direkt aus dem Netz.
+Die Basis-Installation erfolgt direkt aus dem Netz. Bei debian8 und ubuntu16-04 ist auch eine Installation von einem lokalen Repository möglich.
 
 Das Produkt hat produktiven Status.
 
 Das Produkt hat folgende zusätzliche Properties:
+
+* `online_repository`: +
+Repository der Distribution für die Installation. (Nur bei Debian/Ubuntu Produkten) (Default=Distributionsabhängig)
+
 
 ----
 name: encrypt_password
@@ -291,8 +361,62 @@ Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen
 
 * http://download.uib.de/press-infos/videos/opsi-linux/ubuntu14-04_406_1fps.mp4
 
+[[opsi-manual-linux-netboot-v406-local-http-deb-repo]]
+===== Einrichtung eines lokalen deb http Repository
+
+Mit dem debian8 und ubuntu16-04 Paket ist es nun möglich von einem lokalen Apache2 Repository zu installieren. +
+Dazu müssen bei dem Produkt im Property 'online_repository' die entsprechende Adresse angeben nach dem Muster `http://<opsi-server>/opsi/<productId>` z.B `http://opsiserver/opsi/debian8` +
+Weiterhin muss das lokale Repository natürlich erstellt werden. +
+Stellen Sie dazu sicher, dass das Produkt `opsi-linux-support` auf Ihrem opsi-server installiert ist. Dieses Paket installiert die
+hierfür benötigten Distributions-Pakete (apache2) und erstellt auch die benötigten Ordner. Dieser muss danach mit einem passenden distributions Repository gefüllt werden. +
+Hierfür gibt es zwei Möglichkeiten:
+
+. Einfach: Sie laden sich ein von uns gebautes und getestetes Repository herunter und packen aus
+. Aufwendiger: Sie bauen es sich selbst.
+
+
+Einfach: +
+Führen Sie das nachfolgende Script als 'root' aus. +
+Beachten Sie das der Pfad zum Apache2 `DocumentRoot` zum einen Distributiontypisch unterschiedliche Defaults hat und darüberhinaus abweichend vom Default konfiguriert sein kann. +
+Daher müssen Sie evtl. die zweite Zeile des Scriptes anpassen !
+
+===== debian8
+
+[source,prompt]
+----
+#! /bin/bash
+DOCUMENTROOT=/var/www/html
+URL=http://download.uib.de/opsi4.0/experimental/opsi-v407/opsi-linux
+FILE=debian8.tgz
+mkdir -p ${DOCUMENTROOT}/opsi
+cd ${DOCUMENTROOT}/opsi
+wget ${URL}/${FILE}
+tar xzf ${FILE}
+opsi-set-rights .
+----
+
+Aufwendiger: +
+Sie können das Repository auch selbst erstellen:
+
+===== ubuntu16-04
+
+[source,prompt]
+----
+#! /bin/bash
+DOCUMENTROOT=/var/www/html
+URL=http://download.uib.de/opsi4.0/experimental/opsi-v407/opsi-linux
+FILE=ubuntu16-04.tgz
+mkdir -p ${DOCUMENTROOT}/opsi
+cd ${DOCUMENTROOT}/opsi
+wget ${URL}/${FILE}
+tar xzf ${FILE}
+opsi-set-rights .
+----
+
+
+
 [[opsi-manual-linux-netboot-v406-special-opensuse13-02]]
-====== Das Produkt opensuse13-2
+===== Das Produkt opensuse13-2
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -315,15 +439,36 @@ existiert nur aus Gründen der Rückwärtskompatibilität zu alten bootimages
 und wird bei dem Betrieb mit einem aktuellen bootimage ( >= 20150818) ignoriert,
 da hier die automatische Erkennung der 'predictable network interface names' funktioniert.
 
+.Installationsquelle
+Installations DVD hier herunterladen:
+http://download.opensuse.org/distribution/13.2/iso/openSUSE-13.2-DVD-x86_64.iso
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/opensuse13-02/64/`
+Ausführung von `opsi-set-rights` nicht vergessen.
+
 .Videos (Zeitraffer)
 
 Folgendes Video zeigt eine Installation. +
 Es ist mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen als die Installation eigentlich dauert.
 
-* http://download.uib.de/press-infos/videos/opsi-linux/opensuse13-2_406_1fps.mp4
+[[opsi-manual-linux-netboot-v406-special-opensusel42-1]]
+===== Das Produkt opensusel42-1
 
-[[opsi-manual-linux-netboot-v406-special-sles12]]
-====== Das Produkt sles12
+Das Produkt hat folgende zusätzliche Properties:
+
+----
+name: install_unattended
+description: If false then do interactive installation
+default: True
+----
+
+.Installationsquelle
+Installations DVD hier herunterladen:
+http://download.opensuse.org/distribution/leap/42.1/iso/openSUSE-Leap-42.1-DVD-x86_64.iso
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/opensusel42-1/64/`
+Ausführung von `opsi-set-rights` nicht vergessen.
+
+[[opsi-manual-linux-netboot-v406-special-sles]]
+===== Die Produkte sles11sp4, sles12, sles12sp1
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -351,28 +496,26 @@ description: If false then do interactive installation
 default: True
 ----
 
-Das Property:
-----
-name: networkdevice
-multivalue: False
-editable: True
-description: interface to conigure (vbox:enp0s3 / esxi:ens32)
-values: ["eno1", "ens1", "ens32", "enp0s1","enp0s2","enp0s3"]
-default: ["enp0s3"]
-----
-existiert nur aus Gründen der Rückwärtskompatibilität zu alten bootimages
-und wird bei dem Betrieb mit einem aktuellen bootimage ( >= 20150818) ignoriert,
-da hier die automatische Erkennung der 'predictable network interface names' funktioniert.
+.Installationsquelle
+Zum herunterladen der Installations DVD brauchen Sie einen Account bei SUSE.
+Installations DVD sollte heissen (mit einer Datei dieses Namens haben wir getestet):
+sles11sp4: SLES-11-SP4-DVD-x86_64-GM-DVD1.iso
+sles12: SLE-12-Server-DVD-x86_64-GM-DVD1.iso
+sles12sp1: SLE-12-SP1-Server-DVD-x86_64-GM-DVD1.iso
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/opensusel42-1/64/`
+Ausführung von `opsi-set-rights` nicht vergessen.
+
 
 .Videos (Zeitraffer)
 
 Folgendes Video zeigt eine Installation. +
 Es ist mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen als die Installation eigentlich dauert.
 
-* http://download.uib.de/press-infos/videos/opsi-linux/sles12_406_1fps.mp4
+http://download.uib.de/press-infos/videos/opsi-linux/sles12_406_1fps.mp4
+
 
 [[opsi-manual-linux-netboot-v406-special-redhat70]]
-====== Die Produkte redhat70 und centos70
+===== Die Produkte redhat70 und centos70
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -407,6 +550,21 @@ description: set to false, if you don't want to register your system online, if 
 default: True
 ----
 
+.Installationsquelle CentOS
+Installations DVD hier herunterladen:
+z.B.: +
+http://isoredirect.centos.org/centos/7/isos/x86_64/CentOS-7-x86_64-DVD-1511.iso
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/centos70/64/`
+Ausführung von `opsi-set-rights` nicht vergessen.
+
+.Installationsquelle RedHat
+Zum herunterladen der Installations DVD brauchen Sie einen Account bei RedHat.
+Installations DVD sollte heissen (mit einer Datei dieses Namens haben wir getestet): +
+rhel-server-7.0-x86_64-dvd.iso
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/redhat70/64/`
+Ausführung von `opsi-set-rights` nicht vergessen.
+
+
 .Videos (Zeitraffer)
 
 Folgende Videos zeigen eine Installation. +
@@ -415,6 +573,7 @@ Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen
 * http://download.uib.de/press-infos/videos/opsi-linux/centos70_406_1fps.mp4
 
 * http://download.uib.de/press-infos/videos/opsi-linux/redhat70_406_1fps.mp4
+
 
 
 [[opsi-manual-linux-netboot-405]]
@@ -502,11 +661,9 @@ Welches Release der Distribution soll installiert werden. (Default=Distributions
 * `setup_after_install`: +
 Welche opsi Produkte sollen zum Abschluss der Betriebssysteminstallation auf setup gestellt werden. (Default='l-os-postinst')
 
-[[opsi-manual-linux-netboot-special]]
-===== Die einzelnen Netboot Produkte
 
 [[opsi-manual-linux-netboot-special-ubuntu]]
-====== Ubuntu
+===== ubuntu
 
 Die Basis Installation erfolgt per debootstrap direkt aus dem Netz.
 
@@ -517,7 +674,7 @@ Das Produkt ist UEFI/GPT kompatibel (getestet für release=trusty).
 Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_opsi_server=true' installiert werden können.
 
 [[opsi-manual-linux-netboot-special-debian]]
-====== Debian
+===== debian
 
 Die Basis Installation erfolgt per debootstrap direkt aus dem Netz.
 
@@ -527,58 +684,6 @@ Das Produkt ist UEFI/GPT kompatibel (getestet für release=wheezy).
 
 Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_opsi_server=true' installiert werden können.
 
-[[opsi-manual-linux-netboot-special-opensuse]]
-====== OpenSuse
-
-Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPM Dateien.
-Von daher gibt es für jedes Release ein eigenes Produkt.
-
-.OpenSuse 13.1
-
-Das Produkt hat produktiven Status.
-
-Das Produkt ist *nicht* UEFI kompatibel.
-
-Es gibt für diese Produkt passende opsi-server Pakete welche über 'install_opsi_server=true' installiert werden können.
-
-Known Bugs: Bei bestimmter Hardware (z.B. VMWare ESXi) scheiter die korrekte Vorhersage des Netzwerkinterface Namens und das Netzwerkinterface bleibt unkonfigiriert.
-
-[[opsi-manual-linux-netboot-special-sles11]]
-====== sles11sp3
-
-Die Basis Installation erfolgt unter Verwendung von dem Produkt beiliegenden RPM Dateien.
-Von daher gibt es für jedes Release ein eigenes Produkt.
-
-Da das Produkt RPM's enthält welche nicht Opensource sind, können wir es leider nicht frei zum Download anbieten. Wir können es aber unseren Kunden kostenlos zur Verfügung stellen ( -> mail an info@uib.de).
-
-Das Produkt hat produktiven Status.
-
-Beachten Sie, das es für neue Releases evtl. noch keine opsi-server Pakete gibt und damit die Propertyeinstellung 'install_opsi_server=true' zu Fehlern führen kann.
-
-Das Produkt ist *nicht* UEFI kompatibel.
-
-Das Produkt kennt folgende zusätzlichen Properties:
-
-* `use_gpt` +
-Wenn `true` wird die Festplatte (auch im MBR-BIOS Mode) mit GPT partitioniert. Hierfür wird dann auch eine Bootpartition benötigt. Wenn das  Property `boot_partition_size` auf 0 steht wird automatisert trotzdem eine Bootpartition mit der Größe 1 GB erzeugt.
-
-* `boot_partition_size` +
-Größe der Bootpartition. Wenn 0 wird keine Bootpartition erzeugt.
-
-* `kernel_modules` +
-Leerzeichen getrennte Liste der zusätzlich zu ladenden Kernelmodule (z.B. für spezielle Festplatten Controller).
-
-* `suse_register` +
-Wenn `true` wird der Server online registriert. Hierzu wird die email Adresse und der Key der Registrierung in der Form `email:productkey` benötigt. Dieser wird abhängig von dem Hostparameter `license-management.use` aus dem Lizenzmanagement oder aus dem Property `productkey` geholt. +
-Wenn `false` muss im Property `local_repositories` mindestens ein geeigneter Repositoryserver angegeben werden.
-
-* `productkey` +
-email Adresse und der Key der Registrierung in der Form `email:productkey` (falls nicht das Lizenzmanagement verwendet wird).
-
-* `local_repositories` +
-Leerzeichen getrennte Liste von Repositories welche per zypper eingebunden werden in der Form: "http://myserver.local Description"
-
-Das Property `online_repository` entfällt.
 
 [[opsi-manual-linux-clientagent]]
 ==== opsi-linux-client-agent
@@ -595,7 +700,7 @@ Der opsi-client-agent für Windows besteht im Kern aus den Komponenten:
 
 . dem Hilfsprogramm `opsiscriptstarter`
 
-. dem Actionprocessor `opsi-winst / opsi-script`
+. dem Actionprocessor `opsi-script / opsi-script-nogui`
 
 Der opsi-client-agent für Linux basiert auf einer Portierung des Windows-Clientagenten nach Linux.
 
@@ -604,9 +709,10 @@ Der `opsiclientd` ist derzeit nicht für alle unterstützten Distributionen verf
 Der `opsiclientd` steht auf folgenden Distributionen / Releases zur Verfügung:
 
 * Debian 7 / 8
-* Ubuntu 12.04 / 14.04
-* openSuse 13.2
-* SLES 12
+* Ubuntu 12.04 / 14.04 / 16.04
+* openSuse 13.2 / 42.1
+* SLES 12 / 12SP1
+* UCS 4.0 / 4.1
 
 Steht kein opsiclientd zur Verfügung, wird der `opsiscriptstarter` so installiert, das er die Aufgaben des `opsiclientd` beim Systemstart übernimmt:
 
@@ -641,7 +747,8 @@ Diese Methode dient zur Installation auf einzelnen Rechnern. Für ein Massen-Rol
 
 . Loggen Sie sich mit `root` Rechten auf dem Client ein.
 . Mounten Sie den share `//<opsiserver>/opsi_depot` an eine beliebige Stelle.
-. Starten Sie das Script `opsi-linux-client-agent/service_setup.sh`
+. Wechseln Sie in das Verzeichnis `opsi-linux-client-agent` auf dem gemounteten share
+. Starten Sie dort das Script `./service_setup.sh`
 
 Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login mit der Frage nach Service-URL, user und password. Dort kann die Operation mit dem Accountdaten eines Mitglieds der Gruppe {opsiadmin} autorisiert werden.
 
@@ -794,7 +901,8 @@ Logdateien sind zu finden unter:
 [[opsi-manual-linux-clientagent-knownbugs]]
 ===== opsi-linux-client-agent: Known Bugs
 
-Das Kopieren von vielen Dateien von einem Samba-Share ist abhängig von der Samba-Version fehlerhaft. Es werden nicht alle Dateien kopiert.
+Das Kopieren von vielen Dateien von einem Samba3-Share ist abhängig von der Samba-Version fehlerhaft. Es werden nicht alle Dateien kopiert.
+Das Problem wurde bei Samba4 Shares bisher nicht beobachtet.
 
 Als Workaround kann statt:
 [source,winst]
@@ -860,6 +968,13 @@ DefVar $distrotype$
 set $distrotype$ = getLinuxDistroType
 
 if $distrotype$ = 'debian'
+	Message "Try to get Package Lock..."
+	if waitForPackageLock("60","false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+		isFatalError "package lock failed"
+	endif
 	ShellInAnIcon_Upgrade_deb
 else
 	LogError "Wrong Distro: This Product is for Debian/Ubuntu only"
@@ -912,6 +1027,13 @@ if $distrotype$ = 'suse'
 		set $desktop$ = "kde"
 	endif ; unity
 
+	Message "Try to get Package Lock..."
+	if waitForPackageLock("60","false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+		isFatalError "package lock failed"
+	endif
 
 	if $desktop$ = "kde"
 		if ($distroName$ = 'openSUSE project')
@@ -967,6 +1089,13 @@ if $distroName$ = 'Ubuntu'
 
 	if $desktop$ = "cinnamon"
 		set $desktopPackage$ = $desktop$
+		Message "Try to get Package Lock..."
+		if waitForPackageLock("60","false")
+			comment "we got the package lock."
+		else
+			LogError "could not get Package Lock"
+			isFatalError "package lock failed"
+		endif
 		ShellInAnIcon_ubuntu_cinnamon
 		if not("0" = getLastExitCode)
 			Message "failed ShellInAnIcon_ubuntu_cinnamon"
@@ -992,6 +1121,91 @@ exit $?
 ==== Linux Localboot Produkte
 
 Hier einige Lokalbootprodukte welche zum Standardumfang des opsi Linuxsupports gehören.
+
+[[opsi-manual-linux-localboot-l-opsi-server]]
+===== Das Produkt l-opsi-server
+
+Das Produkt 'l-opsi-server' dient dazu automatisiert auf einer Linuxmaschine per opsi-linux-client-agent
+einen opsi-server zu installieren. Dies kann dazu dienen um schnell einen neuen opsi-depot-server zu installieren
+oder z.B. ein opsi Testsystem.
+
+Das Produkt 'l-opsi-server' hat folgende Properties:
+
+* `opsi_online_repository`: +
+(Base-) Repository for opsi-server installation. (Default="http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40") +
+siehe auch 'repo_kind'
+
+* `opsi_noproxy_online_repository`: +
+(Base-) Repository for opsi-server installation (without any cache proxy). (Default="http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40") +
+Sollten Sie bei `opsi_online_repository` einen Proxy oder deb-cacher mit angegeben haben
+(z.B. 'http://mydeb-cacher:9999/download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40"),
+dann geben Sie hier die URL nochmal ohne den Proxy an. Ansonsten geben Sie hier das selbe an wie bei `opsi_noproxy_online_repository`.
+
+* `repo_kind`: +
+From which repo kind ["experimental", "stable", "testing"] should be installed ?. (Default='stable') +
+Aus dem Client OS, 'opsi_online_repository' und 'repo_kind' wird die URL zusammengebaut welche verwendet
+um dem Client ein opsi Repository hinzuzufügen.
+
+* `backend`: +
+Which backend should be installed ? (mysql needs valid activation file). (Default='file') +
+Eine modules Datei mit den benötigten Freischaltungen kann im custom Verzeichnis des Produktes abgelegt werden.
+Wird dort eine modules gefunden so wird diese verwendet.
+
+* `opsi_admin_user_name`: +
+What is the name of the opsi_admin_user to create (empty= nothing created). (Default='adminuser') +
+Wird hier ein user angegeben, so wird dieser angelegt, wird Mitglied der Gruppen 'opsiadmin', 'pcpatch'/'opsifileadmin'
+und bekommt als unix- und samba Passwort den Wert von `opsi_admin_user_password`
+
+* `opsi_admin_user_password`: +
+What is the name of the opsi_admin_user to create (empty= nothing created). (Default='linux123') +
+siehe `opsi_admin_user_name`
+
+* `setup_after_install`: +
+Which opsi product(s) should we switch to setup after l-opsi-server installation is done ?. (Default="")
+
+* `allow_reboot`: +
+May the server reboot if script is finished ?. (Default='true')
+
+* `install_and_configure_dhcp`: +
+Should we run the dhcp server on this machine ?. (Default='False') +
+If this property is 'false' then the following properties: 'netmask', 'network',
+'dnsdomain','nameserver' and 'gateway' are meaningless because thy only used for
+dhcp configuration.
+
+* `netmask`: +
+Netmask  (for dhcp). (Default="255.255.0.0") +
+Meaningless if 'install_and_configure_dhcp=false'
+
+* `network`: +
+network address (for dhcp). (Default="192.168.0.0") +
+Meaningless if 'install_and_configure_dhcp=false'
+
+* `dnsdomain`: +
+DNS domain (for dhcp). (Default="uib.local") +
+Meaningless if 'install_and_configure_dhcp=false'
+
+* `nameserver`: +
+Primary nameserver (for dhcp). (Default="192.168.1.245") +
+Meaningless if 'install_and_configure_dhcp=false'
+
+* `gateway`: +
+gateway (option routers for dhcp). (Default="192.168.1.245") +
+Meaningless if 'install_and_configure_dhcp=false'
+
+* `update_test`: +
+Do not use: Internal Debuging. (Default='False')
+
+Das Produkt hat eine 'setup required before' Abhängigkeit zu dem Produkt 'l-system-update'.
+D.h. wenn Sie 'l-opsi-server' auf 'setup' stellen wird automatisch 'l-system-update' auch auf setup
+gestellt und vorher installiert.
+
+In dem Verzeichnis `custom` des Produktes `l-opsi-server` kann eine Freischaltdatei (`modules`) abgelegt werden, welche bei der Installation durch das Produkt `l-opsi-server` verwendet wird und beim Einspielen einer neuen Version des Produktes erhalten bleibt.
+
+CAUTION: Derzeit kann eine Maschine nicht gleichzeitig am selben opsi-config-server
+opsi-client und opsi-depot-server sein. +
+Wenn also ein per 'l-opsi-server' installierter opsi-server zum Depotserver an seinem Config-Server werden soll,
+so müssen Sie vorher im configed die Maschine als Client löschen.
+
 
 [[opsi-manual-linux-localboot-l-os-postinst]]
 ===== l-os-postinst für v4.0.5 Netboot installationen
@@ -1082,7 +1296,7 @@ Weitere Features werden folgen wie:
 
 * Frei konfigurierbare Partitionierung
 * Logical Volume Management
-* Patchen von XML- und JSON-Dateien
+* Patchen von XML-Dateien
 * Patchen von hierarchischen Konfigurationsdateien wie dhcpd.conf
 
 
@@ -1094,4 +1308,3 @@ Eine brauchbare Anleitung zur Erstellung eines eigenen Ubuntu Proxy finden Sie h
 http://wiki.ubuntuusers.de/Lokale_Paketquellen/Apt-Cacher-ng
 
 http://www.gambaru.de/blog/2011/10/26/apt-cacher-ng-ein-proxy-server-fur-debian-und-ubuntu/
-
