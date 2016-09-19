@@ -24,47 +24,81 @@ http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option
 
 ### Build all documents in all available languages and formats
 
-``make``
+``` shell
+make
+```
 
-### Build all documents in all available languages in a specific format, eg. pdf
+### Build all documents in all available languages in a specific format
 
-``make pdf``
+Just give the format you want to build, e.g. `pdf`.
+
+``` shell
+make pdf
+```
 
 ### Build a specific document in all available languages and formats
 
-``make opsi-getting-started``
+``` shell
+make opsi-getting-started
+```
 
-### Build a specific document in all available languages in a specific format, eg. pdf
+### Build a specific document in all available languages in a specific format
 
-``make opsi-getting-started.pdf``
+Give the name of the document with the specific extension.
 
-### Build a specific document in a specific languages in a specific format, eg. pdf
+``` shell
+make opsi-getting-started.pdf
+```
 
-``make LANG=de opsi-getting-started.pdf``
+### Build a specific document in a specific languages in a specific format
+
+Set the `LANG` parameter to the wanted value.
+Possible values are `de`, `en` and `fr`.
+
+``` shell
+make LANG=de opsi-getting-started.pdf
+```
 
 ### Check spelling of all documents
 
-``make spell``
+``` shell
+make spell
+```
 
 ### Clean up the build tree
 
-``make clean``
+``` shell
+make clean
+```
 
 ### Validate image paths and usage
 
-``make check
+Checks for unused images.
+
+``` shell
+make check
+```
 
 ### Copy and rename the files at `build` to `pub`
 
-eg. build\pdf\de\opsi-getting-started\opsi-getting-started.pdf to pub\pdf\opsi-getting-started-de.pdf
+Prepares the publication of documents.
+As an example it will copy `build\pdf\de\opsi-getting-started\opsi-getting-started.pdf` to the pub directory and remane it resulting in `pub\pdf\opsi-getting-started-de.pdf`.
 
 ``` shell
 make rename
 ```
 
-### Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
+### Debugging
 
+For verbose output set the enviroment variable `VERBOSE` to `True`.
+
+``` shell
+VERBOSE=True make
 ```
+
+Debug mode includes verbose but leaves temporary build files in `/tmp` for inspection.
+
+``` shell
 VERBOSE=True make
 DEBUG=True make
 ```
