@@ -1,13 +1,15 @@
-Dependencies
-============
+# Documentation for opsi
+
+This is the official documentation for the open source client management solution [opsi](http://www.opsi.org/en).
+
+## Dependencies
 
 Building the opsi manuals requires the following software to be installed on your system:
 
 * asciidoc >= 8.6.3
 * dblatex  >= 0.3
 
-Additional packages on Ubuntu
------------------------------
+### Additional packages on Ubuntu
 
 Since Ubuntu 13.04 you need the following additional packages:
 * texlive-lang-german
@@ -18,8 +20,7 @@ Since Ubuntu 13.04 you need the following additional packages:
 See also:
 http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option-francais
 
-How to build an opsi manual
-==========================
+## How to build an opsi manual
 
 . Build all documents in all available languages and formats
 
