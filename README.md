@@ -22,63 +22,47 @@ http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option
 
 ## How to build an opsi manual
 
-. Build all documents in all available languages and formats
+### Build all documents in all available languages and formats
 
-----
-make
-----
+``make``
 
-. Build all documents in all available languages in a specific format, eg. pdf
+### Build all documents in all available languages in a specific format, eg. pdf
 
-----
-make pdf
-----
+``make pdf``
 
-. Build a specific document in all available languages and formats
+### Build a specific document in all available languages and formats
 
-----
-make opsi-getting-started
-----
+``make opsi-getting-started``
 
-. Build a specific document in all available languages in a specific format, eg. pdf
+### Build a specific document in all available languages in a specific format, eg. pdf
 
-----
-make opsi-getting-started.pdf
-----
+``make opsi-getting-started.pdf``
 
-. Build a specific document in a specific languages in a specific format, eg. pdf
+### Build a specific document in a specific languages in a specific format, eg. pdf
 
-----
-make LANG=de opsi-getting-started.pdf
-----
+``make LANG=de opsi-getting-started.pdf``
 
-. Check spelling of all documents
+### Check spelling of all documents
 
-----
-make spell
-----
+``make spell``
 
-. Clean up the build tree
+### Clean up the build tree
 
-----
-make clean
-----
+``make clean``
 
-. Validate image paths and usage
+### Validate image paths and usage
 
-----
-make check
-----
+``make check
 
-. copies an rename the files at build to pub (eg. build\pdf\de\opsi-getting-started\opsi-getting-started.pdf to pub\pdf\opsi-getting-started-de.pdf )
+### Copy and rename the files at `build` to `pub`
 
-----
-make rename
-----
+eg. build\pdf\de\opsi-getting-started\opsi-getting-started.pdf to pub\pdf\opsi-getting-started-de.pdf
 
-. Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
+``make rename``
 
-----
+### Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
+
+```
 VERBOSE=True make
 DEBUG=True make
-----
+```
