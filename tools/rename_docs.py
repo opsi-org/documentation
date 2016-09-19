@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#! /usr/bin/python
 
 import os
 import shutil
@@ -30,7 +30,7 @@ def rename_docs(path, documenttype, dest):
 				shutil.copy2(source, destination)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 	if not len(sys.argv) > 3:
 		print "Usage: python rename_docs.py [path] [type] [dest]"
 		sys.exit(1)
