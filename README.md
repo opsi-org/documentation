@@ -79,9 +79,10 @@ Checks for unused images.
 make check
 ```
 
-### Copy and rename the files at `build` to `pub`
+### Prepare for publication
 
 Prepares the publication of documents.
+This will copy and rename the files at `build` so they appear in `pub`.
 As an example it will copy `build\pdf\de\opsi-getting-started\opsi-getting-started.pdf` to the pub directory and remane it resulting in `pub\pdf\opsi-getting-started-de.pdf`.
 
 ``` shell
