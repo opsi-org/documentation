@@ -58,7 +58,9 @@ http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option
 
 eg. build\pdf\de\opsi-getting-started\opsi-getting-started.pdf to pub\pdf\opsi-getting-started-de.pdf
 
-``make rename``
+``` shell
+make rename
+```
 
 ### Using debug and verbose mode (debug mode includes verbose, but leaves temporary build files in /tmp for inspection)
 
