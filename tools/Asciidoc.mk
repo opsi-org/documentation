@@ -84,10 +84,12 @@ publish: rename
 	mkdir -p $(PUB_DIR)/epub/de/
 	cp $(PUB_DIR)/epub/*-en.epub $(PUB_DIR)/epub/en/
 	cp $(PUB_DIR)/epub/*-de.epub $(PUB_DIR)/epub/de/
+	rm $(PUB_DIR)/epub/*.epub
 	mkdir -p $(PUB_DIR)/html/
 	cp -r $(DEST_DIR)/xhtml/de/* $(PUB_DIR)/html/
 	mkdir -p $(PUB_DIR)/html/en/
 	cp -r $(DEST_DIR)/xhtml/en/* $(PUB_DIR)/html/en/
+	rm -rf $(PUB_DIR)/xhtml
 	cd $(PUB_DIR) ; \
 	tar -cvf pub.tar ./*
 	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
