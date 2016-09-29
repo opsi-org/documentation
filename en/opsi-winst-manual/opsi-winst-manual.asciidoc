@@ -26,16 +26,27 @@
 :Revision:  4.0.6
 :doctype:		book
 
+:manual: opsi-script
+
 // Include common opsi terms
 include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst / opsi-script Manual (4.11.5)
+opsi-winst / opsi-script Manual (4.11.6)
 ========================================
 
 // Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
+
+
+// http://www.methods.co.nz/asciidoc/userguide.html#X90
+:leveloffset: 1
+
+// Include reference card
+include::../opsi-winst-reference-card/opsi-winst-reference-card.asciidoc[]
+
+:leveloffset: 0
 
 
 [[opsi-winst-introduction]]
@@ -124,7 +135,7 @@ Since version 4.11.4 at all functions that expect a path as argument, the path s
 
 For Linux support there are the following special functions:
 
-* `GetOS`  // 'Linux' or 'Windows_NT'   [W/L]
+* `GetOS`  // 'Linux' or 'Windows_NT'   [W/L] +
 
 * `getLinuxDistroType`  // 'debian' or 'redhat' or 'suse' [L] 
 
@@ -555,13 +566,20 @@ See at the opsi-manual for more information about 'User Profile Management'.
 The not interactive mode is implied.
     
 [[opsi-winst-logpath]]
-=== Log Paths
+=== Log File and Paths
 
-Note:: For Linux see: <<opsi-winst-linux-path>>
+The default log file name is `opsi-script.log`. 
+You may find up to 8 Backup copys of old log files: from `opsi-script.log.0` until `opsi-script.log.8`.
 
-By default log files are written into the directory `c:\opsi.org\log` which '{opsi-winst}/opsi-script' tries to create. If '{opsi-winst}/opsi-script' has no access to this directory it uses the user-TEMP directory. 
+The log file encoding is UTF-8.
 
-The default log file name is `opsi-script.log`. The log file name and location will be overwritten via the specific command line option. 
+By default log files are written at Windows into the directory `c:\opsi.org\log` which '{opsi-winst}/opsi-script' tries to create. If '{opsi-winst}/opsi-script' has no access to this directory it uses the user-TEMP directory. 
+
+At Linux:
+If running as `root` (default): /var/log/opsi-agent/opsi-script
+If running as any other user: /tmp
+
+The log file name and location will be overwritten via the specific command line option. 
 
 In the case, that '{opsi-winst}/opsi-script' executes a script in `/batch` mode and with a specified (and working) usercontext, the default logging path is the `opsi/tmp` in the appdata directory of the user. This will be overwritten by an explicit given log path.
 
@@ -602,6 +620,9 @@ SetSkinDirectory ""
 
 The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a greek windows system as encoded with cp1253 on a german windows system as cp1252 and under Linux as UTF-8.
 
+anchor:encoding[]
+
+`encoding=`<encoding> +
 Since Version 4.11.4.1 it is possible to define the encoding in the script. This may be done in the main script and in the sub scripts and includes as well. You have to give the command: +
 `encoding=`<encoding> +
 This command can be at any position in the code (Even before [actions]). As <encoding> you may give one of the following values:
@@ -905,7 +926,9 @@ At this moment the following constants are implemented:
 [[opsi-winst-global-const-list-currentuser]]
 ===== Current (logged in or usercontext) user directories [W]
 
-`%AppdataDir%` or `%CurrentAppdataDir%` : 'c:\Documents and Settings\%USERNAME%\Application Data'
+`%AppdataDir%` or `%CurrentAppdataDir%` : //since 4.10.8.13 +
+NT5: 'c:\Documents and Settings\%USERNAME%\Application Data'
+NT6: 'c:\users\%USERNAME%\Appdata\Roaming'
 
 `%CurrentStartmenuDir%` 
 
@@ -928,6 +951,11 @@ When the section is executed for each user that exists on a work station this va
 
 `%CurrentProfileDir%`  // since 4.11.2.1 +
 may be used instead of the older `%UserProfileDir%` in order to have `Files`-sections which may be used also for 'userLoginScripts'.
+
+`%UserProfileDir%` or `%CurrentProfileDir%` +
+NT5: 'c:\Documents and Settings\%USERNAME%' +
+NT6: 'c:\users\%USERNAME%'
+
 
 [[opsi-winst-global-const-list-winst]]
 ==== '{opsi-winst}/opsi-script' Path and Directory [W/L]
@@ -1019,6 +1047,12 @@ EndIf
 `%PCName%`:	The value of the environmental variable +PCName+, when existing. Otherwise the value of the environmental variable +computername+. (Should be the netbios name of the PC) 
 
 `%IPName%` : The dns name of the pc. Usually identical with the netbios name and therefore with `%PCName%` besides that the netbios names uses to be uppercase. 
+
+anchor:IPAddress[]
+
+* `%IPAddress%` : may be the IP-Address of the machine. Use funktion `GetMyIpByTarget()` instead. +
+see also : <<GetMyIpByTarget>> +
+
 
 `%Username%` :	Name of the logged in user.
 
@@ -1210,20 +1244,13 @@ CAUTION: The old function `LogLevel=` is deprecated since '{opsi-winst}/opsi-scr
 
 There are two syntactical variants for specifying the logging level:
 
-SetLogLevel = <number> 
-SetLogLevel = <String expression> 
+anchor:SetLogLevel[]
+
+* `SetLogLevel` = <number> +
+* `SetLogLevel` = <String expression> +
 I.e. the number can be given as an integer value or as a string expression (cf. section 6.3). In the second case, '{opsi-winst}/opsi-script' tries to evaluate the string expression as a number.
 There exist ten levels from 0 up to 9. 
 
-Es gibt zwei ähnliche Varianten, um den Loglevel zu spezifizieren:
-
-`SetLogLevel =` <number> 
-
-`SetLogLevel =` <String expression>
-
-I.e. the number can be given as an integer value or as a string expression (cf. <<opsi-winst-string>>). In the second case, '{opsi-winst}/opsi-script' tries to evaluate the string expression as a number.
-
-There exist ten levels from 0 up to 9. 
 ****
                 0 = nothing (absolute nothing)
                 1 = essential ("essential information")
@@ -1239,6 +1266,8 @@ There exist ten levels from 0 up to 9.
 ****
 
 The default value is "6".
+
+anchor:requiredWinstVersion[]
 
 [[opsi-winst-params-required-winst]]
 ==== Required opsi-winst Version [W/L]
@@ -1270,9 +1299,13 @@ In principal, syntactical errors are indicated by a pop up window for immediate 
 
 The behaviour of '{opsi-winst}/opsi-script' when it recognizes a syntactical error is defined by the configuration statement
 
+anchor:ScriptErrorMessages[]
+
 * `ScriptErrorMessages =` <boolean value> +
 If the value is true (default), syntactical errors trigger a pop up window with some informations on the error. +
 The boolean value may be 'true' or 'false'. Delimiters 'on' or 'off' can be used as well.
+
+anchor:FatalOnSyntaxError[]
 
 *  `FatalOnSyntaxError =` <boolean value> +
 ** 'true' = (default) If a syntax error occurs, then the script execution will be stopped and the script result will be set to 'failed'. Also, the message 'Syntax Error' will be passed to the opsi-server.
@@ -1283,6 +1316,8 @@ In either case above, the error counter will be increased by 1. +
 Since 4.11.3.2 +
 In older versions there was no logging of syntax errors, no increase of error counter, and the result was always set to 'success'.
 
+anchor:FatalOnRuntimeError[]
+
 *  `FatalOnRuntimeError =`  <boolean value> +
 A Runtime Error is an script logic error that leads to an forbidden or impossible operation. An Example: You try to get the 5th string from a string list that have only 3 elements.
 ** 'true' = If a runtime error occurs, then the script execution will be stopped and the script result will be set to 'failed'. Also, the message 'Runtime Error' will be passed to the opsi-server.
@@ -1291,6 +1326,8 @@ Since 4.11.4.3
 
 
 There two configuration options for execution errors.
+
+anchor:ExitOnError[]
 
 * `ExitOnError =` <boolean value> +
 This statement defines if the script execution shall terminate when an error occurs. If the value is true or yes the program will stop execution, otherwise errors are just logged (default).
@@ -1312,6 +1349,8 @@ CAUTION: According to the system manual the value cannot be changed while the pr
 [[opsi-winst-params-showmode]]
 === Show window mode / Skin / Activity [W/L]
 
+anchor:SetSkinDirectory[]
+
 * `SetSkinDirectory` <skindir> // [W/L] +
 Sets the skin directory to use and loads the skin. 
 If this command is used wit an empty or invalid path, the default skin dir is used. The default skin dir `%WinstDir%\winstskin`.
@@ -1326,20 +1365,34 @@ SetSkinDirectory ""
 
 To change the modes of how the '{opsi-winst}/opsi-script' window is displayed, use these commands:
 
+anchor:NormalizeWinst[]
+
 * `NormalizeWinst` +
 Sets the '{opsi-winst}/opsi-script' window to the 'normal' mode
+
+anchor:IconizeWinst[]
 
 * `IconizeWinst` +
 Sets the '{opsi-winst}/opsi-script' window to the 'minimized' mode
 
+anchor:MaximizeWinst[]
+
 * `MaximizeWinst` //since 4.11.5 +
 Sets the '{opsi-winst}/opsi-script' window to the 'maximized' mode
+
+
+
+anchor:RestoreWinst[]
 
 * `RestoreWinst` +
 Sets the '{opsi-winst}/opsi-script' window to the mode before the last change
 
-`AutoActivityDisplay =` <boolean value>  // (default=false)  //since 4.11.4.7 +
+
+anchor:AutoActivityDisplay[]
+
+* `AutoActivityDisplay =` <boolean value>  // (default=false)  //since 4.11.4.7 +
 If true shows a marquee (endless) progressbar while winbatch/dosbatch sections are running.
+
 
 [[opsi-winst-string]]
 === String Expressions, String Values, and String Functions [W/L]
@@ -1421,15 +1474,16 @@ The following sections present the variety of string functions.
 [[opsi-winst-string-functions-os]]
 ==== String Functions which Return the OS Type
 
-* `GetOS` [W/L] +
+anchor:GetOS[]
+
+* `GetOS : string`  [W/L] +
 The function tells which type of operating system is running. +
 We recommend to use `GetMsVersionInfo`. +
 GetOS` returns one of the following values: +
-"Windows_16" +
-"Windows_95" (including Windows 98 and ME) +
-"Windows_NT" (including Windows 2000 and XP) +
+"Windows_NT" (including Windows 2000 to Windows 10) +
 "Linux"
 
+anchor:GetNtVersion[]
 
 * `GetNtVersion`  [W] +
 Deprecated - please use `GetMsVersionInfo`. +
@@ -1443,6 +1497,8 @@ If the NT operating system has higher versions as 6 or there are version not exp
 "Win NT 5.2" +
 If the operating system is no Windows NT system the function returns the error value +
 "No OS of Windows NT type"
+
+anchor:GetMsVersionInfo[]
 
 * `GetMsVersionInfo`  [W] +
 returns for systems of type Windows NT the Microsoft version info as indicated by the API, e.g. a Windows XP system produces the result + 
@@ -1463,14 +1519,18 @@ returns for systems of type Windows NT the Microsoft version info as indicated b
 |=======================
 see also `GetMsVersionMap`
 
-* `getLinuxDistroType`  [L] +
+anchor:getLinuxDistroType[]
+
+* `getLinuxDistroType : string`   [L] +
 returns the type of the running Linux distribution an can be used to determine which general syntax we have to use. It may return one of the following values
 ** 'debian' (Debian / Ubuntu -> use apt-get)
 ** 'redhat' (RedHat / CentOs -> use yum)
 ** 'suse' (-> use zypper)
 (see `getLinuxVersionMap`) [L]
 
-* `GetSystemType`  [W/L] +
+anchor:GetSystemType[]
+
+* `GetSystemType : string`     [W/L] +
 checks the installed Windows OS if it can be assumed that the system is 64 Bit. In this case the value is '64 Bit System' otherwise 'x86 System'.
 
 [[opsi-winst-string-functions-env]]
@@ -1487,18 +1547,28 @@ GetUserSID(<Windows Username>)
 returns the SID for a given user (possibly with domain prefix in the form 
 DOMAIN\USER).
 
-* `EnvVar (` <string>`)` [W/L]  +
+anchor:EnvVar[]
+
+* `EnvVar (`<environment variable>`) : string` [W/L] [W/L]  +
 The function reads and returns the momentary value of a system environment variable. E.g., we can retrieve which user is logged in by `EnvVar ("Username")`.
+
+anchor:ParamStr[]
 
 * `ParamStr`  [W/L] +
 The function passes the the parameter string of the '{opsi-winst}/opsi-script' command line i.e. the command line parameter which is indicated by /parameter. If there is no such parameter ParamStr returns the empty string.
 
+anchor:GetLastExitCode[]
+
 * `GetLastExitCode` [W/L]  +
 returns the exit code (also called ErroLevel) of the last Winbatch call.
+
+anchor:GetUserSID[]
 
 * `GetUserSID(`<Windows Username>`)`  [W] +
 returns the SID for a given user (possibly with domain prefix in the form 
 DOMAIN\USER).
+
+anchor:GetUsercontext[]
 
 * `GetUsercontext`  [W] +
 returns the string which was given to the '{opsi-winst}/opsi-script' by the optional parameter `/usercontext`. IF this parameter was not userd the returned string is empty.
@@ -1506,7 +1576,9 @@ returns the string which was given to the '{opsi-winst}/opsi-script' by the opti
 [[opsi-winst-string-functions-reg]]
 ==== Reading Values from the Windows Registry and Transforming Values into Registry Format [W] 
 
-* `GetRegistryStringValue (`<string>`)` +
+anchor:GetRegistrystringvalue[]
+
+* `GetRegistrystringvalue(`"[key] var"`) : string` [W] +
 tries to interpret the passed String value as an expression of format +
 '[KEY] X' +
 Then, the function tries to open the registry key `KEY`, and, in case it succeeds, to read and return the String value that belongs to the registry variable name `X` . 
@@ -1537,13 +1609,25 @@ Key closed
 The value of the variable "$CompValue$" is now: "standard entry"
 ----
 
+anchor:GetRegistryStringValue32[]
 
-* `GetRegistryStringValue32(`<string>`)` ->	see <<opsi-winst-64bit,Chapter 64 Bit>>
+* `GetRegistryStringValue32 (`"[key] var"`) : string`  +
+->	see <<opsi-winst-64bit,Chapter 64 Bit>> 
+see also : <<GetRegistrystringvalue>>
 
-* `GetRegistryStringValue64(`<string>`)` ->	see <<opsi-winst-64bit,Chapter 64 Bit>>
+anchor:GetRegistryStringValue64[]
 
-* `GetRegistryStringValueSysNative(`<string>`)` ->	see <<opsi-winst-64bit,Chapter 64 Bit>>
+* `GetRegistryStringValue64 (`"[key] var"`) : string` +
+->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
+see also : <<GetRegistrystringvalue>>
 
+anchor:GetRegistryStringValueSysNative[]
+
+* `GetRegistryStringValueSysNative (`"[key] var"`) : string`  +
+->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
+see also : <<GetRegistrystringvalue>>
+
+anchor:RegString[]
 
 * `RegString(`<string>`)` +
 is useful for transforming path names into the format which is used in the Windows registry. That is, any backslash is duplicated. E. g., +
@@ -1573,7 +1657,9 @@ Varname2=Value2
 
 The most general function reads the value belonging to some key in some section of some ini file. Any parameter can be given as an arbitrary String expression:
 
-* `GetValueFromInifile (`<FILE>, <SECTION>, <KEY>, <DEFAULTVALUE>`)` +
+anchor:GetValueFromInifile[]
+
+* `GetValueFromInifile (` file, section, key, default value `) : string` [W/L] +
 The function tries to open the ini file `FILE`, retrieve the requested `SECTION` and find the value belonging to the specified `KEY` which the function will return. If any of these operations fail `DEFAULTVALUE` is returned.
 
 The second function borrows its syntax from the ini file format itself, and may sometimes be easier to use. But since this syntax turns complicated in more general circumstances it is deprecated. The syntax reads:
@@ -1583,6 +1669,8 @@ The second function borrows its syntax from the ini file format itself, and may 
 
 [[opsi-winst-string-functions-prodprop]]
 ==== Reading Product Properties [W/L] 
+
+anchor:GetProductProperty[]
 
 * `GetProductProperty (` <PropertyName>, <DefaultValue>`)` +
 where $PropertyName$ and $DefaultValue$ are String expressions. 
@@ -1604,6 +1692,8 @@ GetProductProperty("viewer", "yes")
 GetProductProperty("policy", "factory_default")
 ----
 
+anchor:GetConfidentialProductProperty[]
+
 * `GetConfidentialProductProperty (` <PropertyName>, <DefaultValue>`)` //since 4.11.5.2 +
 like `GetProductProperty` but handles the resulting value as confidential string. +
 Useful for getting passwords without logging. see also `SetConfidential`
@@ -1614,8 +1704,12 @@ Useful for getting passwords without logging. see also `SetConfidential`
 [[opsi-winst-string-functions-hosts]]
 ==== Retrieving Data from etc/hosts [W/L] 
 
+anchor:GetHostsName[]
+
 * `GetHostsName(`<string>`)` +
 returns the host name to a given IP address as it is declared in the local hosts file. If the operating system is "Windows_NT" (according to environment variable OS) "%systemroot%\system32\drivers\etc\" is assumed as host file location, otherwise "C:\Windows\".
+
+anchor:GetHostsAddr[]
 
 * `GetHostsAddr(`<string>`)` +
 tells the IP address to a given host or alias name.
@@ -1623,13 +1717,20 @@ tells the IP address to a given host or alias name.
 [[opsi-winst-string-functions-handling]]
 ==== String Handling [W/L] 
 
-* `ExtractFilePath(`<string>`)` +
+anchor:ExtractFilePath[]
+
+* `ExtractFilePath (`<path>`) : string` [W/L] +
 interprets the passed String value as file or path name and returns the path part (the string up to the last "\", including it).
 
-* `StringSplit (`STRINGWERT1, STRINGWERT2, INDEX`)` +
-(deprecated: use `splitString` / `takestring`)
 
-* `takeString(`<index>,<list>`)` +
+* `StringSplit (`STRINGWERT1, STRINGWERT2, INDEX`)` +
+(deprecated: use `splitString` / `takeString`) +
+see also : <<splitString>> +
+see also : <<takeString>> +
+
+anchor:takeString[]
+
+* `takeString (`<index>, <list>`) : string` [W/L] +
 returns from a string list <list> the string with the index <index>. +
 Often used in combination with `splitstring`:
 `takeString(`<index>, `splitString(`<string1>, <string2>`)` +
@@ -1656,7 +1757,9 @@ Index 4 - "directory"
 takestring(-1, $list1$)
 ----
 
-denotes the last element of String list $list1$.
+denotes the last element of String list $list1$. +
+see also : <<setStringInListAtIndex>> +
+
 
 * `SubstringBefore(`<string1>, <string2>`)` +
 (deprecated: use `splitString` / `takestring`)
@@ -1668,17 +1771,24 @@ SubstringBefore ("C:\programme\staroffice\program\soffice.exe", "\program\soffic
 ----
 returns '"C:\programme\staroffice"'.
 
-* `takeFirstStringContaining(`<list>,<search string>`)` +
+`takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
 returns the first string from <list> which contains <search string>. +
-Retruns a empty string if no matching string is found.
+Retruns a empty string if no matching string is found. +
+see also : <<takeFirstStringContaining>>
 
-* `Trim(`<string>`)` +
+anchor:trim[]
+
+* `trim(`<string>`) : string` [W/L] +
 cuts leading and trailing white space from <string>.
 
-* `lower(`<string>`)` +
+anchor:lower[]
+
+* `lower(`<string>`) : string` [W/L] +
 returns <string> with lower case.
 
-* `contains(`<str>, <substr>`)` +
+anchor:contains[]
+
+* `contains(`<str>, <substr>`) : bool`  //since 4.11.3: true if <substr> in <str> [W/L] +
 A boolean function which returns 'true' if <str> contains <substr>. This function is case sensitive. +
 Available since 4.11.3 +
 Example:
@@ -1701,9 +1811,11 @@ else
 endif
 ----
 
-* `stringReplace(`<string>, <oldPattern>, <newPattern>`)` +
+anchor:stringReplace[]
+
+* `stringReplace(`<string>, <oldPattern>, <newPattern>`) : string`  //since 4.11.3 [W/L] +
 returns a string, which has all occurrences of <oldPattern> replaced with <newPattern> given then input string <string>. +
-Available since 4.11.3 +
+
 Example:
 [source,winst]
 ----
@@ -1717,9 +1829,11 @@ else
 endif
 ----
 
-* `strLength(`<string>`)` +
+anchor:strLength[]
+
+* `strLength(`<string>`) : string (number)`  //since 4.11.3 [W/L] +
 Returns the number of chars in in <string> +
-Available since 4.11.3 +
+
 Example:
 [source,winst]
 ----
@@ -1743,9 +1857,11 @@ else
 endif
 ----
 
-* `strPos(`<string>, <sub string>`)` +
+anchor:strPos[]
+
+* `strPos(`<string>, <sub string>`) : string (numner)`  //since 4.11.3 [W/L] +
 returns the first position of <sub string> in <string>. If <sub string> is not found, then "0" is the return value. The function is case sensitive. +
-Available since 4.11.3 +
+
 Example:
 [source,winst]
 ----
@@ -1769,10 +1885,12 @@ else
 endif
 ----
 
-* `strPart(`<string>, <start pos>, <number of chars>`)` +
+anchor:strPart[]
+
+* `strPart(`<string>, <start pos>, <number of chars>`) : string`  //since 4.11.3 [W/L] +
 returns the part of <string> starting with <start pos> and include the next <number of chars> chars. If there are fewer than <number of chars> after <start pos>, then the returned string will be the rest of the chars after <start pos>. +
 The counting of chars starts with 1. +
-Available since 4.11.3 +
+
 Example:
 [source,winst]
 ----
@@ -1796,10 +1914,12 @@ else
 endif
 ----
 
-* `unquote(`<string>,<quote-string>`)`  +
+anchor:unquote[]
+
+* `unquote(`<string>,<quote-string>`) : string`  //since 4.11.2.1  [W/L] +
 returns the unquoted version of <string>, if <string> is quoted with <quote-string> +
 Only one char (the first char) of <quote-string> is accepted as a quote char. The leading white spaces are ignored. +
-Available since 4.11.2.1
+see also : <<unquote2>>
 [source,winst]
 ----
 set $ConstTest$ = "b"
@@ -1858,28 +1978,155 @@ else
 endif
 ----
 
-`unquote2(<string>,<quote-string>)` [W/L] +
+anchor:unquote2[]
+
+* `unquote2(`<string>,<quote-string>`) : string`  //since 4.11.5.2  [W/L] +
 Acts like `unquote(<string>,<quote-string>)` with the following differences: +
 If <quote-string> contains only one char, so this char will be used as 'start quote char' and 'end quote char'. If <quote-string> contains two chars, so the first char will be used as 'start quote char' and the second char as 'end quote char'. Example: a <quote-string> like "()" will unquote a string like '(hello)'. +
 The function returns the unchanged <string> if not ('start quote char' AND 'end quote char') is found.
 
-* `HexStrToDecStr(`<string>`)` [W/L]  +
+anchor:HexStrToDecStr[]
+
+* `HexStrToDecStr (`<hexstring>`) : string` [W/L]  +
 returns the decimal representation of the input string if this was the hexadecimal representation of an integer. Leading chars like '0x' or '$' will be ignored. In case of a converting error the function returns a empty string.
 
-*  `DecStrToHexStr (` <decstring>, <hexlength>`)` [W/L] +
+anchor:DecStrToHexStr[]
+
+* `DecStrToHexStr (` <decstring>, <hexlength>`) : string` [W/L] +
 returns a <hexlength> long string with the the hexadecimal representation of <decstring> if this was the decimal representation of an integer. In case of a converting error the function returns a empty string.
 
-* `base64EncodeStr(`<string>`)` [W/L]  +
+[source,winst]
+----
+message "DecStrToHexStr"
+set $ConstTest$ = "0407"
+set $tmp$ = "1031"
+set $CompValue$ = DecStrToHexStr($tmp$,"4")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+message "DecStrToHexStr"
+set $ConstTest$ = "407"
+set $tmp$ = "1031"
+set $CompValue$ = DecStrToHexStr($tmp$,"2")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+
+anchor:base64EncodeStr[]
+
+* `base64EncodeStr(`<string>`) : string`  [W/L]  +
 returns the base64 encoded value of <string>.
 
-* `base64DecodeStr(`<string>`)` [W/L]  +
+anchor:base64DecodeStr[]
+
+* `base64DecodeStr(`<string>`) : string`  [W/L]  +
 returns the base64 decoded value of <string>.
 
-*  `reencodestr(`<str>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
+[source,winst]
+----
+message "base64EncodeStr"
+set $ConstTest$ = "YWJjZGVm"
+set $tmp$ = "abcdef"
+set $CompValue$ = base64EncodeStr($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+message "base64DecodeStr"
+set $ConstTest$ = "abcdef"
+set $tmp$ = "YWJjZGVm"
+set $CompValue$ = base64DecodeStr($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+
+anchor:encryptStringBlow[]
+
+* `encryptStringBlow(`<keystring>,<datastring>`) : string` [W/L]  +
+Encrypted <datastring> with the Key <keystring> under application of Blowfish and returns the encrypted value.
+
+anchor:decryptStringBlow[]
+
+* `decryptStringBlow(`<keystring>,<datastring>`) : string` [W/L]  +
+Decrypts <datastring> with the Key <keystring> under the application of Blowfish and returns the decrypted value.
+
+[source,winst]
+----
+set $ConstTest$ = "This string is very secret"
+set $ConstTest$ = encryptStringBlow("linux123",$ConstTest$)
+set $ConstTest$ = decryptStringBlow("linux123",$ConstTest$)
+set $CompValue$ = "This string is very secret"
+if ($ConstTest$ = $CompValue$)
+	comment "cryptStringBlow passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "testing cryptStringBlow failed"
+endif
+----
+
+anchor:md5sumFromFile[]
+
+* `md5sumFromFile(`<path to file>`) : string` [W/L]  +
+Returns the md5sum that under <path to file> was found. +
+In case of error returns an empty String.
+
+[source,winst]
+----
+set $ConstTest$ = md5sumFromFile("%ScriptPath%\test-files\crypt\dummy.msi")
+set $CompValue$ = strLoadTextFile("%ScriptPath%\test-files\crypt\dummy.msi.md5")
+if ($ConstTest$ = $CompValue$)
+	comment "md5sumFromFile passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "testing md5sumFromFile failed"
+endif
+----
+
+anchor:reencodestr[]
+
+* `reencodestr(`<str>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
 assumes that <str> is encoded in <from> and returns the in <to> encoded version of <str>. <from> and <to> are encodings as listet in chapter <<opsi-winst-encoding>>.
 
-*  `strLoadTextFile (` <filename> `)`  //since 4.11.4.6 [W/L] +
-returns the content of <filename> as String.
+anchor:strLoadTextFile[]
+
+* `strLoadTextFile (`<file name>`) : string` [W/L] +
+returns the first line of <filename> as String. +
+see also : <<loadTextFile>> +
+see also : <<strLoadTextFileWithEncoding>> +
+see also : <<loadUnicodeTextFile>> +
+see also : <<loadTextFileWithEncoding>> +
+
+anchor:strLoadTextFileWithEncoding[]
+
+* `strLoadTextFileWithEncoding (` <filename> , <encoding>`) : string` [W/L] +
+returns the first line of <filename> as String reencodes from <encoding>. +
+see also : <<loadTextFile>> +
+see also : <<strLoadTextFile>> +
+see also : <<loadUnicodeTextFile>> +
+see also : <<loadTextFileWithEncoding>> +
+see also : <<opsi-winst-encoding>> +
+
+anchor:GetShortWinPathName[]
 
 * `GetShortWinPathName(<longpath string>)`  //since 4.11.5.2 [W] +
 Returns the short path (8.3) from <longpath string>. If ther is no short path for <longpath string>, so you will get an empty string. +
@@ -1888,14 +2135,18 @@ Example: `GetShortWinPathName("C:\Program Files (x86)")` returns `"C:\PROGRA~2"`
 [[opsi-winst-string-functions-others]]
 ==== Other String Functions
 
-* `RandomStr`  [W/L] + 
+anchor:RandomStr[]
+
+* `RandomStr : string` [W/L] +
 returns a random String of length 10 where upper case letters, lower case letters and digits are mixed (for creating passwords). More exactly: 2 lower case chars, 2 upper case chars, 2 special chars and 4 digits. The possible special chars are: +
 '!','$','(',')','*','+','/',';','=','?','[',']','{','}','ß','~','§','°'
 
-* `CompareDotSeparatedNumbers(`<string1>, <string2>`)`  [W/L] +
+anchor:CompareDotSeparatedNumbers_str[]
+
+* `CompareDotSeparatedNumbers(`<string1>, <string2>`) : string` [W/L] +
 compares two strings of the form <number>[.<number>[.<number>[.<number>]]] +
 It returns "0" if the strings are equal, "1" if <string1> is higher and "-1" if <string1> is lower than <string2>. +
-see also: `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L]
+see also: `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)` : <<CompareDotSeparatedNumbers_bool>>
 
 Example: +
 The Code:
@@ -2029,9 +2280,12 @@ Else
 EndIf
 ----
 
-* `CompareDotSeparatedStrings (`<string1>, <string2>`)` [W/L]  +
+anchor:CompareDotSeparatedStrings_str[]
+
+* `CompareDotSeparatedStrings(`<string1>, <string2>`) : string` [W/L]  +
 compares two strings of the form <string>.<string>[.<string>[.<string>]] +
-It returns "0" if the strings are equal, "1" if <string1> is higher and "-1" if <string1> is lower than <string2>. The function is not case sensitive.
+It returns "0" if the strings are equal, "1" if <string1> is higher and "-1" if <string1> is lower than <string2>. The function is not case sensitive. +
+see also : <<CompareDotSeparatedStrings_bool>>
 
 Example: +
 The Code:
@@ -2255,24 +2509,38 @@ Else
 EndIf
 ----
 
+anchor:getDiffTimeSec[]
+
 *  `getDiffTimeSec`  [W/L] +
 returns a string with the integer number of seconds since the last call of `marktime`. +
 Available since 4.11.3.1
+
+anchor:timeStampAsFloatStr[]
+
+* `timeStampAsFloatStr : string` (Floating Number - format: 'days.decimal days') //since 4.11.6 [W/L] +
+Gives Date and Time from now as string that contains a decimal number in the format: 'days.decimal days'. This Format make it easier to claculate time differences.
+
+anchor:SidToName[]
 
 * `SidToName(`<well known sid>`)` [W]  +
 returns a string with the localized name of the group with the <well known sid>. For example, if <well known sid> is equal to 'S-1-5-32-544' then `SidToName` returns 'Administrators'.  +
 Available since 4.11.3.1
 
-* `GetMyIpByTarget(`<target ip addr>`)` [W]  +
+anchor:GetMyIpByTarget[]
+
+* `GetMyIpByTarget(`<target ip addr>`)` [W/L]  +
 returns a list of interface IP-addresses, which are trying to reach the operating system at <target ip addr>. This function returns a value that is safer than the constant `%IPAddress%`. +
 Since Version 4.11.3.1 +
 Example:
 [source,winst]
 ----
-set $CompValue$ = getMyIpByTarget("%opsiServer%")
+set $CompValue$ = GetMyIpByTarget("%opsiServer%")
 ----
+see also : <<GetIpByName>> +
+see also : <<IPAddress>> +
 
-* `GetIpByName(`<ip addr / ip name>`)` [W]  +
+anchor:GetIpByName[]
+* `GetIpByName(`<ip addr / ip name>`)` [W/L]  +
 returns the IP-addresses of the computers with the <ip addr / ip name> +
 Since Version 4.11.3.2
 [source,winst]
@@ -2301,8 +2569,11 @@ else
 	LogWarning "failed"
 endif
 ----
+see also : <<GetMyIpByTarget>> +
 
-*  `getLastExitCode`  [W/L] +
+anchor:getLastExitCode[]
+
+* `getLastExitCode : string (exitcode)` [W/L] +
 returns a string that contains the value of the exitcode of the last process called by a WinBatch / DosBatch / ExecWith section. +
 When using a DosBatch or ExecWith section, you will normally get the exitcode from the interpreter that was called. To get the exitcode of your script, you have to define it explicitly.
 
@@ -2329,6 +2600,8 @@ exit %ERRORLEVEL%
 [[opsi-winst-string-functions-license]]
 ==== (String-) Functions for Licence Management [W/L] 
 
+anchor:DemandLicenseKey[]
+
 * `DemandLicenseKey(`poolId [, productId [,windowsSoftwareId]]`)` +
 asks the opsi service via the function getAndAssignSoftwareLicenseKey for a reservation of a licence for the client. +
 The pool from which the licences is taken may be explicitly given by its ID or is identified via an associated product ID or Windows Software Id (possible, if these associations are defined in the licences configuration). +
@@ -2343,6 +2616,8 @@ set $mykey$ = DemandLicenseKey ("pool_office2007")
 set $mykey$ = DemandLicenseKey ("", "office2007")
 set $mykey$ = DemandLicenseKey ("", "", "{3248F0A8-6813-11D6-A77B}")
 ----
+
+anchor:FreeLicense[]
 
 * `FreeLicense(`poolId [, productId [,windowsSoftwareId]]]`)` +
 asks the opsi service via the function freeSoftwareLicense to release the current licence reservation.
@@ -2360,8 +2635,12 @@ set $opsiresult$ = FreeLicense("pool_office2007")
 [[opsi-winst-string-functions-serviceerrors]]
 ==== Retrieving Error Infos from Service Calls [W/L] 
 
+anchor:getLastServiceErrorClass[]
+
 * `getLastServiceErrorClass` +
 returns, as its name says, the class name of the error information of the last service call. If the last service call did not produce an error the function returns the value "None".
+
+anchor:getLastServiceErrorMessage[]
 
 * `getLastServiceErrorMessage` +
 returns the message String of the last error information resp. "None". +
@@ -2377,6 +2656,8 @@ endif
 
 [[opsi-winst-stringlist]]
 === String List Functions and String List Processing [W/L] 
+
+anchor:DefStringList[]
 
 A String list (or a String list value) is a sequence of String values. For this kind of values we have the variable of type String list. They are defined by the statement
 
@@ -2401,6 +2682,8 @@ We start with a special and rather useful kind of String lists: 'maps' – also 
 
 [[opsi-winst-stringlist-maps]]
 ==== Info Maps
+
+anchor:getHWBiosInfoMap[]
 
 * `getHWBiosInfoMap`  //since 4.11.4  [L/W] +
 get hardware information from BIOS and writes them to hash map string list. +
@@ -2438,8 +2721,9 @@ enclosure.Power Supply State=Unknown
 enclosure.BootUp State=Unknown
 ----
 
+anchor:getLinuxVersionMap[]
 
-* `getLinuxVersionMap`  //since 4.11.4  [L] +
+* `getLinuxVersionMap : stringlist`  //since 4.11.4  [L] +
 get OS information and writes them to hash map string list. +
 There are the folowing keys: (example):
 [source,ini]
@@ -2458,8 +2742,9 @@ hardware platform=i386
 operating system=GNU/Linux
 ----
 
+anchor:GetMSVersionMap[]
 
-* `getMSVersionMap`  [W] +
+* `GetMSVersionMap : stringlist` [W] +
 get OS information and writes them to hash map string list. +
 There are the folowing keys:
 * major_version
@@ -2539,7 +2824,9 @@ Background infos for getMSVersionMap
 
 ==============================
 
-* `getFileInfoMap(`<FILENAME>`)`  [W] +
+anchor:getFileInfoMap[]
+
+* `getFileInfoMap(` <file name> `) : stringlist` [W] +
 retrieves the version infos built into the file FILENAME and writes it to a Stringlist map.
 
 At this moment, there exist the keys,
@@ -2625,7 +2912,9 @@ Set  $INST_Resultlist$ = getFileInfoMap($InterestingFile$)
         (string  16)SpecialBuild=
 ----
 
-* `getLocaleInfoMap`  [W] +
+anchor:GetLocaleInfoMap[]
+
+* `GetLocaleInfoMap`  [W] +
 retrieves the system informations on the locale and writes it to a Stringlist map.
 
 At this moment, there exist the keys:
@@ -2658,7 +2947,7 @@ The code:
 [source,winst]
 ----
 message "Locale Infos"
-set $INST_Resultlist$ = getLocaleInfoMap
+set $INST_Resultlist$ = GetLocaleInfoMap
 ----
 
 produces e.g the log:
@@ -2666,8 +2955,8 @@ produces e.g the log:
 ----
 message Locale Infos
 
-Set $INST_Resultlist$ = getLocaleInfoMap
-    retrieving strings from getLocaleInfoMap [switch to loglevel 7 for debugging]
+Set $INST_Resultlist$ = GetLocaleInfoMap
+    retrieving strings from GetLocaleInfoMap [switch to loglevel 7 for debugging]
         (string   0)language_id_2chars=DE
         (string   1)language_id=DEU
         (string   2)localized_name_of_language=Deutsch (Deutschland)
@@ -2694,7 +2983,7 @@ Usage: If we define and call
 [source,winst]
 ----
 DefStringList $languageInfo$
-set  $languageInfo$ = getLocaleInfoMap
+set  $languageInfo$ = GetLocaleInfoMap
 ----
 
 we get the value associated with key "language_id_2chars" from the call 
@@ -2719,7 +3008,7 @@ endif
 [NOTE]
 ==============================
 
-Background infos for getLocaleInfoMap:
+Background infos for GetLocaleInfoMap:
 
 * http://msdn.microsoft.com/en-us/library/cc233968.aspx
 * http://msdn.microsoft.com/en-us/library/0h88fahh.aspx
@@ -2731,8 +3020,12 @@ http://schneegans.de/lv/?tags=de-de-1996&format=text
 
 ==============================
 
+
 * `getLocaleInfo` +
-(deprecated): use `GetLocaleInfoMap` .
+(deprecated): use `GetLocaleInfoMap` . +
+see also : <<GetLocaleInfoMap>> 
+
+anchor:getProductMap[]
 
 * `getProductMap` // since 4.11.2.4  [W/L] +
 returns a info map of the opsi product you are just installing. +
@@ -2791,7 +3084,9 @@ Set  $string1$ = getValue("id", $INST_Resultlist$)
 [[opsi-winst-stringlist-create-by-value]]
 ==== Producing String Lists from Strings [W/L] 
 
-* `createStringList (`String0, String1 ,... `)`  [W/L] +
+anchor:createStringList[]
+
+* `createStringList (`<string0>, <string1> ,... `) : stringlist` [W/L] +
 forms a String list from the values of the listed String expressions. For example, by
 [source,winst]
 ----
@@ -2800,9 +3095,9 @@ set $list1$ = createStringList ('a','b', 'c', 'd')
 
 we get a list of the first four letters of the alphabet. 
 
+anchor:splitString[]
 The following two functions produce a String list by splitting some string:
-
-* `splitString (`<string1>, <string2>`)` [W/L]  +
+`splitString (`<string1>, <string2>`) : stringlist` [W/L]  +
 generates the list of partial strings of <string1> (including empty strings) before resp. between the occurences of <string2>. E.g., 
 [source,winst]
 ----
@@ -2811,7 +3106,9 @@ set $list1$ = splitString ("\\server\share\directory", "\")
 defines the list +
 '"", "", "server", "share", "directory"'
 
-* `splitStringOnWhiteSpace (`<string>`)` [W/L]  +
+anchor:splitStringOnWhiteSpace[]
+
+* `splitStringOnWhiteSpace (`<string>`)  : stringlist` [W/L]  +
 slices StringVal by the "white spots" in it. E. g. 
 [source,winst]
 ----
@@ -2824,17 +3121,25 @@ no matter how many blanks or tabs constitute the white space between the words.
 [[opsi-winst-stringlist-create-by-file]]
 ==== Loading Lines of a Text File into a String List
 
-* `loadTextFile (`<file name>`)`  [W/L] +
+anchor:loadTextFile[]
+
+* `loadTextFile (`<file name>`) : stringlist` [W/L] +
 reads the file <file name> and generates the string list, that contains all lines of the file.
 
-* `LoadTextFileWithEncoding(` <file name> `,` <encoding>`)` [W/L] +
+anchor:loadTextFileWithEncoding[]
+
+* `loadTextFileWithEncoding(` <file name> `,` <encoding>`) : stringlist` [W/L] +
 reads the file <file name> and generates the string list, that contains all lines of the file. The string will be reencoded from <encoding> to system encoding.
 
-* `loadUnicodeTextFile (`<file name>`)`  [W] +
+anchor:loadUnicodeTextFile[]
+
+* `loadUnicodeTextFile (`<file name>`) : stringlist` [W] +
 reads the unicode text file <file name> and generates the string list, that contains all lines of the file. +
 By this call, the strings are converted into the system default 8 bit code.
 
-* `getSectionNames (`<file name>`)`  [W/L] +
+anchor:getSectionNames[]
+
+* `getSectionNames(`<ini-file>`) : stringlist` [W/L] +
 interprets the specified file as an inifile, looks for list of all lines of form +
 '[<SectionName>]' +
 and returns the pure section names (without brackets).
@@ -2842,7 +3147,9 @@ and returns the pure section names (without brackets).
 [[opsi-winst-stringlist-getstring]]
 ==== Simple String Values generated from String Lists or Files [W/L] 
  
-* `composeString (`<string list>, <link string>`)`  [W/L] +
+anchor:composeString[]
+
+* `composeString (`<string list>, <Link>`) : string` [W/L] +
 With this function, the elements of any String list can be glued to one another, mediated by a "glue string". +
 E.g. if '$list1$' represents the list 'a', 'b', 'c', 'd', 'e' +
 by 
@@ -2852,7 +3159,8 @@ $line$ = composeString ($list1$, " | ")
 ----
 we assign the value '"a | b | c | d | e".' to '$line$'.
 
-* `takeString(`<index>,<list>`)` [W/L]  +
+
+* `takeString (`<index>, <list>`) : string` [W/L]  +
 E. g., if $list1$ represents the list of the first five letters of the alphabet, using 
 [source,winst]
 ----
@@ -2864,29 +3172,43 @@ Negative values of index go downwards from the list count value. E.g.,
 ----
 takeString (-1, $list1$)
 ----
-return the last list element, that is "e".
+return the last list element, that is "e". +
+see also : <<setStringInListAtIndex>> +
+see also : <<takeString>>
 
-* `takeFirstStringContaining(`<list>,<search string>`)`  [W/L] +
+anchor:takeFirstStringContaining[]
+
+* `takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
 returns the first string of the list which contains the <search string>. +
 Returns an empty string if no matching string was found.
 
-* `getValue (`<key>, <list>`)`  [W/L] +
+anchor:getValue[]
+
+* `getValue(`<key string>, <hash string list> `) : string` [W/L] +
 This function tries to interpret a String list as list of lines of the form 
 'key=value' +
 It looks for the first line, where the string <key> is followed by the equality sign, and returns the remainder of the line (the 'value', the string that starts after the equality sign). If there is no fitting line, it returns the string 'NULL'. +
-The function is required for using the `getLocaleInfoMap` and `getFileVersionMap` string list functions (cf. <<opsi-winst-stringlist-maps>>).
+The function is required for using the `GetLocaleInfoMap` and `getFileVersionMap` string list functions (cf. <<opsi-winst-stringlist-maps>>).
 
-* `getValueBySeparator(`<key string>,<separator string>,<hash string list> `)` //since 4.11.2.1  [W/L] +
+anchor:getValueBySeparator[]
+
+* `getValueBySeparator(`<key string>,<separator string>,<hash string list> `) : string` //since 4.11.2.1 [W/L] +
 works like `getValue` but you have to give the <separator string> so that can also work with hashes like +
 'key:value' 
 
-* `getValueFromFile(`<key string>, <file name>`)` //since 4.11.4.4 [W/L] +
+anchor:getValueFromFile[]
+
+* `getValueFromFile(`<key string>, <file name>`) : string` //since 4.11.4.4 [W/L] +
 Searches in <file name> for a key/value pair with key <key string> and separator string '=' and returns the value. If <key string> is not found it returns an empty string.
 
-* `getValueFromFileBySeparator(`<key string>,<separator string>, <file name>`)` //since 4.11.4.4 [W/L] +
+anchor:getValueFromFileBySeparator[]
+
+* `getValueFromFileBySeparator(`<key string>,<separator string>,<file name>`) : string` //since 4.11.4.4 [W/L] +
 Searches in <file name> for a key/value pair with key <key string> and separator string <separator string> and returns the value. If <key string> is not found it returns an empty string.
 
-* `count (`<list>`)`  [W/L] +
+anchor:count[]
+
+* `count (`<list>`) : string (number)` [W/L] +
 returns the number of elements of the string list <list> as string. +
 e.g. for $list1$ composed as +
 'a', 'b', 'c', 'd', 'e' +
@@ -2895,10 +3217,14 @@ e.g. for $list1$ composed as +
 [[opsi-winst-stringlist-create-by-section]]
 ==== Producing String Lists from opsi-winst Sections [W/L] 
 
-* `retrieveSection (`section name`)`  [W/L] +
+anchor:retrieveSection[]
+
+* `retrieveSection (`<section name>`) : stringlist` [W/L] +
 gives the lines of the specified section as string list.
 
-* `getOutStreamFromSection (`section name`)`  [W/L] +
+anchor:getOutStreamFromSection[]
+
+* `getOutStreamFromSection (`<dos section name>`) : stringlist (output)` [W/L] +
 invokes the section and – at this moment implemented only for `DosInAnIcon` (`ShellInAnIcon`),`ExecWith` and `ExecPython` calls – captures the output to standard out and standard error of the invoked commands writing them into a string list. For example: +
 [source,winst]
 ----
@@ -2907,11 +3233,14 @@ set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart')
 [DosInAnIcon_netstart]
 net start
 ----
-`$list1$` contains among some surrounding stuff the list of all mounted shares of a PC. 
+`$list1$` contains among some surrounding stuff the list of all mounted shares of a PC. +
+see also : <<getReturnListFromSection>> +
 
-Since 4.11.4.2 there is a shortcut for simple calls to the shell. At Windows this command runs in the sysnative mode.
+There are 3 shortcuts for simple calls to the shell. At Windows these commands runs in the sysnative mode.
 
-*  `shellCall (`<command string>`)` [W/L]
+
+* `shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L] +
+Executing <command string> with the standard shell (cmd.exe / bash)
 [source,winst]
 ----
 set $list$= shellCall('net start')
@@ -2924,7 +3253,41 @@ set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart winst /sysnative')
 [DosInAnIcon_netstart]
 net start
 ----
+see also : <<shellCall_list>>
 
+* `shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+
+[DosInAnIcon_netstart]
+net start
+----
+see also : <<shellCall>>
+
+
+* `shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+set $exitcode$ = shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+set $exitcode$ = getLastExitcode
+
+[DosInAnIcon_netstart]
+net start
+----
+see also : <<shellCall_str>>
+
+anchor:getReturnListFromSection[]
 
 * `getReturnListFromSection (`section name`)`  [W/L] +
 For some section types - at this moment implemented only for `XMLPatch` sections and `opsiServiceCall` sections - there is a specific `return` statement which yields some result of the execution of the section (assumed to be of String list type). +
@@ -2944,43 +3307,62 @@ Set $result$=getReturnListFromSection("opsiservicecall_clientIdsList")
 "method":"getClientIds_list"
 "params":[]
 ----
+see also : <<getOutStreamFromSection>> 
 
 [[opsi-winst-stringlist-create-by-registry]]
 === Stringlists from the registry [W] 
 
-* `getRegistryKeyList32(`<regkey>`)` +
+anchor:getRegistryKeyList32[]
+
+* `getRegistryKeyList32(`<regkey>`) : stringlist` [W] +
 Returns a stringlist with the names of all keys within <regkey>. +
 32 Bit mode (with redirection). Available since 4.11.3
 
-* `getRegistryKeyList64(`<regkey>`)` +
+anchor:getRegistryKeyList64[]
+
+* `getRegistryKeyList64(`<regkey>`) : stringlist`  +
 Returns a stringlist with the names of all keys within <regkey>. +
 64 Bit mode (without redirection). Available since 4.11.3
 
-* `getRegistryKeyListSysnative(`<regkey>`)` +
+anchor:getRegistryKeyListSysnative[]
+
+* `getRegistryKeyListSysnative(`<regkey>`) : stringlist`  +
 Returns a stringlist with the names of all keys within <regkey>. +
 Mode (redirection) depends on the architecture of the OS. Available since 4.11.3
 
-* `getRegistryVarList32(`<regkey>`)` +
+anchor:getRegistryVarList32[]
+
+* `getRegistryVarList32(`<regkey>`) : stringlist` +
 Returns a stringlist with the names of all value entries associated with key <regkey>. +
 32 Bit mode (with redirection). Available since 4.11.3
 
-* `getRegistryVarList64(`<regkey>`)` +
+anchor:getRegistryVarList64[]
+
+* `getRegistryVarList64(`<regkey>`) : stringlist` +
 Returns a stringlist with the names of all value entries associated with key <regkey>. +
 64 Bit mode (without redirection). Available since 4.11.3
 
-* `getRegistryVarListSysnative(`<regkey>`)` +
+anchor:getRegistryVarListSysnative[]
+
+* `getRegistryVarListSysnative(`<regkey>`) : stringlist`  +
 Returns a stringlist with the names of all value entries associated with key <regkey>. +
 Mode (redirection) depends on the architecture of the OS. Available since 4.11.3
 
-* `getRegistryVarMap32(`<regkey>`)` +
+anchor:getRegistryVarMap32[]
+
+* `getRegistryVarMap32(`<regkey>`) : stringlist` +
 Provides a map of all name=value pairs in the given registry key <regkey>. +
 32 Bit Mode (with redirection). Since 4.11.3
 
-* `getRegistryVarMap64(`<regkey>`)` +
+anchor:getRegistryVarMap64[]
+
+* `getRegistryVarMap64(`<regkey>`) : stringlist` +
 Provides a map of all name=value pairs in the given registry key <regkey>. +
 64 Bit Mode (with redirection). Since 4.11.3
 
-* `getRegistryVarMapSysnative(`<regkey>`)` +
+anchor:getRegistryVarMapSysnative[]
+
+* `getRegistryVarMapSysnative(`<regkey>`) : stringlist` +
 Provides a map of all name=value pairs in the given registry key <regkey>. +
 Mode depend on the architecture of the operating system. Since 4.11.3
 
@@ -3057,6 +3439,8 @@ Registry started with redirection (32 Bit)
 [[opsi-winst-stringlist-create-by-propery]]
 ==== Stringlists from the Product Properties [W/L] 
 
+anchor:getProductPropertyList[]
+
 * `getProductPropertyList(`<propname>,<default value>`)` +
 returns a stringlist of values that are referred to by the multivalue product property <propname>. If there is no connection to the opsi server, then the resulting stringlist contains only <default value>. +
 If you call the function `GetProductProperty` with a multivalue property, then you will get the selected values in a comma-separated string format. This will lead to problems if the returned values contain any comma chars that are not meant to be parsed. +
@@ -3095,7 +3479,9 @@ Set $list$ = GetProductPropertyList ("dummymulti",$propertyList$)
 [[opsi-winst-stringlist-misc]]
 ==== Other String Lists [W/L] 
 
-* `getProfilesDirList`  [W/L] +
+anchor:getProfilesDirList[]
+
+* `getProfilesDirList : stringlist` //since 4.11.3.2 [W/L] +
 Provides a list of paths to the local profiles. +
 [W]: Profiles that contain the following words will *not* be considered: +
 
@@ -3124,7 +3510,9 @@ Registry started with redirection (32 Bit)
         (string   1)C:\Users\Default
 ----
 
-* `GetProcessList`   //since 4.11.1.2; gives list of exename;pid;dom/user [W/L] +
+anchor:GetProcessList[]
+
+* `GetProcessList : stringlist`  //since 4.11.1.2; gives list of exename;pid;dom/user [W/L] +
 Provides a list of running processes. +
 For each process you get one line with a ';' separated list of the following process information: +
 
@@ -3141,7 +3529,9 @@ For each process you get one line with a ';' separated list of the following pro
 [[opsi-winst-stringlist-transform]]
 ==== Transforming String Lists [W/L] 
 
-* `getSubList (`<Startindex> : <Endindex>, <list> `)` +
+anchor:getSubList[]
+
+* `getSubList (`<start index> : <end index>, <list>`) : stringlist` [W/L] +
 returns a partial list of a given list. +
 E.g., if list represents the list of letters 'a', 'b', 'c', 'd', 'e', by the statement:
 [source,winst]
@@ -3173,23 +3563,34 @@ set $list1$ = getSubList(1 : -2, $list$)
 ----
 defines the list of elements starting with the first and ending with the second to last element of the list – in the above example we get list 'b', 'c', 'd'.
 
-* `getListContaining(`<list>,<search string>`)` +
+anchor:getListContaining[]
+
+* `getListContaining(`<list>,<search string>`) : stringlist` [W/L] +
 returns the first string from <list> which contains <search string>. Returns empty string if <seach string> is not found.
 
-* `getListContainingList(`<list1>,<list2>`)`  //since 4.11.3.7 [W/L] +
+anchor:getListContainingList[]
+
+* `getListContainingList(`<list1>,<list2>`) : stringlist`  //since 4.11.3.7 [W/L] +
 returns the intersection of list1 and list2.
 
-* `takeFirstStringContaining(`<list>,<search string>`)` +
+* `takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
 returns the first string from <list> which contains <search string>. +
-Return en empty string if <search string> is not found.
+Return en empty string if <search string> is not found. +
+see also : <<takeFirstStringContaining>>
 
-* `addtolist(`<list>,<string>`)` +
+anchor:addtolist[]
+
+* `addtolist(`<list>,<string>`) : stringlist`	 //since 4.10.8 [W/L] +
 Appends <string> to the list <list>.
 
-* `addlisttolist(`<list1>,<list2>`)` +
+anchor:addListToList[]
+
+* `addListToList(`<dest list>,<src list>`) : stringlist`	 //since 4.10.8 [W/L] +
 Appends the list <list2> to the list <list1>.
 
-* `reverse (`<list>`)` +
+anchor:reverse[]
+
+* `reverse (`<list>`) : stringlist` [W/L] +
 produces the inverted list, +
 if $list$ is 'a', 'b', 'c', 'd', 'e', by +
 [source,winst]
@@ -3198,16 +3599,23 @@ set $list1$ = reverse ($list$)
 ----
 we get the $list1$ 'e', 'd', 'c', 'b', 'a'.
 
-`emptylist (`<list>`)`  //since 4.11.3.7 [W/L] +
+anchor:emptylist[]
+`emptylist (`<list>`)  : stringlist`  //since 4.11.3.7 [W/L] +
 clears the list.
 
-*  `reencodestrlist(`<list>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
+anchor:reencodestrlist[]
+
+* `reencodestrlist(`<list>, <from>, <to>`) : stringlist` //since 4.11.4.2 [W/L] +
 assumes that <list> is encoded in <from> and returns the in <to> encoded version of <list>. <from> and <to> are encodings as listet in chapter <<opsi-winst-encoding>>.
 
-* `removeFromListByContaining(`<search string>`,` <target list>`)` [W/L] +
+anchor:removeFromListByContaining_str[]
+
+* `removeFromListByContaining(`<search string>`,` <target list>`) : stringlist` //since 4.11.5.1 [W/L] +
 Returns a copy of <target list> where all lines that contains <search string> are removed. The match to <search string> is case insensitiv.
 
-* `removeFromListByContaining(`<search list>`,` <target list>`)` [W/L] +
+anchor:removeFromListByContaining_list[]
+
+* `removeFromListByContaining(`<search list>`,` <target list>`)` //since 4.11.5.1 [W/L] +
 Returns a copy of <target list> where all lines are removed that contains a string out of <search list>. The match to <search list> is case insensitiv.
 
 Examples:
@@ -3331,6 +3739,21 @@ else
 endif
 ----
 
+anchor:removeFromListByMatch[]
+
+* `removeFromListByMatch(`<searchstring>,<target list>`) : stringlist`   //since 4.11.6 [W/L] +
+Returns a copy of <target list> where all lines are removed that exactly match a line out of <search list>. The match to <search sting> is case insensitiv. +
+see also : <<removeFromListByContaining_str>> +
+see also : <<removeFromListByContaining_list>>
+
+anchor:setStringInListAtIndex[]
+
+* `setStringInListAtIndex(`<newstring>,<list>,<indexstr>`) : stringlist`   //since 4.11.6 [W/L] +
+Replaces in the existing stringlist <list> the existing string at <index> by <newstring>. If <index> is to hight, <newstring> will be appended. In case of an error the result is an empty string list. +
+see also : <<takeString>>
+
+anchor:forInDo[]
+
 [[opsi-winst-stringlist-iteration]]
 ==== Iterating through String Lists [W/L] 
 
@@ -3363,12 +3786,160 @@ Such, finally line has value 'abcde' . If we omitted the citation marks around %
 
 Please note: The note variable is only valid in the directly called procedure. If it is needed in sub programs of it its value must be transferred to a global variable.
 
+[[opsi-winst-json]]
+=== opsiservicecall and json Related functions [W/L]
+
+anchor:jsonIsValid[]
+
+* `jsonIsValid(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+anchor:jsonIsArray[]
+
+* `jsonIsArray(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+anchor:jsonIsObject[]
+
+* `jsonIsObject(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectHasKey[]
+
+* `jsonAsObjectHasKey(`<jsonstr>,<keystr>`) : boolean`  //since 4.11.6: [W/L]
+
+anchor:jsonAsArrayCountElements[]
+
+* `jsonAsArrayCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectCountElements[]
+
+* `jsonAsObjectCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L]
+
+anchor:jsonAsArrayGetElementByIndex[]
+
+* `jsonAsArrayGetElementByIndex(`<jsonstr>, <indexstr>`) : jsonstring`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectGetValueByKey[]
+
+* `jsonAsObjectGetValueByKey(`<jsonstr>, <keystr>`) : valuestring`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectSetValueByKey[]
+
+* `jsonAsObjectSetValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectSetStringtypeValueByKey[]
+
+* `jsonAsObjectSetStringtypeValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L]
+
+anchor:jsonAsArrayPutObjectByIndex[]
+
+* `jsonAsArrayPutObjectByIndex(`<jsonstr>, <indexstr>, <objectstr>`) : jsonstring`  //since 4.11.6: [W/L]
+
+anchor:jsonAsArrayToStringList[]
+
+* `jsonAsArrayToStringList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L]
+
+anchor:jsonStringListToJsonArray[]
+
+* `jsonStringListToJsonArray(`<strlist>`) : jsonstr`  //since 4.11.6: [W/L]
+
+anchor:jsonAsObjectGetKeyList[]
+
+* `jsonAsObjectGetKeyList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L]
+
+
+Example: Restoring productOnClient entries from a file to the server: 
+
+[source,winst]
+----
+DefVar $poc_file$
+DefVar $objectStr$
+DefVar $ArrayStr$
+DefVar $pid$
+
+DefStringlist $resultlist$
+DefStringlist $resultlist1$
+DefStringlist $productIdList$
+DefStringlist $pocList$
+
+
+Message "Delete productOnClient from opsi backend ..."
+set $resultlist$ = getReturnListFromSection("opsiservicecall_getPOC")
+Set $ArrayStr$ = takestring(0, $resultlist$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from Service"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from Service"
+	isFatalError
+endif
+comment "extract productIds ..."
+comment "clean target list"
+set $productIdList$ = emptylist($productIdList$)
+comment "get stringlist "
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+for %aktpoc% in $pocList$ do sub_fill_product_ids
+for %aktProductId% in $productIdList$ do opsiServiceCall_del_productOnClient
+
+Message "Restore productOnClient from file ..."
+comment " get Restore data from file ..."
+Set $ArrayStr$ = strLoadTextFile($poc_file$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from file"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from file"
+	isFatalError
+endif
+
+comment "get list from array"
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+comment "loop over list"
+for %pocindex% = "0" to calculate(count($pocList$)+"-1") do sub_set_clientid_in_poclist
+comment "convert modified list to jason array"
+set $ArrayStr$ = jsonStringListToJsonArray($pocList$)
+set $ArrayStr$ = unquote2($ArrayStr$,"[]")
+comment "write back"
+opsiServiceCall_updatePOC
+
+[sub_fill_product_ids]
+set $objectstr$ = '%aktpoc%'
+set $pid$ = jsonAsObjectGetValueByKey($objectstr$, "productId" )
+set $productIdList$ = addToList($productIdList$,$pid$)
+
+[sub_set_clientid_in_poclist]
+set $objectStr$ = takeString("%pocindex%", $poclist$)
+set $objectStr$ = jsonAsObjectSetStringtypeValueByKey(($objectStr$, "clientId","%opsiserviceUser%")
+set $poclist$ = setStringInListAtIndex($objectStr$,$poclist$,"%pocindex%")
+
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+					'$ArrayStr$',
+					]
+
+[opsiservicecall_getPOC]
+	"method": "productOnClient_getObjects"
+	"params":[
+           "[]",
+           '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct"}'
+           ]
+
+[opsiServiceCall_del_productOnClient]
+"method": "productOnClient_delete"
+"params": [
+					'%aktProductId%',
+					'%opsiserviceuser%',
+					]
+----
 [[opsi-winst-numbers]]
 === Calculating with numbers [W/L] 
 
 'opsi-winst' scripts do not have a special type of varibles for numbers. But there are some functions to help calculating with numbers.
 
-* `calculate(`<str>`)` +
+anchor:calculate[]
+
+* `calculate(`<arithmetic string expression>`) : string (number)` +
 this string function calculates the arithemtic expression of the string <str> and returns the rounded result as a string. +
 Internally the calculations are done with real numbers. This function acceptsthe operators `+`, `-`, `*`, `/` and round brackets `(`,`)`. +
 In case of an error, an empty string is returned and the error counter is incremented. If the passed string contains any characters other than numbers, valid operators and brackets, this results in an error. +
@@ -3536,11 +4107,123 @@ endif
 For more examples refer to the product 'opsi-winst-test'
 at the section '$Flag_calculate$ = "on"'
 
+[[opsi-winst-process]]
+=== Process and Script Related functions [W/L]
+
+anchor:waitForPackageLock[]
+
+* `waitForPackageLock(`<seconds timeout string>,<bool should we kill>`) : bool` //since 4.11.6.1 [L] +
+Returns `true` if the Linux package system is not locked by an other process. If it is locked, it waits <seconds timeout string> to get the lock. If the timeout is reached and <bool should we kill> is `true` than the locking process is killed but using this feature ist *not recommended*.
+
+anchor:processIsRunning[]
+
+* `processIsRunning(`<process name>`) : boolean`  //since 4.11.6.1 [W/L] +
+Returns `true` if <process name> is found in the process list
+
+anchor:shellCall_list[]
+
+* `shellCall (`<command string>`) : stringlist (output)` //since 4.11.4.2 [W/L] +
+Executing <command string> with the standard shell (cmd.exe / bash)
+[source,winst]
+----
+set $list$= shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+set $list$ = getOutStreamFromSection ('DosInAnIcon_netstart winst /sysnative')
+
+[DosInAnIcon_netstart]
+net start
+----
+
+anchor:shellCall[]
+
+* `shellCall (`<command string>`) : noresult` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+
+[DosInAnIcon_netstart]
+net start
+----
+
+anchor:shellCall_str[]
+
+* `shellCall (`<command string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+[source,winst]
+----
+set $exitcode$ = shellCall('net start')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+DosInAnIcon_netstart winst /sysnative
+set $exitcode$ = getLastExitcode
+
+[DosInAnIcon_netstart]
+net start
+----
+
+anchor:startProcess[]
+
+* `startProcess(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+Starts the command binary <string> as process and returns te exitcode +
+[source,winst]
+----
+set $exitcode$ = startProcess('setup.exe /S')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+Winbatch_setup
+set $exitcode$ = getLastExitcode
+
+[Winbatch_setup]
+setup.exe /S
+----
+In fact it is internal a winbatch call, so all the `winbatch` modifiers are also allowed for `startProcess`
+
+* `/LetThemGo` +
+This is the contrary to `/WaitOnClose`. It is used if '{opsi-winst}/opsi-script' shall proceed while the started processes run in their own threads.
+
+* `/TimeOutSeconds` <seconds> +
+A timeout setting. After waiting <seconds>, '{opsi-winst}/opsi-script' will end the process. +
+Since version 4.11.3, /TimeOutSeconds may be used without a waiting condition (e.g. `/WaitForProcessEnding`) but not in combination with `/WaitSeconds`. +
+Since version 4.11.4.6 the time progress from start until timeout is displayed by the progressbar. +
+
+* `/WaitSeconds` [number of seconds] +
+If a call includes the parameter /WaitSeconds [number of seconds], then '{opsi-winst}/opsi-script' is waiting for [number of seconds] before proceeding. In the default configuration, we also wait for any programs that are currently running to finish. If we combine the parameter /WaitSeconds with the option `/LetThemGo`, then '{opsi-winst}/opsi-script' continues processing after the waiting time is finished.
+ 
+* `/WaitForProcessEnding` <program name> +
+Waits for the process called <program name> to end. +
+Should be combined with `/TimeOutSeconds`.
+
+*  `/32Bit` //since 4.11.3.5  [W] +
+This is the default. The paths within the section are assumed to be 32 bit pathes. +
+Example: `c:\windows\system32\regedit.exe` calls (even when running on a 64 bit system) the 32 bit 'regedit.exe'.
+
+*  `/64Bit` //since 4.11.3.5  [W] +
+The paths within the section are assumed to be 64 bit paths. +
+Example: `c:\windows\system32\regedit.exe` executes (running on a 64 bit system) the 64 bit 'regedit.exe'.
+
+*  `/SysNative` //since 4.11.3.5  [W] +
+The paths within the section are assigned according to the OS architecture interpretiert. +
+Example: `c:\windows\system32\regedit.exe` running on a 64bit system calls the 64 bit 'regedit.exe' and running on a 32 bit system the 32 bit 'regedit.exe'.
+
+
 
 [[opsi-winst-special-commands]]
 === Special Commands [W/L] 
 
-* `Killtask` <process> [W/L] +
+anchor:Killtask[]
+
+* `Killtask` <process name> ` : noresult` [W/L] +
 tries to stop all processes that execute the program named by the string expression. +
 E.g.
 [source,winst]
@@ -3548,7 +4231,9 @@ E.g.
 killtask "winword.exe"
 ----
 
-*   `ChangeDirectory` <directory>   //since 4.11.2.6 [W/L] +
+anchor:ChangeDirectory[]
+
+* `ChangeDirectory` <directory>  ` : noresult`  //since 4.11.2.6 [W/L] +
 Set the given directory as working directory of the '{opsi-winst}/opsi-script'. Affects all subsequent actions (e.g. winbatch sections) and will be reset at the end of a script.  
 Beispiel :
 [source,winst]
@@ -3556,6 +4241,7 @@ Beispiel :
 ChangeDirectory "%SCRIPTPATH%\programm"
 ----
 
+anchor:UpdateEnvironment[]
 
 * `UpdateEnvironment` //since 4.11.5.1 [W] +
 Sends Windows the signal to reload the environment values from the registry.
@@ -3589,11 +4275,17 @@ set "opsi-script-test"="deleteme"
 "%system%\cmd.exe" /c "if %opsi-script-test%==deleteme exit 42"
 ----
 
+anchor:sleepSeconds[]
+
 *  `sleepSeconds` <string>  [W/L] +
 breaks the program execution for <string> seconds. <string> has to represent an Integer Value
 
+anchor:markTime[]
+
 *  `markTime`  [W/L] +
 sets a time stamp for the current system time and logs it. 
+
+anchor:diffTime[]
 
 * `diffTime`  [W/L] +
 logs the time passed since the last `marktime`.
@@ -3602,14 +4294,22 @@ logs the time passed since the last `marktime`.
 [[opsi-winst-commands-logging]]
 ==== Commands to control the logging
 
+anchor:comment[]
+
 * `comment` <string> or `comment` = <const string>  [W/L] +
 writes the value of the String expression resp. the sequence of characters into the log file.
+
+anchor:LogError[]
 
 * `LogError` <string> or `LogError` = <const string>  [W/L] +
 writes additional error messages to the log file and increments the error counter by one.
 
+anchor:LogWarning[]
+
 * `LogWarning` <string> or `LogWarning` = <const string>  [W/L] +
 writes additional warning messages to the log file and increments the warning counter by one.
+
+anchor:includelog[]
 
 * `includelog` <file name> <tail size>   //since 4.11.2.1  [W/L] +
 
@@ -3625,6 +4325,8 @@ includelog "%Scriptpath%\test-files\10lines_utf16.txt" "5" "ucs2be"
 ----
 
 see: <<opsi-winst-encoding,Encoding>>
+
+anchor:SetConfidential[]
 
 * `SetConfidential` <secret string>  [W/L] +
 This is to prevent confidential information (like passwords) from being logged. In the logfile the confidential information will be replaced by '***(confidential)***'. +
@@ -3650,7 +4352,9 @@ comment: should be in the log file: This is a ***(confidential)*** string
 [[opsi-winst-commands-information]]
 === Commands for User Information and User Interaction  [W/L] 
 
-*  `Message` <string expression> +
+anchor:Message[]
+
+* `Message` <string expression> +
 bzw. +
 `Message` = <sequence of characters> +
 lets '{opsi-winst}/opsi-script' display the value of the String expression resp. the sequence of chars in the batch window in the top information line. The text is kept as long as no new `message` is set. +
@@ -3660,6 +4364,8 @@ Example:
 Message "Installation von "+$productid$
 ----
 
+anchor:ShowMessageFile[]
+
 * `ShowMessageFile` <file name> +
 interprets the String expression as text file name, tries to read the text and show it in a user information window. Execution stops until the user confirms reading. E.g. by a command like 
 [source,winst]
@@ -3667,6 +4373,8 @@ interprets the String expression as text file name, tries to read the text and s
 ShowMessageFile "p:\login\day.msg"
 ----
 one can realize a "Message of the Day" mechanism.
+
+anchor:ShowBitMap[]
 
 * `ShowBitMap` [<image name>] [<inscription>] +
 places the image denoted by the <image name> (in BMP, JPEG or PNG format, size 160x160 pixel) and shows the inscription. +
@@ -3677,9 +4385,12 @@ Example: +
 ShowBitmap "%scriptpath%\" + $ProductId$ + ".png"  "$ProductId$"
 ----
 
+anchor:Pause[]
 
 * `Pause` <string> or `Pause` = <const string> +
 display the text given as a String expression or as a sequence of chars in a information window waiting until the user confirms the continuation. 
+
+anchor:Stop[]
 
 * `Stop` <string> or `stop` = <const string> +
 halt program execution if the user confirms it. The String expression resp. the (possibly empty) sequence of chars explain to the user what is supposed to be stopped.
@@ -3687,33 +4398,52 @@ halt program execution if the user confirms it. The String expression resp. the 
 [[opsi-winst-commands-loginscripts]]
 === Commands for userLoginScripts / User Profile Management
 
+anchor:GetScriptMode[]
+
 * `GetScriptMode`   //since 4.11.2.1 +
 give one of the possible values 'Machine','Login': +
 ** 'Machine' - the script is *not* running as 'userLoginScript'
 ** 'Login' - the script is running as 'userLoginScript'
 
-* `GetUserSID(`<Windows Username>`)`
+
+* `GetUserSID(`<Windows Username>`)` +
+see also : <<GetUserSID>> +
+
+anchor:GetLoggedInUser[]
 
 * `GetLoggedInUser`   //since 4.11.1.2
 
+
 * `GetUsercontext`   //since 4.11.1.2 +
-returns the username in whose context the '{opsi-winst}/opsi-script' is just running.
+returns the username in whose context the '{opsi-winst}/opsi-script' is just running. +
+see also : <<GetUsercontext>> +
+
+anchor:saveVersionToProfile[]
 
 * `saveVersionToProfile` //since 4.11.2.1 +
 save +productversion+-+packageversion+ to local profile +
 It is designed to be used in 'userLoginScripts'. +
 This command is used in combination with `readVersionFromProfile` or `scriptWasExecutedBefore`. It marks that the 'userLoginScript' for this product in this product version and package version was excuted for the actual user. The inrormation is saved at the file  "%CurrentAppdataDir%\.opsi.org\userLoginScripts.ini"
 
+anchor:readVersionFromProfile[]
+
 * `readVersionFromProfile` //since 4.11.2.1 +
 returns a string with the +productversion+-+packageversion+ for the running opsi product which was read from local profile. See also: `saveVersionToProfile` +
 It is designed to be used in 'userLoginScripts'.
+
+anchor:scriptWasExecutedBefore[]
 
 * `scriptWasExecutedBefore` //since 4.11.2.1 +
 This Boolean function `scriptWasExecutedBefore` checks if there is a version stamp in the profile (like you may do with the `readVersionFromProfile` command) It returns 'true' if saved and running +productversion+-+packageversion+ are identical. Then it set a new stamp to the profile (like you may do with the `saveVersionToProfile` command).  So you may just use this single command in a +if+ statement. +
 It is designed to be used in 'userLoginScripts'. 
 
+anchor:isLoginScript[]
+
 * `isLoginScript`    //since 4.11.2.1 +
-This booleasn function returns 'true' if the script is running as 'userLoginScript'. See also: `GetScriptMode`
+This booleasn function returns 'true' if the script is running as 'userLoginScript'. See also: `GetScriptMode` +
+see also : <<GetScriptMode>> +
+
+anchor:ForToDo[]
 
 [[opsi-winst-commands-for-to-do]]
 === for to do loop
@@ -3804,7 +4534,7 @@ Else
 EndIf
 ----
 
-
+anchor:SwitchCase[]
 
 [[opsi-winst-commands-switch-case]]
 === Switch / Case Statement [W/L]
@@ -3902,6 +4632,8 @@ Switch $ExitCode$
 EndSwitch
 ----
 
+anchor:IfElseEndif[]
+
 [[opsi-winst-commands-if-else]]
 === Conditional Statements (if Statements)
 
@@ -3986,7 +4718,9 @@ Boolean operators can be conceived as special Boolean valued functions (the nega
 
 There are some more Boolean functions implemented. Every call of such a function constitutes a Boolean expression as well:
 
-* `FileExists`(<file name>) +
+anchor:FileExists[]
+
+* `FileExists (`<file name>`) : bool` [W/L] +
 returns 'true' if the denoted file or directory exists otherwise 'false'. 
 
 * `FileExists32`(<file name>)	see <<opsi-winst-64bit,Chapter 64 Bit support>>
@@ -3995,23 +4729,34 @@ returns 'true' if the denoted file or directory exists otherwise 'false'.
 
 * `FileExistsSysNative`(<file name>) see <<opsi-winst-64bit,Chapter 64 Bit support>>
 
-* `LineExistsIn`(<line>, <file name>) +
+anchor:LineExistsIn[]
+
+* `LineExistsIn (`<string>, <file name>`) : bool` [W/L] +
 returns 'true' if the text file denoted by <file name> contains a line as specified in the first parameter where each parameter is a String expression. Otherwise (or if the file does not exist) it returns 'false'.
 
-* `LineBeginning_ExistsIn`(<string>, <file name>) +
+anchor:LineBeginning_ExistsIn[]
+
+* `LineBeginning_ExistsIn (`<string>, <file name>`) : bool` [W/L] +
 returns 'true' if there is line that begins with <string> in the text file denoted by <file name> (each parameter being a string expression). Otherwise (or if the file does not exist) it returns 'false'.
 
-* `LineContaining_ExistsIn(` <string>, <file name> `)` //since 4.11.4.10[W/L] +
+anchor:LineContaining_ExistsIn[]
+
+* `LineContaining_ExistsIn(` <string>, <file name> `) : bool` [W/L] +
 returns 'true' if there is line that contains <string> in the text file denoted by <file name> (each parameter being a string expression). Otherwise (or if the file does not exist) it returns 'false'.
 
+anchor:XMLAddNamespace[]
 
 * `XMLAddNamespace`(<XMLfilename>, <XMLelementname>, <XMLnamespace>) +
 inserts a XML namespace definition into the first XML element with the given name (if not existing). It gives back if an insertion took place. (The '{opsi-winst}/opsi-script' XML patch section need the definitions of namespace.) +
 The file must be formatted that an element tag has no line breaks in it. 
 For an example, cf. cookbook <<opsi-winst-cookbook-xmlnamespace>>. 
 
+anchor:XMLRemoveNamespace[]
+
 * `XMLRemoveNamespace`(<XMLfilename>, <XMLelementname>, <XMLnamespace>) +
 removes the XML namespace definition from the XML element. It gives back if an removal took place. We need this to simulate that an original file is unchanged. For an example, cf. cookbook <<opsi-winst-cookbook-xmlnamespace>>.
+
+anchor:HasMinimumSpace[]
 
 * `HasMinimumSpace`(<Laufwerksname>, <Kapazität>) +
 returns true if at least a capacity capacity is left on drive drivename. capacity as well as drivename syntactically are String expressions. The capacity may be given as a number without unit specification (then interpreted as bytes) or with unit specifications "kB", "MB", or "GB" (case independent). +
@@ -4024,8 +4769,12 @@ if not (HasMinimumSpace ("%SYSTEMDRIVE%", "500 MB"))
 endif
 ----
 
-* `opsiLicenseManagementEnabled` +
+anchor:opsiLicenseManagementEnabled[]
+
+* `opsiLicenseManagementEnabled` : bool +
 returns 'true' if the opsi license management module is enabled.
+
+anchor:runningAsAdmin[]
 
 * `runningAsAdmin` +
 Returns 'true' if the currently running script was executed with Administrator privileges. +
@@ -4033,30 +4782,41 @@ Available since 4.11.1.1
 
 * `isLoginScript` +
 Returns 'true' if the currently running script was called as 'userLoginScript' using the opsi extension 'User Profile Management'. +
-Available since 4.11.2.1
+Available since 4.11.2.1 +
+see also : <<isLoginScript>> +
 
-* `contains(`<str>, <substr>`)` +
+
+* `contains(`<str>, <substr>`) : bool`   //since 4.11.3: true if <substr> in <str> [W/L] +
 Boolean function which returns 'true' if <str> contains <substr>. This function is case sensitive. +
-Available since 4.11.3 
+see also : <<contains>>
 
-* `isNumber(`<str>`)` +
+anchor:isNumber[]
+
+* `isNumber(`<str>`) : bool` //since 4.11.3: true if <str> represents an integer [W/L] +
 Boolean function which returns 'true' if <str> represents an integer. +
-Available since 4.11.3
+
+anchor:runningOnUefi[]
 
 * `runningOnUefi` +
 Boolean function which returns 'true' if the running OS was booted in UEFI mode. +
 Available since 4.11.4.3
 
+anchor:isDriveReady[]
+
 * `isDriveReady(`<drive letter>`)` //since 4.11.4.4: [W] +
 true: if the drive can be accessed 
 
-* `saveTextFile(`<list>, < filename>`)` //since 4.11.4.4: [W/L] +
+anchor:saveTextFile[]
+
+* `saveTextFile(`<list>, < filename>`) : bool`  [W/L] +
 true: if list is succesfully written to file 
 
-* `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
+anchor:CompareDotSeparatedNumbers_bool[]
+
+* `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`) : bool`  //since 4.11.5.2: [W/L] +
 compares two strings of the form <number>[.<number>[.<number>[.<number>]]] +
 by the <relation str> which may be one of [<,<=,=,>=,>]. +
-see also: string function `CompareDotSeparatedNumbers(`<string1>, <string2>`)`
+see also: string function `CompareDotSeparatedNumbers(`<string1>, <string2>`)` : see also : <<CompareDotSeparatedNumbers_str>>
 
 Example: +
 The code:
@@ -4165,10 +4925,12 @@ Else
 EndIf
 ----
 
-* `CompareDotSeparatedStrings(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
+anchor:CompareDotSeparatedStrings_bool[]
+
+* `CompareDotSeparatedStrings(`<str1>,<relation str>,<str2>`) : bool`  //since 4.11.5.2: [W/L] +
 compares two strings of the form <str>[.<str>[.<str>[.<str>]]] +
 by the <relation str> which may be one of [<,<=,=,>=,>]. +
-see also: string function `CompareDotSeparatedStrings(`<string1>, <string2>`)`
+see also: string function `CompareDotSeparatedStrings(`<string1>, <string2>`)`  : <<CompareDotSeparatedStrings_str>>`
 
 [[opsi-winst-commands-include]]
 === Include Commands
@@ -4182,8 +4944,12 @@ Use with caution if you are a beginner.
 The `include_*` commands may be used to add external script files to the currently-running script at runtime. The `include_*` command can include external script files either as an insert (after the current line) or as an append (after the last line). The include commands may be used anywhere in a primary section. The external script files may contain their own include commands. +
 The include commands are available since version 4.11.3
 
+anchor:include_insert[]
+
 * `include_insert` <file name> +
 inserts <file name> after the current line into the running script. So the first line of the included file is the next line that will be executed by '{opsi-winst}/opsi-script'.
+
+anchor:include_append[]
 
 * `include_append` <file name> +
 appends the content of <file name> to the running script. This kind of insert is normally used to include sections from a library.
@@ -4470,14 +5236,22 @@ The command `ExitWindows` is used to control reboots , shutdown and similar acti
 DEPRECATED: a reboot request is registered which should be executed when all installations requests are treated, and the last script has finished. +
 In fact, this command is now treated as an `ExitWindows /Reboot` (since otherwise an installation could fail because a required product is not yet completely installed).
 
+anchor:Reboot[]
+
 * `ExitWindows /Reboot` +
 triggers the reboot after '{opsi-winst}/opsi-script' has finished the currently treated script.
+
+anchor:ImmediateReboot[]
 
 * `ExitWindows /ImmediateReboot` +
 breaks the normal execution of a script anywhere inside it. When this command is called '{opsi-winst}/opsi-script' runs as directly as possible to its end entailing the system ExitWindows call. In the context of an installed opsi-client-agent it is guaranteed that after rebooting '{opsi-winst}/opsi-script' runs again into the script that was aborted. Therefore, the script has to take provisions that the execution continues after the point where it was left the turn before (otherwise we may get an infinite loop ...) Cf. the example in this section.
 
+anchor:ImmediateLogout[]
+
 * `ExitWindows /ImmediateLogout` +
 The normal execution of a script breaks at the point of the call, and the '{opsi-winst}/opsi-script' stops running. This behaviour is needed if an automated user log in for some other user shall take place (cf. <<opsi-winst-cookbook-local-admin>>).
+
+anchor:ShutdownWanted[]
 
 * `ExitWindows /ShutdownWanted` +
 sets a flag in the registry that the PC shuts down when all installations requests are treated, and the last script has finished. 
@@ -4543,6 +5317,8 @@ If a product installation fails, then this should be signaled to the server.
 
 Due to the fact that there is no automatic method that detects a failed installation, testing for a failed installation has to be done using script commands. 
 
+anchor:isFatalError[]
+
 To indicate in a '{opsi-winst}/opsi-script' script that the installation is failed we have to call the statement: +
 `isFatalError` +
 If this statement is called, then '{opsi-winst}/opsi-script' stops the normal execution of the script and sets the product result to 'failed' (otherwise it is 'success'). +
@@ -4576,11 +5352,17 @@ if not(HasMinimumSpace ("%SYSTEMDRIVE%", $SpaceNeeded$))
 It is also possible to state +
 `isFatalError` +
 depending on the number of errors which occured in some critical part of an installation script. In order to do this we initialize the error counting by the command +
+
+anchor:markErrorNumber[]
+
 * `markErrorNumber` +
 The number of execution errors which occur after setting the counter can be queried by the the number valued function +
-* `errorsOccuredSinceMark` +
+
+anchor:errorsOccurredSinceMark[]
+
+* `errorsOccurredSinceMark` +
 We can evaluate the result in a numerical comparison condition (that as yet is only implemented for this expression). E. g. we may state +
-* `if errorsOccuredSinceMark > 0` +
+* `if errorsOccurredSinceMark > 0` +
 and may, if this seems to make sense, then state +
 `isFatalError` +
 For increasing the number of counted errors depending on certain circumstances (that do not directly produce an error) we may use the `logError` statement. 
@@ -4598,7 +5380,7 @@ logError "test error"
 ; for testing, comment out this line 
 
 
-if errorsOccuredSinceMark > 0
+if errorsOccurredSinceMark > 0
     ; we finish script execution as quick as possible
     ; and set the product state to "failed"
 
@@ -4614,11 +5396,17 @@ else
 endif
 ----
 
+anchor:isSuccess[]
+
 * `isSuccess` //since 4.11.3.7 [W/L] +
 Abort the script as successful.
 
+anchor:noUpdateScript[]
+
 * `noUpdateScript` //since 4.11.3.7 [W/L] +
 Do not run a update script after setup even if there is one.
+
+anchor:isSuspended[]
 
 * `isSuspended` //since 4.11.4.1 [W/L]
 Abort the script without notice to the server. The action request remain unchanged.
@@ -6332,7 +7120,42 @@ A hash – in this case a string list, where each item is a pair name=value – 
 	]
 ----
 
-CAUTION: The sections opsiservicecall are developed for opsi 3.x methods. For opsi 4.x methods they are often not suitable. For example '*_getIdents' calls are possible, '*_getObjects' calls are not possible.  
+.Objekt orientierte Methoden
+
+Der Umgang mit JSON Objekten aus dem Webservice erforet ein Grundverständnis von JSON, den opsi Objekten und den JSON bezogenen Methoden in opsi-script.
+Siehe dazu auch :
+opsi-manual: Kapitel: "Web service / API Methoden seit opsi 4.0"
+In diesem Manual: ##########
+
+Gemäß folgendem Code Beispiel können Sie Objekte vom Service holen.
+In diesem Beispiel werden Alle productOnClient Objekte geholt, welche zum aktuellen Rechner gehören (`%opsiserviceUser%` ist im Service Kontext der FGDN des Clients), Localboot Produkte sind und bei denen der Actionrequest auf 'setup' steht.
+[source,winst]
+----
+DefStringlist $resultlist$
+set $resultlist$ = getReturnListFromSection("opsiServiceCall_get_productOnClient_setup_objects")
+[opsiServiceCall_get_productOnClient_setup_objects]
+"method": "productOnClient_getObjects"
+"params": [
+          "[]",
+          '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct","actionRequest":"setup"}',
+          ]
+----
+Das Ergebnis ist ein JSON Array String welcher in der ersten Zeile von `$resultlist$` steht.
+
+
+Sie können auch (veränderte) Objekte wieder zurückschreiben.
+Folgendes Beispiel zeigt das Prinzip:
+Die String Variable `$ArrayStr$` muss ein gültiges JSON Array enthalten.
+[source,winst]
+----
+DefVar $ArrayStr$
+(...)
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+          '$ArrayStr$'
+          ]
+----
 
 [[opsi-winst-opsiservicecall-examples]]
 ==== Examples
@@ -6842,7 +7665,7 @@ Set $LdapFilter$ = "(&(objectclass=*))"
 
 markErrorNumber
 set $list1$ = getReturnListFromSection("ldapsearch_users /" + $LdapResultType$)
-if errorsOccuredSinceMark > 0
+if errorsOccurredSinceMark > 0
 	comment "failed while ldapsearch"
 	set $TestResult$ = "not o.k."
 else
@@ -7574,6 +8397,57 @@ elementname: "node"
 end
 
 SetAttribute "oor:name" value="$oooTemplateDirectory$"
+----
+
+[[opsi-winst-cookbook-xml-patch-complex-attributes]]
+=== Patching a XML configuration file for a MsSql application: An example with misleadingly named attributes
+
+The file which is to be patched has e.g. the following form; the values of DataSource and InitialCatalog will be filled using the  
+variables $source$ and $catalog$.
+
+[source,xml]
+----
+<?xml version="1.0"?>
+<configuration>
+  <startup>
+    <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5"/>
+  </startup>
+  <appSettings>
+    <add key="Database.DatabaseType" value="MsSqlServer"/>
+    <add key="Database.DataSource" value="[db-servername]\[db-instance]"/>
+    <add key="Database.InitialCatalog" value="TrustedData"/>
+    <add key="ActiveDirectory.Enabled" value="false"/>
+    <add key="ActiveDirectory.LdapRoot" value=""/>
+  </appSettings>
+</configuration>
+----
+
+Then the following XMLPatch section can be used:
+
+[source,winst]
+----
+
+[XMLPatch_db_config]
+openNodeSet
+	documentroot
+	all_childelements_with:
+		elementname:"appSettings"
+	all_childelements_with:
+		elementname:"add"
+		attribute: "key" value ="Database.DataSource"
+end
+SetAttribute "value" value="$source$"
+
+openNodeSet
+	documentroot
+	all_childelements_with:
+		elementname:"appSettings"
+	all_childelements_with:
+		elementname:"add"
+		attribute: "key" value ="Database.InitialCatalog"
+end
+SetAttribute "value" value="$catalog$"
+
 ----
 
 [[opsi-winst-cookbook-readxml]]

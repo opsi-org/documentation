@@ -29,7 +29,7 @@
 include::../common/opsi_terms.asciidoc[]
 
 [[opsi-manual-wimcap]]
-=== opsi Erweiterung 'opsi WIM Capture'
+=== 'opsi WIM Capture'
 
 [[opsi-manual-wimcap-preconditions]]
 ==== Vorbedingungen für die opsi Erweiterung 'opsi wim capture'
@@ -79,7 +79,10 @@ Das capturen eines installierten Windows läuft wie folgt ab:
 
 Vorbereitung:
 
-* Installation von Windows mit der Property Einstellung: 'preserve_winpe_partition=true'
+* Installation von Windows mit der Property Einstellung: +
+'preserve_winpe_partition=true' +
+'boot_partition_size=0' +
+'windows_partition_size=100%'
 
 Start des Produktes `opsi-wim-capture`. +
 Alle folgenden Punkte werden ohne weitere Interaktion vom Produkt `opsi-wim-capture` gesteuert:
@@ -324,20 +327,62 @@ Dabei dürfen Verzeichnisse wie `winpe` oder z.B. `drivers/drivers/additional/by
 (Ausrollen des gecapturten Images)
 
 
-Zum Ausrollen des erstellten Images dient das bei der Erstellung per `target_product` angegebene 'Zielprodukt'. In diesem wählen Sie bei `imagename` das erstellte Image aus, und können dieses jetzt ganz normal wie eine andere Windowsinstallation installieren. D.h. sämtliche Standards wie Treiberintegration, Installation des opsi-client-agent finden genauso statt, wie wenn Sie ein Original Microsoft Image ausrollen.
+*Wiederherstellung der opsi Metadaten zu installierten Produkten*
 
-*Wiederherstellung der opsi Daten zu installierten Produkten*
+*Das Problem:*
 
-Wenn Sie ein Windows mit opsi neu installieren, z.B. aus `win7-x64`, dann werden alle Localboot-Produkte, welche bei diesem Rechner vorher auf `installed` standen, automatisch auf setup gestellt und erneut installiert.
-
-Dies ist beim ausrollen eines 'gecapturten' Images anders. +
-Beim Ausrollen eines 'gecapturten' Images werden nach der Installation des Images nur die Produkte automatisch installiert, welche schon vor dem Beginn der Betriebssystem-Installation auf `setup` standen. Dies kann durch Ihren Eingriff oder das Property `setup_after_install` erfolgt sein.
-
-Warum dieses Verhalten ? +
+Wenn Sie ein Windows mit opsi neu installieren, z.B. aus `win7-x64`, dann werden bei der Installation des opsi-client-agent alle Localboot-Produkte, welche bei diesem Rechner vorher auf `installed` standen, automatisch auf setup gestellt und damit später erneut installiert. +
+Dies kann beim Ausrollen eines 'gecapturten' Images nicht ganz genauso durchgeführt werden. +
 Im Image befindet sich das Backup der opsi-Daten, das dort während des capture Vorgangs abgelegt wurde. Dieses wird bei der Installation des opsi-client-agent entdeckt, und wieder in den opsi-server eingespielt. Damit stehen die Produkte, die in dem 'gecapturten' Image installiert waren, jetzt für den frisch installierten Rechner auf `installed`.
-Würden jetzt alle Produkte, welche auf `installed` stehen auf `setup` gesetzt, würde dies dazu führen, dass alle schon im Image installierten Produkte nochmal installiert werden. Dies ist nicht erwünscht. +
-Daher werden in diesem Fall auch nur die Produkte installiert, welche vor der Installation des Betriebssystems auf `setup` standen.
+Würden jetzt alle Produkte, welche auf `installed` stehen auf `setup` gesetzt, würde dies dazu führen, dass alle schon im Image installierten Produkte nochmal installiert werden. Dies ist nicht erwünscht. 
 
+
+Bei der Wiederherstellung der opsi Metadaten zu installierten Produkten gibt es ab opsi 4.0.7 zwei Varianten: +
+
+* Variante 1: +
+Zurückspielen der Metadaten und Beibehaltung von 'setup'-Actionrequests. +
+Produkte die auf 'installed' stehen werden *nicht* auf 'setup' gestellt. +
+Dies ist der Default und das Verhalten vor opsi 4.0.7
+
+* Variante 2: + 
+Zurückspielen der Metadaten. Produkte die auf 'installed' stehen werden auf 'setup' gestellt ausser denen welche in den restorten Metadaten enthalten waren. +
+
+*Variante 1* +
+Beim Ausrollen eines 'gecapturten' Images werden nach der Installation des Images nur die Produkte automatisch installiert, welche schon vor dem Beginn der Betriebssystem-Installation auf `setup` standen. Dies kann durch Ihren Eingriff oder das Property `setup_after_install` erfolgt sein.
+Daher werden in diesem Fall auch nur die Produkte installiert, welche vor der Installation des Betriebssystems auf `setup` standen. +
+Dies ist der Default und das Verhalten vor opsi 4.0.7
+
+*Variante 2* +
+Die Variante 2 verhält sich vom Ergebnis ähnlich wie es bei Installationen aus nicht gecapturten Images der Fall ist: +
+* Zurückspielen der Metadaten. +
+* Produkte die auf 'installed' stehen werden auf 'setup' gestellt ausser denen welche in den restorten Metadaten enthalten waren. +
+Diese Verhalten steht erst ab opsi 4.0.7 zur Verfügung und ist nicht der Default. Variante 2 ist durch Erweiterungen am opsi-script möglich geworden und ist Bestandteil des opsi-client-agent von 4.0.7. +
+Um dieses Verhalten zu verwenden muss ein 'config' ('Hostparameter') gesetzt werden: +
+Der boolsche Konfigurationseintrag: `clientconfig.capture.switch_installed_products_to_setup`. Hat dieser Eintrag für den Client den Wert 'true' dann wird Variante 2 verwendet, ansonsten Variante 1. +
+
+Über diese '{opsi-config-objects}' können dann Events Client-spezifisch aktiviert bzw. deaktiviert werden.
+Die '{opsi-config-objects}' können über den '{opsi-configed}' oder '{opsi-admin}' angelegt werden.
+
+Zum Anlegen der '{opsi-config-objects}' über '{opsi-admin}' sind die folgenden Befehle auf dem '{opsi-configserver}' auszuführen:
+
+[source,prompt]
+----
+opsi-admin -d method config_createBool clientconfig.capture.switch_installed_products_to_setup "capture.switch_installed_products_to_setup" true
+----
+Damit stellen Sie für *alle* Rechner 'Variante 2' ein.
+
+Zum Anlegen der '{opsi-config-objects}' über den '{opsi-configed}' wählen Sie dort 'Serverkonfiguration' / 'clientconfig' / Auf der Rechten Seite mit der rechten Maustaste: `Boolschen Konfigurationseintrag hinzufügen`.
+
+
+
+[[opsi-manual-wimcap-wim-info]]
+==== Hilfsprodukt opsi-wim-info
+
+Das Produkt `opsi-wim-info` kann verwendet werden um schnell informationen über die in einer install.wim gespeicherten Images auszulesen. Diese Informationen werden dann in der Logdatei gespeichert. +
+Properties:
+
+* `target_produkt` +
+ProductId des Produktes in dem die 'install.wim' gesucht wird.
 
 [[opsi-manual-wimcap-knownproblems]]
 ==== Bekannte Einschränkungen und Probleme

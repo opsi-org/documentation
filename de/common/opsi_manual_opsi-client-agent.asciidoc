@@ -231,8 +231,10 @@ image::opsiclientd-event-processing-flow.png["Abbildung: Vollständiges Ablaufdi
 [[opsi-manual-clientagent-configuration]]
 ===== Konfiguration
 
+Im folgenden wird die Konfiguration des opsi-client-agent vorgestellt.
+
 [[opsi-manual-clientagent-configuration-events]]
-====== Konfiguration unterschiedlicher Events
+===== Konfiguration unterschiedlicher Events
 
 Um den vielen unterschiedlichen Situationen gerecht zu werden, in denen der '{opsi-client-agent}' aktiv werden kann, sind die Konfigurations-Möglichkeiten vielfältig. +
 In der Konfiguration des '{opsiclientd}' leitet eine Sektion in der Form +[event_<config-id>]+ eine neue Event-Konfiguration ein. +
@@ -306,9 +308,52 @@ Dieses Problem wird am Beispiel von +event_on_demand+ wie folgt konfiguriert:
 
 * In der Event-Konfiguration +event_on_demand\{user_logged_in\}+ wird +shutdown_warning_time = 300+ gesetzt (300 Sekunden Vorwarnzeit).
 
+[[opsi-407-releasenotes-clientagent-configuration-proxysupport]]
+===== Proxysupport-Konfiguration
+
+In der global-Sektion von der opsiclientd.conf gibt es jetzt die Möglichkeit, den opsi-client-agent einen Proxyserver mit zu konfigurieren.
+Wenn ein Proxy konfiguriert wurde, werden alle HTTP- und HTTPS-Verbindungen vom opsiclientd über diesen Proxy umgeleitet.
+
+[source,ini]
+----
+# Use a proxy for connecting configservice
+# proxy_mode:
+#   'system' will try to check the system setting,
+#   'static' to use proxyurl from configfile/hostparameter
+# proxy_url usage: http://<user>:<password>@<proxy-url>:<proxy-port>
+# Example: http://proxyuser:proxypass123@proxy.domain.local:8080
+proxy_mode = static
+proxy_url =
+----
+
+Die Proxyeinstellungen erlauben auch einen Proxy zu benutzen, der eine Authentifizierung erfordert. Dazu muss die Proxy_url wie oben im Beispiel angegeben werden.
+
+WARNING: Der proxy_mode ist vorgesehen, dass bei der Einstellung system, der proxy aus dem laufenden Client-System ausgelesen werden. Dies ist im Moment nicht implementiert, deshalb funktioniert momentan nur die Einstellung 'static'.
+
+[[opsi-407-releasenotes-clientagent-configuration-eventcontrol_over_productgroups]]
+===== Steuerung der Produkte die ausgeführt werden pro Event
+
+Mit diesem neuen Feature ist es über die Konfiguration möglich, die Liste der ab zu bearbeitenden Produkte über Produktgruppen zu steuern.
+
+Dazu gibt es Grundsätzlich zwei Vorgehensweise:
+
+Blacklisting (Ausschliessen):
+
+Mit der Option `exclude_product_group_ids` kann man nun eine Kommaseparierte Liste von Produktgruppen-Ids mitgeben, dessen Mitglieder vom aktuellen Event ausgeschlossen werden. Auch wenn Sie eigentich auf setup stehen. Diese Produkte werden zwar ignoriert, aber bleiben auf setup stehen.
+
+Whitelisting (Liste von Produkten ausschliesslich freigeben):
+
+Mit der Option `include_product_group_ids`kann man nun eine Kommaseparierte Liste von Produktgruppen-Ids festlegen, dessen Mitglieder überhaupt bearbeitet werden dürfen, vorausgesetzt Sie eine Aktion ist auch gesetzt.
+
+Diese Einstellung kann man entweder Global im Default-Event angeben, damit das für jedes Event gilt. Man kann diese Optionen aber auch Zum Beispiel nur im Event_on_demand einsetzen, somit kann man Pakete die auf setup stehen von Push-Installationen ausschliessen, obwohl Sie auf setup stehen. Bei einem normalen Neustarts des Clients mit gui_startup (default) würden diese ausgeschlossenen Pakete trotzdem auf dem Client installiert werden.
+
+CAUTION: Für Clients, die das Modul WAN/VPN aktiviert haben, muss man diese Optionen neben dem Sync-Event auch in der CacheService-Sektion mit aufgenommen werden, da der CacheService zwar vom Sync-Event getriggert wird, aber selbst keinen Zugriff auf das sync-Event hat.
+
+WARNING: Produktabhängigkeiten werden bei diesem Feature nicht berücksichtigt. Bitte achten Sie darauf, dass Sie bei der Konfiguration keine Abhängigkeiten ausser Kraft setzen.
+
 
 [[opsi-manual-clientagent-configuration-file]]
-====== Konfiguration über die Konfigurationsdatei
+===== Konfiguration über die Konfigurationsdatei
 
 Die Konfigurationsdatei ist: +
 `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf`
@@ -331,7 +376,7 @@ Beispiel `opsiclientd.conf`:
 [global]
 
 # Location of the log file.
-log_file = c:\\tmp\\opsiclientd.log
+log_file = c:\\opsi.org\\log\\opsiclientd.log
 
 # Set the log (verbosity) level
 # (0 <= log level <= 9)
@@ -360,6 +405,15 @@ wait_for_gui_timeout = 120
 # Application to run while blocking login
 block_login_notifier = %global.base_dir%\\notifier.exe -s notifier\\block_login.ini
 
+# Use a proxy for connecting configservice
+# proxy_mode:
+#   'system' will try to check the system setting,
+#   'static' to use proxyurl from configfile/hostparameter
+# proxy_url usage: http://<user>:<password>@<proxy-url>:<proxy-port>
+# Example: http://proxyuser:proxypass123@proxy.domain.local:8080
+proxy_mode = static
+proxy_url =
+
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     config service settings                                         -
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -373,6 +427,9 @@ connection_timeout = 30
 
 # The time in seconds after which the user can cancel the connection establishment
 user_cancelable_after = 30
+
+# If this option is set, the local system time will be synced with time from service
+sync_time_from_service = false
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     depot server settings                                           -
@@ -398,6 +455,10 @@ username = pcpatch
 [cache_service]
 # Maximum product cache size in bytes
 product_cache_max_size = 5000000000
+# Members of this ProductGroups will be excluded from processing
+exclude_product_group_ids = 
+# Only members of this ProductGroups will be excluded from processing
+include_product_group_ids =
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     control server settings                                         -
@@ -420,6 +481,10 @@ ssl_server_key_file = %global.base_dir%\\opsiclientd\\opsiclientd.pem
 
 # The location of the static files
 static_dir = %global.base_dir%\\opsiclientd\\static_html
+
+# The maximum number of authentication failures before a client ip
+# is blocked for an amount of time.
+max_authentication_failures = 5
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     notification server settings                                    -
@@ -503,6 +568,10 @@ write_log_to_service = true
 shutdown = false
 # Reboot machine after action processing has finished (bool)
 reboot = false
+# Members of this ProductGroups will be excluded from processing
+exclude_product_group_ids = 
+# Only members of this ProductGroups will be excluded from processing
+include_product_group_ids = 
 
 ; === Sync/cache settings
 # Sync configuration from local config cache to server (bool)
@@ -714,7 +783,7 @@ installation_pending = true
 ----
 
 [[opsi-manual-clientagent-configuration-webservice]]
-====== Konfiguration über den Webservice ({opsi-config-object})
+===== Konfiguration über den Webservice ({opsi-config-object})
 
 Die Konfiguration kann auch zentral gesteuert werden. Hierzu dienen Einträge in der '{opsi-config-object}' des '{opsi-configserver}s'.
 
@@ -853,7 +922,7 @@ z.B. "client.\*" oder "\*.uib.*"
 Werden Rechner nicht erreicht (z.B. weil sie aus sind), wird für diese Rechner eine Fehlermeldung ausgegeben.
 
 [[opsi-manual-clientagent-control-messages]]
-====== Nachrichten per Popup senden
+===== Nachrichten per Popup senden
 
 Über den '{opsi-configed}' lassen sich Nachrichten an einen oder mehrere Clients versenden.
 
@@ -872,7 +941,7 @@ opsi-admin -d method hostControl_showPopup "Ein Text..." "myclient.uib.local"
 ----
 
 [[opsi-manual-clientagent-control-fire-event]]
-====== 'Push'-Installationen: Event 'on demand' auslösen
+===== 'Push'-Installationen: Event 'on demand' auslösen
 
 Vom '{opsi-server}' aus kann der Client aufgefordert werden, die gesetzten '{product-actions}' auszuführen.
 
@@ -892,7 +961,7 @@ opsi-admin -d method hostControl_fireEvent "on_demand" "myclient.uib.local"
 ----
 
 [[opsi-manual-clientagent-control-misc]]
-====== Sonstige Wartungsarbeiten (shutdown, reboot, ...)
+===== Sonstige Wartungsarbeiten (shutdown, reboot, ...)
 
 Über den Webservice des '{opsiclientd}' ist es möglich, steuernd auf den '{opsi-client-agent}' einzuwirken.
 Dazu muss man sich an diesem Webservice authentifizieren.
