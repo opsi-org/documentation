@@ -43,7 +43,6 @@ FORMATS := html pdf epub
 
 all: $(FORMATS)
 
-
 clean:
 	-rm -rf $(DEST_DIR)
 	-rm -rf $(PUB_DIR)
@@ -77,6 +76,23 @@ rename:
 	$(foreach F,$(FORMAT), \
 		$(PYTHON) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
 	)
+
+publish: rename
+	cp $(PUB_DIR)/pdf/* $(PUB_DIR); \
+	rm -rf $(PUB_DIR)/pdf/
+	mkdir -p $(PUB_DIR)/epub/en/
+	mkdir -p $(PUB_DIR)/epub/de/
+	cp $(PUB_DIR)/epub/*-en.epub $(PUB_DIR)/epub/en/
+	cp $(PUB_DIR)/epub/*-de.epub $(PUB_DIR)/epub/de/
+	rm $(PUB_DIR)/epub/*.epub
+	mkdir -p $(PUB_DIR)/html/
+	cp -r $(DEST_DIR)/xhtml/de/* $(PUB_DIR)/html/
+	mkdir -p $(PUB_DIR)/html/en/
+	cp -r $(DEST_DIR)/xhtml/en/* $(PUB_DIR)/html/en/
+	rm -rf $(PUB_DIR)/xhtml
+	cd $(PUB_DIR) ; \
+	tar -cvf pub.tar ./*
+	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
 
 test: check
 
