@@ -84,8 +84,10 @@ make check
 Prepares the publication of documents with a folder-structure similar to
 the one found at `download.uib.de`.
 This will copy and rename the files at `build` so they appear in `pub`.
-As an example it will copy `build\pdf\de\opsi-getting-started\opsi-getting-started.pdf` to the pub directory and remane it resulting in `pub\opsi-getting-started-de.pdf`.
-Additionally it will create a pub.tar. This tarball includes the structure like the pub folder. After a copy to a desired machine extract it.
+As an example it will copy `build\pdf\de\opsi-getting-started\opsi-getting-started.pdf` to the pub directory and rename it resulting in `pub\opsi-getting-started-de.pdf`.
+Additionally it will create `pub.tar`.
+This tarball includes the structure like the `pub` folder.
+It can be copied to the desired machine and then extracted there.
 
 ``` shell
 make publish
