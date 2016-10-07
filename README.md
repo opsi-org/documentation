@@ -8,6 +8,7 @@ Building the opsi manuals requires the following software to be installed on you
 
 * asciidoc >= 8.6.3
 * dblatex  >= 0.3
+* aspell 
 
 ### Additional packages on Ubuntu
 
