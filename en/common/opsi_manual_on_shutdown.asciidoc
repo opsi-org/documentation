@@ -53,9 +53,9 @@ Some technical restrictions and constraints are the following cases:
 
 The required components for Installation on Shutdown are part of the current `opsi-client-agent` packet. Since opsi version 4.0.5.4-2 no `modules` file is required for install on shutdown anymore. 
 
-The Installation on Shutdown can be configured for suitable clients (see <<opsi-on-shutdown-prerequires>>) simply by setting the `opsi-client-agent` product property `on_shutdown_install=on` and setting `opsi-client-agent=setup`.
+The Installation on Shutdown can be configured for suitable clients (see <<opsi-on-shutdown-prerequires>>) simply by setting the `opsi-client-agent` product property `on_shutdown_install=on` and setting the action request for the `opsi-client-agent` to `update` or `setup`.
 
-This is it. All the rest of the configuration is done by the `opsi-client-agent` packet during setup.
+This is it. All the rest of the configuration is done by the `opsi-client-agent` packet during update / setup.
 
 Just in case client group policies already are in use at your side, there might be a conflict with the local opsi client group policiy setting. In case of such a conflict, the opsi shutdown script group policy entries of the opsi-client-agent package should be disabled (on_shutdown_install_set_policy = off) and instead be added to your local group policy administration, see   
 <<opsi-on-shutdown-concept-shutdownscript>>.
@@ -108,19 +108,19 @@ The opsi shutdown script `doinstall32.cmd` / `doinstall64.cmd` changes the worki
 [source,prompt]
 ----
 echo Start opsi product installation ...
-cd "%ProgramFiles%\opsi.org\opsi-client-agent"
-opsiclientd_shutdown_starter.exe on_shutdown
+cd "%ProgramFiles%\opsi.org\opsi-client-agent\on_shutdown" 
+opsiclientd_event_starter.exe --event=on_shutdown
 ----
 
 For 64Bit systems:
 [source,prompt]
 ----
 echo Start opsi product installation ...
-cd "%ProgramFiles(x86)%\opsi.org\opsi-client-agent"
-opsiclientd_shutdown_starter.exe on_shutdown
+cd "%ProgramFiles(x86)%\opsi.org\opsi-client-agent\on_shutdown"
+opsiclientd_event_starter.exe --event=on_shutdown
 ----
 
-The `opsiclientd_shutdown_starter` triggers the installation and waits for completion, so the system shutdown is delayed while the `opsiclientd_shutdown_starter` task is running.
+The `opsiclientd_event_starter` triggers the installation and waits for completion, so the system shutdown is delayed while the `opsiclientd_event_starter` task is running.
 
 [[opsi-on-shutdown-concept-regedit]]
 ===== Registry Entries for executing the shutdown script
@@ -294,22 +294,92 @@ With the configuration 'event_gui_startup=false' there is no connect to the '{op
 [[opsi-on-shutdown-error]]
 ===== Local Logfile
 
-During Install on Shutdown a logfile is written:
+During Install on Shutdown two logfiles are written:
 
-* `C:\opsi.org\tmp\doinstall.log`
+* `C:\opsi.org\log\doinstall.log`
+* `C:\opsi.org\log\opsiclientd_event_starter.log`
+
 
 with, in case of success, has the following content:
 
+`doinstall.log`:
 [source,prompt]
 ----
 doinstall32.cmd started
-The current date is: .Tue 02/012/2013 
-Enter the new date: (mm-dd-yy) Backend connected.
-modules: passed first checkpoint.
-Modules file signature verified (customer: my company)
-Check completed.
-Event fired
-Task completed.
+Aktuelles Datum: 29.01.2013 
 ----
 
-This Logfile is rewritten each time and can be checked in case of a malfunction. 
+`opsiclientd_event_starter.log`:
+[source,prompt]
+----
+[1] [Okt 06 18:49:44:435] opsiclientd_shutdown_starter: version: 4.0.7.0
+[5] [Okt 06 18:49:44:435] clientid=pctry4detlef.uib.local
+[5] [Okt 06 18:49:44:435] service_url=https://localhost:4441/opsiclientd
+[5] [Okt 06 18:49:44:435] service_user=pctry4detlef.uib.local
+[5] [Okt 06 18:49:44:450] host_key=***(confidential)***
+[5] [Okt 06 18:49:44:450] myevent=on_shutdown
+[6] [Okt 06 18:49:44:450] Working with ssl protocol: sslvSSLv23 - auto negotation
+[6] [Okt 06 18:49:45:107] JSON Bench for backend_info "params":[],"id":1} Start: 18:49:44:450 Time: 00:00:00:657
+[6] [Okt 06 18:49:45:232] opsidata connected
+[5] [Okt 06 18:49:45:232] init Connection done
+[6] [Okt 06 18:49:45:232] JSON service request https://localhost:4441/opsiclientd isInstallationPending
+[6] [Okt 06 18:49:45:529] JSON Bench for isInstallationPending "params":[],"id":1} Start: 18:49:45:232 Time: 00:00:00:297
+[5] [Okt 06 18:49:45:622] resultstring={"id": 1, "result": false, "error": null}
+[5] [Okt 06 18:49:45:622] No installation pending - fine
+[6] [Okt 06 18:49:45:622] JSON service request https://localhost:4441/opsiclientd fireEvent
+[6] [Okt 06 18:49:45:966] JSON Bench for fireEvent "params":["on_shutdown"],"id":1} Start: 18:49:45:622 Time: 00:00:00:344
+[5] [Okt 06 18:49:46:091] resultstring={"id": 1, "result": null, "error": null}
+[5] [Okt 06 18:49:46:091] Succesfull fired event: on_shutdown
+[5] [Okt 06 18:49:51:107] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:49:51:107] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:49:51:357] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:49:51:107 Time: 00:00:00:250
+[5] [Okt 06 18:49:51:451] resultstring={"id": 1, "result": true, "error": null}
+[5] [Okt 06 18:49:56:467] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:49:56:467] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:49:56:935] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:49:56:467 Time: 00:00:00:468
+[5] [Okt 06 18:49:57:060] resultstring={"id": 1, "result": true, "error": null}
+[5] [Okt 06 18:50:02:076] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:50:02:076] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:50:02:545] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:02:076 Time: 00:00:00:469
+[5] [Okt 06 18:50:02:670] resultstring={"id": 1, "result": true, "error": null}
+[5] [Okt 06 18:50:07:686] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:50:07:686] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:50:08:186] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:07:686 Time: 00:00:00:500
+[5] [Okt 06 18:50:08:311] resultstring={"id": 1, "result": true, "error": null}
+[5] [Okt 06 18:50:13:327] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:50:13:327] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:50:13:624] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:13:327 Time: 00:00:00:297
+[5] [Okt 06 18:50:13:749] resultstring={"id": 1, "result": true, "error": null}
+[5] [Okt 06 18:50:18:765] calling: isEventRunning,[on_shutdown]
+[6] [Okt 06 18:50:18:765] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:50:19:030] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:18:765 Time: 00:00:00:265
+[5] [Okt 06 18:50:19:171] resultstring={"id": 1, "result": false, "error": null}
+[5] [Okt 06 18:50:19:171] calling: isEventRunning,[on_shutdown{user_logged_in}]
+[6] [Okt 06 18:50:19:171] JSON service request https://localhost:4441/opsiclientd isEventRunning
+[6] [Okt 06 18:50:19:452] JSON Bench for isEventRunning "params":["on_shutdown{user_logged_in}"],"id":1} Start: 18:50:19:171 Time: 00:00:00:281
+[5] [Okt 06 18:50:19:562] resultstring={"id": 1, "result": false, "error": null}
+[5] [Okt 06 18:50:19:562] Task completed
+----
+
+or
+
+[source,prompt]
+----
+[1] [Okt 12 18:07:57:352] opsiclientd_shutdown_starter: version: 4.0.7.0
+[5] [Okt 12 18:07:57:352] clientid=pctry4detlef.uib.local
+[5] [Okt 12 18:07:57:352] service_url=https://localhost:4441/opsiclientd
+[5] [Okt 12 18:07:57:352] service_user=pctry4detlef.uib.local
+[5] [Okt 12 18:07:57:352] host_key=***(confidential)***
+[5] [Okt 12 18:07:57:352] myevent=on_shutdown
+[6] [Okt 12 18:07:57:352] Working with ssl protocol: sslvSSLv23 - auto negotation
+[6] [Okt 12 18:07:57:946] JSON Bench for backend_info "params":[],"id":1} Start: 18:07:57:352 Time: 00:00:00:594
+[6] [Okt 12 18:07:58:055] opsidata connected
+[5] [Okt 12 18:07:58:055] init Connection done
+[6] [Okt 12 18:07:58:055] JSON service request https://localhost:4441/opsiclientd isInstallationPending
+[6] [Okt 12 18:07:58:290] JSON Bench for isInstallationPending "params":[],"id":1} Start: 18:07:58:055 Time: 00:00:00:235
+[5] [Okt 12 18:07:58:399] resultstring={"id": 1, "result": true, "error": null}
+[2] [Okt 12 18:07:58:399] State installation pending detected, do not starting shutdown event.
+[2] [Okt 12 18:07:58:399] Terminate called.
+----
+
+This Logfiles are rewritten each time and can be checked in case of a malfunction. 
