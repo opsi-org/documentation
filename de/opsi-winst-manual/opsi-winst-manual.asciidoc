@@ -1912,11 +1912,89 @@ Im Fehlerfall: Leerstring
 liefert einen <hexlength> langen String mit der hexadezimalen Darstellung von <decstring> zurück, wenn dieser die dezimale Darstellung eines Intergerwertes war.
 Im Fehlerfall: Leerstring
 
+anchor:base64EncodeStr[]
+
 *  `base64EncodeStr(`<string>`)` [W/L] +
 liefert einen String mit dem base64 encodedten Wert von <string>.
 
+anchor:base64DecodeStr[]
+
 *  `base64DecodeStr(`<string>`)` [W/L] +
 liefert einen String mit dem base64 decodedten Wert von <string>.
+
+[source,winst]
+----
+message "base64EncodeStr"
+set $ConstTest$ = "YWJjZGVm"
+set $tmp$ = "abcdef"
+set $CompValue$ = base64EncodeStr($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+comment ""
+comment "-------------------------------------"
+comment "Testing: "
+message "base64DecodeStr"
+set $ConstTest$ = "abcdef"
+set $tmp$ = "YWJjZGVm"
+set $CompValue$ = base64DecodeStr($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+----
+
+anchor:encryptStringBlow[]
+
+* `encryptStringBlow(`<keystring>,<datastring>`) : string`  //since 4.11.6 [W/L] +
+Verschlüsselt <datastring> mit dem Key <keystring> unter Verwendung von Blowfish und liefert den verschlüsselten Wert zurück.
+
+
+anchor:decryptStringBlow[]
+
+* `decryptStringBlow(`<keystring>,<datastring>`) : string`  //since 4.11.6 [W/L] +
+Entschlüsselt <datastring> mit dem Key <keystring> unter Verwendung von Blowfish und liefert den entschlüsselten Wert zurück.
+
+
+[source,winst]
+----
+set $ConstTest$ = "This string is very secret"
+set $ConstTest$ = encryptStringBlow("linux123",$ConstTest$)
+set $ConstTest$ = decryptStringBlow("linux123",$ConstTest$)
+set $CompValue$ = "This string is very secret"
+if ($ConstTest$ = $CompValue$)
+	comment "cryptStringBlow passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "testing cryptStringBlow failed"
+endif
+----
+
+anchor:md5sumFromFile[]
+
+* `md5sumFromFile(`<path to file>`) : string`  //since 4.11.6 [W/L] +
+Liefert die md5summe der unter <path to file> gefundenen Datei zurück. +
+Im Fehlerfall ist der Rückgabewert ein Leerstring.
+
+[source,winst]
+----
+set $ConstTest$ = md5sumFromFile("%ScriptPath%\test-files\crypt\dummy.msi")
+set $CompValue$ = strLoadTextFile("%ScriptPath%\test-files\crypt\dummy.msi.md5")
+if ($ConstTest$ = $CompValue$)
+	comment "md5sumFromFile passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "testing md5sumFromFile failed"
+endif
+----
+
+anchor:reencodestr[]
 
 *  `reencodestr(`<str>, <from>, <to>`)` //since 4.11.4.2 [W/L] +
 liefert den String <str> mit dem encoding <to> zurück wobei davon ausgegangen wird das <str> gemäß <from> encoded war. <from> und <to> sind dabei encodings wie sie im Kapitel <<opsi-winst-encoding>> aufgelistet sind.
@@ -2303,6 +2381,23 @@ EndIf
 liefert einen String mit dem ganzahligen Wert der vergangenen Sekunden seit dem letzten Aufruf von `marktime`. +
 Seit Version 4.11.3.1
 
+anchor:timeStampAsFloatStr[]
+
+* `timeStampAsFloatStr : string` (Floating Number - format: 'days.decimal days') //since 4.11.6 [W/L] +
+Liefert einen aktuellen Timestamp als Fließkommazahlstring. Dabei ist Zahl vor dem Komma die Tage
+seit dem 30. Dezember 1899. Nach dem Komma kommt die Zeit in Bruchteilen des Tages. +
+Just for Fun: Warum nicht der 31. Dezember 1899: ? +
+siehe http://www.delphibasics.co.uk/RTL.asp?Name=TDateTime
+
+
+anchor:SidToName[]
+
+* `SidToName(`<well known sid>`)` [W] +
+liefert einen String mit dem lokalisierten Namen der mit <well known sid> bezeichneten Gruppe. Zum Beispiel für 'S-1-5-32-544' je nach Lokalisierung des Betriebsystems 'Administratoren' oder 'Administrators'.  +
+Seit Version 4.11.3.1
+
+anchor:GetMyIpByTarget[]
+
 * `GetMyIpByTarget(`<target ip addr>`)` [W]  +
 liefert einen String mit der IP-Adresse des Interfaces, welches das Betriebssystem verwenden wird, wenn es versucht <target ip addr> zu erreichen. Diese Funktion liefert sicherer den korrekten Wert als die Verwendung der Konstante `%IPAddress%`. +
 Seit Version 4.11.3.1 +
@@ -2478,6 +2573,7 @@ machine=i686
 processor=athlon
 hardware platform=i386
 operating system=GNU/Linux
+SubRelease
 ----
 
 *  `getMSVersionMap` [W] +
@@ -2495,6 +2591,9 @@ Im Moment existieren folgende Schlüssel
 * suite_mask
 * product_type_nr
 * 2003r2
+* ReleaseID
+* prodInfoText
+* prodInfoNumber
 
 Die Ergebnisse von suite_mask und product_type_nr sind Zahlen, die aus bitweisen-or-Verknüpfungen der folgenden Werte gebildet sein können.
 
@@ -2519,6 +2618,99 @@ SuiteMask
     0x00000200 (VER_SUITE_PERSONAL)
     0x00000400 (VER_SUITE_SERVERAPPLIANCE)
 ****
+
+* `ReleaseID`. Der dazugehörige Wert gibt die Release von 'Windows 10' an wie z.B. '1511'. +
+Leerstring wenn nicht vorhanden. +
+Der Wert kommt aus der Registry: "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" "ReleaseID"
+
+* `prodInfoText`.Der dazugehörige Wert gibt die verwendeten Windows Edition als String an wie z.B. 'PRODUCT_PROFESSIONAL'.
+
+* `prodInfoNumber`.Der dazugehörige Wert gibt die verwendeten Windows Edition als Zahl an wie z.B. '48'.
+
+
+ProdInfoNumber und ProdInfoText
+[cols="3,3,15"]
+|==========================
+| DecNum | HexNum | Text
+|  00 | 00 | An unknown product
+|  01 | 01 | Ultimate Edition"
+|  02 | 02 | Home Basic Edition
+|  03 | 03 | Home Premium Edition
+|  04 | 04 | Enterprise Edition
+|  05 | 05 | Home Basic Edition
+|  06 | 06 | Business Edition
+|  07 | 07 | Server Standard Edition (full installation)
+|  08 | 08 | Server Datacenter Edition (full installation)
+|  09 | 09 | Small Business Server
+|  10 | 0A | Server Enterprise Edition (full installation)
+|  11 | 0B | Starter Edition
+|  12 | 0C | Server Datacenter Edition (core installation)
+|  13 | 0D | Server Standard Edition (core installation)
+|  14 | 0E | Server Enterprise Edition (core installation)
+|  15 | 0F | Server Enterprise Edition for Itanium-based Systems
+|  16 | 10 | Business Edition
+|  17 | 11 | Web Server Edition (full installation)
+|  18 | 12 | Cluster Server Edition
+|  19 | 13 | Home Server Edition
+|  20 | 14 | Storage Server Express Edition
+|  21 | 15 | Storage Server Standard Edition
+|  22 | 16 | Storage Server Workgroup Edition
+|  23 | 17 | Storage Server Enterprise Edition
+|  24 | 18 | Server for Small Business Edition
+|  25 | 19 | Small Business Server Premium Edition
+|  26 | 1A | PRODUCT_HOME_PREMIUM_N
+|  27 | 1B | PRODUCT_ENTERPRISE_N
+|  28 | 1C | PRODUCT_ULTIMATE_N
+|  29 | 1D | PRODUCT_WEB_SERVER_CORE
+|  30 | 1E | Windows Essential Business Server Management Server
+|  31 | 1F | Windows Essential Business Server Security Server
+|  32 | 20 | Windows Essential Business Server Messaging Server
+|  33 | 21 | Server Foundation
+|  34 | 22 | PRODUCT_HOME_PREMIUM_SERVER
+|  35 | 23 | PRODUCT_SERVER_FOR_SMALLBUSINESS_V
+|  36 | 24 | Server Standard Edition without Hyper-V (full installation)
+|  37 | 25 | Server Datacenter Edition without Hyper-V (full installation)
+|  38 | 26 | Server Enterprise Edition without Hyper-V (full installation)
+|  39 | 27 | Server Datacenter Edition without Hyper-V (core installation)
+|  40 | 28 | Server Standard Edition without Hyper-V (core installation)
+|  41 | 29 | Server Enterprise Edition without Hyper-V (core installation)
+|  48 | 30 | PRODUCT_PROFESSIONAL
+|  49 | 31 | PRODUCT_PROFESSIONAL_N
+|  50 | 32 | PRODUCT_SB_SOLUTION_SERVER
+|  51 | 33 | PRODUCT_SERVER_FOR_SB_SOLUTIONS
+|  52 | 34 | PRODUCT_STANDARD_SERVER_SOLUTIONS
+|  53 | 35 | PRODUCT_STANDARD_SERVER_SOLUTIONS_CORE
+|  54 | 36 | PRODUCT_SB_SOLUTION_SERVER_EM
+|  55 | 37 | PRODUCT_SERVER_FOR_SB_SOLUTIONS_EM
+|  56 | 38 | PRODUCT_SOLUTION_EMBEDDEDSERVER
+|  57 | 39 | PRODUCT_SOLUTION_EMBEDDEDSERVER_CORE
+|  59 | 3B | PRODUCT_ESSENTIALBUSINESS_SERVER_MGMT
+|  60 | 3C | PRODUCT_ESSENTIALBUSINESS_SERVER_ADDL
+|  61 | 3D | PRODUCT_ESSENTIALBUSINESS_SERVER_MGMTSVC
+|  62 | 3E | PRODUCT_ESSENTIALBUSINESS_SERVER_ADDLSVC
+|  63 | 3F | PRODUCT_SMALLBUSINESS_SERVER_PREMIUM_CORE
+|  64 | 40 | PRODUCT_CLUSTER_SERVER_V
+|  65 | 41 | PRODUCT_EMBEDDED
+|  66 | 42 | PRODUCT_STARTER_E
+|  67 | 43 | PRODUCT_HOME_BASIC_E
+|  68 | 44 | PRODUCT_HOME_PREMIUM_E
+|  69 | 45 | PRODUCT_PROFESSIONAL_E
+|  70 | 46 | PRODUCT_ENTERPRISE_E
+|  71 | 47 | PRODUCT_ULTIMATE_E
+|  72 | 48 | PRODUCT_ENTERPRISE_EVALUATION
+|  84 | 54 | PRODUCT_ENTERPRISE_N_EVALUATION
+|  98 | 62 | PRODUCT_CORE_N
+|  99 | 63 | PRODUCT_CORE_COUNTRYSPECIFIC
+| 100 | 64 | PRODUCT_CORE_SINGLELANGUAGE
+| 101 | 65 | PRODUCT_CORE
+| 121 | 79 | PRODUCT_EDUCATION
+| 122 | 7A | PRODUCT_EDUCATION_N
+| 125 | 7D | Windows Enterprise 2015 LTSB
+| 126 | 7E | Windows Enterprise 2015 LTSB N
+| 129 | 81 | Windows Enterprise 2015 LTSB Evaluation
+| 130 | 82 | Windows Enterprise 2015 LTSB N Evaluation
+|==========================
+
 
 Beispiel: +
 Der Code
@@ -3392,6 +3584,209 @@ $line$ = $line$ + "e"
 ----
 so dass am Ende $line$ den Wert 'abcde' trägt. Wenn wir die einfachen Anführungszeichen um das %s% weglassen würden, bekämen wir bei jedem Schritt der Iteration einen Syntaxfehler gemeldet.
 
+[[opsi-winst-json]]
+=== opsiservicecall und JSON Funktionen [W/L]
+
+Diese Funktionen dienen dazu JSON Ausdrücke auf String oder Stringlisten zu analysieren
+und zu modifizieren. Notwendig ist hierfür, die Struktur des zu bearbeitenden JSON-Ausdrucks zu kennen
+und zu verstehen. Dies kann dazu verwendet werden, um über opsiservicecall Sektionen
+mit den objektorientierten opsi-webservice Methoden zu arbeiten.
+
+
+anchor:jsonIsValid[]
+
+* `jsonIsValid(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L] +
+Liefert 'true' zurück wenn, <jsonstr> einen gültigen JSON Ausdruck enthält.
+
+
+anchor:jsonIsArray[]
+
+* `jsonIsArray(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L] +
+Liefert 'true' zurück wenn, <jsonstr> ein gültiges JSON Array enthält.
+
+anchor:jsonIsObject[]
+
+* `jsonIsObject(`<jsonstr>`) : boolean`  //since 4.11.6: [W/L] +
+Liefert 'true' zurück wenn, <jsonstr> ein gültiges JSON Object enthält.
+
+anchor:jsonAsObjectHasKey[]
+
+* `jsonAsObjectHasKey(`<jsonstr>,<keystr>`) : boolean`  //since 4.11.6: [W/L] +
+Liefert 'true' zurück wenn, <jsonstr> ein gültiges JSON Object welches <keystr> als key enthält. +
+Folgendes Beispiel würde 'true' zurückliefern: +
+[source,winst]
+----
+jsonAsObjectHasKey('{"productVersion" : "4.4.1","packageVersion" : "2","productId" : "jedit"}','productId')
+----
+
+anchor:jsonAsArrayCountElements[]
+
+* `jsonAsArrayCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L] +
+Wenn <jsonstr> ein gültiges JSON Array enthält ist der Rückgabewert ein String mit der Zahl der Elemente des Arrays. +
+Im Fehlerfall = '"0"'
+
+anchor:jsonAsObjectCountElements[]
+
+* `jsonAsObjectCountElements(`<jsonstr>`) : intstr`  //since 4.11.6: [W/L]
+
+anchor:jsonAsArrayGetElementByIndex[]
+
+* `jsonAsArrayGetElementByIndex(`<jsonstr>, <indexstr>`) : jsonstring`  //since 4.11.6: [W/L] +
+Liefert vom JSON Array <jsonstr> das Element mit dem Index <indexstr> +
+Der Index beginnt bei 0. +
+Im Fehlerfall = '""'
+
+anchor:jsonAsObjectGetValueByKey[]
+
+* `jsonAsObjectGetValueByKey(`<jsonstr>, <keystr>`) : valuestring`  //since 4.11.6: [W/L] +
+Liefert vom JSON Object <jsonstr> den Wert des Key <keystr> +
+Im Fehlerfall = '""'
+
+anchor:jsonAsObjectSetValueByKey[]
+
+* `jsonAsObjectSetValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Object bei dem für den Key <keystr>
+ der Wert <valuestring> gesetzt ist. Ist der Key nicht vorhanden, so wird er erzeugt. +
+Wenn <valuestring> als Stringwert erzeugt werden soll (also in doppelten Anführungszeichen),
+dann verwenden Sie besser die folgende Funktion: `jsonAsObjectSetStringtypeValueByKey`. +
+Im Fehlerfall = '""'
+
+anchor:jsonAsObjectSetStringtypeValueByKey[]
+
+* `jsonAsObjectSetStringtypeValueByKey(`<jsonstr>, <keystr>,<valuestring>`) : jsonstring`  //since 4.11.6: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Object bei dem für den Key <keystr>
+der Wert <valuestring> als String (also in doppelten Anführungszeichen) gesetzt ist.
+Ist der Key nicht vorhanden, so wird er erzeugt. +
+Wenn <valuestring> nicht als Stringwert erzeugt werden soll ,
+dann verwenden Sie besser die vorherige Funktion: `jsonAsObjectSetValueByKey`. +
+Im Fehlerfall = '""'
+
+anchor:jsonAsObjectDeleteByKey[]
+
+* `jsonAsObjectDeleteByKey(`<jsonstr>, <keystr>`) : jsonstring`  //since 4.11.6.4: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Object bei dem das key-value Paar mit dem Key <keystr> entfernt wurde.
+
+anchor:jsonAsArrayPutObjectByIndex[]
+
+* `jsonAsArrayPutObjectByIndex(`<jsonstr>, <indexstr>, <objectstr>`) : jsonstring`  //since 4.11.6: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Array bei dem am Index <indexstr>
+das Object <objectstr> gesetzt ist. +
+Im Fehlerfall = '""'
+
+anchor:jsonAsArrayDeleteObjectByIndex[]
+
+* `jsonAsArrayDeleteObjectByIndex(`<jsonstr>, <indexstr>`) : jsonstring`  //since 4.11.6.4: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Array bei dem das Objekt am Index <indexstr> entfernt wurde. +
+Im Fehlerfall = '""'
+
+anchor:jsonAsArrayToStringList[]
+
+* `jsonAsArrayToStringList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L] +
+Liefert einen String mit dem in <jsonstr> übergebenen JSON Array als Stringliste mit einem Arrayelement pro Zeile.
+
+
+anchor:jsonStringListToJsonArray[]
+
+* `jsonStringListToJsonArray(`<strlist>`) : jsonstr`  //since 4.11.6: [W/L] +
+Liefert einen String mit einem JSON Array der die Zeilen der Stringliste <strlist>
+als Elemente enthält.
+
+anchor:jsonAsObjectGetKeyList[]
+
+* `jsonAsObjectGetKeyList(`<jsonstr>`) : stringlist`  //since 4.11.6: [W/L] +
+Liefert eine Stringliste mit den Keys der im JSON Object <jsonstr> vorhandnen Keys.
+
+
+Beispiel: +
+Lese productOnClients Objekte aus einer Datei, ändere die `clientId` auf den Wert der aktuellen Maschine und schreibe die Objekte über den opsi-webservice zurück.
+
+
+[source,winst]
+----
+DefVar $poc_file$
+DefVar $objectStr$
+DefVar $ArrayStr$
+DefVar $pid$
+
+DefStringlist $resultlist$
+DefStringlist $resultlist1$
+DefStringlist $productIdList$
+DefStringlist $pocList$
+
+
+Message "Delete productOnClient from opsi backend ..."
+set $resultlist$ = getReturnListFromSection("opsiservicecall_getPOC")
+Set $ArrayStr$ = takestring(0, $resultlist$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from Service"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from Service"
+	isFatalError
+endif
+comment "extract productIds ..."
+comment "clean target list"
+set $productIdList$ = emptylist($productIdList$)
+comment "get stringlist "
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+for %aktpoc% in $pocList$ do sub_fill_product_ids
+for %aktProductId% in $productIdList$ do opsiServiceCall_del_productOnClient
+
+Message "Restore productOnClient from file ..."
+comment " get Restore data from file ..."
+Set $ArrayStr$ = strLoadTextFile($poc_file$)
+if not(jsonIsValid($ArrayStr$))
+	LogError "got no valid json from file"
+	isFatalError
+endif
+if not(jsonIsArray($ArrayStr$))
+	LogError "got no json Array from file"
+	isFatalError
+endif
+
+comment "get list from array"
+set $pocList$ = jsonAsArrayToStringList($ArrayStr$)
+comment "loop over list"
+for %pocindex% = "0" to calculate(count($pocList$)+"-1") do sub_set_clientid_in_poclist
+comment "convert modified list to jason array"
+set $ArrayStr$ = jsonStringListToJsonArray($pocList$)
+set $ArrayStr$ = unquote2($ArrayStr$,"[]")
+comment "write back"
+opsiServiceCall_updatePOC
+
+[sub_fill_product_ids]
+set $objectstr$ = '%aktpoc%'
+set $pid$ = jsonAsObjectGetValueByKey($objectstr$, "productId" )
+set $productIdList$ = addToList($productIdList$,$pid$)
+
+[sub_set_clientid_in_poclist]
+set $objectStr$ = takeString("%pocindex%", $poclist$)
+set $objectStr$ = jsonAsObjectSetStringtypeValueByKey(($objectStr$, "clientId","%opsiserviceUser%")
+set $poclist$ = setStringInListAtIndex($objectStr$,$poclist$,"%pocindex%")
+
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+					'$ArrayStr$',
+					]
+
+[opsiservicecall_getPOC]
+	"method": "productOnClient_getObjects"
+	"params":[
+           "[]",
+           '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct"}'
+           ]
+
+[opsiServiceCall_del_productOnClient]
+"method": "productOnClient_delete"
+"params": [
+					'%aktProductId%',
+					'%opsiserviceuser%',
+					]
+----
+
+
 [[opsi-winst-numbers]]
 === Umgang mit Zahlen [W/L] 
 
@@ -3646,11 +4041,11 @@ set $exitcode$ = getLastExitcode
 net start
 ----
 
-* `startProcess(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
+* `processCall(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
 Startet das Programm <string> als Prozess und liefert den Exitcode zurück. +
 [source,winst]
 ----
-set $exitcode$ = startProcess('setup.exe /S')
+set $exitcode$ = processCall('setup.exe /S')
 ----
 Ist eine Abkürzung für den Ausdruck:
 [source,winst]
@@ -3661,7 +4056,7 @@ set $exitcode$ = getLastExitcode
 [Winbatch_setup]
 setup.exe /S
 ----
-Tatsächlich basiert `startProcess` intern auf den selben Routinen wie `winbatch` und verarbeitet daher auch die selben Modifier:
+Tatsächlich basiert `processCall` intern auf den selben Routinen wie `winbatch` und verarbeitet daher auch die selben Modifier:
 
 * `/LetThemGo` +
 Verschiebt den aufgerufenen Prozess in den Hintergrund und wartet *nicht* auf dessen Beendigung;
@@ -4256,6 +4651,14 @@ Boolsche Funktion welche 'true' liefert auf das angebene Laufwerk zugegriffen we
 
 * `saveTextFile(`<list>, < filename>`)` //since 4.11.4.4: [W/L] +
 Boolsche Funktion welche 'true' liefert wenn die Liste <list> erfolgreich in < filename> gespeichert wurde.
+
+anchor:saveTextFileWithEncoding[]
+
+* `saveTextFileWithEncoding(`<list>, < filename>`,` <encoding>`) : bool` //since 4.11.6.4 +
+Boolsche Funktion welche 'true' liefert wenn die Liste <list> erfolgreich in dem dem Zeichensatz <encoding> nach <filename> gespeichert wurde.
+
+anchor:CompareDotSeparatedNumbers_bool[]
+
 
 * `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)`  //since 4.11.5.2: [W/L] +
 vergleicht zwei Strings vom Typ <zahl>[.<zahl>[.<zahl>[.<zahl>]]] unter Verwendung des <relation str> der eins von den folgenden Werten haben darf: [<,<=,=,>=,>]. +
