@@ -362,10 +362,130 @@ Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen
 
 * http://download.uib.de/press-infos/videos/opsi-linux/ubuntu14-04_406_1fps.mp4
 
+[[opsi-manual-linux-netboot-v407-special-ucs41]]
+===== The product ucs41
+
+Die Basis-Installation bezieht ihre Pakete von den offiziellen UCS Repositories. Eine Installation mit lokalen Paketquellen ist ebenfalls möglich.
+
+Dieses produkt hat einen produktiven Status.
+
+Mit diesem Produkt ist es möglich einen Master-, Slave-, Backup, und einen Member-Server zu installieren.
+Wir empfehlen das l-opsi-server Produkt um aus einer UCS Maschine auch einen opsi-Server zu machen.
+Dieses Produkt ermöglicht es auch Clients über einen Member-Server zu installieren, hierfür werden einige Besonderheiten durchgeführt.
+
+Das Produkt hat die folgenden zusätzlichen Properties:
+
+----
+
+name: dns_domain
+multivalue: False
+editable: True
+description: Example example.com
+values: ["ucs.test", "example.com"]
+default: ["ucs.test"]
+
+name: ldap_base
+multivalue: False
+editable: True
+description: Example dc=example,dc=com
+values: ["dc=ucs,dc=test","dc=example,dc=com"]
+default: ["dc=ucs,dc=test"]
+
+name: ucs_code_name
+multivalue: False
+editable: True
+description: ucs_code_name
+values: ["ucs410"]
+default: ["ucs410"]
+
+name: organisation
+multivalue: False
+editable: True
+description: What is the name of the organisation (needed for ucs) ?
+values: ["uib gmbh"]
+default: ["uib gmbh"]
+
+multivalue: False
+editable: True
+description: What is the name of the windows domain ?
+values: ["MYDOMAIN"]
+default: ["MYDOMAIN"]
+
+name: ucs_master_ip
+multivalue: False
+editable: True
+description: What is the IP Number of the UCS Domain Controller (needed for other roles to join) ?
+values: ["10.10.10.10"]
+default: ["10.10.10.10"]
+
+name: ucs_master_admin_passwd
+multivalue: False
+editable: True
+description: What is the Password of the user Administrator of the UCS Domain Controller (needed for other roles to join) ?
+values: ["linux123"]
+default: ["linux123"]
+
+name: ucs_role
+multivalue: False
+editable: False
+description: Which UCS Role should be installed ?
+values: ["domaincontroller_master","domaincontroller_backup","domaincontroller_slave","memberserver","base"]
+default: ["domaincontroller_master"]
+
+name: encrypt_password
+multivalue: False
+editable: True
+description: Password for disk encryption (only if encrypt_logical_volumes=true)
+values: ["linux123"]
+default: ["linux123"]
+
+name: partition_disk
+multivalue: False
+editable: True
+description: Disk to use first or complete device path
+values: ["first", "/dev/sda", "/dev/sdb"]
+default: ["first"]
+
+name: partition_method
+multivalue: False
+editable: False
+description: regular: use the usual partition types for your architecture / lvm: use LVM to partition the disk / crypto: use LVM within an encrypted partition
+values: ["regular", "lvm", "crypto"]
+default: ["lvm"]
+
+name: partition_method
+multivalue: False
+editable: False
+description: regular: use the usual partition types for your architecture / lvm: use LVM to partition the disk / crypto: use LVM within an encrypted partition
+values: ["regular", "lvm", "crypto"]
+default: ["lvm"]
+
+name: partition_recipe
+multivalue: False
+editable: False
+description: atomic: all files in one partition / home: separate /home partition / multi: separate /home, /usr, /var, and /tmp partitions
+values: ["atomic", "home", "multi"]
+default: ["atomic"]
+
+name: desktop_package
+multivalue: True
+editable: False
+description: Desktop package to install (standard = no desktop)
+values: ["ubuntu-desktop", "kubuntu-desktop", "lubuntu-desktop", "xubuntu-desktop", "ubuntu-gnome-desktop"]
+default: ["standard"]
+
+name: language_packs
+multivalue: True
+editable: False
+description: language packages to install
+values: ["ar", "bg", "by", "cf", "de", "dk", "en", "es", "et", "fa", "fi", "fr", "gr", "il", "it", "kg", "kk", "lt", "mk", "nl", "no", "pl", "ro", "ru", "sg","sr", "ua", "uk", "us", "wo"]
+default: ["de"]
+----
+
 [[opsi-manual-linux-netboot-v406-local-http-deb-repo]]
 ===== Einrichtung eines lokalen deb http Repository
 
-Mit dem debian8 und ubuntu16-04 Paket ist es nun möglich von einem lokalen Apache2 Repository zu installieren. +
+Mit dem debian8, ubuntu16-04 und ucs41 Paket ist es nun möglich von einem lokalen Apache2 Repository zu installieren. +
 Dazu müssen bei dem Produkt im Property 'online_repository' die entsprechende Adresse angeben nach dem Muster `http://<opsi-server>/opsi/<productId>` z.B `http://opsiserver/opsi/debian8` +
 Weiterhin muss das lokale Repository natürlich erstellt werden. +
 Stellen Sie dazu sicher, dass das Produkt `opsi-linux-support` auf Ihrem opsi-server installiert ist. Dieses Paket installiert die
@@ -414,7 +534,55 @@ tar xzf ${FILE}
 opsi-set-rights .
 ----
 
+===== ucs41
 
+[source,prompt]
+----
+#! /bin/bash
+set -x
+BASE_DIR=/var/www/opsi
+DVD_PATH=UCSISOMOUNTPOINT
+UCS_VERSION=4.1
+UCS_SUBVERSION=0
+UCS_REPODIR=univention-repository/mirror
+UCS_REPODIR2=${UCS_VERSION}/maintained/${UCS_VERSION}-${UCS_SUBVERSION}
+UCS_RELEASE_PATH=dists/ucs410/main/binary-amd64/Release
+
+cd ${BASE_DIR}
+mkdir -p ${UCS_REPODIR}
+cd ${UCS_REPODIR}
+pwd
+ln -s . univention-repository
+mkdir -p ${UCS_REPODIR2}
+cd ${UCS_REPODIR2}
+pwd
+cp -r ${DVD_PATH}/all .
+cp -r ${DVD_PATH}/amd64 .
+cp -r ${DVD_PATH}/dists .
+mkdir -p i386
+cd all
+dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+dpkg-scanpackages . /dev/null > Packages.gz
+cd ..
+cd amd64
+dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+dpkg-scanpackages . /dev/null > Packages.gz
+cd ..
+cd i386
+dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
+dpkg-scanpackages . /dev/null > Packages.gz
+cd ..
+echo "Archive: stable" > ${UCS_RELEASE_PATH}
+echo "Origin: Univention" >> ${UCS_RELEASE_PATH}
+echo "Label: Univention" >> ${UCS_RELEASE_PATH}
+echo "Version: ${UCS_VERSION}.${UCS_SUBVERSION}" >> ${UCS_RELEASE_PATH}
+echo "Component: main" >> ${UCS_RELEASE_PATH}
+echo "Architecture: amd64" >> ${UCS_RELEASE_PATH}
+cat  ${UCS_RELEASE_PATH}
+cd ${BASE_DIR}
+chown -R www-data:www-data univention-repository
+echo "all done"
+----
 
 [[opsi-manual-linux-netboot-v406-special-opensuse13-02]]
 ===== Das Produkt opensuse13-2
