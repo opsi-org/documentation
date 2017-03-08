@@ -14,7 +14,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      10.06.2016
+:Date:      1.12.2016
 :Revision:  4.0.7
 :toclevels: 6
 
@@ -56,29 +56,33 @@ Insbesondere zeigt dann der Aufruf  `java -jar configed.jar --help` die Kommando
 ----
 java -jar configed.jar --help
 
+configed [OPTIONS] 
+   where an OPTION may be 
 
-configed [OPTIONS]
-
-Options:
-     -l, --locale  LOC  Set locale LOC (format: <language>_<country>)
-     -h, --host  HOST    Configuration server to connect to
-     -u, --user  USER   Username for authentication
-     -p, --password  PWD Password for authentication
-     -d, --logdirectory DIR Directory for the log files
-     -c, --client CLIENT Start with selected client CLIENT
-     -g, --group GROUP Start with activated group GROUP
-     -t, --tab X Start with selected tab X
-     -qs, --querysavedsearch SAVEDSEARCH_NAME Give names of clients on commandline which are produced by this search
-     -r, --refreshminutes MIN   Refresh client connect data every MIN (0 = never)
-         --help    Show this text
-         --gzip  [/y/n] Activate gzip transmission of data from opsi server (default yes)
-         --sqlgetrows  Get data by method getRawData where implemented
-         --version  Tell configed version
-         --loglevel L	Set logging level to L
+     -l, --locale  LOC    Set locale LOC (format: <language>_<country>)
+     -h, --host  HOST    Configuration server HOST to connect to
+     -u, --user  USER    User for authentication
+     -p, --password  PWD    Password for authentication
+     -d, --logdirectory DIR    Directory for the log files
+     -c, --client CLIENT    Start with selected client CLIENT
+     -g, --group GROUP    Start with activated group GROUP
+     -t, --tab    INDEX Start with tab number INDEX, index counting starts with 0, works only if a CLIENT is preselected
+    -r REFRESHMINUTES --refreshminuites REFRESHMINUTES    Refresh data every REFRESHMINUTES  (where this feature is implemented, 0 = never)
+     -qs, --querysavedsearch [SAVEDSEARCH_NAME]    On command line: tell saved host searches list resp. the search result for [SAVEDSEARCH_NAME])
+         --ssh-key SSHKEY    full path with filename from sshkey used for authentication on ssh server
+         --ssh-passphrase PASSPHRASE    passphrase for given sshkey used for authentication on ssh server
+         --collect_queries_until_no N    Collect the first N queries; N = -1 (default, no collect) N = infinite 
+         --help    Give this help
+         --gzip  [y/n]    Activate gzip transmission of data from opsi server yes/no (default yes)
+         --version    Tell configed version
+         --loglevel L    Set logging level to L
+         --halt    Use  first occurring debug halt point that may be in the code
+         --sqlgetrows    Force use sql statements by getRawData
+         --nosqlrawdata    Avoid getRawData
+         --sqldirect-cleanup-auditsoftware    Use direct sql access if possible in PersistenceController 
 
 logging directory not yet set
 regularly exiting app with code 0
-
 ----
 
 Läuft der opsiconfd auf einem anderem als dem Standardport 4447, so ist dieser beim Start des  '{opsi-configed}'  dem Hostnamen mitzugeben (`host:port`).
@@ -452,7 +456,7 @@ Eine Gruppe können Sie nun mit Clients füllen, indem Sie per Drag&Drop:
 
 * Clients aus dem Treeview aus anderen Gruppen verschieben (linke Maustaste) oder kopieren (Strg-linke Maustaste)
 
-Eine Gruppe kann
+Eine Gruppe kanna
 
 * per Drag & Drop in eine andere Gruppe verschoben werden;
 
@@ -996,6 +1000,82 @@ Parameter und ihre Werte werden, wenn die Gruppe links aktiviert ist, auf der re
 .'{opsi-configed}': Tab Hostparameter (Server- und Client-Konfiguration)
 image::opsi-configed-hostparameters.png["{opsi-configed}: Tab Hostparameter (Server- und Client-Konfiguration)", width=400]
 
+
+[[opsi-manual-configed-hostproperties-userroles]]
+==== Verwaltung von User-Rechten und -Rollen
+
+Ab Version 4.0.7.5 bietet der '{opsi-configed}' die Userrollen-Funktion an. 
+
+CAUTION: Zur Verwendung des Features muss _user roles_ in der _modules_-Datei freigeschaltet sein.
+
+In der Oberfläche zeigt die Existenz der Kategorie _user_ in der Übersicht der Server-Hostparameter, 
+dass diese Funktion verfügbar (aber noch nicht unbedingt aktiv) ist.
+Im Baum der Eigenschaften steht direkt in _user_  primär der boolesche Eintrag 
+
+[source,prompt]
+----
+user.{}.register
+----
+
+
+mit dem Defaultwert _false_.
+
+Des Weiteren finden sich hier die Defaultwerte für die userspezifische Konfiguration der Server-Konsole.
+
+
+Zur Aktivierung der Userrollen-Funktionalität ist 
+
+1. der Wert von _user.{}.register_ auf _true_ zu setzen;
+2. eine Modules-Datei einzuspielen, die das Feature _userroles_ temporär oder dauerhaft aktiviert hat.
+
+Bei aktiver Userrollen-Funktionalität wird für den angemeldeten User ein Eintrag im Eigenschaftsbaum erzeugt. 
+Die dabei für die Rechteverwaltung verwendeten Defaulteinstellungen 
+entsprechend den "klassischen" Vorgaben für einen Adminitrator, 
+d.h. zunächst werden dem User keine Einschränkungen auferlegt. Z.B. für einen User _admindepot1_ 
+werden die Einträge
+
+[source,prompt]
+----
+user.{admindepot1}.privilege.host.all.registered_readonly 	[false]
+user.{admindepot1}.privilege.host.depotaccess.configured  [false]
+user.{admindepot1}.privilege.host.depotaccess.depots  	[]
+user.{admindepot1}.privilege.host.opsiserver.write 		[true]
+----
+
+generiert.
+
+Die vier Einträge bedeuten:
+
+- _admindepot1_ hat _nicht_ lediglich readonly-Zugriff auf den Server (ein reiner readonly-Zugriff wäre möglicherweise für einen Mitarbeiter aus dem Helpdesk-Bereich angemessen);
+- Depotrestriktionen existieren nicht bzw. werden nicht berücksichtigt;
+- entsprechend kann die Liste der für den User zugänglichen Depots leer bleiben 
+(aber auch wenn hier eine Auswahl aus den verfügbaren eingetragen ist, hat dies, solange _depotaccess.configured  false_, keine Wirkung);
+- der User darf configserver-Einstellungen aller Art bearbeiten.
+
+Soll künftig _admindepot1_ nur noch Zugriff auf die Rechner im Depotserver _depot1_ haben, ist folgendes einzustellen:
+
+- _host.depotaccess.configured_ ist auf _true_ zu setzen;
+- in die Liste _host.depotaccess.depots_ ist der Wert "depot1" einzutragen.
+
+Nach einem (vollständigen) Datenreload sind für den User _admindepot1_ keine Clients aus anderen Depots mehr sichtbar 
+(und auch nur noch Depoteinstellungen für _depot1_ zugänglich).  
+
+Das kann _admindepot1_ allerdings selbst ändern, solange er über das Privileg _host.opsiserver.write_ verfügt. 
+Um die Abriegelung komplett zu machen, ist daher für ihn noch
+
+-  _host.opsiserver.write_ auf _false_ zu stellen.
+
+
+
+
+CAUTION: Die auf diese Weise gesetzten Privilegien beschränken ausschließlich die Funktionalität des '{opsi-configed}'. 
+Bei anderen Zugriffsmethoden auf das json-RPC Interface des opsi-servers werden sie derzeit nicht wirksam.
+
+
+
+
+
+
 [[opsi-manual-configed-depotconfiguration]]
 === Depotkonfiguration
 
@@ -1032,3 +1112,125 @@ Im Moment stehen zwei Funktionen zur Verfügung:
 
 .'{opsi-configed}': Paket- bzw. Produktaktionen
 image::configed_package-actions.png["{opsi-configed}: Produktaktionen", width=400]
+
+
+[[opsi-manual-configed-serverkonsole]]
+=== Server-Konsole
+CAUTION: Eine der nachfolgend beschriebenen Configed-Funktionen wird mit der kommenden python-opsi Version 4.0.7.40 (?)  freigeschaltet. Dazu zählt vor allem die Befehlsbearbeitung (<<opsi-manual-configed-serverkonsole-commandcontrol>>) und die Ausführung der darüber hinterlegten Befehle im Configed.
+
+Mit der Version 4.0.7.5 wird der Configed um einen neuen Hauptmenüeintrag erweitert, die "Server-Konsole". Damit wird erstmalig die Möglichkeit geboten vom Configed aus über eine SSH-Verbindung Aktionen auf dem opsi-Server auszulösen. Zum einen kann ein Terminal auf dem opsi-Server gestartet werden, zum anderen existieren Menüpunkte für definierte Kommandozeilenbefehle. 
+
+
+.'{opsi-configed}': Menü: Server-Konsole
+image::configed_serverkonsole.png["{opsi-configed}: Server-Konsole", width=350]
+
+
+==== Verbindungsdaten und Berechtigungen
+Wenn nicht anderes angegeben, wird für die Verbindung der im Configed angemeldete User und der verbundene Configserver verwendet. 
+Ist dies nicht erwünscht, kann die Verbindung über einen SSH-Schlüssel (ggf. mit Passphrase) beim Start des Configeds gestartet werden. 
+Dafür wurden zwei neue Parameter hinzugefügt: 
+
+* --ssh-key PATH:  z.B. --ssh-key /home/user/.ssh/id_rsa
+* --ssh-passphrase PASSPHRASE: z.B. --ssh-passphrase meinpassword
+
+Diese Einstellungen lassen sich unter dem Menüpunkt  "Verbindungsdaten" ändern. +
+
+Um diverse Funktionen verwenden zu können, müssen entsprechende Server-Configs aktiviert werden. In Verbindung mit dem Userroles-Feature können diese Konfigurationen auch User-Spezifisch gesetzt werden.  +
+
+* user.{}.ssh.menu_config.active: +
+De-/aktiviert die Verbindungseinstellungen. 
+
+* user.{}.ssh.menu_control.active: +
+De-/aktiviert die Befehlsbearbeitung. 
+
+* user.{}.ssh.menu_main.active: +
+De-/aktiviert das gesamte Menü "Server-Konsole". 
+
+* user.{}.ssh.menu_terminal.active: +
+De-/aktiviert das Terminal. 
+
+* user.{}.ssh.menus_commands.active: +
+De-/aktiviert alle Menüeinträge, die hinterlegte Befehle darstellen. 
+
+
+[[opsi-manual-configed-serveractions-terminal]]
+==== SSH-Terminal
+Mit Hilfe des Terminals können Linux-Systembefehle auf dem verbundenen SSH-Server ausgeführt werden. +
+Neben der Möglichkeit die Eingabe durch Sternchen (*) zu ersetzen, was für Passwort-Eingaben empfohlen wird, kann auch ein Prozess mit Hilfe des Buttons "Prozess/Verbindung beenden" oder durch die Tasten "Strg+C" unterbrochen werden. +
+Wie aus der Kommandozeile gewohnt, kann die "TAB"-Taste Befehle vervollständigen. Achtung: Pfade werden nicht vervollständigt - ledigich Linux-Systembefehle. +
+Außerdem können Datenquellen angegeben werden, die vor der Ausführung durch konkrete Daten ersetzt werden. (Mehr zu dieser Funktionalität: <<opsi-manual-configed-serverkonsole-commandcontrol>> - Punkt: Datenquellen)
+
+.'{opsi-configed}': SSH-Terminal
+image::configed_serverkonsole-terminal.png["{opsi-configed}: SSH-Terminal", width=350]
+
+[[opsi-manual-configed-serveractions-parametercommands]]
+==== Vordefinierte Befehle mit Eingabemasken
+//Als vorgegebene Befehle befinden sich unter der Menügruppe "opsi" 4 Befehle, die während der Laufzeit unterschiedliche Parameter benötigen (gekennzeichnet durch "..."). 
+Unter der Menügruppe "opsi" stehen einige Befehle unabhängig von den selbst definierbaren Befehlen mit einer eigenen Eingabe-Oberfläche zur Verfügung. Diese vereinfachen den Umgang mit diversen Skripten.
+
+* Datei-Download ... +
+Eine beliebige Datei kann aus dem Internet mittels "wget"-Befehl heruntergeladen und in ein Zielverzeichnis auf dem Server abgelegt werden. Anwendung findet der Befehl beispielsweise für konkrete opsi-Pakete von download.uib.de.
+
+* Erstellung opsi-Produkt-Datei ... +
+Vorraussetzung für diesen Befehl ist ein opsi-utils-Paket mit der Version >=4.0.8. Über diesen Menüpunkt kann dann, mit Angabe eines Server-Verzeichnis, aus diesem ein opsi-Paket erstellt werden. Außerdem können die gefundenen Versionen (Paket- und Produkt-Version) über einen Button angezeigt und überschrieben werden. Zusätzlich kann eine md5-Summe und/oder eine zsync-Datei erstellt werden.
+
+* Paket-Installation ... +
+Durch diesen Befehl können opsi-Pakete mittels "opsi-package-manager" auf allen Depots oder einem Depot installiert werden. Dabei kann der Server-Pfad zum Paket angegeben werden, in dem sich das opsi-Paket befindet. +
+Durch Auswahl eines Pakets aus dem Internet wird die Funktionalität des Befehls "Datei download ..." aufgegriffen und anschließend das heruntergeladene Paket auf dem Depot installiert. Außerdem sind die Parameter "--update" und "--setup" des opsi-package-manager implementiert. Sollen die zsync und md5-Dateien eines opsi-Paketes heruntergeladen werden, kann der Schalter "zsync- und md5 einschließen"  aktiviert werden. Dann wird die url der Pakete entsprechend ergänzt und die zusätzlichen Dateien werden ebenfalls gezogen. +
+Mehr zum opsi-package-manager finden Sie unter <<opsi-manual-configuration-tools-opsi-package-manager>>
+
+* Paket-Deinstallation ... +
+Aus einer Liste der installierten Pakete kann eines ausgewählt und deinstalliert werden. +
+Siehe <<opsi-manual-configuration-tools-opsi-package-manager>>
+
+* Verteilung opsi-client-agent ... +
+Möchte man existierende Rechner zu opsi hinzufügen, muss der opsi-client-agent auf dem Zielrechner installiert werden. Wählt man die betreffenden Clients im configed aus und ruft diesen Befehl auf, werden die Client-Namen in das entsprechende Feld übernommen. Wenn der Befehl für mehrere Clients mit einem Aufruf ausgeführt werden soll, müssen die Login-Daten bei den beteiligten Rechnern gleich sein. Der Button rechts des Passwort-Fensters zeigt das Passwort in Klartext bzw. ersetzt durch Sternchen(*) an. +
+Genauere Informationen finden Sie im Handbuch 'opsi-getting-started' im Kapitel 'Erste Schritte'.
+
+[[opsi-manual-configed-serverkonsole-commandcontrol]]
+==== Befehle definieren
+Zusätzlich zu den vordefinierten Befehlen lassen sich eigene Befehle erstellen bzw. verändern oder entfernen, die über Menüpunkte aufgerufen werden können. Dabei ist zu beachten, dass unterschiedliche Linux-Systeme unter Umständen nicht die gleichen Kommandozeilenbefehle ausführen können. Deswegen muss der Administrator sicher stellen, dass die Befehle entsprechend dem adressierten Linux-System funktionieren. 
+Voraussetzung dafür ist, dass das python-opsi-Paket mindestens in der Version 4.0.8 vorliegt, da erst ab dieser Version entsprechende Methoden bereitgestellt werden (Siehe <<opsi-manual-configuration-tools-opsi-admin>>).  +
+
+.'{opsi-configed}': Befehle definieren
+image::configed_serverkonsole-defcommands.png["{opsi-configed}: Befehle definieren", width=400]
+
+Folgende Daten müssen bzw. können (gekennzeichnet durch ein "*") für einen Befehl angegeben werden: 
+
+* Menü-Text: +
+Beim Erstellen eines Befehls _muss_ darauf geachtet werden, dass der Menütext noch nicht für einen anderen Befehl verwendet wurde. Wenn ein Menütext geändert werden soll, muss der Befehl mit dem Minus-Button gelöscht und ein neuer Befehl erstellt werden.
+
+* Beschreibung*: +
+Wird eine genauere Beschreibung hinterlegt, taucht diese als Tooltip-Text des Befehls auf. 
+
+* übergeordnetes Menü*: +
+Legt fest, in welchem Menü der neue Befehl als Menüeintrag erscheinen soll. Bleibt das Feld leer, wird der Menüeintrag direkt dem Menü "Server-Konsole" zugeordnet.
+
+* Position*: +
+Die Position bestimmt die Reihenfolge (kleine Zahlen zuerst) der Menüpunkte insgesamt und damit innerhalb des jeweiligen Menüs. 
+// Zunächst wird nach Positionen sortiert, wobei die niedrigste Zahl als erstes unter dem Menüpunkt "Server-Konsole" angezeigt wird. Erst alle einzelnen Befehle, anschließend die immer vorhandene Menügruppe "opsi" und weitere (nach der Position geordnete) Menügruppen. Es lässt sich somit nur eine Ebene von Menügruppen unter der "Server-Konsole" erstellen.  +
+Ist eine alphabetische Reihenfolge erwünscht, müssen alle Positionen identisch gesetzt sein (z.B. alle 0). Bleibt das Feld leer, wird standardmäßig die Position 0 vergeben.
+
+* "sudo"-Rechte*: +
+Wenn einer der Befehle in der Befehlsliste administrative Rechte benötigt, muss das Häkchen bei "Benötigt root-Rechte" gesetzt sein, dann werden die Befehle in der Liste automatisch um das Schlüsselwort "sudo" ergänzt. 
+
+* Befehlsliste: +
+Bei der Befehlsliste müssen die Linux-Befehle zeilenweise eingetragen werden, damit sie sequentiell ausgeführt werden können. 
+Achtung: Der Befehl kann mittels Button direkt auf dem verbundenen SSH-Server getestet / ausgeführt werden, ohne ihn als Menüpunkt zu erstellen.
+
+* Datenquellen* (für die Befehlsliste): +
+Zusätzlich können Methoden als Datenquelle hinterlegt werden, d.h. vor Ausführung des Befehls werden Parameter mit dem Ergebnis einer Methode überschrieben. folgende Methoden sind möglich:
+    - Interaktive Eingabe: +
+    Es ist möglich,  für die Befehle Parameter nicht fest vorzugeben, sondern für eine interaktive Eingabe zu kennzeichnen. Dies geschieht in der Form $$"<<<Dieser Text wird dem Benutzer angezeigt und durch die Benutzereingabe ersetzt>>>"$$ , wobei empfohlen wird, eine Beispieleingabe für den Parameter zum Benutzertext hinzuzuschreiben. 
+    - Ausgewählte Client-Namen / Ausgewählte Client-IP-Adressen 
+    - Ausgewählte Depot-Namen / Ausgewählte Depot-IP-Adressen 
+    - Configserver-Name 
+    - Verbundener SSH-Servername +
+Hinweis: Außer für die "Interaktive Eingabe" kann die Rückgabe der Methoden formatiert werden, beispielsweise in eine kommaseparierte Liste. 
+In der Oberfläche kann die Datenquelle sowohl getestet, als auch an die im Feld der Befehlsliste markierten Stelle eingefügt werden.
+
+.'{opsi-configed}': Befehl ausführen - Parameterabfrage
+image::configed_serverkonsole-exec.png["{opsi-configed}: Befehl ausführen - Parameterabfrage", width=400]
+
+TIP: -- Unter Linux lassen sich Befehle mit Hilfe von zwei kaufmännischen Unds ("&&") kombinieren. Dabei muss jedoch darauf geachtet werden, dass zum zweiten Befehl, falls benötigt ein sudo ergänzt wird, da dies nicht automatisch geschieht. Beispiel: Benötigt root-Rechte:"aktiviert" , Befehlsliste: "apt-get update --yes && sudo apt-get upgrade --yes". + 
+ -- Während der Ausführung lassen sich keine Benutzereingaben tätigen. Es ist notwendig, alle Eingaben über die Befehls\-parameter zu steuern (Beispiel: "--yes" -Option bei "apt-get upgrade") +
