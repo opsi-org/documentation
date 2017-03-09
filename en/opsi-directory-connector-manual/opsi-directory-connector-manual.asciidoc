@@ -241,3 +241,85 @@ With `connection_options` the options for connecting to opsi can be set.
 `verify_certificate` configures the verification of the server certificate.
 For selfsigned certificates this can be set to `false`.
 Für selbstsignierte Zertifikate kann dieser Wert auf `false` gesetzt werden.
+
+[[running]]
+Running the connector
+---------------------
+
+After installation a binary called `opsidirectoryconnector` will
+be present on the system.
+
+It is required to pass an argument `--config` together with the path to
+the configuration.
+
+[source,prompt]
+----
+opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+NOTE: The user running the binary does not require any access to opsi as this is all specified in the configuration.
+
+Example: recurring runs with systemd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The connector currently does one synchronisation run when executed but
+the chances are good that you want to have a constant synchronisation of data.
+
+It is easy to automate the execution of the connector to have recurring runs.
+
+We will use systemd for this.
+In contrast to cronjobs systemd will avoid overlapping runs and is therefore
+a good choice.
+
+The following example will set up the connector so that it is run five minutes after the machine was booted and from then on every hour.
+
+We require two files that need to be placed in the corresponding directory
+for user-defined units.
+The path where this files need to be stored may vary between operating systems.
+Please use `pkg-config` to obtain the path your system uses by running the following command:
+
+[source,prompt]
+----
+pkg-config systemd --variable=systemduserunitdir
+----
+
+In this directory you need to place the two following files.
+One for the timer that makes the job recurring and one for the job itself.
+
+Please put this inside `opsi-directory-connector.timer`:
+
+[source,configfile]
+----
+[Unit]
+Description=Start the opsi-directory-connector in regular intervals
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1hour
+
+[Install]
+WantedBy=timers.target
+----
+
+And this is the content of `opsi-directory-connector.service`:
+
+[source,configfile]
+----
+[Unit]
+Description=Sync clients from AD to opsi.
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+To enable the timer and start it right away use the following commands:
+
+[source,prompt]
+----
+systemctl enable opsi-directory-connector.timer
+systemctl start opsi-directory-connector.timer
+----
+
+If the timer does not get started it will be first run after the next reboot of the machine.
