@@ -1,0 +1,325 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  1
+:toclevels: 6
+:toc:
+:numbered:
+:doctype:   book
+
+opsi Directory Connector
+========================
+
+include::../common/manual_copyright.asciidoc[]
+
+[[introduction]]
+Introduction
+------------
+
+The opsi directory connector is a tool to transfer data from an directory service
+to an opsi installation.
+This avoids the need of maintaining data in two separate systems.
+
+[[requirements]]
+Requirements
+------------
+
+The source directory must implement the LDAP protocol.
+Samba 4 or Active Directory are examples for directories that support the LDAP protocol.
+
+The target opsi server should run opsi 4.0.7 or newer.
+Prior versions may work but have not been tested.
+
+The machine running the connector must have access to the ones running
+the directory and opsi over the network.
+
+It is possible to have everything running on the same server but this manual will assume that different machines are used.
+
+Hardware-Requirements
+~~~~~~~~~~~~~~~~~~~~~
+
+These requirements are intended for a basic use in a small-sized environment
+with up to 500 clients.
+The requirements may change running the connector in larger environments
+so please be aware that adjustments may be necessary.
+
+* 256 MB of free RAM
+* Network connection
+
+Software-Requirements
+~~~~~~~~~~~~~~~~~~~~~
+
+On the machine the following has to be installed.
+
+* Python 3.4 or newer
+
+The following modules for Python 3:
+
+* ldap3
+* requests
+
+Because the communication is implemented using standardized protocols
+the connector does not require any specific opsi- or directory-components
+to be installed.
+
+Installing the connector through your operating system's package manager will install these requirements automatically.
+
+[[installation]]
+Installation
+------------
+
+Please use your operating system's package manager to install the package `opsi-directory-connector`.
+
+On an Debian-based machine installation can be done like this:
+[source,prompt]
+----
+apt install opsi-directory-connector
+----
+
+[[configuration]]
+Configuration
+-------------
+
+The connector features a variety of settings to fit into different
+environments.
+
+The configuration is made in a JSON-formatted file and must contain valid JSON!
+To specify any boolean value please use `true` or `false`. Text has to
+be entered in double quotes like `"this is text"`.
+
+An example configuration will be provided at `/etc/opsi/opsidirectoryconnector.example.conf`.
+This file can be used as a template for your own configurations.
+
+[source,prompt]
+----
+cp /etc/opsi/opsidirectoryconnector.example.conf /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+Directory settings
+~~~~~~~~~~~~~~~~~~
+
+These are the settings required to access the directory and limit
+the search scopes to specific areas and entries.
+
+[source,json]
+----
+{
+    "directory": {
+        "address": "ldap://192.168.12.34",
+        "user": "DOMAIN\\opsiconnector",
+        "password": "insertpasswordhere",
+        "search_base": "dc=testcompy,dc=local",
+        "search_query_computers": "(objectClass=computer) ",
+        "search_query_groups": "(objectClass=organizationalUnit)",
+        "connection_options": {
+            "start_tls": true
+        }
+    },
+    …
+}
+----
+
+Under `address` you specify the directory-server.
+`user` and `password` are required for authentication at the directory.
+
+With `search_base` you specify the location from where on the connector
+looks for matching entries.
+Through `search_query_computers` and `search_query_groups` the conditions
+for finding entries can be configured.
+
+Either `search_query_computers` or `search_query_groups` or both need to be configured. To disable one of these set them to `""`.
+
+Behaviour settings
+~~~~~~~~~~~~~~~~~~
+
+These settings defines the behaviour of the connector.
+
+[source,json]
+----
+{
+    …
+    "behaviour": {
+        "write_changes_to_opsi": true,
+        "root_dir_in_opsi": "Directory",
+        "update_existing_clients": true,
+        "prefer_location_from_directory": true
+    },
+    …
+}
+----
+
+If `write_changes_to_opsi` is set to `false` no data will be written to
+opsi. This can be used to check settings before applying them.
+
+Via `root_dir_in_opsi` you define what group should be used as the root
+in opsi. You need to make sure that this group exists.
+
+If `update_existing_clients` is set to `false` clients already
+existing in opsi will not be altered.
+If this is set to `true` clients may have any manually set data overridden
+with the values from the directory.
+
+If `prefer_location_from_directory` is set to `true` clients will be
+moved in opsi to the same location they have in the directory.
+If you want to disable this set it to `false`.
+
+Attribute-Mappings
+~~~~~~~~~~~~~~~~~~
+
+With a system as flexible as a directory service the connector must
+be given information about what attributes in the directory match these
+of the corresponding opsi objects.
+
+[source,json]
+----
+{
+    …
+    "mapping": {
+        "client": {
+            "cid": "name",
+            "cdescription": "description",
+            "cnotes": "",
+            "chardwareAddress": "",
+            "cipAddress": "",
+            "cinventoryNumber": "",
+            "coneTimePassword": ""
+        },
+        "group": {
+            "gid": "name",
+            "gdescription": "description",
+            "gnotes": ""
+        }
+    },
+    …
+}
+----
+
+There is a mapping for clients and one for groups.
+
+opsi connection settings
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This specifies how the connector accesses opsi.
+
+[source,json]
+----
+{
+    …
+    "opsi": {
+        "address": "https://localhost:4447",
+        "username": "syncuser",
+        "password": "secret",
+        "connection_options": {
+            "verify_certificate": true
+        }
+    }
+}
+----
+
+Set `address` to the address of your opsi server. Please include the
+port.
+`username` and `password` should be set accordingly to authenticate
+at the opsi server.
+
+It is recommended to set up a special user for this task.
+Refer to the opsi manual on how to do this.
+
+With `connection_options` the options for connecting to opsi can be set.
+`verify_certificate` configures the verification of the server certificate.
+For selfsigned certificates this can be set to `false`.
+Für selbstsignierte Zertifikate kann dieser Wert auf `false` gesetzt werden.
+
+[[running]]
+Running the connector
+---------------------
+
+After installation a binary called `opsidirectoryconnector` will
+be present on the system.
+
+It is required to pass an argument `--config` together with the path to
+the configuration.
+
+[source,prompt]
+----
+opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+NOTE: The user running the binary does not require any access to opsi as this is all specified in the configuration.
+
+Example: recurring runs with systemd
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The connector currently does one synchronisation run when executed but
+the chances are good that you want to have a constant synchronisation of data.
+
+It is easy to automate the execution of the connector to have recurring runs.
+
+We will use systemd for this.
+In contrast to cronjobs systemd will avoid overlapping runs and is therefore
+a good choice.
+
+The following example will set up the connector so that it is run five minutes after the machine was booted and from then on every hour.
+
+We require two files that need to be placed in the corresponding directory
+for user-defined units.
+The path where this files need to be stored may vary between operating systems.
+Please use `pkg-config` to obtain the path your system uses by running the following command:
+
+[source,prompt]
+----
+pkg-config systemd --variable=systemduserunitdir
+----
+
+In this directory you need to place the two following files.
+One for the timer that makes the job recurring and one for the job itself.
+
+Please put this inside `opsi-directory-connector.timer`:
+
+[source,configfile]
+----
+[Unit]
+Description=Start the opsi-directory-connector in regular intervals
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1hour
+
+[Install]
+WantedBy=timers.target
+----
+
+And this is the content of `opsi-directory-connector.service`:
+
+[source,configfile]
+----
+[Unit]
+Description=Sync clients from AD to opsi.
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+To enable the timer and start it right away use the following commands:
+
+[source,prompt]
+----
+systemctl enable opsi-directory-connector.timer
+systemctl start opsi-directory-connector.timer
+----
+
+If the timer does not get started it will be first run after the next reboot of the machine.
