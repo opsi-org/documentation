@@ -1,0 +1,325 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  1
+:toclevels: 6
+:toc:
+:numbered:
+:doctype:   book
+
+[[opsi-manual-dircon]]
+=== 'opsi directory connector'
+
+
+[[opsi-manual-dircon-introduction]]
+==== Einführung
+
+Der opsi Directory Connector ist ein Werkzeug um Daten aus einem Verzeichnisdienst in eine opsi-Installation zu überführen.
+Dadurch wird mehrfacher Pflegeaufwand in unterschiedlichen Systemen vermieden.
+
+
+[[opsi-manual-dircon-preconditions]]
+==== Vorbedingungen für die opsi Erweiterung 'opsi wim capture'
+
+Dieses Modul ist momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
+zu können. Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie, wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+
+[[opsi-manual-dircon-preconditions-general]]
+===== Allgemeine Anforderungen
+
+
+Das Quell-Verzeichnis muss das LDAP-Protokoll implementieren.
+
+Das Ziel-Opsi-System sollte opsi 4.0.7 oder neuer verwenden.
+Ältere Versionen können funktionieren, wurden aber nicht getestet.
+
+Die Maschine, auf welcher der Connector laufen soll, muss über das
+Netzwerk Zugriff auf den Directory- und opsi-Server haben.
+Es ist möglich alle Komponenten auf der gleichen Maschine zu betreiben,
+aber es wird davon ausgegangen, dass jeweils getrennte Maschinen
+verwendet werden.
+
+[[opsi-manual-dircon-preconditions-hw]]
+===== Hardware-Anforderungen
+
+Diese Anforderungen richten sich an eine einfache Verwendung in einer kleinen Umgebung mit bis zu 500 Clients.
+Diese Anforderungen fallen in großen Umgebungen gegebenenfalls größer aus, weshalb Anpassungen notwendig sein können.
+
+* 256 MB freier Arbeitsspeicher
+* Netzwerkverbindungen
+
+[[opsi-manual-dircon-preconditions-sw]]
+===== Software-Anforderungen
+
+Auf der Maschine muss folgendes installiert sein.
+
+* Python 3.4 oder neuer
+
+Die folgenden Module für Python 3:
+
+* ldap3
+* requests
+
+Durch die Verwendung standardisierter Protokolle zur Kommunikation werden
+keine opsi- oder Verzeichnisdienst-spezifischen Komponenten benötigt.
+
+Bei der Installation des Connectors über den Paket-Manager des Betriebssystems werden diese Abhängigkeiten automatisch installiert.
+
+[[opsi-manual-dircon-installation]]
+==== Installation
+
+Bitte verwenden Sie den Paket-Manager ihres Betriebssystems um das Paket `opsi-directory-connector` zu installieren.
+
+Auf einer Debian-basierten Maschine kann die Installation wie folgt durchgeführt werden:
+
+[source,prompt]
+----
+apt install opsi-directory-connector
+----
+
+[[opsi-manual-dircon-configuration]]
+==== Konfiguration
+
+Der Connector kann über eine Vielzahl an Einstellungsmöglichkeiten an
+verschiedenste Umgebungen angepasst werden.
+
+Die Konfiguration geschieht über eine Konfigurationsdatei im JSON-Format, welche gültiges JSON enthalten muss.
+Zur Angabe von boolschen Werten verwenden Sie bitte `true` oder `false`.
+Text muss mit doppelten Anführungszeichen eingegeben werden, beispielsweise "das ist Text".
+
+Eine Beispiel-Konfiguration wird unter `/etc/opsi/opsidirectoryconnector.example.conf` bereitgestellt.
+Diese Datei kann als eine Vorlage für eigene Konfigurationen verwendet werden.
+
+[source,prompt]
+----
+cp /etc/opsi/opsidirectoryconnector.example.conf /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+[[opsi-manual-dircon-conf-dir]]
+===== Directory-Einstellungen
+
+Diese Einstellungen werden benötigt um eine Verbindung zum Verzeichnisdienst
+herzustellen und den Suchbereich auf bestimmte Bereiche und Objekte einzugrenzen.
+
+[source,json]
+----
+{
+    "directory": {
+        "address": "ldap://192.168.12.34",
+        "user": "DOMAIN\\opsiconnector",
+        "password": "insertpasswordhere",
+        "search_base": "dc=testcompy,dc=local",
+        "search_query_computers": "(objectClass=computer) ",
+        "search_query_groups": "(objectClass=organizationalUnit)",
+        "connection_options": {
+            "start_tls": true
+        }
+    },
+    …
+}
+----
+
+Unter `address` muss angegeben werden unter welcher Adresse der Server angesprochen wird.
+`user` und `password` werden für die Authentifikation an selbigem verwendet.
+
+Über `search_base` wird angegeben ab welchem Punkt nach passenden Element
+gesucht wird.
+Über `search_query_computers` und `search_query_groups` können Bedingungen für die Suche nach Eintragen konfiguriert werden.
+
+Entweder `search_query_computers` oder `search_query_groups` oder beides
+muss konfiguriert sein. Um eine Bedingung zu deaktivieren,
+kann der Wert auf `""` gesetzt werden.
+
+[[opsi-manual-dircon-conf-work]]
+===== Verhaltens-Einstelllungen
+
+
+Die Einstellungen steuern das Verhalten des Connectors.
+
+[source,json]
+----
+{
+    …
+    "behaviour": {
+        "write_changes_to_opsi": true,
+        "root_dir_in_opsi": "Directory",
+        "update_existing_clients": true,
+        "prefer_location_from_directory": true
+    },
+    …
+}
+----
+
+Wird `write_changes_to_opsi` auf `false` gesetzt werden keine Daten nach opsi geschrieben.
+Mit dieser Einstellung ist es möglich die Verbindungseinstellungen zu überprüfen, bevor sie angewendet werden.
+
+Per `root_dir_in_opsi` wird angegeben welche Gruppe in opsi als Wurzelgruppe verwerndet werden soll.
+Es muss von Ihnen sichergestellt werden, dass diese Gruppe existiert.
+
+Wird `update_existing_clients` auf `false` gesetzt, so werden bereits in opsi existierende Clients nicht verändert.
+Wird dieser Wert auf `true` gesetzt, so werden möglicherweise manuell gesetzte Daten mit den Werten aus dem Directory überschrieben.
+
+Falls `prefer_location_from_directory` auf `true` gesetzt, werden Clients in opsi an die Position verschoben, welche sie im Directory haben.
+Für das Deaktivieren dieses Verhalten, muss dieser Wert auf `false` gesetzt werden.
+
+[[opsi-manual-dircon-conf-map]]
+===== Mappings
+
+
+Mit einem derart flexiblen System wie ein Verzeichnisdienst benötigt der
+Connector Informationen darüber welche Attribute im Directory auf welche
+Attribute in opsi angewendet werden sollen.
+
+[source,json]
+----
+{
+    …
+    "mapping": {
+        "client": {
+            "cid": "name",
+            "cdescription": "description",
+            "cnotes": "",
+            "chardwareAddress": "",
+            "cipAddress": "",
+            "cinventoryNumber": "",
+            "coneTimePassword": ""
+        },
+        "group": {
+            "gid": "name",
+            "gdescription": "description",
+            "gnotes": ""
+        }
+    },
+    …
+}
+----
+
+Es gibt jeweils ein Mapping für Clients und eines für Gruppen.
+
+[[opsi-manual-dircon-conf-conect]]
+===== opsi-Verbindungs-Einstellungen
+
+
+Hierüber wird gesteuert wie der Connector sich zu opsi verbindet.
+
+[source,json]
+----
+{
+    …
+    "opsi": {
+        "address": "https://localhost:4447",
+        "username": "syncuser",
+        "password": "secret",
+        "connection_options": {
+            "verify_certificate": true
+        }
+    }
+}
+----
+
+Unte `address` ist die Adresse des opsi-Servers einzutragen.
+Vergessen Sie nicht die Angabe des Ports!
+
+Mittels `username` und `password` wird geregelt welche Zugangsdaten zur
+Authentifizierung am opsi-Server verwendet werden.
+
+Es ist zu empfehlen einen speziellen Benutzer für die Synchronisation anzulegen.
+Bitte entnehmen Sie dem Handbuch die notwendigen Schritte.
+
+Unter `connection_options` werden Optionen für die Verbindung zum
+opsi-Server festgelegt.
+Mittels `verify_certificate` wird die Überprüfung des Server-Zertifikats
+gesteuert.
+Für selbstsignierte Zertifikate kann dieser Wert auf `false` gesetzt werden.
+
+[[opsi-manual-dircon-run]]
+==== Den Connector ausführen
+
+Nach der Installation existiert ein Binary `opsidirectoryconnector` auf dem System.
+
+Dieses muss einen Parameter `--config` zusammen mit dem Pfad zur Konfigurationsdatei übergeben bekommen.
+
+[source,prompt]
+----
+opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+NOTE: Der ausführende Benutzer benötigt keinen Zugriff auf das opsi-System, da der zugreifende Benutzer in der Konfigurationsdatei hinterlegt ist.
+
+[[opsi-manual-dircon-run-systemd]]
+===== Beispiel: wiederkehrende Verarbeitung mit systemd
+
+Der Connector macht aktuell bei der Ausführungs einen Synchronisationslauf,
+aber die Chancen stehtn gut, dass eine ständige Synchronsiation gewünscht ist.
+
+Es ist einfache den Ausführung wiederkehrender Läufe zu automatisieren.
+
+Wir werden hierbei systemd verwenden.
+Im Gegensatz zu cronjobs wird systemd verhindern, dass überlappende Läufe stattfinden, weshalb systemd eine gute Wahl ist.
+
+Das folgende Beispiel wird den Connector so einrichten, dass er fünf Minuten nach dem Start der Maschine ausgeführt wird und danach jede Stunde.
+
+Wir benötigen zwei Dateien, welche in dem entsprechenden Verzeichnis für benutzerdefinierte Units abgelegt werden müssen.
+Der Pfad kann je nach verwendetem Betriebssystem unterschiedlich ausfallen.
+Bitte verwenden Sie nachfolgend `pkg-config` um an den entsprechenden Pfad zu kommen:
+
+[source,prompt]
+----
+pkg-config systemd --variable=systemduserunitdir
+----
+
+In diesem Verzeichnis müssen die zwei folgenden Dateien abgelegt werden.
+Eine Datei ist der Timer, welche unseren Job wiederkehrend aufruft, und die andere ist für den Job selbst.
+
+Bitte füllen Sie die Datei `opsi-directory-connector.timer` mit dem folgenden Inhalt:
+
+[source,configfile]
+----
+[Unit]
+Description=Start the opsi-directory-connector in regular intervals
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1hour
+
+[Install]
+WantedBy=timers.target
+----
+
+Und dies muss nach `opsi-directory-connector.service`:
+
+[source,configfile]
+----
+[Unit]
+Description=Sync clients from AD to opsi.
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+Um den Timer zu aktivieren und ihn sofort zu starten, können die folgenden Befehle verwendet werden:
+
+[source,prompt]
+----
+systemctl enable opsi-directory-connector.timer
+systemctl start opsi-directory-connector.timer
+----
+
+Falls der Timer nicht gestartet wird, wird er erst nach dem nächsten Neustart der Maschine ausgeführt werden.
