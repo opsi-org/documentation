@@ -852,9 +852,9 @@ The '{opsiclientd}' has its own web service interface which can be used to trans
 * 'Push' installation (start the event 'on_demand')
 * other maintenance tasks
 
-This can be done on the command line using the tool '{opsi-admin}' by calling one of the +hostControl_*+ methods. Calling one of these methods takes the parameter +*hostid+ which:
+This can be done on the command line using the tool '{opsi-admin}' by calling one of the +hostControlSafe_*+ methods. Calling one of these methods takes the parameter +*hostid+ which:
 
-* can be dropped to send the command to all clients
+* can be `["*"]` to send the command to all clients
 * can be the name of a client (e.g.. "pcbon4.uib.local")
 * can be a list of client names according to the pattern [ <client1>, <client2>] +
 e.g.. ["pcbon1.uib.local", "pcbon2.uib.local"]
@@ -874,13 +874,13 @@ Using the '{opsi-configed}' you may send messages to the clients.
 At the command line you may do this with the tool '{opsi-admin}':
 [source,prompt]
 ----
-opsi-admin -d method hostControl_showPopup message *hostid
+opsi-admin -d method hostControlSafe_showPopup message *hostid
 ----
 
 Example:
 [source,prompt]
 ----
-opsi-admin -d method hostControl_showPopup "This is my message" "myclient.uib.local"
+opsi-admin -d method hostControlSafe_showPopup "This is my message" "myclient.uib.local"
 ----
 
 [[opsi-manual-clientagent-control-fire-event]]
@@ -899,13 +899,13 @@ Executing Events can also be done from the '{opsi-configed}'.
 On the command line you may use '{opsi-admin}' to fire an event:
 [source,prompt]
 ----
-opsi-admin -d method hostControl_fireEvent event *hostIds
+opsi-admin -d method hostControlSafe_fireEvent event *hostIds
 ----
 
 Example:
 [source,prompt]
 ----
-opsi-admin -d method hostControl_fireEvent "on_demand" "myclient.uib.local"
+opsi-admin -d method hostControlSafe_fireEvent "on_demand" "myclient.uib.local"
 ----
 
 [[opsi-manual-clientagent-control-misc]]
@@ -923,19 +923,27 @@ At the command line you also can initiate a client:
 shutdown:
 [source,prompt]
 ----
-opsi-admin -d method hostControl_shutdown *hostIds
+opsi-admin -d method hostControlSafe_shutdown *hostIds
 ----
 
 reboot:
 [source,prompt]
 ----
-opsi-admin -d method hostControl_reboot *hostIds
+opsi-admin -d method hostControlSafe_reboot *hostIds
 ----
 
 [[opsi-manual-clientagent-ci]]
 ==== Adapting the opsi-client-agent to your Corporate Identity (CI)
 
 Adapting the '{opsi-client-agent}' to your Corporate Identity can be important for the user acceptance when rolling out opsi. By adding your corporate logo to the opsi background image, the users feel more familiar with the opsi installation instead of being puzzled by something unknown.
+
+Seit opsi-client-agent 4.0.7.16 basieren alle graphischen Komponenten des opsi-client-agent (notifier, opsi-script, kiosk-client) auf den Darstellungskomponenten zum Anzeigen von Grafiken und werden auf die selbe Weise angepasst.
+Farben können auf drei unterschiedliche Weise angegeben werden: Als symbolischer Name (clRed), als Hexadezimalwert ($FF00FF) oder als rgb Wertliste ((255,0,0)).
+Ein Hilfsprogramm zur Auswahl von Farben und deren richtigen Schreibweise finden Sie unter http://download.uib.de/opsi40/helper/opsi-colorchooser.exe
+
+Als Hintergrund Grafikformate kommt eine Vielzahl unterschiedlicher Bitmap Formate wie .bmp, .png, jpeg usw in Frage. All dies Formate sind wieder Containerformate, dh. z.B. PNG ist nicht unbeding gleich PNG. Evtl ist das eine Darstellbar und das andere nicht.
+Ein Hilfsprogramm mit dem Sie schnell prüfen können ob eine gegeben Bitmap Grafik korrekt angezeigt werden wird, finden Sie unter http://download.uib.de/opsi40/helper/opsi-bitmapviwer.exe
+
 
 [[opsi-manual-clientagent-ci-winst]]
 ===== Elements to be patched: opsi-winst
@@ -978,6 +986,41 @@ background image of the user login event notifier.
 * `userlogin.ini` +
 configuration file of the user login event notifier.
 
+[[opsi-manual-clientagent-ci-kioskclient]]
+===== Anzupassende Elemente: kioskclient
+
+Zum Kioskclient siehe auch: <<software-on-demand>>
+
+The Headers list from the Main window (1) is customizable to the desire of the client.
+To that, there are two files which play a roll:
+
+* `opsiclientkiosk.png`
+* `opsiclientkiosk.ini`
+
+The `opsiclientkiosk.png` holds the picture which will be loaded in this area. +
+
+The `opsiclientkiosk.ini` defines the text and its representation which will be shown in this area.
+
+Example:
+----
+[TitleLabel]
+Text= opsi Client Kiosk
+FontName = Arial
+FontSize = 20
+FontColor = $00000000
+FontBold = true
+FontItalic = false
+FontUnderline = false
+----
+
+You will find templates for these files under `/var/lib/opsi/depot/opsi-client-agent /files/opsi/opsiclientkiosk/opsiclientkioskskin`
+or `C:\Program Files(x86)\opsi.org\opsi-client-agent\opsiclientkiosk\opsiclientkioskskin`
+
+
+
+
+
+
 [[opsi-manual-clientagent-ci-custom]]
 ===== Protect your CI changes from updates: the custom directory
 
@@ -1000,11 +1043,22 @@ If it exists, the `custom/opsiclientd.conf` will be copied to the clients `C:\Pr
 Using a custom `opsiclientd.conf` is not recommended. To customize your client configuration, use the host parameter configuration for single features as described in the opsi-client-agent chapter. Using a custom `opsiclientd.conf` is applicable for very complex configurations only. By using a custom `opsiclientd.conf`, after each update of opsi-client-agent it is required to check the server default file  `files/opsi/dist/opsiclientd/opsiclientd.conf` for changes to be patched to your custom `opsiclientd.conf`. +
  *So: hands off this feature, unless you really know what you are doing!*
 
+* `custom/opsiclientkioskskin/*.*` +
+All the files in these directory will be copied, by the installation of an opsi-client-agent to C:\Program Files(x86)\opsi.org\opsi-client-agent\custom\opsiclientkioskskin. If available, this directory (opsiclientkioskskin) will have the preference over others.
+
+
+To avoid errors by the change of rights, the following helps:
+
+[source, prompt]
+----
+opsi-setup --set-rights /var/lib/opsi/depot/opsi-client-agent
+----
 
 [[opsi-manual-clientagent-loginblock]]
 ==== Blocking the user login with the opsi-Loginblocker
 
 To prevent a user login before all installations are completed, opsi provides the optional '{opsi-login-blocker}'.
+
 
 
 [[opsi-manual-clientagent-loginblock-nt5]]
