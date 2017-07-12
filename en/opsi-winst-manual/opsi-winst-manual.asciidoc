@@ -1515,7 +1515,7 @@ returns for systems of type Windows NT the Microsoft version info as indicated b
 |6.1    |Windows 7, 2008 R2
 |6.2    |Windows 8, 2012
 |6.3    |Windows 8.1, 2012 R2
-|10     |Windows 10
+|10.0   |Windows 10
 |=======================
 see also `GetMsVersionMap`
 
@@ -5630,7 +5630,7 @@ In a Files section the following commands are defined:
 
 The syntax definitions are:
 
-* `Copy` [-svdunxwnr] <source(mask)> <target path>
+* `Copy` [-svdunxwnrh] <source(mask)> <target path>
 +
 The source files can be denoted explicitly, using the wild card sign (”* ”) or by a directory name.
 +
@@ -5638,40 +5638,44 @@ CAUTION: The <target path> is always understood as a directory name. Renaming by
 +
 The optional options of the Copy command mean (the ordering is insignificant):
 
-** `s` -> We recursive into subdirectories.
+** `s` -> We recursive into subdirectories. [W/L]
 
 ** `e` -> Empty Subdirectories. +
 If there are empty subdirectories in the source path they will be created in the target directory as well.
 
-** `V` -> Version checking +
+** `V` -> Version checking [W] +
 A newer version of a windows library file is not overwritten by an older one (according primarily to the internal version counting of the file). If there are any doubts regarding the priority of the files a warning is added to the log file.
 
 ** `v` -> (do not use) +
-With Version checking: +
+With Version checking: [W] +
 Deprecated: Don't use it on Systems higher than win2k. Because it checks not only against the target directory but also against %System%.
 use `-V` instead.
 
-** `d` -> With date check: +
+** `d` -> With date check: [W] +
 A newer .exe file is not overwritten by an older one.
 
-** `u` -> We are only updating files: +
+** `u` -> We are only updating files: [W] +
 A file is not copied if there is a newer or equally old file of the same name.
 
-** `x` -> x-tract +
+** `x` -> x-tract [W] +
 If a file is a zip archive it will be unpacked (Xtracted) on copying. +
 Caution: Zip archives are not characterized by its name but by an internal definition. E.g. a java jar file is a zip file. If it is unpacked the application call will not work.
 
-** `w` -> weak +
+** `w` -> weak [W] +
 We respect any write protection of a file such proceeding "weakly" (in opposite to the default behaviour which is to try to use administrator privileges and overwrite a write protected file).
 
-** `n` -> no over write +
+** `n` -> no over write [W] +
 Existing files are not overwritten.
 
-** `c` -> continue +
+** `c` -> continue [W] +
 If a system file is in use, then it can be overwritten only after a reboot. The '{opsi-winst}/opsi-script' default behaviour is therefore that a file in use will be marked for overwriting after the next reboot, AND the '{opsi-winst}/opsi-script' reboot flag is set. Setting the copy option `-c` turns the automatic reboot off. Instead normal processing continues, the copying will be completed only when a reboot is otherwise triggered.
 
-** `r` -> read-only Attribute +
+** `r` -> read-only Attribute [W] +
 If a copied file has a read-only attribute it is set again (in opposite to the default behaviour which is to eliminate read-only attributs).
+
+** `h` -> follow symlinks [L]  //since 4.11.6.14 +
+At Linux symlinks to files or directories will be resolved before copy.
+So not the symlink but its target will be copied.
 
 * `Delete` [-sfd[n]] <path>
 
@@ -8206,10 +8210,10 @@ IMPORTANT: Please do not use the script as printed below, but use the opsi produ
 
 ;
 ; !!! Das lokale Installations-Skript, das durch den temporaeren lokalen Admin ausgefuehrt wird
-; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl
+; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl  
 ; !!! exitWindows /Reboot
 ; !!! enden
-;
+; 
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ; Vorarbeiten/Voraussetzungen/Doku pruefen wie in Winsthandbuch
@@ -8218,8 +8222,9 @@ IMPORTANT: Please do not use the script as printed below, but use the opsi produ
 
 
 [Actions]
-requiredWinstVersion >= 4.11.3.3
+requiredWinstVersion >= 4.11.4.12
 setLogLevel=7
+ScriptErrorMessages=off
 DefVar $ProductName$
 DefVar $ProductSizeMB$
 DefVar $LocalSetupScript$
@@ -8242,13 +8247,13 @@ DefVar $LocalDomain$
 DefVar $debug$
 DefVar $isFatal$
 
-; ----------------------------------------------------
+; ----------------------------------------------------------------
 ; - Please edit the following values
-; ----------------------------------------------------
+; ----------------------------------------------------------------
 Set $ProductName$ = "opsi-template-with-admin"
 Set $ProductSizeMB$ = "1"
-Set $LocalSetupScript$ = "setup32.ins"
-; ----------------------------------------------------
+Set $LocalSetupScript$ = "setup32.opsiscript"
+; ----------------------------------------------------------------
 
 comment "get and set initial values..."
 set $debug$ = GetProductProperty("debug","false")
@@ -8271,7 +8276,7 @@ else
 endif
 
 comment "handle Rebootflag"
-Set $WinstRegKey$ = "HKLM\SOFTWARE\opsi.org\winst"
+Set $WinstRegKey$ = "HKLM\SOFTWARE\opsi.org\winst\"+$ProductName$
 Set $RebootFlag$ = GetRegistryStringValue32("["+$WinstRegKey$+"] "+"RebootFlag")
 
 comment "some paths required"
@@ -8303,7 +8308,7 @@ if $RebootFlag$ = "1"
 		LogError "Not enough space on drive C: . "+$ProductSizeMB$+" MB on C: required for "+$ProductName$
 		isFatalError
 	endif
-
+	
 	comment "Lets work..."
 	Message "Preparing "+$ProductName$+" install step 1..."
 	sub_Prepare_AutoLogon
@@ -8317,11 +8322,11 @@ endif ; Rebootflag = not (1 or 2)
 
 if ($RebootFlag$ = "2")
 	comment "Part after first Reboot"
-
+	
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "3"
 	Registry_SaveRebootFlag /32bit
-
+	
 	comment "Lets work..."
 	Message "Preparing "+$ProductName$+" install step 2..."
 	Registry_enable_keyboard /sysnative
@@ -8329,7 +8334,7 @@ if ($RebootFlag$ = "2")
 	comment "now let the autologon work"
 	comment "it will stop with a reboot"
 	setActionProgress "Run Installation"
-
+	
 	ExitWindows /ImmediateLogout
 endif ; Rebootflag = 2
 
@@ -8340,7 +8345,7 @@ if ($RebootFlag$ = "3")
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "0"
 	Registry_SaveRebootFlag /32bit
-
+	
 	comment "Lets work..."
 	Message "Cleanup "+$ProductName$+" install (step 3)..."
 	sub_Restore_AutoLogon
@@ -8446,7 +8451,7 @@ openKey [$WinstRegKey$]
 set "RebootFlag" = "$RebootFlag$"
 
 [Files_copy_Setup_files_local]
-copy -s %ScriptPath%\localsetup\*.* $LocalFilesPath$
+copy -s "%ScriptPath%\localsetup\*.*" "$LocalFilesPath$"
 
 [Files_delete_Setup_files_local]
 del -sf $LocalFilesPath$\
