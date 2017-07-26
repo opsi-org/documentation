@@ -1,4 +1,4 @@
-﻿////
+////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
@@ -569,7 +569,7 @@ The not interactive mode is implied.
 === Log File and Paths
 
 The default log file name is `opsi-script.log`.
-You may find up to 8 Backup copys of old log files: from `opsi-script.log.0` until `opsi-script.log.8`.
+You may find up to 8 Backup copys of old log files: from `opsi-script_0.log` until `opsi-script_8.log`.
 
 The log file encoding is UTF-8.
 
@@ -584,6 +584,31 @@ The log file name and location will be overwritten via the specific command line
 In the case, that '{opsi-winst}/opsi-script' executes a script in `/batch` mode and with a specified (and working) usercontext, the default logging path is the `opsi/tmp` in the appdata directory of the user. This will be overwritten by an explicit given log path.
 
 In addition, '{opsi-winst}/opsi-script' uses the logging directory for saving certain temporary files.
+
+[[opsi-winst-configs]]
+=== Central configuration via opsi Configs (Host Parameter)
+
+Using opsi Configs (`Host-Parameter`) you may now change the logging:
+
+* `opsi-script.global.debug_prog` : boolean  +
+If false log messages that are only relevant for debugging the opsi-script program it self are not written excepting Warnings and Errors. +
+Default: false +
+This will keep the log files smaller because you will find only messages that are relevant for understanding what your script is doing. +
+The adjustment of all log messages to this new way is in progress and will be take a while since all (about 1700) log calls inside the code are reviewed.
+
+* `opsi-script.global.debug_lib` : boolean +
+If false log messages from defined functions that are imported from external library files will be suppressed excepting Warnings and Errors. +
+Default: false +
+This feature is still buggy right now, but will be fixed until the stable release.
+
+* `opsi-script.global.default_loglevel` : intstr +
+Sets (overrides) the default log level that is imlemented inside the opsi-script code. This config has no effect on scripts where the loglevel is explicit set by a `setLogLevel` statement. +
+Default:  '6'
+
+* `opsi-script.global.force_min_loglevel` : intstr +
+Forces a minimal log level. +
+This can be used while debugging or development to set temporary and for selected clients a higher log level wthout changing the script.
+Default: '0'
 
 [[opsi-winst-configuration-options]]
 == Additional Configurations
@@ -618,7 +643,7 @@ SetSkinDirectory ""
 [[opsi-winst-encoding]]
 ===  '{opsi-winst}/opsi-script' encoding [W/L]
 
-The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a greek windows system as encoded with cp1253 on a german windows system as cp1252 and under Linux as UTF-8.
+The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a Greek windows system as encoded with cp1253 on a German windows system as cp1252 and under Linux as UTF-8.
 
 anchor:encoding[]
 
@@ -675,7 +700,7 @@ https://de.wikipedia.org/wiki/UTF-8
 
 
 [[opsi-winst-script]]
-== The '{opsi-winst}/opsi-script' Skript
+== The '{opsi-winst}/opsi-script' Script
 
 On principle: '{opsi-winst}/opsi-script' is an interpreter for a specific, easy to use scripting language which is tailored for the requirements of software installations. A script should be an integrated description, and a means of control, for the installation of one piece of software.
 
@@ -5043,6 +5068,16 @@ compares two strings of the form <str>[.<str>[.<str>[.<str>]]] +
 by the <relation str> which may be one of [<,<=,=,>=,>]. +
 see also: string function `CompareDotSeparatedStrings(`<string1>, <string2>`)`  : <<CompareDotSeparatedStrings_str>>`
 
+anchor:boolToString[]
+
+* `boolToString(`<boolean expression>`)` : bool string (true/false) // since 4.12.0.0 [W/L]
+
+anchor:stringToBool[]
+
+* `stringToBool(`<string expression: true/false>`)` : boolean // since 4.12.0.0 [W/L]
+
+
+
 [[opsi-winst-commands-include]]
 === Include Commands
 
@@ -5515,7 +5550,7 @@ Abort the script as successful.
 anchor:noUpdateScript[]
 
 * `noUpdateScript` //since 4.11.3.7 [W/L] +
-Do not run a update script after setup even if there is one.
+Do not run an update script after setup even if there is one.
 
 anchor:isSuspended[]
 
@@ -5538,19 +5573,31 @@ endfunc
 [[opsi-winst-commands-localfunctions-concept]]
 ==== Concept
 
-The aim of this expansion is to implement the following concepts:
+There are a lot possibilities to structure opsi-script code:
+
+* `sub` Sections
+* `sub` Sections in external files
+* 'include' Statements
+
+But all these possibilities are not functional to create reusable external code that can be exchanged between scripts or opsi administrators without problems.
+The reason is, that this code is not encapsulated and use global variables. +
+The defined local functions presented here now solves this problem. With this concept it is possible to write functions that can be collected and maintained in external libraries. +
+In consequence we will start to build up a central opsi-script library which is maintained by uib and the opsi community.
+
+In order to reach this target we have implemented the following concepts:
 
 * Functions with return value: +
 The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected.
 
-* Freely definable execute parameters:
+* Freely definable function call parameters: +
 Parameters can be passed to a function. These parameters are defined when the function is actually declared. The call parameters can be of type `string` or `stringlist`. +
-The call parameters can be passed 'CallByValue' or 'callByReference'. 'CallByValue' is the default. That means, if no call method is specified explicitly, then 'CallByValue' will be applied. In the case that 'CallByValue' needs to be explicitly specified, then the keyword `val` should be used. 'CallByValue' means that the content of a variable used during the call is copied to the call variable. +
-'CallByReference' must be specified explicitly using the keyword `ref`. 'callByReference' means that a call is created between the variables and local call parameter. Changing the local variable of the call parameter has a direct effect on the variable used during such call. +
-The transfer parameters are available as local variables within the function.
+The call parameters are available as local variables within the function. +
+The call parameters can be passed as 'CallByValue' or 'callByReference'. 'CallByValue' is the default. That means, if no call method is specified explicitly, then 'CallByValue' will be applied. In the case that 'CallByValue' needs to be explicitly specified, then the keyword `val` should be used. 'CallByValue' means, that the value of a variable used during the call is copied to the call variable. +
+'CallByReference' must be specified explicitly using the keyword `ref`. 'callByReference' means that a connection is created between the variable used as parameter when calling the function and the local variable that represents the call parameter inside the function. Changing the local variable of the call parameter has a direct effect on the variable used during such call. 
+
 
 * Local Variables: +
-A function contains local variables. Implicitly, the call parameters are available as local variables and the variable `$result$` which is from the type of the the returned value. Further variables can be defined within the function. +
+A function contains local variables: Implicitly, the call parameters are available as local variables and the variable `$result$` which is from the type of the returned value. Further variables can be defined within the function. +
 All these variables are local, which means that they are only visible within this function. A local variable with the same name of a global variable masks the corresponding global variable within the function.
 
 * Nested functions: +
@@ -5559,8 +5606,8 @@ A local function can in turn have one or even more definitions of local function
 * Recursive calls: +
 A function can call itself recursively.
 
-* Primary and secondary functions within functions: +
-The functional body can contain its own sections of it. These are visible to this function only within the section.
+* Primary and secondary sections within functions: +
+The function body can contain its own sections of it. These are local to this function, that means that these sections are only visible within the function.
 
 [[opsi-winst-commands-localfunctions-syntax]]
 ==== Syntax
@@ -5577,7 +5624,7 @@ Where:
 
 * `DefFunc` is the keyword used to start defining a local function..
 
-* '<func name>' is the freely choosen name of the function.
+* '<func name>' is the freely chosen name of the function.
 
 * 'calltype' is the call type of the parameter [`val` | `ref`]. `val`='Call by Value', `ref`='Call by Reference'. Default: `val`
 
@@ -5589,7 +5636,7 @@ Where:
 
 * `endfunc` is the keyword used to end defining a local function..
 
-[opsi-winst-commands-localfunctions-examples]]
+[[opsi-winst-commands-localfunctions-examples]]
 ==== Examples
 
 Simple function that connects two strings:
@@ -5816,7 +5863,7 @@ The functional context is mirrored in the specific syntax of the particular sect
 [[opsi-winst-files]]
 === Files Sections
 
-A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}/opsi-script' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. an newer dll-file) are already installed on the system.
+A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}/opsi-script' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. a newer dll-file) are already installed on the system.
 
 [[opsi-winst-files-example]]
 ==== Example
