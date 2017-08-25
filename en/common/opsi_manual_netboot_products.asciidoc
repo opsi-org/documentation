@@ -27,10 +27,10 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-netboot-bootimage-parametrization]]
 ==== Parameteters for the opsi linux boot image
 
-The opsi linux boot image has some parameters which may be used to change the behaviour of the boot image. You will try this if the opsi linux boot images do not run properly with the standard parameters on your hardware (e.g. black screen). +
+The opsi-linux-bootimage has some parameters which may be used to change the behaviour of the bootimage. You will try this if the opsi-linux-bootimages doesn't run properly with the standard parameters on your hardware (e.g. black screen). +
 You may change these standard parameters by the '{opsi-configed}' choosing the Tab 'Hostparameter' and use there the entry 'opsi-linux-bootimage.append'.
 
-Typical values are here (may be combined):
+Typical values are (may be combined):
 
 * +acpi=off+
 
@@ -40,11 +40,11 @@ Typical values are here (may be combined):
 
 * +reboot=bios+
 
-A other important default is the password of the user root at the opsi linux boot image. This password is 'linux123' by default and you should change this for security reasons.
+An other important default is the password of the root user within the opsi-linux-bootimage. This password is 'linux123' by default and you should change this for security reasons.
 
 To do this change the 'opsi-linux-bootimage.append' entry at the 'server-configuration'.
 
-The option you have to change is 'pwh' (password hash). As value to this option you have to give a new password hash, which will be loaded to the `/etc/shadow` at boot time.
+The option you have to change is 'pwh' (password hash). As the value to this option you have to give a new password as a hash, which will be loaded to the `/etc/shadow` during the boot process.
 
 The best way to get the correct password hash is to login via ssh to your bootimage:
 
@@ -101,20 +101,21 @@ pwh=$6$344YXKIT$D4RPZfHMmv8e1/i5nNkOFaRN2oYNobCEjCHnkehiEFA7NdkDW9KF496OHBmyHHq0
 * At the next reboot, the client detects (via PXE-Bootprom) the re-installation request and loads the boot image from the opsi-server.
 
 *Using CD-Boot:
-** The client boots the boot image from the 'opsi-client-bootcd'.
+** The client boots the boot image from the 'opsi-client-boot-cd'.
 *The boot image starts and asks for confirmation to proceed with the re-installation. This is the only interactive question. After confirming this, the installation proceeds without any further request for interaction.
-* The boot image partitions and formats the hard disk.
-* The boot image copies the required installation files and configuration information from the '{opsi-server}' to the client and initiates a reboot.
-* After the reboot the client installs the OS according to the provided configuration information without any interaction.
+* The bootimage formats and partitions the hard disk.
+* The bootimage copies the required installation files and configuration information from the '{opsi-server}' to the client and initiates a reboot.
+* Windows Installation: After the reboot the client installs the OS according to the provided configuration information without any interaction.
+* Linux Installation: By default the Linux Netboot products initiate a 'kexec' command from within the bootimage and directly jumpt to the distribution installaer.
 * Next the '{opsi-client-agent}' is installed as the opsi installer for automated software distribution.
 * The automated software distribution then installs all the software packages as defined in the client's configuration.
 
 [[opsi-manual-netboot-unattended-requirements]]
 ===== Preconditions
 
-The client PC has to be equipped with a bootable network controller. Most recent network controllers provide this functionality (PXE boot), also recent network controllers which are integrated on the PC's main board. The PXE software, which is stored in the 'bootprom' of the network controller, controls the boot process via network according to the BIOS boot device sequence. Usually the boot sequence has to be set in the BIOS, 'network-boot' has to be the first boot device.  If there is no possibility to use PXE you may boot from the opsi-client-bootcd.
+The client PC has to be equipped with a bootable network controller. Most recent network controllers provide this functionality (PXE boot). Also recent network controllers which are integrated on the PC's main board. The PXE software, which is stored in the 'bootprom' of the network controller, controls the boot process via network according to the BIOS boot device sequence. Usually the boot sequence has to be set in the BIOS, 'network-boot' has to be the first boot device.  If there is no possibility to use PXE you may boot from the opsi-client-bootcd.
 
-The opsi installation package for the OS to be installed needs to be provided on the depot server. In the following we assume Windows XP to be the OS to install.
+The opsi installation package for the OS to be installed needs to be provided on the depot server. In the following we assume Windows 10 to be the OS to install.
 
 [[opsi-manual-netboot-unattended-netboot]]
 ===== PC-client boots via the network
@@ -138,15 +139,15 @@ You can watch this process on the display, for the PXE-BOOTPROM displays some fi
 A short while later you should get a response like this: 'My IP ADDRESS SEEMS TO BE ......'.
 
 This process makes the PC a regular, fully configured member of the network.
-The next step is to load the boot file (boot image) given in the configuration information.
+The next step is to load the boot file (bootimage) given in the configuration information.
 
 [[opsi-manual-netboot-pxelinux]]
 ===== Loading pxelinux
 
-The boot image is loaded via trivial file transfer protocol (tftp). The displayed message is „LOADING“. tftp is a rather old and simple protocol to transfer files without authentication. In fact, all data available via tftp is available to everyone in the network. Therefore the tftp access is limited to one directory, which is usually '/tftpboot'. This directory is specified in inetd (internet daemon, /etc/inetd.conf), which will start the tftp daemon 'tftpd' if requested. The start command as noted in inetd.conf is something like +
+The bootimage is loaded via trivial file transfer protocol (tftp). The displayed message is „LOADING“. tftp is a rather old and simple protocol to transfer files without authentication. In fact, all data available via tftp is available to everyone in the network. Therefore the tftp access is limited to one directory, which is usually '/tftpboot'. This directory is specified in x/inetd (internet daemon, /etc/inetd.conf), which will start the tftp daemon 'tftpd' if requested. The start command as noted in inetd.conf is something like +
 `tftpd -p -u tftp -s /tftpboot`
 
-The PXE boot-process is multi-stage:
+The PXE boot-process is a multi-stage process:
 
 Stage 1 is to load and start the file submitted as part of the address discovery process (usually /tftpboot/linux/pxelinux.0).
 
@@ -157,7 +158,7 @@ image::netboot-pxelinux.png["Step 2 PXE-Boot",width=300]
 
 To initiate the re-installation of a certain PC, a loadable file is prepared for the program 'pxelinux.0'. In order to do so, the opsipxeconfd creates a PC custom file in '/tftpboot/linux/pxelinux.cfg'. Part of this file is the command to load the installation boot image. Also this file contains the client key to decrypt the pcpatch password. This file is created as a 'named pipe' and therefore disappears after being read once. More details about this in the chapter on security of file shares.
 
-Based on the information the 'pxelinux.0' got from the 'named pipe', the actual bootimage is loaded from the opsi depot server via tftp. The bootimage is based on a linux kernel (/tftpboot/linux/install) within an appropriate initrd file system (/tftpboot/linux/miniroot.gz) and has a size of approximately 65 MB.
+Based on the information the 'pxelinux.0' got from the 'named pipe', the actual bootimage is loaded from the opsi depot server via tftp. The bootimage is based on a linux kernel (/tftpboot/linux/install) within an appropriate initrd file system (/tftpboot/linux/miniroot.bz2).
 
 [[opsi-manual-netboot-unattended-CD]]
 ===== Boot from CD
@@ -187,24 +188,24 @@ It also holds the information on how to partition the hard disk, what file syste
 
 These information will be combined with some information taken from the dhcp response and then be passed to the installation script for further processing.
 
-Then the password for the user 'pcpatch' will be decrypted with the transferred key to mount the installation share and then call the installation script from the mounted share to start the installation of the operating system. What specific operations the script performs depends on the operating system which is to be installed. Below the steps of a Windows XP installation will be described.
+Then the password for the user 'pcpatch' will be decrypted with the transferred key to mount the installation share and then call the installation script from the mounted share to start the installation of the operating system. What specific operations the script performs depends on the operating system which is to be installed. Below the steps of a Windows 10 installation will be described.
 
-*Prepare the disc*: On the hard disk the bootimage creates a new partition (of size 6 GB), formats it and installs a bootable ntloader kernel.
+*Prepare the disc*: On the hard disk the bootimage creates a new partition (size of 4 GB), formats it and installs a bootable ntloader kernel.
 
-*Copy the installation file*: The files required for OS installation and the setup files for the opsi-client-agent (which is the opsi software distribution pack) will be copied from the server file share (e.g. `/var/lib/opsi/depot/winxppro/i386`) to the local hard disk.
+*Copy the installation file*: The files required for OS installation and the setup files for the opsi-client-agent (which is the opsi software distribution pack) will be copied from the server file share (e.g. `/var/lib/opsi/depot/win10/installfiles`) to the local hard disk.
 
-*Maintain the configuration informations*: Some of the configuration and control files contain replacement characters, which will be patched before starting the actual installation. With a specified script (patcha-script) the placeholders will be replaced with parameters taken from the information packet, which is built from configuration files and the dhcp-response. For example the file 'unattend.txt', which is the control file for unattended OS Installation, will be patched with specific information like host IP, client IP, client name, workgroup, default gateway etc..
+*Maintain the configuration informations*: Some of the configuration and control files contain replacement characters, which will be patched before starting the actual installation. With a specified script (patcha-script) the placeholders will be replaced with parameters taken from the information packet. This is built from configuration files and the dhcp-response. For example the file 'unattend.xml', which is the control file for unattended OS Installation, will be patched with specific information like host IP, client IP, client name, workgroup, default gateway etc..
 
-*Prepare Reboot*: Bootrecords will be installed which will start the Windows setup program at the next reboot. The patched 'unattend.txt' is passed to the setup as the control file for unattended installation.
+*Prepare Reboot*: Bootrecords will be installed which will start the Windows setup program at the next reboot. The patched 'unattend.xml' is passed to the setup as the control file for unattended installation.
 
-*Reboot*: During the previous boot, the named pipe (which is indicating a request for installation) has been removed by reading it once. So the next PXE boot will load the default netboot response, which executes the command 'hdboot'. The local boot loader will be started and the setup for operating system installation starts.
+*Reboot*: During the previous boot, the named pipe (which is indicating a request for installation) has been removed by reading it once. So the next PXE boot will load the default netboot response, which executes the command 'localboot 0'. The local boot loader will be started and the setup for operating system installation starts.
 
 These steps are controlled by an OS specific python script.
 
 [[opsi-manual-netboot-unattended-os]]
 ===== Installation of OS and opsi-client-agent
 
-The OS installation is based on the Microsoft unattended setup. Part of this is the standard hardware detection. In addition to the possibilities given during an installation from non-OEM or slipstreamed installation media, drivers and patches (i.e. service packs) can be installed during the initial installation, making the separate installation of drivers obsolete.
+The OS installation bases on the Microsoft unattended setup. Part of this is the standard hardware detection. In addition to the possibilities given during an installation from non-OEM or slipstreamed installation media, drivers and patches (i.e. service packs) can be installed during the initial installation, making the separate installation of drivers obsolete.
 
 One feature of the unattended installation is the possibility to initiate additional installations after the main installation is finished. This mechanism is used to install the opsi-client-agent, which implements the automatized software distribution system. An entry in the registry marks the machine as being still in the 'reinstallation-mode'.
 
@@ -213,20 +214,11 @@ The final reboot leads to starting the opsi-client-agent service for software di
 [[opsi-manual-netboot-unattended-patcha]]
 ===== How the patcha program works
 
-As mentioned above the information collected from dhcp and opsi-webservice will be used to patch some configuration files as e.g. 'unattend.txt'. The program used for patching is the script '/user/local/bin/patcha'.
+As mentioned above the information collected from dhcp and opsi-webservice will be used to patch some configuration files as e.g. 'unattend.xml'. The program used for patching is the script '/user/local/bin/patcha'.
 
-This script replaces patterns like '#@flagname(*)#' in a file with values taken as 'flagname=value' from a control file (default input is '/proc/cmdline'). In the files that have to be patched, the search and replace pattern must start with '#@', might have an optional '*' after the flagname and must have one or more trailing '#'.
+This script replaces patterns like '#@flagname(*)#' in a file with values taken as 'flagname=value' from the specified properties in the Windows 10 product. In the files that have to be patched, the search and replace pattern must start with '#@', might have an optional '*' after the flagname and must have one or more trailing '#'.
 
-So by calling 'patcha <filename>' the file '<filename>' will be patched with information taken from '/proc/cmdline'.
-
-Calling 'patcha' without any parameters will show all the 'flagname=value' entries from '/proc/cmdline'.
-
-A different input file ('another_cmdline') can be passed to 'patcha':
- `patcha -f another_cmdline` +
-Without any other parameter 'patcha' will show the information taken from 'another_cmdline'. This input file must have 'cmdline'syntax, which means to be entries like '<flagname>=<value>' separated by space.
-
-`patcha -f another_cmdline patchfile` +
-This will patch 'patchfile' with substitutions taken from 'another_cmdline'.
+So by calling 'patcha -f <patchValues> <filename>' the file '<filename>' will be patched with information from the set product properties, stored in the file '<patchValues>'. The file '<patchValues>' is generated before the installation from the product properties.
 
 [source,prompt]
 ----
@@ -239,7 +231,7 @@ Options:
 -f <params file> File containig key value pairs
 If option not given key value pairs from kernel cmdline are used
 ----
-`patcha` patcht nur einen Tag pro Zeile.
+`patcha` patches one tag per line
 
 Caveat: patch a patches only the first pattern of each line.
 
@@ -293,15 +285,15 @@ cat patch.me
 [[opsi-manual-netboot-unattended-products]]
 ===== Structure of the unattended installation products
 
-The information about the 'Structure of the unattended installation products' you will find in the opsi-getting-started manual.
+The information about the 'Structure of the unattended installation products' is found in the opsi-getting-started manual.
 
 [[opsi-manual-netboot-unattended-driver]]
 ===== Simplified driver integration with symlinks
 
-The information about the 'Simplified driver integration with symlinks' you will find in the opsi-getting-started manual.
+The information about the 'Simplified driver integration with symlinks' is found in the opsi-getting-started manual.
 
 [[opsi-manual-netboot-nt6]]
-==== Some hints to the NT6 netboot products (Vista / Win7 / 2008)
+==== Some hints to the NT6 netboot products (Win7 to Win 10)
 
 The netboot products for the installation of the operating systems of the NT6 familiy, contain a lot of properties which will be described below.
 
@@ -310,7 +302,9 @@ image::netboot-win-nt6-properties.png["NT6 product properties",width=200]
 
 additional_drivers:: One or more directories below `<productid>\drivers\drivers\additional`. All driver directories below the given directories will be integrated. If there is here a driver for a found device, no other driver will be integrated by the automatic driver integration.
 
-askbeforeinst:: Should there be a confirmation dialog before start installing,
+askbeforeinst:: Should there be a confirmation dialog before start installing
+
+blockalignment:: Option to write the partition block aligned
 
 boot_partition_label:: Label of the 'boot_partition' (Bitlocker partion)
 
@@ -322,6 +316,8 @@ data_partition_label:: Label of the data partion (if created)
 
 data_partition_letter:: Drive letter of the data partion (if created)
 
+data_partition_preserve:: Preserve data partition on reinstallation
+
 fullname:: Full name of the license holder, which is given to the setup program
 
 imagename:: Name of the operating system variant
@@ -331,7 +327,13 @@ image::netboot-win-nt6-properties-imagenames.png["NT6 image names",width=200]
 
 orgname:: Name of the company or organisation of license holder, which is given to the setup program
 
+pre_format_system_partitions:: Should we format the windows and boot partition before installation starts to remove any traces of former installations ? (takes time !)
+
+preserve_winpe_partition:: By default (False) the winpe partition will be deleted after the installation and the space is used by the system partition. True meens only to hide the winpe partition.
+
 productkey:: License key for the installation. Is only used if the 'host parameter' `license-management.use` is set to 'false'. If it set to 'True' the license key will be get from the license management module.
+
+setup_after_install:: Which opsi product(s) should we switch to setup after OS installation is done ?
 
 system_keyboard_layout:: Select keyboard language. (see: http://msdn.microsoft.com/en-us/goglobal/bb895996 )
 
@@ -341,6 +343,14 @@ image::netboot-win-nt6-properties-keyboards.png["Select keyboard language",width
 system_language:: Select system language
 
 system_timezone:: Select time zone
+
+winpe_inputlocale:: Microsoft-Windows-International-Core-WinPE InputLocale
+
+winpe_partition_size:: Size of the  winpe_partition
+
+winpe_uilanguage:: Microsoft-Windows-International-Core-WinPE
+
+winpe_uilanguage_fallback:: Microsoft-Windows-International-Core-WinPE
 
 windows_partition_label:: Label of the system partion (c:)
 
