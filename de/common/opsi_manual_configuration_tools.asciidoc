@@ -85,10 +85,10 @@ Diese Option dient dazu, einen '{opsi-server}' an einem anderen '{opsi-server}'
 Setzt bzw. korrigiert die Dateizugriffsrechte in den wesentlichen opsi-Verzeichnissen:
 +
 ** `/tftpboot/linux`
-** `/home/opsiproducts`
 ** `/var/log/opsi`
 ** `/var/lib/opsi`
 ** `/var/lib/opsi/depot`
+** `/var/lib/opsi/workbench` (oder der abweichend für das Depot konfigurierte Workbench-Pfad)
 ** `/etc/opsi`
 +
 Als Parameter kann auch ein Verzeichnis übergeben werden.
@@ -145,14 +145,13 @@ Details hierzu im DHCP-Kapitel des 'opsi-getting-started' Handbuchs.
 
 
 [[opsi-manual-configuration-tools-opsi-package-manager]]
-==== Werkzeug 'opsi-package-manager': opsi-Pakete (de-) installieren
+==== Werkzeug 'opsi-package-manager': opsi-Pakete (de-)installieren
 
 Der 'opsi-package-manager' dient zur (De-) Installation von {opsi-product-packages}n auf einem {opsi-server}.
 
 Beim Aufruf von 'opsi-package-manager' zur Installation
 muss das zu installierende Paket für den Systemuser 'opsiconfd' lesbar sein.
-Es wird daher dringend empfohlen, {opsi-product-packages} aus `/home/opsiproducts`
-bzw. einem Unterverzeichnis hiervon zu installieren.
+Es wird daher dringend empfohlen, {opsi-product-packages} aus `/var/lib/opsi/workbench/` bzw. einem Unterverzeichnis hiervon zu installieren.
 
 Die Logdatei des 'opsi-package-manager' ist '/var/log/opsi/package.log'
 
@@ -175,6 +174,20 @@ Paket installieren (und für alle auf Setup stellen, bei denen es installiert is
 [source, prompt]
 ----
 opsi-package-manager -S -i softprod_1.0-5.opsi
+----
+
+Paket installieren (und für alle mit Abhängigkeiten auf Setup stellen, bei denen es installiert ist):
+
+[source, prompt]
+----
+opsi-package-manager -s -i softprod_1.0-5.opsi
+----
+
+oder:
+
+[source, prompt]
+----
+opsi-package-manager --setup-with-dependencies --install softprod_1.0-5.opsi
 ----
 
 Paket deinstallieren:
@@ -201,7 +214,7 @@ aktualisiert wurde.
 opsi-package-manager --install win7-x64_1.2.3.opsi --new-product-id win7-x64-custom
 ----
 
-NOTE: Bitte beachten Sie, dass `opsi-product-updater` derartig installierte Produkte nicht automatisch aktualisiert.
+NOTE: Bitte beachten Sie, dass `opsi-package-updater` derartig installierte Produkte nicht automatisch aktualisiert.
 
 
 Eine Übersicht über alle Optionen liefert die Option `--help`.
@@ -251,6 +264,7 @@ Options:
   -f, --force                             force install/uninstall (use with extreme caution)
   -U, --update                            set action "update" on hosts where installation status is "installed"
   -S, --setup                             set action "setup" on hosts where installation status is "installed"
+  -s, --setup-with-dependencies           set action "setup" on hosts where installation status is "installed" with dependencies
   -o, --overwrite                         overwrite existing package on upload even if size matches
   -n, --no-delta                          full package transfers on uploads (do not use librsync)
   -k, --keep-files                        do not delete client data dir on uninstall
@@ -263,38 +277,157 @@ Options:
                                           set a specific product ID during installation.
 ----
 
-[[opsi-manual-configuration-tools-opsi-productupdater]]
-==== Werkzeug: 'opsi-product-updater'
+[[opsi-manual-configuration-tools-opsi-package-updater]]
+==== Werkzeug: 'opsi-package-updater'
 
-Das Kommandozeilen Werkzeug `opsi-product-updater` dient dazu, komfortabel
-opsi-Produkte aus einem Repository zu laden und auf dem Server zu installieren.
-Daneben kann es auch per cronjob zeitgesteuert aufgerufen werden
-und so zur automatischen Synchronisation von opsi-Servern bzw. für automatische
-Updates verwendet werden.
+Das Kommandozeilen Werkzeug `opsi-package-updater` dient dazu, komfortabel
+opsi-Produkte aus einem oder mehreren Repositories zu laden und auf dem Server zu installieren.
+Es ist ebenso dafür gedacht zeitgesteuert, bspw. als cronjob, aufgerufen zu werden und so zur automatischen Synchronisation von opsi-Servern bzw. für automatische Updates verwendet zu werden.
+
+Repositories sind die Quellen, von denen sich der {opsi-server} die Pakete holt.
+Jedes Repository kann in Hinblick auf Zugang und Verhalten einzeln konfiguriert werden.
+
+Die allgemeinen Konfigurationseinstellungen werden in `/etc/opsi/opsi-package-updater.conf` vorgenommen.
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-usage]]
+===== Einsatz
+
+Mittels `--help` kann die Hilfe angezeigt werden.
+`opsi-package-updater` arbeitet mit verschiedenen Modi, welche jeweils eine eigene Hilfe mitbringen.
 
 [source, prompt]
 ----
-# opsi-product-updater --help
+# opsi-package-updater --help
+usage: opsi-package-updater [-h] [--version] [--config CONFIGFILE]
+                            [--verbose | --log-level {0,1,2,3,4,5,6,7,8,9}]
+                            [--force-checksum-calculation]
+                            [--repo repository_name]
+                            {install,update,download,list} ...
 
-Usage: opsi-product-updater [options]
-Options:
-    -h    Show this help text
-    -v    Increase verbosity (can be used multiple times)
-    -V    Show version information and exit
-    -c    Location of config file
-    -i    Install all downloadable packages from configured repositories (ignores excludes)
-    -p    List of productIds that will be processed: opsi-winst,opsi-client-agent
+Updater for local opsi products.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --config CONFIGFILE, -c CONFIGFILE
+                        Location of config file
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                        Set the desired loglevel.
+  --force-checksum-calculation
+                        Force calculation of a checksum (MD5) for every
+                        package. Default is to use existing checksums from the
+                        .md5-file of a package if possible.
+  --repo repository_name
+                        Limit the actions the given repository.
+
+Mode:
+  {install,update,download,list}
+    install             Install all downloadable packages from configured
+                        repositories (ignores excludes)
+    update              Update existing packages from repositories.
+    download            Download packages from repositories. This will not
+                        install packages.
+    list                Listing information
+
+Modes have their own options that can be viewed with MODE -h.
+
+# opsi-package-updater download --help
+usage: opsi-package-updater download [-h] [--force]
+                                     [productID [productID ...]]
+
+positional arguments:
+  productID   Limit downloads to products with the given IDs.
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --force     Force the download of a product even though it would otherwise
+              not be required.
+
+# opsi-package-updater list --help
+usage: opsi-package-updater list [-h]
+                                 [--active-repos | --products | --products-and-installationstatus | --product-differences | --updatable-products | --search-product text]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --active-repos        Lists all active repositories
+  --products            Lists the repositories and the products they provide.
+  --products-and-installationstatus
+                        Lists the repositories, the products they provide and
+                        information about the local installation status.
+  --product-differences
+                        Lists packages where local and remote version are
+                        different.
+  --updatable-products  Lists packages that have updates in the remote
+                        repositories.
+  --search-product text
+                        Search for a product with the given name.
 ----
 
-Die wesentlichen Features sind 'konfigurierbare Repositories' und 'konfigurierbare Aktionen'
-(die Konfigurationseinstellungen werden in der `/etc/opsi/opsi-product-updater.conf` vorgenommen).
+Es gibt eine Reihe von allgemeinen Optionen.
 
-[[opsi-manual-configuration-tools-opsi-productupdater-repositories]]
-===== Konfigurierbare Repositories
+- `--verbose` erhöht die Menge an sichtbaren Ausgaben. Dies kann mehrfach angegeben werden, um mehr Ausgabe zu erhalten. Ein bestimmter Log-Level kann über `--log-level` angegeben werden. Beide Optionen beeinflussen nur die Ausgaben im Terminal.
+- `--repo <Name eines Repositories>` schränkt die Aktionen auf das angegebene Repository ein. Die Namen der verfügbaren Repositories können über `list --active-repos` ermittelt werden.
 
-Repositories sind die Quellen, von denen sich der {opsi-server} die Pakete holt.
+Die verschiedenen Modi haben unterschiedliche Auswirkungen auf das Verhalten.
+Die Modi `install`, `update` und `download` laden Pakete aus einem Repository, wohingegen mit `list` Informationen angezeigt werden.
 
-Grundsätzlich gibt es zwei Arten von Repositories, 'Internet-Repositories' und 'opsi-Server':
+Der Modus `install` installiert neue Pakete.
+Der Modus `update` aktualisiert vorhandene Produkte.
+Beide Modi benötigen keine weiteren Parameter.
+
+Beispiel: Das Installieren aller in den Repositories vorhandenen Pakete:
+
+[source,prompt]
+----
+opsi-package-updater install
+----
+
+Bei den Modi `install` und `update` kann die Arbeit auf bestimmte Produkte eingeschränkt werden indem deren Produkt ID angegeben wird.
+
+Beispiel: Aktualisieren der Pakete für die Produkte 'firefox' und 'javavm':
+
+[source,prompt]
+----
+opsi-package-updater -vv update firefox javavm
+----
+
+In Verbindung mit dem Schalter `--repo` lässt sich gezielt Einschränken woher ein Paket bezogen werden soll.
+
+Beispiel: Die Installation des Pakets 'ubuntu' aus dem Repository 'uib_linux':
+
+[source,prompt]
+----
+opsi-package-updater -vv --repo uib_linux install ubuntu
+----
+
+Der Modus `download` erlaubt das Herunterladen von Paketen, ohne dass diese anschließend installiert werden.
+Über den Schalter `--force` kann der Download erzwungen werden, selbst wenn diese Version schon auf dem Server installiert ist.
+
+Mittels `list --active-repos` werden die aktivierten Repositories angezeigt.
+Die gezeigten Informationen sind der Name, die Adresse des Repositories und sofern vorhanden die Beschreibung des Repositories.
+
+Über `list --products` wird angezeigt welche Produkte im Repository vorhanden sind.
+
+Zum Anzeigen der verfügbaren Aktualisierungen kann `list --updatable-products` verwendet werden.
+Dabei werden nur die bereits installierten Produkte berücksichtigt.
+Anschließend kann die Aktualisierung über `update` angestoßen werden.
+
+[source,prompt]
+----
+opsi-package-updater list --updatable-products
+opsi-package-updater -v update
+----
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-repositories]]
+===== Repository Konfiguration: Zugang
+
+Konfigurationsdateien für die einzelnen Repositories sind zu finden unter `/etc/opsi/package-updater.repos.d/`.
+Eine kommentierte Vorlage mit allen Einstellungsmöglichkeiten findet sich dort als `example.repo.template`.
+
+Es gibt zwei Arten von Repositories, 'Internet-Repositories' und 'opsi-Server'.
 
 *Internet-Repositories*
 
@@ -302,29 +435,37 @@ Das wichtigste Beispiel ist das uib-Repository mit der URL http://download.uib.d
 
 Internet-Repositories sind gekennzeichnet durch die Parameter
 
-- 'baseURL' (z.B. http://download.uib.de)
-
--  'dirs' (Eine Liste von Verzeichnissen z.B. opsi4.0/produkte/essential)
-
--  sowie bei Bedarf 'username' und 'password' für Passwort-geschützte Repositories (z.B. für Abo-Kunden)
+- 'baseURL' (z.B. `http://download.uib.de`)
+- 'dirs' (Eine kommaseparierte Liste von Verzeichnissen z.B. `opsi4.0/products/localboot`)
+- sowie für Passwort-geschützte Repositories 'username' und 'password'
 
 Bei Bedarf ist auch ein Proxy einzustellen.
 
+[source,configfile]
+----
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/localboot
+username =
+password =
+proxy =
+----
+
 *opsi-server*
 
-Ein Repository hat den Typ 'opsi-server', wenn in der `/etc/opsi/opsi-product-updater.conf`
-in der Sektion des Repositorys ein Eintrag zum Punkt
+Ein Repository hat den Typ 'opsi-server', wenn in der Repository-Konfigurationsdatei unter dem Punkt 'opsiDepotId' die ID eines anderen opsi-Servers eingetragen wird.
 
-- 'opsiDepotId'
+[source,configfile]
+----
+opsiDepotId = mainserver.my.lan
+----
 
-vorgenommen wird.
+In der Regel ist bei einem '{opsi-depotserver}' an dieser Stelle der zentrale '{configserver}' einzutragen.
+Damit bezieht der Depotserver seine Pakete vom zentralen Server.
+Der `opsi-package-updater` bezieht die Pakete aus dem Verzeichnis `/var/lib/opsi/repository` des angegebenen Servers.
 
-In der Regel ist bei einem '{opsi-depotserver}' an diese Steller der zentrale '{configserver}' einzutragen.
-Damit zieht der Depotserver seine Pakete per Aufruf des 'opsi-product-updater'
-bzw. automatisiert per Cronjob vom zentralen Server.
 
-[[opsi-manual-configuration-tools-opsi-productupdater-actions]]
-===== Konfigurierbare Aktionen
+[[opsi-manual-configuration-tools-opsi-package-updater-actions]]
+===== Repositry Konfiguration: Verhalten
 
 Für jedes Repository kann eingestellt werden:
 
@@ -556,22 +697,8 @@ image::opsiconfd-info-hour.png["opsiconfd info: opsiconfd-Werte der letzten Stun
 .opsiconfd info: 'opsiconfd'-Werte des letzten Tages
 image::opsiconfd-info-day.png["opsiconfd info: opsiconfd-Werte des letzten Tages", width="120mm"]
 
-[[opsi-manual-configuration-tools-serverprocess-atftpd]]
-==== Serverprozess: opsi-atftpd
+<<<<<<< HEAD
+[[opsi-manual-configuration-tools-serverprocess-tftpd]]
+==== Serverprozess: opsi-tftpd
 
-Der opsi-atftpd ist ein standard atftpd, welche um Fähigkeit erweitert wurde mit 'named pipes' umzugehen.
-
-Per default wird der opsi-atftpd so installiert, daß er nicht ständig läuft sondern nur bei Bedarf durch den `inetd` Prozess gestartet wird.
-
-Um den opsi-atftpd als Daemon laufen zu lassen und ihn nicht über den `inetd` zu starten, müssen Sie folgende Änderungen vornehmen:
-
-* In der `/etc/inetd.conf` die Zeile zum Protokoll 'tftp' auskommentieren. Danach den inetd reloaden. Der Befehl hierzu ist abhängig vom verwendet Linux:
-
-** Ubuntu / Debian: `service openbsd-inetd reload`
-
-** openSUSE / SLES / RedHat / CentOS: `service xinetd reload`
-
-* In der `/etc/default/atfpd` die Zeile `USE_INETD=true` ändern auf `USE_INETD=false`. Danach den opsi-atftpd als Deamon starten mit `service opsi-atftpd restart`
-
-
-
+Der opsi-tftpd ist ein tftp-hpa, welcher um Fähigkeit erweitert wurde mit 'named pipes' umzugehen.
