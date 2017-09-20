@@ -45,14 +45,14 @@ Some preconditions are required to work with that module, which is to get a suit
 For further details see <<opsi-manual-modules>>.
 ////
 
-Technical requirements are opsi 4.0.5 with packet versions:
+Technical requirements are opsi 4.0.5 with package versions:
 
-.required packets
+.required packages
 [options="header"]
 |==========================
-|opsi packet|version
+|opsi package|version
 |Netboot products|>=4.0.5
-|opsi server packets|>=4.0.5
+|opsi server packages|>=4.0.5
 |==========================
 
 [[opsi-manual-uefi-weitere-hinweise]]
@@ -183,7 +183,7 @@ This product is available for Windows and for Linux.
 [[opsi-manual-uefi-install]]
 ==== Installation
 
-All packets required are installed automatically with opsi version 4.0.5.
+All packages required are installed automatically with opsi version 4.0.5.
 
 [[opsi-manual-uefi-dhcpd]]
 ==== Configuration of the DHCP server
@@ -207,12 +207,67 @@ else if substring (option vendor-class-identifier , 19,1 ) = "7" {
         filename "linux/pxelinux.cfg/elilo.efi";
 }
 else {
-        log (info, concat ( "Unhandled vendor class Arch: ", substring (option vendor-class-identifier , 19,1 )));
+        log (info, concat ( "Unhandled vendor class Arch: ", substring (option
+        vendor-class-identifier , 19,1 )));
 }
 ----
 
 http://docs.fedoraproject.org/en-US/Fedora/17/html/Installation_Guide/s1-netboot-pxe-config.html
 
+[[opsi-manual-uefi-dhcpd-winsrv]]
+===== Example for the configuration of a Windows DHCP server 2012 R2
+
+* As standard for this variant the PXE boot file for x64 Uefi installations is entered as default. DHCP options 66 and 67 are adjusted as it follows: +
+066 Host name of the start server: <IP of the opsi server> +
+067 Name of the start file: linux/pxelinux.cfg/elilo.efi
+
+* To distinguish the Bios clients, a manufacturer class identifier (PXEClient:Arch:00000:UNDI:002001) must be defined on the DHCP server: +
+
+----
+  Define manufacturer class
+  Add new manufacturer class
+  Edit class
+    Display name: Legacy BIOS
+    Asci: PXEClient:Arch:00000:UNDI:002001
+
+----
+* The predefine options must be order under the manufacturer class:
+----
+  Set predefined options
+  Options
+    Option class: Legacy BIOS
+    Add
+  Adjust the option type
+    Name: Legacy BIOS
+    Data Type: String
+    Code: 60
+    Description: PXEClient Class Legacy BIOS
+  Predefined options and values
+    String: PXEClient
+----
+* Define the DHCP policy that is assigned to the boot file for the PXE boot (BIOS) of the manufacturer class:
+----
+  New policy
+    Policy Name: PXE BootFile Legacy BIOS
+    continue
+  Add conditions
+    Criteria: Manufacturer class
+    Operator: equals
+    Value: Legacy BIOS
+    add
+  Would you like to configure an IP address range for the following policy: No
+  Manufacturer class: DHCP Standard Options
+    067 Name of the start file
+    file input
+      String value: linux/pxelinux.0
+----
+* In the range options, there are two entries for the start file, which is linked to a policy in case a bios client is detected:
+----
+067 Name of the Start file: linux/pxelinux.cfg/elilo.efi	Policy: None
+067 Name of the Start file: linux/pxelinux.0	   Policy: PXE BootFile Legacy BIOS
+----
+
+Reference: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 
 [[opsi-manual-uefi-opsipxeconfd-config]]
 ==== opsipxeconfd configuration

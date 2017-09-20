@@ -1,4 +1,4 @@
-﻿////
+////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
@@ -33,7 +33,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst / opsi-script Manual (4.11.6)
+opsi-winst / opsi-script Manual (4.12.0)
 ========================================
 
 // Include common opsi copyright
@@ -569,7 +569,7 @@ The not interactive mode is implied.
 === Log File and Paths
 
 The default log file name is `opsi-script.log`.
-You may find up to 8 Backup copys of old log files: from `opsi-script.log.0` until `opsi-script.log.8`.
+You may find up to 8 Backup copys of old log files: from `opsi-script_0.log` until `opsi-script_8.log`.
 
 The log file encoding is UTF-8.
 
@@ -584,6 +584,31 @@ The log file name and location will be overwritten via the specific command line
 In the case, that '{opsi-winst}/opsi-script' executes a script in `/batch` mode and with a specified (and working) usercontext, the default logging path is the `opsi/tmp` in the appdata directory of the user. This will be overwritten by an explicit given log path.
 
 In addition, '{opsi-winst}/opsi-script' uses the logging directory for saving certain temporary files.
+
+[[opsi-winst-configs]]
+=== Central configuration via opsi Configs (Host Parameter)
+
+Using opsi Configs (`Host-Parameter`) you may now change the logging:
+
+* `opsi-script.global.debug_prog` : boolean  +
+If false log messages that are only relevant for debugging the opsi-script program it self are not written excepting Warnings and Errors. +
+Default: false +
+This will keep the log files smaller because you will find only messages that are relevant for understanding what your script is doing. +
+The adjustment of all log messages to this new way is in progress and will be take a while since all (about 1700) log calls inside the code are reviewed.
+
+* `opsi-script.global.debug_lib` : boolean +
+If false log messages from defined functions that are imported from external library files will be suppressed excepting Warnings and Errors. +
+Default: false +
+This feature is still buggy right now, but will be fixed until the stable release.
+
+* `opsi-script.global.default_loglevel` : intstr +
+Sets (overrides) the default log level that is imlemented inside the opsi-script code. This config has no effect on scripts where the loglevel is explicit set by a `setLogLevel` statement. +
+Default:  '6'
+
+* `opsi-script.global.force_min_loglevel` : intstr +
+Forces a minimal log level. +
+This can be used while debugging or development to set temporary and for selected clients a higher log level wthout changing the script.
+Default: '0'
 
 [[opsi-winst-configuration-options]]
 == Additional Configurations
@@ -618,7 +643,7 @@ SetSkinDirectory ""
 [[opsi-winst-encoding]]
 ===  '{opsi-winst}/opsi-script' encoding [W/L]
 
-The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a greek windows system as encoded with cp1253 on a german windows system as cp1252 and under Linux as UTF-8.
+The default encoding for a script is the encoding of the running operating system. So for example one script will be interpreted on a Greek windows system as encoded with cp1253 on a German windows system as cp1252 and under Linux as UTF-8.
 
 anchor:encoding[]
 
@@ -675,7 +700,7 @@ https://de.wikipedia.org/wiki/UTF-8
 
 
 [[opsi-winst-script]]
-== The '{opsi-winst}/opsi-script' Skript
+== The '{opsi-winst}/opsi-script' Script
 
 On principle: '{opsi-winst}/opsi-script' is an interpreter for a specific, easy to use scripting language which is tailored for the requirements of software installations. A script should be an integrated description, and a means of control, for the installation of one piece of software.
 
@@ -2696,14 +2721,14 @@ bios.Version=F9b
 bios.Start Segment=E000
 bios.ReleaseDate=07/08/2010
 bios.RomSize=1024 k
-sysinfo.Manufacter=Gigabyte Technology Co., Ltd.
+sysinfo.Manufacturer=Gigabyte Technology Co., Ltd.
 sysinfo.Product Name=GA-MA78GM-UD2H
 sysinfo.Version=
 sysinfo.Serial Number=
 sysinfo.UUID=303032343144323730434336FFFFFFFF
 sysinfo.SKU Number=
 sysinfo.Family=
-board.Manufacter=Gigabyte Technology Co., Ltd.
+board.Manufacturer=Gigabyte Technology Co., Ltd.
 board.Product=GA-MA78GM-UD2H
 board.Version=x.x
 board.Serial Number=
@@ -2713,7 +2738,7 @@ board.Location in Chassis=
 board.Chassis Handle=6261
 board.Board Type=79 Unknown
 board.Number of Contained Object Handles=116
-enclosure.Manufacter=Gigabyte Technology Co., Ltd.
+enclosure.Manufacturer=Gigabyte Technology Co., Ltd.
 enclosure.Version=
 enclosure.Serial Number=
 enclosure.Asset Tag Number=
@@ -3260,7 +3285,8 @@ we assign the value '"a | b | c | d | e".' to '$line$'.
 
 
 * `takeString (`<index>, <list>`) : string` [W/L]  +
-E. g., if $list1$ represents the list of the first five letters of the alphabet, using
+For example, if '$list1$' represents the list of the first five letters of the alphabet, using
+
 [source,winst]
 ----
 takeString (2, $list1$)
@@ -4502,6 +4528,11 @@ anchor:Stop[]
 * `Stop` <string> or `stop` = <const string> +
 halt program execution if the user confirms it. The String expression resp. the (possibly empty) sequence of chars explain to the user what is supposed to be stopped.
 
+anchor:setActionProgress[]
+
+* `setActionProgress <string>` : noresult //since 4.11.3 [W/L] +
+Transfers  <string> as ActionProgress of the running script to the opsi server. By Default the ActionProgress is 'installing' while a script is running. The value of ActionProgreas is displayed at the configed.
+
 [[opsi-winst-commands-loginscripts]]
 === Commands for userLoginScripts / User Profile Management
 
@@ -5044,6 +5075,16 @@ compares two strings of the form <str>[.<str>[.<str>[.<str>]]] +
 by the <relation str> which may be one of [<,<=,=,>=,>]. +
 see also: string function `CompareDotSeparatedStrings(`<string1>, <string2>`)`  : <<CompareDotSeparatedStrings_str>>`
 
+anchor:boolToString[]
+
+* `boolToString(`<boolean expression>`)` : bool string (true/false) // since 4.12.0.0 [W/L]
+
+anchor:stringToBool[]
+
+* `stringToBool(`<string expression: true/false>`)` : boolean // since 4.12.0.0 [W/L]
+
+
+
 [[opsi-winst-commands-include]]
 === Include Commands
 
@@ -5438,9 +5479,9 @@ If this statement is called, then '{opsi-winst}/opsi-script' stops the normal ex
 Since 4.11.3.2 there is a new variant of this command:
 
 * `isFatalError` <string> +
-in this case, a short error message string is passed as 'actionProgress' to the opsi-server and displayed in the opsi-configed.
+in this case, a short error message string is passed as 'actionProgress' to the opsi-server and displayed in the opsi-configed. +
+For example, a "fatal error" shall be triggered if there is not as much space left as it is needed for an installation:
 
-E. g. , a "fatal error" shall be triggered if there is as much space left as it is needed for an installation:
 [source,winst]
 ----
 DefVar $SpaceNeeded$"
@@ -5468,15 +5509,16 @@ depending on the number of errors which occured in some critical part of an inst
 anchor:markErrorNumber[]
 
 * `markErrorNumber` +
-The number of execution errors which occur after setting the counter can be queried by the the number valued function +
+Initialize the error counting. +
+The number of execution errors which occur after setting the counter can be queried by the the number valued function `errorsOccurredSinceMark`+
 
 anchor:errorsOccurredSinceMark[]
 
 * `errorsOccurredSinceMark` +
 We can evaluate the result in a numerical comparison condition (that as yet is only implemented for this expression). E. g. we may state +
-* `if errorsOccurredSinceMark > 0` +
-and may, if this seems to make sense, then state +
-`isFatalError` +
+`if errorsOccurredSinceMark > 0` 
+
+
 For increasing the number of counted errors depending on certain circumstances (that do not directly produce an error) we may use the `logError` statement.
 
 We may test this by the following script example:
@@ -5516,12 +5558,306 @@ Abort the script as successful.
 anchor:noUpdateScript[]
 
 * `noUpdateScript` //since 4.11.3.7 [W/L] +
-Do not run a update script after setup even if there is one.
+Do not run an update script after setup even if there is one.
 
 anchor:isSuspended[]
 
 * `isSuspended` //since 4.11.4.1 [W/L]
 Abort the script without notice to the server. The action request remain unchanged.
+
+[[opsi-winst-commands-localfunctions]]
+=== Local functions [W/L]
+
+Since version 4.12, the opsi-script has also local functions.
+
+An example:
+[source,winst]
+----
+DefFunc myFunc(val $str1$ : string, $str2$ : string) : string
+	set $result$ = $str1$ + $str2$
+endfunc
+----
+
+[[opsi-winst-commands-localfunctions-concept]]
+==== Concept
+
+There are a lot possibilities to structure opsi-script code:
+
+* `sub` Sections
+* `sub` Sections in external files
+* 'include' Statements
+
+But all these possibilities are not functional to create reusable external code that can be exchanged between scripts or opsi administrators without problems.
+The reason is, that this code is not encapsulated and use global variables. +
+The defined local functions presented here now solves this problem. With this concept it is possible to write functions that can be collected and maintained in external libraries. +
+In consequence we will start to build up a central opsi-script library which is maintained by uib and the opsi community.
+
+In order to reach this target we have implemented the following concepts:
+
+* Functions with return value: +
+The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected.
+
+* Freely definable function call parameters: +
+Parameters can be passed to a function. These parameters are defined when the function is actually declared. The call parameters can be of type `string` or `stringlist`. +
+The call parameters are available as local variables within the function. +
+The call parameters can be passed as 'CallByValue' or 'callByReference'. 'CallByValue' is the default. That means, if no call method is specified explicitly, then 'CallByValue' will be applied. In the case that 'CallByValue' needs to be explicitly specified, then the keyword `val` should be used. 'CallByValue' means, that the value of a variable used during the call is copied to the call variable. +
+'CallByReference' must be specified explicitly using the keyword `ref`. 'callByReference' means that a connection is created between the variable used as parameter when calling the function and the local variable that represents the call parameter inside the function. Changing the local variable of the call parameter has a direct effect on the variable used during such call. 
+
+
+* Local Variables: +
+A function contains local variables: Implicitly, the call parameters are available as local variables and the variable `$result$` which is from the type of the returned value. Further variables can be defined within the function. +
+All these variables are local, which means that they are only visible within this function. A local variable with the same name of a global variable masks the corresponding global variable within the function.
+
+* Nested functions: +
+A local function can in turn have one or even more definitions of local functions. These functions are only visible within the function in which they are defined.
+
+* Recursive calls: +
+A function can call itself recursively.
+
+* Primary and secondary sections within functions: +
+The function body can contain its own sections of it. These are local to this function, that means that these sections are only visible within the function.
+
+[[opsi-winst-commands-localfunctions-syntax]]
+==== Syntax
+
+*Definition*
+----
+DefFunc <func name>([calltype parameter type][,[calltype parameter type]]) : type
+<function body>
+endfunc
+----
+
+Where:
+
+
+* `DefFunc` is the keyword used to start defining a local function..
+
+* '<func name>' is the freely chosen name of the function.
+
+* 'calltype' is the call type of the parameter [`val` | `ref`]. `val`='Call by Value', `ref`='Call by Reference'. Default: `val`
+
+* 'parameter' is the free selected name of the call parameter which is available as a local variable within the function under the aforementioned name.
+
+* 'type' is the type of data of the parameter concretely the function wether `string` or `stringlist`;
+
+* '<function body>': is the body of the function which opsi-script syntax must suffice.
+
+* `endfunc` is the keyword used to end defining a local function..
+
+[[opsi-winst-commands-localfunctions-examples]]
+==== Examples
+
+Simple function that connects two strings:
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+DefVar $str1$
+set $str1$ = 'ha'
+
+DefFunc myFunc(val $str1$ : string, $str2$ : string) : string
+	set $result$ = $str1$ + $str2$
+endfunc
+
+set $mystr$ = myFunc("he","ho")
+set $mystr$ = myFunc("he",timeStampAsFloatStr)
+set $mystr$ = myFunc("he",$str1$)
+----
+Expected results:
+
+* 'heho'
+* 'he42921.809'
+* 'heha'
+
+Function of the type `stringlist` which will deliver a `string` and a `stringlist`:
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+DefVar $str1$
+DefStringlist $list1$
+DefStringlist $list2$
+
+set $str1$ = 'ha'
+
+DefFunc myFunc1(val $str1$ : string, $list1$ : stringlist) : stringlist
+	set $result$ = createStringlist($str1$ , takeString(2,$list1$))
+endfunc
+
+set $list2$ = splitstring("/etc/opsi/huhu","/")
+set $list1$ = myFunc1("hi",$list2$)
+----
+Expected results:
+
+* $list1$ = [hi,opsi]
+
+
+
+Function of type `string` to which a boolean `string` will be deliver:
+[source,winst]
+----
+[actions]
+
+DefFunc myFunc2($str1$ : string) : string
+	set $result$ = booltostring($str1$)
+endfunc
+
+if stringtobool(myfunc2('1 > 0'))
+	comment "true"
+else
+ 	comment "false"
+endif
+----
+Expected results:
+
+* 'true'
+
+
+Function of the type string to which a string is passed with local variable:
+
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+
+DefFunc myFunc3($str1$ : string) : string
+	DefVar $locstr1$
+	set $locstr1$ = '123'
+	set $result$ = $locstr1$ + $str1$
+endfunc
+
+set $mystr$ = myFunc3("he")
+----
+Expected results:
+
+* '123he'
+
+
+Function of the type `string` to which a string is passed with local variable and nested function:
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+
+DefFunc myFunc4($str1$ : string) : string
+	DefVar $locstr1$
+
+	DefFunc myFunc5($str1$ : string) : string
+		set $result$ = 'inner' + $str1$
+	endfunc
+
+	set $locstr1$ = '123'
+	set $result$ = $str1$ + myFunc5($locstr1$)
+endfunc
+
+set $mystr$ = myFunc4("outer")
+----
+Expected results:
+
+* 'outerinner123'
+
+
+Simple function of type `string` which pass a` string` by reference with a local variable:
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+DefVar $str1$
+DefVar $str2$
+
+set $str1$ = 'ha'
+set $str2$ = 'hi'
+
+DefFunc myFunc6(ref $str1$ : string) : string
+	DefVar $locstr1$
+	set $locstr1$ = '123'
+	set $str1$ = 'setinlocal'
+	set $result$ = $locstr1$ + $str1$
+endfunc
+
+set $mystr$ = myFunc6($str2$)
+set $mystr$ = $str1$ + $str2$
+----
+Expected results:
+
+* '123setinlocal'
+* 'hasetinlocal'
+
+
+Function of type `stringlist` which will pass a variable of type `stringlist` with a 'call by reference' also with a local `stringlist` variable:
+[source,winst]
+----
+[actions]
+DefVar $mystr$
+DefStringlist $list1$
+DefStringlist $list2$
+
+et $list2$ = splitstring("/etc/opsi/huhu","/")
+
+DefFunc myFunc7(ref $list1$ : stringlist) : stringlist
+	DefStringlist $loclist1$
+	set $loclist1$ = splitstring("/a/b/c","/")
+	set $list1$ = createStringList('setinlocal')
+	set $loclist1$ = addListToList($loclist1$,$list1$)
+	set $result$ = $loclist1$
+endfunc
+
+set $list1$ = myFunc7($list2$)
+comment "$list2$ index 0: " + takestring(0,$list2$)
+----
+Expected results:
+
+* $list1$ = [,a,b,c,setinlocal]
+* 'setinlocal'
+
+Function of type `stringlist` which pass a `string` with a local variable and a local secondary section:
+[source,winst]
+----
+[actions]
+DefStringlist $list1$
+
+DefFunc myFunc8($str1$ : string) : stringlist
+	DefStringlist $loclist1$
+	set $loclist1$ = getoutstreamfromsection("shellInAnIcon_test")
+	set $result$ = $loclist1$
+
+	[shellinanicon_test]
+	set -x
+	$str1$
+endfunc
+
+set $list1$ = myFunc8('pwd')
+----
+
+Expected results:
+
+* $list1$ = [+ pwd, /home/uib/gitwork/lazarus/opsi-script]
+
+
+[[opsi-winst-commands-libraryfunctions]]
+=== Import von Library Funktionen [W/L]
+
+`importLib` <string expr>  ; import library // since 4.12.0.0 +
+<string expr> : <file name>[.<file extension>][`::`<function name>] +
+If no '.<file extension>' is given `.opsiscript` is used as default. +
+If no '::<function name>' is given, all function from the given file will be imported.
+
+<file name> is: +
+
+* A complete path to an existing file. [W/L]
+
+* A existing file in `%ScriptPath%` [W/L]
+
+* A file in `%opsiScriptHelperPath%\lib` [W] +
+Is equivalent to: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
+
+* A existing file in `%ScriptPath%/../lib` [W/L]
+
+* A existing file in `%WinstDir%\lib` [W]
+
+The tests for the location of the <file name> are done in the order above. 'opsi-script' uses the first file it finds that has a matching name.
+
+
 
 [[opsi-winst-secsections]]
 == Secondary Sections
@@ -5535,7 +5871,7 @@ The functional context is mirrored in the specific syntax of the particular sect
 [[opsi-winst-files]]
 === Files Sections
 
-A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}/opsi-script' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. an newer dll-file) are already installed on the system.
+A Files section mainly offers functions which correspond to copy commands of the underlying operating system. The surplus value when using the '{opsi-winst}/opsi-script' commands is the detailed logging and checking of all operations when necessary. If wanted overwriting of files can be forbidden if newer versions of a file (e.g. a newer dll-file) are already installed on the system.
 
 [[opsi-winst-files-example]]
 ==== Example
@@ -6475,7 +6811,7 @@ and
 
 * `AddText` "Text"
 
-E. g. +
+Example: +
 `SetText "rtf"` +
 transforms the element +
 '<fileExtensions>doc<fileExtensions>' +
@@ -6708,7 +7044,7 @@ Possible winst modifier are (since 4.11.1):
 These winst modifier have to be separated by the key word `winst` from the other parameters.
 
 Other parameters of a DosBatch section are directly passed as quasi command line parameters to the Windows shell script. +
-E. g. we may call DosBatch_1 in Actions section to get a "Hello World" from the DOS echo command:
+For example, we may call DosBatch_1 in Actions section to get a "Hello World" from the DOS echo command:
 [source,winst]
 ----
 [Actions]
@@ -8211,10 +8547,10 @@ IMPORTANT: Please do not use the script as printed below, but use the opsi produ
 
 ;
 ; !!! Das lokale Installations-Skript, das durch den temporaeren lokalen Admin ausgefuehrt wird
-; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl  
+; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl
 ; !!! exitWindows /Reboot
 ; !!! enden
-; 
+;
 
 ; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ; Vorarbeiten/Voraussetzungen/Doku pruefen wie in Winsthandbuch
@@ -8309,7 +8645,7 @@ if $RebootFlag$ = "1"
 		LogError "Not enough space on drive C: . "+$ProductSizeMB$+" MB on C: required for "+$ProductName$
 		isFatalError
 	endif
-	
+
 	comment "Lets work..."
 	Message "Preparing "+$ProductName$+" install step 1..."
 	sub_Prepare_AutoLogon
@@ -8323,11 +8659,11 @@ endif ; Rebootflag = not (1 or 2)
 
 if ($RebootFlag$ = "2")
 	comment "Part after first Reboot"
-	
+
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "3"
 	Registry_SaveRebootFlag /32bit
-	
+
 	comment "Lets work..."
 	Message "Preparing "+$ProductName$+" install step 2..."
 	Registry_enable_keyboard /sysnative
@@ -8335,7 +8671,7 @@ if ($RebootFlag$ = "2")
 	comment "now let the autologon work"
 	comment "it will stop with a reboot"
 	setActionProgress "Run Installation"
-	
+
 	ExitWindows /ImmediateLogout
 endif ; Rebootflag = 2
 
@@ -8346,7 +8682,7 @@ if ($RebootFlag$ = "3")
 	comment "handle Rebootflag"
 	Set $RebootFlag$ = "0"
 	Registry_SaveRebootFlag /32bit
-	
+
 	comment "Lets work..."
 	Message "Cleanup "+$ProductName$+" install (step 3)..."
 	sub_Restore_AutoLogon
