@@ -68,12 +68,12 @@ def main():
             check_link(link)
         except (HTTPError, LinkCheckFailedError, URLError) as error:
             fails += 1
-            print("Connection to {} failed ({}). Check link!".format(link, error))
+            print("Connection to {} failed: {}".format(link, error))
 
     print("Checked {0} links.".format(linkIndex))
     if fails:
         # print("{} requests failed.".format(fails))
-        raise LinkCheckFailedError("{} requests failed.".format(fails))
+        raise LinkCheckFailedError("Could not open {} links!".format(fails))
     else:
         print("All links working.")
 
