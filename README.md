@@ -8,7 +8,7 @@ Building the opsi manuals requires the following software to be installed on you
 
 * asciidoc >= 8.6.3
 * dblatex  >= 0.3
-* aspell 
+* aspell
 
 ### Additional packages on Ubuntu
 
@@ -108,3 +108,10 @@ Debug mode includes verbose but leaves temporary build files in `/tmp` for inspe
 VERBOSE=True make
 DEBUG=True make
 ```
+
+### Checking for valid links
+
+With `tools/check_links.py` exists a script that scans build documentation for broken links.
+This script requires Python 3 to be able to run.
+
+To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
