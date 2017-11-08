@@ -63,7 +63,7 @@ def main():
             links.add(link)
 
     fails = 0
-    for linkIndex, link in enumerate(links, start=1):
+    for linkIndex, link in enumerate(sorted(links), start=1):
         try:
             check_link(link)
         except (HTTPError, LinkCheckFailedError, URLError) as error:
