@@ -683,31 +683,36 @@ Machen Sie daher mit dem Punkt <<opsi-getting-started-installation-config-backen
 
 Die Installation auf einem Univention Corporate Server ist sowohl über das dort vorhandene App Center als auch auf klassischem Wege über die von uib gepflegten Repositories möglich.
 
+Beides sind gleichwertige Installationsmöglichkeiten. Wir empfehlen pro Server nur jeweils eine davon zu verwenden.
+Der Unterschied zwischen den Varianten ist, dass bei Verwendung des App Centers eine Installation auf der Rolle 'Member' nicht möglich ist.
+Werden neue Betriebssystempakete veröffentlicht, so stehen diese bei der Verwendung der uib-Repositories schneller zur Verfügung als über das App Center.
+
 NOTE: Aktuell werden Installationen auf einem System mit 32bit- und 64bit-Architektur untestützt. +
 In Zukunft wird der Support für 32bit eingestellt, weshalb wir nur noch den Einsatz von 64bit empfehlen.
 
+Allen Installationsvarianten ist gemein, dass das Paket `opsi4ucs` installiert wird.
+Dieses bereitet die UCS-Umgebung auf den Einsatz mit opsi vor. Dazu wird ein Join-Script verwendet.
+Die Vorbereitung beinhaltet das Anlegen von benötigten Benutzern, Gruppen und Freigaben.
+
+Auf dem ersten opsi-Server in einer Umgebung wird das Backend zur Verwendung des vorhandenen MySQL-Servers konfiguriert.
+Alle nachfolgenden Server werden in opsi als Depots registriert werden.
+
+Wird von opsi 4.0 aktualisiert, so wird im Rahmen des Join-Scripts die Migration der Backends durchgeführt.
+
 
 [[opsi-getting-started-installation-base-ucs-appcenter]]
-===== Installation im Univention App-Center
+===== Installation mittels Univention App-Center
 
-Über das Univention App-Center steht eine automatisierte Installation des opsi-Servers zur Verfügung.
-Die Installations-App für opsi befindet sich in der UCS-Management-Oberfläche in der Kategorie "System". Über das App-Center kann opsi nur auf den UCS-Servern Master und Backup installiert werden. Falls Sie ein Update einer vorhandenen opsi-Umgebung durchführen möchten, lesen Sie bitte auch das darauf folgende Kapitel. +
-Bei der Installation geschieht folgendes:
+Über das Univention App-Center steht eine automatisierte Installation des {opsi-server}s zur Verfügung.
+Die Installations-App für opsi befindet sich in der UCS-Management-Oberfläche in der Kategorie 'System'.
+Über das App-Center kann opsi nur auf den Rollen 'Master', 'Backup' und 'Slave' installiert werden.
 
-* Es wird die Grundlage für die MySQL-Installation gelegt.
+Falls Sie ein Update einer vorhandenen opsi-Umgebung durchführen möchten, lesen Sie bitte auch das darauf folgende Kapitel.
 
-* Die Ignore-List des Samba4-Connectors wird so angepasst, dass der User pcpatch entfernt wird.
+Zur Installation des {opsi-server}s werden automatisch weitere Pakete installiert: 'opsi-tftpd-hpa', 'p7zip-full', 'cabextract', 'mysql-server'.
 
-* Das MySQL-Backend wird für die Nutzung der Inventarisierungsdaten konfiguriert (Anpassung der dispatch.conf) falls dies der erste opsi-Server in dieser Umgebung ist.
-
-* Mit opsi-Bordmitteln wird die Samba-Konfiguration überprüft, um sicherzustellen, dass die für opsi benötigten Samba-Shares richtig angelegt sind.
-
-* Zur Installation des opsi-Servers werden automatisch weitere Pakete installiert:
-opsi4ucs, opsi-tftpd-hpa, p7zip-full, cabextract, mysql-server.
-Dazu wird bei der Installation selbständig geprüft, welche UCS-Systemrolle der Server hat.
-
-* Der 'opsi-package-updater' wird aufgerufen zum Einspielen der minimalen opsi-Produkte. Nach dem Download werden die Pakete auf dem Server installiert. +
-Falls ein existierender Configserver entdeckt wird, so wird 'opsi-package-updater' so konfiguriert, dass er die Pakete von diesem Server bezieht.
+Falls ein existierender {opsi-server} entdeckt wird, so wird 'opsi-package-updater' so konfiguriert, dass er die Pakete von diesem Server bezieht.
+Der 'opsi-package-updater' wird bei der Installation - nicht bei einer Aktualisierung - zum Einspielen der minimalen opsi-Produkte aufgerufen.
 
 Bitte beachten Sie, dass anschließend kein automatischer Transfer von Clients nach opsi stattfindet.
 Mehr Informationen unter <<opsi-getting-started-installation-base-ucs-listener>>.
@@ -728,7 +733,7 @@ Auf allen anderen Varianten und Rollen, wurde bisher die Gruppe als
 Da dieser Umstand nicht nur im Installationshandling ein Problem darstellt, sondern auch Probleme bei möglichen Migrationen (besonders von Samba3 auf Samba4) verursachen kann, wird seit opsi 4.0.5 die Gruppe 'pcpatch' als 'opsifileadmins' angelegt.
 
 WARNING: Um diese Anforderungen sauber in das Integrationspaket implementieren zu können, wird die Gruppe 'pcpatch', falls vorhanden, automatisch über das Integrationspaket in 'opsifileadmins' umbenannt.
-Dies geschieht über das join-Skript. Falls Ihr Configserver auf einem Master oder Backup betrieben wird, wird das Join-Skript automatisch ausgeführt. +
+Dies geschieht über das join-Skript. Falls Ihr Configserver auf einem 'Master' oder 'Backup' betrieben wird, wird das Join-Skript automatisch ausgeführt. +
  +
 Der Hauptgrund für diese drastische Maßnahme ist, dass die manuelle Umbenennung dieser Gruppe nicht trivial ist, da es sich um eine primäre Gruppe handelt. Wir empfehlen vor dem Einspielen dieses Updates zu überprüfen, ob Ihre Gruppe noch pcpatch heißt. Wenn dem so ist, sollte das Update - angefangen beim Configserver - auf allen Depotservern zeitnah eingespielt werden, da ansonsten der Betrieb der Multidepot Umgebung gestört wird. Wenn Ihre Gruppe schon opsifileadmins
 heißt, sollten keine Beeinträchtigungen auftreten. Dennoch wird empfohlen, nach dem Einspielen der Updates alle opsi-Server auf Funktion zu überprüfen.
@@ -759,18 +764,18 @@ getent hosts $(hostname -f)
 +
 muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die Clients verbinden sollen. Gibt der Befehl die Adresse '127.0.0.1' oder '127.0.0.2' aus, muss die Datei '/etc/hosts' korrigiert werden.
 
-* Samba muss konfiguriert sein. Für den Einsatz auf einem Server in der Rolle Member muss `univention-samba` anstatt `univention-samba4` zum Einsatz kommen.
+* Samba muss konfiguriert sein. Für den Einsatz auf einem Server in der Rolle 'Member' muss `univention-samba` anstatt `univention-samba4` zum Einsatz kommen.
 
 * mysql-server sollte installiert sein
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
 
-Die Installation von opsi ist möglich auf den Rollen Master, Backup, Slave und Member.
-Für die Installation auf einem Member beachten Sie unbedingt <<opsi-getting-started-installation-base-ucs-member>>!
+Die Installation von opsi ist möglich auf den Rollen 'Master', 'Backup', 'Slave' und 'Member'.
+Für die Installation auf einem 'Member' beachten Sie unbedingt <<opsi-getting-started-installation-base-ucs-member>>!
 
-Die folgende Dokumentation geht von einer Installation auf dem Master mit samba4 aus.
+Die folgende Dokumentation geht von einer Installation auf der Rolle 'Master' mit Samba 4 aus.
 
-CAUTION: Wird die Installation auf einem 'Slave' ausgeführt, muss dieser bereits gegenüber dem Master gejoint und während der Grundinstallation Samba 4 installiert worden sein. +
+CAUTION: Wird die Installation auf einem 'Slave' ausgeführt, muss dieser bereits gegenüber dem 'Master' gejoint und während der Grundinstallation Samba 4 installiert worden sein. +
 Die UCS-Konfiguration wird überlicherweise auf dem 'Master' vorgenommen, während die Installation und Konfiguration von opsi auf dem 'Slave' geschieht.
 
 Die klassischen Installationsvariante mit dem Benutzer: `pcpatch` mit der primären Gruppe `pcpatch` kann unter UCS nicht eingehalten werden. Da Samba4 den grundlegenden Restriktionen von Active-Directory unterliegt, sind Gruppen mit der gleichen Bezeichnung wie User (wie in Unix/Linux üblich) nicht mehr erlaubt.
@@ -800,14 +805,15 @@ Für die Installation führen Sie nun folgende Befehle aus:
 [source,prompt]
 ----
 univention-install opsi-tftpd-hpa
+univention-install mysql-server
 univention-install opsi4ucs
-univention-install p7zip-full cabextract mysql-server wimtools
+univention-install p7zip-full cabextract wimtools
 ----
 
 Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen, welche sie ignorieren sollen.
 
 
-Ist die Rolle des Zielsystems eine andere als Master oder Backup, muss nun noch das opsi4ucs Join-Skript ausgeführt werden:
+Ist die Rolle des Zielsystems eine andere als 'Master' oder 'Backup', muss nun noch das opsi4ucs Join-Skript ausgeführt werden:
 
 [source,prompt]
 ----
@@ -843,17 +849,18 @@ WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich au
 [[opsi-getting-started-installation-base-ucs-member]]
 ===== Hinweise zur opsi-Installation auf einem UCS-Server in der Rolle 'Member'
 
-WARNING: Da der Einsatz von opsi auf Member-Servern besonderen Einschränkungen unterliegt, empfehlen wir Anfängern den Einsatz von opsi auf einer anderen Rolle.
+WARNING: Da der Einsatz von opsi auf 'Member'-Servern besonderen Einschränkungen unterliegt, empfehlen wir Anfängern den Einsatz von opsi auf einer anderen Rolle.
 
-Die Installation von opsi auf einem Server in der Rolle Member ist möglich.
+Die Installation von opsi auf einem Server in der Rolle 'Member' ist möglich.
 Eine automatisierte Installation über das Univention App Center kann jedoch aktuell nicht vorgenommen werden.
 
 Nach einer Installation muss sicher gestellt werden, dass der für den Depotzugriff verwendete Benutzer mitsamt Domäne aufgeführt ist.
 Dazu muss der Hostparameter `clientconfig.depot.user` kontrolliert werden.
 Ist die Domäne `backstage`, so muss der Wert `backstage\pcpatch` lauten. Lautet er `memberserver\pcpatch`, so muss der Wert korrigiert werden.
 
-Das Setzen des Kennworts für den Benutzer `pcpatch` über `opsi-admin` scheitert auf Grund der fehlenden AD-Schreibberechtigungen eines Member-Servers.
-Daher muss die Änderung des Kennworts des technischen Benutzers `pcpatch` *zusätzlich* auf einem Server mit Schreibrechten im AD vorgenommen werden - ein Master, Backup oder Slave.
+Das Setzen des Kennworts für den Benutzer `pcpatch` über `opsi-admin` scheitert auf Grund der fehlenden AD-Schreibberechtigungen eines 'Member'-Servers.
+Daher muss die Änderung des Kennworts des technischen Benutzers `pcpatch` *zusätzlich* auf einem Server mit Schreibrechten im AD vorgenommen werden - ein 'Master', 'Backup' oder 'Slave'.
+
 
 [[opsi-getting-started-installation-base-ucs-pxepolicy]]
 ===== Konfiguration des PXE-Boot für Betriebssysteminstallationen
