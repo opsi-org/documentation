@@ -820,8 +820,8 @@ Um sicher zu stellen, dass alle Einstellungen von opsi nun korrekt übernommen w
 ----
 opsi-setup --init-current-config
 opsi-setup --set-rights
-service opsiconfd restart
-service opsipxeconfd restart
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
 ----
 
 Bei samba4 handelt es sich um einen zentralen Dienst, daher wird dies nicht automatisch vom Paket ausgeführt, sondern muss nachträglich manuell durchgeführt werden. Nach dem Neustart von samba kann es zu einer kleinen Verzögerung beim Zugriff auf die neuen Freigaben kommen, wir bitten dies zu berücksichtigen.
@@ -931,13 +931,6 @@ zypper refresh
   Wollen Sie den Schlüssel (a)bweisen, ihm (t)emporär oder (i)mmer vertrauen? [a/t/i/?] (a): i
 zypper -v install opsi-server opsi-configed
 zypper -v install wimtools
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-opsi-setup --auto-configure-samba
-service smb restart
-service nmb restart
-service opsiconfd restart
-service opsipxeconfd restart
 ----
 
 Bitte stellen Sie sicher, daß Ihre Firewall Konfiguration die folgenden Ports erlaubt: tftp Port (69/UDP) und die opsi ports (4447/TCP und 4441/TCP).
@@ -1020,13 +1013,6 @@ zypper refresh
   Wollen Sie den Schlüssel (a)bweisen, ihm (t)emporär oder (i)mmer vertrauen? [a/t/i/?] (a): i
 zypper -v install opsi-server opsi-configed
 zypper -v install wimtools
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-opsi-setup --auto-configure-samba
-service smb restart
-service nmb restart
-service opsiconfd restart
-service opsipxeconfd restart
 ----
 
 Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen welche sie ignorieren sollen.
@@ -1078,13 +1064,13 @@ yum install mariadb-server samba samba-client
 +
 [source,prompt]
 ----
+systemctl start smb.service
+systemctl start nmb.service
 systemctl start mariadb.service
+systemctl enable smb.service
+systemctl enable nmb.service
+systemctl enable mariadb.service
 mysql_secure_installation
-service smb start
-service nmb start
-chkconfig smb on
-chkconfig nmb on
-chkconfig mariadb on
 ----
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
@@ -1115,13 +1101,6 @@ yum install p7zip cabextract
 yum remove tftp-server
 yum install opsi-server opsi-configed
 yum install wimtools
-service opsiconfd restart
-service opsipxeconfd restart
-opsi-setup --auto-configure-samba
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-service smb restart
-service nmb restart
 ----
 
 Es kann vorkommen, dass eine Nachfrage zum Importieren des GPG-Schlüssel des Repositories wie die nachfolgene Meldung während der Installation gezeigt wird:
@@ -1177,13 +1156,13 @@ yum install mariadb-server samba
 +
 [source,prompt]
 ----
+systemctl start smb.service
+systemctl start nmb.service
 systemctl start mariadb.service
+systemctl enable smb.service
+systemctl enable nmb.service
+systemctl enable mariadb.service
 mysql_secure_installation
-service smb start
-service nmb start
-chkconfig smb on
-chkconfig nmb on
-chkconfig mariadb on
 ----
 
 * Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
@@ -1205,13 +1184,6 @@ Nach dem Hinzufügen der Repositories kann die Installation gestartet werden:
 yum install p7zip p7zip-plugins cabextract
 yum install opsi-server opsi-configed
 yum install wimtools
-service opsiconfd restart
-service opsipxeconfd restart
-opsi-setup --auto-configure-samba
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-service smb restart
-service nmb restart
 ----
 
 Es kann vorkommen, dass eine Nachfrage zum Importieren des GPG-Schlüssel des Repositories wie die nachfolgene Meldung während der Installation gezeigt wird:
@@ -1280,7 +1252,7 @@ CAUTION: MySQL-Server verwendet seit Version 5.7 den vorher optionalen 'strict m
 In der `[mysqld]` Sektion muss nun folgende Zeile eingefügt werden: +
 `sql_mode=NO_ENGINE_SUBSTITUTION` +
  +
-Danach muss der Dienst `mysql` neu gestartet werden: `service mysql restart` +
+Danach muss der Dienst `mysql` neu gestartet werden: `systemctl restart mysql.service` +
 Es ist nun möglich fort zu fahren.
 
 Um (wie empfohlen) das {mysql-Backend} verwenden zukönnen (z.B. für die Inventarisierung), so muss dieses nun mit dem Befehl
@@ -1348,20 +1320,30 @@ Bei Inbetriebnahme des Servers (auch ohne Änderung der Datei) und nach jeder Ä
 ----
 opsi-setup --init-current-config
 opsi-setup --set-rights
-service opsiconfd restart
-service opsipxeconfd restart
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
 ----
 Ignorieren Sie Warnungen wegen einer nicht gefundenen `/etc/opsi/modules`.
 
 Wer welche Methoden verwenden darf, ist in der Datei '/etc/opsi/backendManager/acl.conf' festgelegt.
 
+
 [[opsi-getting-started-installation-config-passwords]]
 ==== Samba-Konfiguration anpassen und Ändern von Passwörtern
+
 Um sicherzustellen, dass die für opsi erforderlichen Samba-Shares verfügbar sind, führen Sie bitte den folgenden Befehl aus:
 
 [source,prompt]
 ----
 opsi-setup --auto-configure-samba
+----
+
+Anschließend sollten die Samba-Dienste neu gestartet werden:
+
+[source,prompt]
+----
+systemctl restart smbd.service
+systemctl restart nmbd.service
 ----
 
 Auf dem System ist ein Pseudo-User 'pcpatch' eingerichtet. Die PCs melden sich zwecks Installation von Softwarepaketen als dieser User an und haben dann Zugriff auf die Installationsdateien auf den hierfür vorgesehenen Shares. Der User 'pcpatch' muss mit korrektem Passwort – gleichzeitig als System-User, als Samba-User und als opsi-User – eingerichtet werden.
@@ -1620,8 +1602,8 @@ Nach Anpassung der Backendkonfiguration muss die Konfiguration initialisiert und
 ----
 opsi-setup --init-current-config
 opsi-setup --set-rights
-service opsiconfd restart
-service opsipxeconfd restart
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
 ----
 Ignorieren Sie Warnungen wegen einer nicht gefundenen `/etc/opsi/modules`.
 
@@ -1654,11 +1636,11 @@ Für die oben aufgeführte Variante 2, ist die bessere Konfiguration  +resolveHo
 
 Welche Kombination bei Ihnen am besten passt, müssen Sie anhand Ihrer Gegebenheiten selbst ermitteln.
 
-Wenn Sie an diesen Konfigurationen etwas geändert haben, so reloaden den opsiconfd:
+Wenn Sie an diesen Konfigurationen etwas geändert haben, so starten Sie den opsiconfd neu:
 
 [source,prompt]
 ----
-service opsiconfd restart
+systemctl restart opsiconfd.service
 ----
 
 
