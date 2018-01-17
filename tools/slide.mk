@@ -27,9 +27,6 @@ ifdef VERBOSE
 MAK_VERB := -v
 endif
 
-ifdef SLIDE
-ASCIIDOC_OPTS := $(ASCIIDOC_OPTS) --backend deckjs
-endif
 
 
 REFERENCE_LANG := de
@@ -100,33 +97,50 @@ pdf: $(addsuffix .pdf,$(DOCS))
 %.pdf: FORMAT = pdf
 
 html: $(addsuffix .html,$(DOCS))
-%.html: FORMAT = xhtml
+%.html: FORMAT = html
 
 epub: $(addsuffix .epub,$(DOCS))
 %.epub: FORMAT = epub
 
-%: FORMAT ?= $(subst html,xhtml,$(FORMATS))
 %:
+	set -x
 	@$(foreach L,$(LANG),\
 		$(foreach F,$(FORMAT), \
-			if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
-				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
-			else	\
-				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/common.xsl"	;\
-			fi;	\
+			echo "INFO: Document $@ : $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc"; \
 			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
-				mkdir -p $(DEST_DIR)/$(F)/$(L)/$(basename $@);					\
-				if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
+				echo "create dest"; \
+				mkdir -p $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+				if [ "$(F)" = "html" ];  then	\
+					echo "start build html";	\
+					if asciidoc -v $(ASCIIDOC_OPTS) --backend=$(TOP_DIR)/conf/deckjs \
+						--out-file=$(DEST_DIR)/slide/$(L)/$(basename $@)/$(basename $@).$(F)						\
+						$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
+						echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
+					else	\
+						echo "ERROR: Document $@ could not be built for language $(L)";	\
+					fi	\
+					;	\
+				fi \
+				;	\
+				if [ "$(F)" = "pdf" ];  then	\
+					echo "start build pdf";	\
+					if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
+						XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
+					else	\
+						XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/common.xsl"	;\
+					fi;	\
+					if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
 					--resource '$(TOP_DIR)/$(L)/images'	\
 					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
 					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
 					"$$XSLT_FILE"							\
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
-					cp $(TOP_DIR)/conf/stylesheets/docbook-xsl.css $(DEST_DIR)/$(F)/$(L)/$(basename $@);	\
-					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
-				else	\
-					echo "ERROR: Document $@ could not be built for language $(L)";	\
-				fi	\
+						echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
+					else	\
+						echo "ERROR: Document $@ could not be built for language $(L)";	\
+					fi	\
+					;	\
+				fi \
 				;	\
 			else									\
 				echo "ERROR: Document $@ does not exist for language $(L)";	\
@@ -134,3 +148,4 @@ epub: $(addsuffix .epub,$(DOCS))
 			;									\
 		)	\
 	)
+
