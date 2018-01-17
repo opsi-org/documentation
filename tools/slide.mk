@@ -15,8 +15,8 @@ DEST_DIR := $(TOP_DIR)/build
 PUB_DIR := $(TOP_DIR)/pub
 
 ASCIIDOC_OPTS := -f $(TOP_DIR)/conf/asciidoc.conf -a encoding=UTF-8
-DBLATEX_OPTS := -p $(TOP_DIR)/conf/dblatex/asciidoc-dblatex.xsl \
-		-s $(TOP_DIR)/conf/dblatex/asciidoc-dblatex.sty \
+DBLATEX_OPTS := -p $(TOP_DIR)/conf/dblatex/asciidoc-dblatex-opsi-slide.xsl \
+		-s $(TOP_DIR)/conf/dblatex/asciidoc-dblatex-opsi-slide.sty \
 
 ifdef DEBUG
 VERBOSE := true
@@ -124,14 +124,14 @@ epub: $(addsuffix .epub,$(DOCS))
 				;	\
 				if [ "$(F)" = "pdf" ];  then	\
 					echo "start build pdf";	\
-					if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
-						XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
+					if [ -f $(TOP_DIR)/conf/docbook-xsl/slide-$(F).xsl ]; then	\
+						XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/slide-$(F).xsl" ;\
 					else	\
 						XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/common.xsl"	;\
 					fi;	\
-					if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
+					if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/slide/$(L)/$(basename $@) -f $(F)			\
 					--resource '$(TOP_DIR)/$(L)/images'	\
-					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
+					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L) '			\
 					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
 					"$$XSLT_FILE"							\
 					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
