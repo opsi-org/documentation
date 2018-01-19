@@ -60,20 +60,21 @@ It is also recommended that 'opsi-winst', 'opsi-client-agent' and 'opsi-linux-cl
 [[opsi-4.1-releasenotes-installation]]
 == Installation notice
 
-For your own safety, we strongly suggest to create a backup of your backends with +
-{opsi-backup} before updating:
+For your own safety, we strongly suggest to create a backup of your backends with {opsi-backup} before updating:
 [source,prompt]
 ----
 opsi-backup create
 ----
 
-The products contained in this release depend on each other in many cases. +
+The products contained in this release depend on each other in many cases.
 Do not try to install just parts of this update.
 
 We recommend to first update the server, and then update the opsi products.
 
-To make sure that permissions are applied correctly +
-we recommend to run `opsi-setup --set-rights` after the installation. +
+In a multi-depot environment it is recommended to first update the configserver before updating the depots.
+
+To make sure that permissions are applied correctly
+we recommend to run `opsi-setup --set-rights` after the installation.
 Please be aware that the execution of latter can take several minutes.
 
 
@@ -86,19 +87,6 @@ Due to the fact that this update also brings changes to the data structure on th
 it is required to first migrate the backends after the update.
 
 On UCS the backend is migrated as part of the join script and a manual migration is not required.
-
-As part of this release the package `opsi-depotserver` has been renamed to `opsi-server`.
-
-For Debian and Ubuntu there is a transition package.
-If you want to remove this package after the migration you first have to mark `opsi-server` as manually installed and then remove the transitional package.
-
-This can be done through the following steps:
-
-[source,prompt]
-----
-apt-get install opsi-server
-apt-get remove opsi-depotserver
-----
 
 
 [[opsi-4.1-releasenotes-installation-opsipackages]]
@@ -119,6 +107,8 @@ It is possible to migrate an existing opsi 4.0 installation to opsi 4.1 on suppo
 
 The 'opsi-tftpd-hpa' package replaces the 'opsi-atftpd' package.
 Hereby the tftpd line from '/etc/inetd.conf' or '/etc/default/atftpd' needs to be deleted and the inetd service stopped.
+
+If you manage your opsi servers through opsi than the migration can be done with the package `l-opsi-server-migrate`.
 
 
 [[opsi-4.1-releasenotes-installation-migration-repositories]]
@@ -214,7 +204,7 @@ wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/CentO
 
 
 [[opsi-4.1-releasenotes-installation-migration-migrate]]
-==== Performang the migration
+==== Upgrading OS packages
 
 After adding the new package repositories the system can be migrated.
 
@@ -222,6 +212,7 @@ Debian and Ubuntu are updated to opsi 4.1 with the following steps:
 [source,prompt]
 ----
 update-inetd --remove tftp
+apt update
 apt install opsi-tftpd-hpa
 apt upgrade
 apt install opsi-server
@@ -237,6 +228,7 @@ yum install opsi-server
 To migrate SLES and OpenSUSE please perform the following:
 [source,prompt]
 ----
+zypper refresh
 zypper dup --from home_uibmz_opsi_4.1_stable
 ----
 
@@ -246,6 +238,10 @@ On UCS you can update with the following command:
 univention-install opsi-tftpd-hpa
 univention-upgrade
 ----
+
+
+[[opsi-4.1-releasenotes-installation-migration-backends]
+==== Migrating the backends
 
 Now the backends must be updated, the current configuration applied and the services restarted.
 
@@ -260,6 +256,10 @@ systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 ----
 
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages]]
+==== Updating opsi packages
+
 The last step is to update to the latest opsi packages.
 
 IMPORTANT: If you changed the configuration file of `opsi-product-updater`, i.e. when using additional repositories or because you are synchronising your products from another opsi server, you should <<opsi-releasenotes-4.1-changes-opsi-package-updater-configfile,migrate>> your settings before updating the packages.
@@ -272,31 +272,36 @@ opsi-package-updater -v update
 After these steps your opsi 4.1 server is ready to continue.
 
 
-[[opsi-4.1-releasenotes-packages]]
-== List of packages
+[[opsi-4.1-releasenotes-installation-migration-cleanup]]
+==== Optional cleanup
 
-.Server packages:
-* opsi4ucs 4.1.1.4-9
-* opsiconfd 4.1.1.10-3
-* opsipxeconfd 4.1.1.4-3
-* opsi-linux-bootimage 20180108-1
-* opsi-server 4.1.1.4-9
-* opsi-utils 4.1.1.15.1-1
-* opsi-utils-deprecated 4.0.7.18-1
-// * opsi-configed 4.1.x
-* python-opsi 4.1.1.22-1
 
-// .opsi packages (Windows):
-// * opsi-client-agent 4.1.x
-// * opsi-configed
-// * opsi-winst
-// * opsi-winst-test
-// * jedit
-// * TBD
+After a migration it can be that some unrequired files still exist on the server.
+The reason for this is that they either have been altered manually or that restoring a backup has brought these files back to the system.
 
-.opsi packages (Linux):
-* l-opsi-server 4.1.1.1-4
-* l-opsi-server-migrate 4.1.1-2
+The following files resp. folders can be removed:
+
+* `/etc/opsi/version`
+* `/etc/opsi/backendManager/30_configed.conf`
+* The folder `/etc/opsi/backendManager/extend.d/configed/` with content
+* `/etc/opsi/opsi-product-updater.conf` - please read the advice regarding the <<opsi-releasenotes-4.1-changes-opsi-package-updater-configfile,migration of the configuration file>> before removing this file.
+
+
+[[opsi-4.1-releasenotes-installation-migration-cleanup-opsi-depotserver]]
+===== Debian / Ubuntu: Übergangspaket entfernen
+
+As part of this release the package `opsi-depotserver` has been renamed to `opsi-server`.
+
+For Debian and Ubuntu there is a transition package.
+If you want to remove this package after the migration you first have to mark `opsi-server` as manually installed and then remove the transitional package.
+
+This can be done through the following steps:
+
+[source,prompt]
+----
+apt-get install opsi-server
+apt-get remove opsi-depotserver
+----
 
 
 [[opsi-4.1-releasenotes-knownbugs]]
@@ -309,6 +314,7 @@ None
 .KNOWN PROBLEMS:
 
 None
+
 
 [[opsi-4.1-releasenotes-eol]]
 == Discontinuation
@@ -586,12 +592,55 @@ $ opsi-admin -d method backend_info | grep opsiVersion
 * `opsi-newprod` will create empty files based on the filenames for the different actions as empty files.
 
 
+[[opsi-4.1-releasenotes-packages]]
+== List of packages
+
+.Server packages:
+* opsi4ucs 4.1.1.4-9
+* opsiconfd 4.1.1.10-3
+* opsipxeconfd 4.1.1.4-3
+* opsi-linux-bootimage 20180108-1
+* opsi-server 4.1.1.4-9
+* opsi-utils 4.1.1.15.1-1
+* opsi-utils-deprecated 4.0.7.18-1
+// * opsi-configed 4.1.x
+* python-opsi 4.1.1.22-1
+
+// .opsi packages (Windows):
+// * opsi-client-agent 4.1.x
+// * opsi-configed
+// * opsi-winst
+// * opsi-winst-test
+// * jedit
+// * TBD
+
+.opsi packages (Linux):
+* l-opsi-server 4.1.1.1-6
+* l-opsi-server-migrate 4.1.1-2
+
+
 [[opsi-4.1-releasenotes-misc-changelogs]]
 == Changelogs
 
 
 [[opsi-4.1-releasenotes-misc-changelogs-l-opsi-server]]
 === Changelog l-opsi-server
+
+[source,changelog]
+----
+l-opsi-server (4.1.1.1-6); stable; urgency=low
+
+  * Samba configuration will be done after the backend initialisation
+    to avoid problems with unconfigured backends.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de> Thu, 18 Jan 2018 10:39:53 +0100
+
+l-opsi-server (4.1.1.1-5); stable; urgency=low
+
+  * Cleaned up code for unsupported distributions.
+  * SUSE variants use the mariadb package if MySQL should be installed.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de> Thu, 18 Jan 2018 08:43:12 +0100
 
 l-opsi-server (4.1.1.1-4); stable; urgency=low
 
@@ -661,10 +710,15 @@ l-opsi-server 4.1.0.1-1; stable; urgency=low
 
   * replaced opsi-atftpd with tftpd-hpa
 
+-- Mathias Radtke <m.radtke@uib.de> Tue, 11 Jul 2017 09:00 +0200
+----
+
 
 [[opsi-4.1-releasenotes-misc-changelogs-l-opsi-server-migrate]]
 === Changelog l-opsi-server-migrate
 
+[source,changelog]
+----
 l-opsi-server-migrate 4.1.1-2; stable: urgency=low
 
   * Automatic backend migration on systems that require it.
@@ -676,10 +730,38 @@ l-opsi-server-migrate 4.1.1-1; stable: urgency=low
   * Cleaned up migration script.
 
  -- Niko Wenselowski <n.wenselowski@uib.de> Tue 16 Nov 2017 11:16:37 +0100
+----
 
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsi4ucs]]
 === Changelog opsi4ucs
+
+[source,changelog]
+----
+opsi4ucs (4.1.1.4-10) stable; urgency=medium
+
+  * Based on 4.0.7.5-9.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 21 Nov 2017 14:37:22 +0100
+
+opsi4ucs (4.1.1.4-9) testing; urgency=medium
+
+  * Fix key decryption.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 15 Nov 2017 15:25:19 +0100
+
+opsi4ucs (4.1.1.4-8) testing; urgency=medium
+
+  * Suppressing output from MySQL connectivity check.
+  * MySQL connectivity check does not require MySQL to be installed locally.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Wed, 15 Nov 2017 09:03:16 +0100
+
+opsi4ucs (4.1.1.4-7) testing; urgency=medium
+
+  * Changed check if MySQL backend is already configured.
+
+ -- Niko Wenselowski <n.wenselowski@uib.de>  Mon, 13 Nov 2017 17:29:13 +0100
 
 opsi4ucs (4.1.1.4-6) testing; urgency=medium
 
@@ -777,11 +859,14 @@ opsi4ucs (4.1.1.1-1) stable; urgency=medium
     This removes support for --update-ldap and --update-univention.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 24 Jan 2017 18:57:38 +0100
+----
 
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsiconfd]]
 === Changelog opsiconfd
 
+[source,changelog]
+----
 opsiconfd (4.1.1.10-3) stable; urgency=medium
 
   * .deb: Enable opsiconfd.service in postinst.
@@ -960,11 +1045,14 @@ opsiconfd (4.1.1.1-1) experimental; urgency=medium
   * Removed unsupported multiprocessing option.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 16 Sep 2016 12:12:24 +0200
+----
 
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsipxeconfd]]
 === Changelog opsipxeconfd
 
+[source,changelog]
+----
 opsipxeconfd (4.1.1.4-3) stable; urgency=medium
 
   * RPM: fix syntax error on upgrading.
@@ -1069,11 +1157,13 @@ opsipxeconfd (4.1.1.1-1) experimental; urgency=medium
   * Sharing more code with python-opsi.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Fri, 02 Dec 2016 11:04:06 +0100
-
+----
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsi-linux-bootimage]]
 === Changelog opsi-linux-bootimage
 
+[source,changelog]
+----
 opsi-linux-bootimage (20180108-1) testing; urgency=medium
 
   * kernel 4.14.12
@@ -1239,11 +1329,13 @@ opsi-linux-bootimage (20170316-1) experimental; urgency=medium
   * 4.1 build
 
  -- Mathias Radtke <m.radtke@uib.de>  Thu, 16 Mar 2017 14:33:45 +0100
-
+----
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsi-server]]
 === Changelog opsi-server
 
+[source,changelog]
+----
 opsi-server (4.1.1.4-9) stable; urgency=medium
 
   * Deb: Fix syntax error in preinst script.
@@ -1367,11 +1459,13 @@ opsi-depotserver (4.1.1.1-1) stable; urgency=medium
     This removes support for --update-ldap and --update-univention.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 24 Jan 2017 18:58:53 +0100
-
+----
 
 [[opsi-4.1-releasenotes-misc-changelogs-opsi-utils]]
 === Changelog opsi-utils
 
+[source,changelog]
+----
 opsi-utils (4.1.1.15.1-1) stable; urgency=medium
 
   * opsi-newprod: Fix bug where the wrong file was referenced.
@@ -1576,11 +1670,13 @@ opsi-utils (4.1.1.1-1) experimental; urgency=medium
     "--repo name_of_repo".
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 29 Nov 2016 13:57:13 +0100
-
+----
 
 [[opsi-4.1-releasenotes-misc-changelogs-python-opsi]]
 === Changelog python-opsi
 
+[source,changelog]
+----
 python-opsi (4.1.1.22-1) testing; urgency=medium
 
   * Based on python-opsi 4.0.7.53-1.
@@ -1879,3 +1975,4 @@ python-opsi (4.1.1.1-1) experimental; urgency=medium
     into OPSI/__init__.py to always show the current version.
 
  -- Niko Wenselowski <n.wenselowski@uib.de>  Tue, 04 Oct 2016 16:15:11 +0200
+----
