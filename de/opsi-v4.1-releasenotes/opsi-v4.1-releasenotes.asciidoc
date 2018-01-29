@@ -54,7 +54,7 @@ Weitere Betriebssystem-Pakete, bspw. MySQL-Server, sollten ebenfalls auf dem akt
 Andernfalls ist mit Problemen beim Update zu rechnen.
 
 Das Ersetzen von `opsi-product-updater` durch `opsi-package-updater` wird begleited durch eine neue Konfigurationsdatei.
-Die <<opsi-releasenotes-4.1-changes-opsi-package-updater-configfile,Übernahme der Konfiguration>> wird später in diesem Dokument beschrieben.
+Die Übernahme der Konfiguration wird später in diesem Dokument beschrieben.
 
 Es ist außerdem empfohlen, dass 'opsi-winst', 'opsi-client-agent' bzw. 'opsi-linux-client-agent' vor dem Update auf den Clients auf den aktuellsten Stand aus opsi 4.0 gebracht werden.
 
@@ -272,16 +272,179 @@ systemctl restart opsipxeconfd.service
 [[opsi-4.1-releasenotes-installation-migration-opsi-packages]]
 ==== Aktualisierung der opsi-Pakete
 
-Der letzte Schritt ist die Aktualisierung auf die neuesten opsi-Pakete.
+Der letzte Schritt ist die Aktualisierung auf die neusten opsi-Pakete. Der hierzu bislang verwendete `opsi-product-updater` wird in opsi 4.1 durch den `opsi-package-updater` ersetzt. Dabei ist zu beachten, dass sich hier neben dem erweiterten Funktionsumfang auch eine wesentliche Änderung an der Konfiguration ergeben hat. Die allgemeine Beschreibung des neuen `opsi-package-updater` finden Sie im opsi-Handbuch. Im Folgenden werden nur die notwendigen Anpassungen im Rahmen der Migration beschrieben.
 
-IMPORTANT: Falls Sie Anpassungen an der Konfigrationsdatei des `opsi-product-updater` gemacht haben, bspw. bei der Verwendung zusätzlicher Repositories oder bei der Synchronisation von anderen opsi-Servern, so sollten Sie die Einstellungen  <<opsi-releasenotes-4.1-changes-opsi-package-updater-configfile,migrieren>>, bevor Sie die Pakete aktualisieren.
+Für den Fall, dass Sie an der `opsi-product-updater.conf` bislang keine Veränderungen vorgenommem haben können Sie direkt zum  Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-standard, Verwendung der Standard Repostitories>> gehen. 
 
+Falls Sie Anpassungen an der Konfigurationsdatei des `opsi-product-updater` gemacht haben, um z.B. zusätzliche Repositories zu Verwenden (Abo-Pakete) oder bei der Synchronisation von anderen opsi-Servern, müssen Sie entsprechende Anpassungen an der Konfiguration für den `opsi-package-updater` vornehmen. Verfahren Sie dann bitte wie im Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-others, Verwendung von weiteren Repositories>> beschrieben.
+
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages-standard]]
+===== Verwendung der Standard Repostitories
+
+Wenn Sie keine Veränderungen gegenüber der Standard Auslieferung der `opsi-product-updater.conf` vorgenommen haben, erkennen Sie dies nach der Mirgration auf 4.1 daran, dass Ihre `/etc/opsi/opsi-product-updater.conf` nicht mehr vorhanden ist und vollständig durch die Repos-Dateien unter `/etc/opsi/package-updater.repos.d/` ersetzt wurden.
+In diesem Fall können Sie die opsi-Pakete direkt über den aufgeführten Aufruf aktualisieren:
 [source,prompt]
 ----
 opsi-package-updater -v update
 ----
 
 Nach diesen Schritten ist Ihr opsi 4.0 Server auf das Release 4.1 migriert und einsatzbereit.
+
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages-others]]
+===== Verwendung von weiteren Repositories
+
+Um die Umstellung mit zusätzlichen Repositories oder anderen Änderungen an der `opsi-product-updater.conf` zu erleichtern, haben wir Ihnen ein Migrations-Script zur Verfügung gestellt: `opsi-migrate-product-updater-configuration`.
+Das Script erstellt aus den Daten Ihrer `opsi-product-updater.conf` entsprechende Repo-Dateien unter `/etc/opsi/package-updater.repos.d/` und passt in diesen die Pfade zu den 4.1 Repos an.
+Wenn Sie das Script mit der folgenden Optionen aufrufen, werden nur die neu erstellten Repo-Dateien aktiviert, was in der Regel das von Ihnen gewünschte Verhalten sein wird:
+[source,prompt]
+----
+opsi-migrate-product-updater-configuration --deaktivate-standard-repos
+----
+
+Die Überprüfung welche Repos nach der Migration aktiviert sind, können Sie wie folgt sehen:
+[source,prompt]
+----
+opsi-package-updater list --active-repos
+----
+
+Eine Ausgabe könnte wie folgt aussehen:
+[source,prompt]
+----
+Active repositories:
+uib: http://download.uib.de
+uib_linux: http://download.uib.de
+uib_local_image: http://download.uib.de
+----
+
+Wenn Sie mit der Ausgabe der aktiven Repositories zufrieden sind, können Sie die Aktualisierung starten:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+Nach diesen Schritten ist Ihr opsi 4.0 Server auf das Release 4.1 migriert und einsatzbereit.
+
+
+
+*Beispiele für Repos-Dateien:*
+
+Bisher standen in der `/etc/opsi/opsi-product-updater.conf` verschiedene Sektionen für die verschiedenen Repositories:
+
+[source,prompt]
+----
+[repository_abo_mshotfix]
+baseUrl = http://download.uib.de
+dirs = abo/mshotfix/opsi4/glb
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_abo_standard]
+baseUrl = http://download.uib.de
+dirs = abo/standard/opsi4
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_abo_msoffice]
+baseUrl = http://download.uib.de
+dirs = abo/msoffice/opsi4
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_uib_local_image]
+active = true
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/opsi-local-image
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+Daraus werden für opsi 4.1 folgende Repos-Dateien unter `/etc/opsi/package-updater.repos.d/`:
+
+abo_mshotfix.repo
+[source,prompt]
+----
+[repository_uib_abo_mshotfix]
+description = Updates for Microsoft OS packaged by uib.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/mshotfix/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+abo_standard.repo
+[source,prompt]
+----
+[repository_uib_abo_standard]
+description = Packages from uib for standard products.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/standard/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+abo_msoffice.repo
+[source,prompt]
+----
+[repository_uib_abo_msoffice]
+description = Updates for Microsoft Office packaged by uib.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/msoffice/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+uib-local_image.repo
+[source,prompt]
+----
+[repository_uib_local_image]
+description = opsi Local Image Backup extension
+active = false
+baseUrl = http://download.uib.de
+dirs = opsi4.1/stable/packages/opsi-local-image/localboot/, opsi4.1/stable/packages/opsi-local-image/netboot/
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
 
 
 [[opsi-4.1-releasenotes-installation-migration-cleanup]]
@@ -295,7 +458,7 @@ Die folgenden Dateien bzw. Ordner können entfernt werden:
 * `/etc/opsi/version`
 * `/etc/opsi/backendManager/30_configed.conf`
 * Das Verzeichnis `/etc/opsi/backendManager/extend.d/configed/` samt Inhalt
-* `/etc/opsi/opsi-product-updater.conf` - beachten Sie hierzu bitte die Hinweise zur <<opsi-releasenotes-4.1-changes-opsi-package-updater-configfile,Migration der Konfigurationsdatei>>, bevor Sie diese Entfernen.
+* `/etc/opsi/opsi-product-updater.conf` - beachten Sie hierzu bitte die Hinweise unter <<opsi-4.1-releasenotes-installation-migration-opsi-packages,Aktualisierung der opsi-Pakete>>, bevor Sie diese Entfernen.
 
 
 [[opsi-4.1-releasenotes-installation-migration-cleanup-opsi-depotserver]]
@@ -451,26 +614,6 @@ Die Installation des Pakets 'ubuntu' aus dem Repository 'uib_linux' kann wie fol
 ----
 opsi-package-updater -v --repo uib_linux install ubuntu
 ----
-
-[[opsi-releasenotes-4.1-changes-opsi-package-updater-configfile]]
-=== Übernahme Konfiguration des 'opsi-product-updater'
-
-Die Konfigurationsdateien des `opsi-package-updater` und `opsi-product-updater` gleichen sich.
-Allerdings versteht nur der `opsi-package-updater` neu hinzugekommene Optionen.
-
-Falls Sie Anpassungen in `/etc/opsi/opsi-product-updater.conf` vorgenommen haben, wird empfohlen die Änderungen in `/etc/opsi/opsi-package-updater.conf` zu übernehmen.
-Für die Repository-Sektionen wird empfohlen diese aus der Konfigurationsdatei zu entfernen und in einzelne Konfigurationsdateien mit der Dateiendung `.repo` in `/etc/opsi/package-updater.repos.d` zu übernehmen.
-
-Es gibt mit dem Werkzeug `opsi-migrate-product-updater-configuration` die
-Möglichkeit automatisiert eine Konfigurationsdatei automatisiert in das
-neue Format zu migrieren.
-Der Aufruf von `opsi-migrate-product-updater-configuration --help` liefert weitere Informationen dazu.
-Es kann sein, dass im Anschluss ein Repository in mehreren Dateien eingetragen ist (einmal als Resultat einer Migration und einmal durch das Paket `opsi-utils`), weshalb anschließend eine Kontrolle der Repository-Dateien erfolgen sollte.
-
-Es ist möglich eine für das Werkzeug `opsi-product-updater` erstellte Konfigurationsdatei weiter zu verwenden.
-Zum Weiterverwenden einer alten Konfigurationsdatei rufen Sie den `opsi-package-updater` mit der zusätzlichen Option `--config /etc/opsi/opsi-product-updater.conf` auf.
-
-CAUTION: Die alte Konfigurationsdatei enthält opsi 4.0-Repositories. Die Weiterverwendung dieser Konfiguration wird dazu führen, dass nicht die neuesten Pakete verwendet werden.
 
 
 [[opsi-releasenotes-4.1-changes-opsi-makepackage]]
