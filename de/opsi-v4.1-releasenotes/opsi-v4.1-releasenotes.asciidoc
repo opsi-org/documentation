@@ -60,6 +60,8 @@ Falls Sie `opsi-product-updater` automatisiert - bspw. mit einem regelmäßigen 
 
 Es ist außerdem empfohlen, dass 'opsi-winst', 'opsi-client-agent' bzw. 'opsi-linux-client-agent' vor dem Update auf den Clients auf den aktuellsten Stand aus opsi 4.0 gebracht werden.
 
+Sollte nach der Migration eine Meldung in der Form: "Your hostcontrol backend configuration uses the old format for broadcast addresses .." erscheinen, lesen Sie bitte hier welche Konfigurations Anpassungen notwendig sind: <<opsi-releasenotes-4.1-changes-wake-on-lan-ports, Konfigurierbare Ports für Wake-On-LAN>> 
+
 [[opsi-4.1-releasenotes-installation]]
 == Hinweise zur Installation
 
@@ -263,6 +265,10 @@ Anschließend müssen die Backends Aktualisiert, die aktuelle Konfigration angew
 ----
 # Bei der Verwendung des MySQL-Backends zur Datenhaltung
 opsi-setup --update-mysql
+opsi-setup --init-current-config
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
+
 # Bei der Verwendung des File-Backends zur Datenhaltung
 opsi-setup --update-file
 opsi-setup --init-current-config
@@ -276,13 +282,13 @@ systemctl restart opsipxeconfd.service
 
 Der letzte Schritt ist die Aktualisierung auf die neusten opsi-Pakete. Der hierzu bislang verwendete `opsi-product-updater` wird in opsi 4.1 durch den `opsi-package-updater` ersetzt. Dabei ist zu beachten, dass sich hier neben dem erweiterten Funktionsumfang auch eine wesentliche Änderung an der Konfiguration ergeben hat. Die allgemeine Beschreibung des neuen `opsi-package-updater` finden Sie im opsi-Handbuch. Im Folgenden werden nur die notwendigen Anpassungen im Rahmen der Migration beschrieben.
 
-Für den Fall, dass Sie an der `opsi-product-updater.conf` bislang keine Veränderungen vorgenommem haben können Sie direkt zum  Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-standard, Verwendung der Standard Konfiguration>> gehen. 
+Für den Fall, dass Sie an der `opsi-product-updater.conf` bislang keine Veränderungen vorgenommem haben können Sie direkt zum  Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-standard, Verwendung der Standardkonfiguration>> gehen. 
 
 Falls Sie Anpassungen an der Konfigurationsdatei des `opsi-product-updater` gemacht haben, um z.B. zusätzliche Repositories zu Verwenden (Abo-Pakete) oder bei der Synchronisation von anderen opsi-Servern, müssen Sie entsprechende Anpassungen an der Konfiguration für den `opsi-package-updater` vornehmen. Verfahren Sie dann bitte wie im Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-others, Migration bei veränderter Konfiguration>> beschrieben.
 
 
 [[opsi-4.1-releasenotes-installation-migration-opsi-packages-standard]]
-===== Verwendung der Standard Konfiguration 
+===== Verwendung der Standardkonfiguration 
 
 Wenn Sie keine Veränderungen gegenüber der Standard Auslieferung der `opsi-product-updater.conf` vorgenommen haben, erkennen Sie dies nach der Mirgration auf 4.1 daran, dass Ihre `/etc/opsi/opsi-product-updater.conf` nicht mehr vorhanden ist und vollständig durch die Repos-Dateien unter `/etc/opsi/package-updater.repos.d/` ersetzt wurden.
 In diesem Fall können Sie die opsi-Pakete direkt über den aufgeführten Aufruf aktualisieren:
@@ -666,8 +672,8 @@ Ein automatischer Umzug vorhandener Daten aus dem alten Workbench-Verzeichnis fi
 Es ist nun möglich für jede Broadcast-Adresse die für Wake-On-LAN zu verwendenden Ports zu konfigurieren.
 
 Dabei hat sich das Format für 'broadcastAddresses' in der Konfigurationsdatei `/etc/opsi/backends/hostcontrol.conf` verändert.
-Es wird nun das folgende Format verwendet:
-
+Es gibt zwei Varianten in der das neue Format eingetragen werden kann.
+Variante 1:
 [source,json]
 ----
 "broadcastAddresses": {
@@ -676,7 +682,20 @@ Es wird nun das folgende Format verwendet:
 }
 ----
 
+Variante 2:
+[source,json]
+----
+"broadcastAddresses": {u'255.255.255.255': (12287,)}
+----
+
+
+
 Wird das Format von opsi 4.0 vorgefunden, so wird in den opsiconfd-Logs darauf hingewiesen, wie diese im neuen Format aussehen sollen.
+[source,prompt]
+----
+Your hostcontrol backend configuration uses the old format for broadcast addresses. The new format allows to also set a list of ports to send the broadcast to.
+Please use this new value in the future: ...
+----
 Die Konfigurationsdatei wird nicht automatisch angepasst.
 
 Im Backend wird das alte Format automatisch konvertiert und dabei wird standardmäßig der Port 12287 verwendet.
