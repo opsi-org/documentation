@@ -31,16 +31,28 @@ include::../common/opsi_manual_copyright.asciidoc[]
 
 *Schwerpunkte dieser Freigabe sind:*
 
-* Neuer TFTPD: `opsi-tftp-hpa`
-* Neues Werkzeug: `opsi-package-updater`
-* Aktualisierter `opsi-configed`
-* Das Werkzeug `opsi-makeproductfile` wurde umbenannt zu `opsi-makepackage`
-* Das Paket `opsi-depotserver` wurde umbenannt zu `opsi-server`
-* Konfigurierbarer Pfad der Workbench
-* Konfigurierbare Ports für Wake-On-LAN
-* Geänderte Standardeinstellungen
-* systemd als einziges unterstütztes Init-System
-* Python 2.7 als Voraussetzung
+* opsi Server
+** Neuer TFTPD: `opsi-tftp-hpa`
+** Neues Werkzeug: `opsi-package-updater`
+** Konfigurierbarer Pfad der Workbench
+** Das Werkzeug `opsi-makeproductfile` wurde umbenannt zu `opsi-makepackage`
+** Das Paket `opsi-depotserver` wurde umbenannt zu `opsi-server`
+** Konfigurierbare Ports für Wake-On-LAN
+** Geänderte Standardeinstellungen
+** systemd als einziges unterstütztes Init-System
+** Python 2.7 als Voraussetzung
+* Windows Betriebssystem Installation (netboot Produkte) (auch für opsi 4.0)
+** Multidiskmode: Unterstützung der Installation auf Systemen mit mehreren Festplatten
+** Möglichkeit gezielt auf die erste SSD-Palatte zu installieren
+** Vergabe des Administrator Passworts über ein Property
+* Neue opsi Erweiterung für Schulen / Schulungsräume 'opsi-vhd-reset' (auch für opsi 4.0)
+** Schnelle Wiederherstellung eines Schulungsrechners
+** Installation von Windows 10 in eine VHD Datei.
+** Snapshot des Orginalzustands über eine 'Child'-VHD welche die Änderungen aufnimmt.
+** Schnelle Wiederherstellung durch austausch der 'Child'-VHD
+** Kostenpflichtige Erweiterung verbunden mit 'opsi-local-image'.
+Das heist mit dem Erwerb der Freigabe von opsi-local-image kann sowohl 
+'opsi-local-image' als auch 'opsi-vhd-reset' verwendet werden.
 
 
 [[opsi-4.1-releasenotes-important]]
@@ -61,6 +73,9 @@ Falls Sie `opsi-product-updater` automatisiert - bspw. mit einem regelmäßigen 
 Es ist außerdem empfohlen, dass 'opsi-winst', 'opsi-client-agent' bzw. 'opsi-linux-client-agent' vor dem Update auf den Clients auf den aktuellsten Stand aus opsi 4.0 gebracht werden.
 
 Sollte nach der Migration eine Meldung in der Form: "Your hostcontrol backend configuration uses the old format for broadcast addresses .." erscheinen, lesen Sie bitte hier welche Konfigurations Anpassungen notwendig sind: <<opsi-releasenotes-4.1-changes-wake-on-lan-ports, Konfigurierbare Ports für Wake-On-LAN>> 
+
+Der Einsatz der neuen Netboot, opsi-local-image und opsi-vhd Produkte
+erfordert eine  opsi-winst >= 4.12.0.13
 
 [[opsi-4.1-releasenotes-installation]]
 == Hinweise zur Installation
@@ -260,7 +275,7 @@ univention-upgrade
 [[opsi-4.1-releasenotes-installation-migration-backends]]
 ==== Migrieren der Backends
 
-Anschließend müssen die Backends Aktualisiert, die aktuelle Konfigration angewendet und die Dienste neu gestartet werden.
+Anschließend müssen auf den Konfigservern die Backends Aktualisiert, die aktuelle Konfigration angewendet und die Dienste neu gestartet werden. (Auf Depotservern sind diese Arbeiten 
 [source,prompt]
 ----
 # Bei der Verwendung des MySQL-Backends zur Datenhaltung
@@ -269,8 +284,9 @@ opsi-setup --init-current-config
 systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 
-# Bei der Verwendung des File-Backends zur Datenhaltung
+# Bei der Verwendung eines gemischten Backends (File und MySQL) zur Datenhaltung
 opsi-setup --update-file
+opsi-setup --update-mysql
 opsi-setup --init-current-config
 systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
@@ -744,6 +760,78 @@ passt.
 Mit opsi 4.1 ist ein link:https://www.ietf.org/rfc/rfc2616.txt[RFC 2616] compatibles Verhalten immer gegeben.
 Dieses Verhalten war in opsi 4.0 optional.
 
+
+// [[opsi-4.1-releasenotes-opsi-configed]]
+// == Verbesserungen am '{opsi-configed}'
+
+// TBD
+
+[[opsi-releasenotes-4.1-changes-netboot-nt6]]
+== Hinweise zu den NT6 Netbootprodukten (Win 7 bis Win 10)
+
+Bei den Netboot Produkten gibt es zwischen 4.0.7.1 und 4.1.0.0
+eine Fülle von Veränderungen.
+
+=== Voraussetzungen
+
+Alle Netbootprodukte der Version >= '4.1.0.0' benötigen einen auf dem Server installierten opsi-winst >= '4.12.0.13'.
+Diese Netbootprodukte laufen auch unter opsi 4.0.x.
+
+=== Multidiskmode
+
+Der neue Multidiskmode bietet eine Unterstützung der Betriebssystem Installation auf Systemen mit mehreren Festplatten.
+Dabei kann gezielt die gewünschte Zielfestplatte ausgewählt werden.
+Es kann auch gezielt 'die erste SSD' oder 'die erste rotierende Festplatte' ausgewählt werden.
+
+IMPORTANT: Wenn Sie auf einem Rechner mit *MBR BIOS* über das Property `multidiskmode` eine Platte wählen, so müssen Sie dafür sorgen, das diese Platte auch die erste Platte in der BIOS Bootreihenfolge ist. +
+Bei *UEFI BIOS* Systemen müssen Sie nichts unternehmen, da hier die Bootreihenfolge durch die Installation gesteuert werden kann.
+
+=== Neue Properties
+
+* `multi_disk_mode` +
+Diese Property dient zur Wahl der Festplatte auf die installiert werden soll. +
+Mögliche Werte sind: "0","1","2","3","prefer_ssd","prefer_rotational" +
+Die Werte "0","1","2","3" geben den Index der Festplatte direkt an ("0"= 1. Festplatte) +
+Der Wert "prefer_ssd" wählt die erste SSD Platte aus. +
+Der Wert "prefer_rotational" wählt die erste klassische Platte (mit rotirenden Scheiben)aus. +
+Default = "0"
+
+* `administrator_password` +
+Hier kann das Passort angegeben werden, welches bei der Installtion für den lokalen Administrator gesetzt wird. +
+Default = 'nt123'
+
+* `winpe_dir` +
+Diese Property dient zu Debug Zwecken. +
+Der Wert "auto" wählt ermittelt das passende standard winpe Verzeichnis im Verzeichnis des Netbootproduktes. Dies ist 'winpe' bzw. 'winpe_uefi' +
+Andere Werte müssen auf ein entsprechendes, existierendes Verzeichnis im Verzeichnis des Netbootproduktes verweisen. +
+Default = 'auto'
+
+
+* `installto` +
+Diese Property ist nicht editierbar. Es dient beim Ablauf zur Unterscheidung zwischen stahdard (disk), opsi-local-image (oli) und opsi-vhd (vhd). +
+Bitte: Finger weg.
+
+=== Entfallene Properties
+
+* `blockalignment` +
+Diese Property diente dazu zu Entscheiden ob Partitionen an den Blockgrenzen ausgerichtet werden sollen oder nicht. +
+Die Partitionen werden jetzt immer an Blockgrenzen ausgerichtet.
+
+
+=== Verhalten im PE
+
+Bei der Windows Betriebssystem Installation wird durch das opsi-linux-bootimage 
+die Festplatte vorbereitet und ein Win-PE Partition erstellt. Diese wird gebootet um die eigentliche Windowdsinstalltion zu starten. +
+In den 4.1.0.0 Produkten wird hier opsi-script gestartet um die Notwendigen Arbeiten durch zu führen. Die Vorteile dieses Vorgehens sind: 
+
+* Einfacheres und übersichtlichers Scripting
+
+* Erstellung einer Log-Datei der Vorgänge im Win-PE
+
+* Automatische Übertragung der Logdatei an den opsi-server. +
+(Diese Logdatei wird an das bootimage Log angehängt.)
+
+include::./opsi-vhd.asciidoc[]
 
 [[opsi-4.1-releasenotes-linux]]
 == Linuxsupport
@@ -2449,7 +2537,6 @@ opsi-configed (4.0.7.6.1-1) stable; urgency=medium
 
 [source,changelog]
 ----
-
 opsi-tftp-hpa (5.2.8-47) stable; urgency=medium
 
   * .deb config: Fix bug when checking for installed version that could
@@ -2657,3 +2744,254 @@ opsi-tftp-hpa (5.2.8-15) UNRELEASED; urgency=medium
 
  -- Mathias Radtke <m.radtke@uib.de>  Mon, 20 Mar 2017 09:45:30 +0100
 ----
+
+[[opsi-4.1-releasenotes-misc-changelogs-opsi-client-agent]]
+=== Changelog opsi-client-agent
+
+[source,changelog]
+----
+opsi-client-agent (4.0.7.24-3) stable; urgency=low
+
+  * support (lock) C:\opsi.org\data
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  14 Dec 2017:15:00:00 +0200
+----
+
+[[opsi-4.1-releasenotes-misc-changelogs-nt6-windows]]
+=== Changelog NT6 Windows
+
+[source,changelog]
+----
+windows (4.1.0.0-1) stable; urgency)low
+
+  * rename from 4.0.7.4 to 4.1.0.0
+  * nt6.opsiscript: retry if setup failed
+  * code cleanup
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  10 Jan 2018:15:00:00 +0200
+
+windows (4.0.7.4-8) stable; urgency)low
+
+  * postinst.cmd: new dir data_dir = c:\opsi.org\data
+  * postinst: 80_repartition: do not delete diskpart command files
+  * postinst: 80_repartition: copy diskpart command files to data_dir
+  * postinst: 80_repartition: also copy parthide.txt to data_dir
+  * postinst: 80_repartition: also copy diskinfo.ini to data_dir
+  * postinst: 80_repartition: run nt6_repartition.opsiscript if possible
+  * postinst: 99_cleanup: rm "%log_dir%\cfg\sysconf.ini" (passwords)
+  * (setup).py: create also diskpart command file: parthide.txt for use to activate PE
+  * (setup).py: more data in  opsi-script-infos.ini
+  * (setup).py: create diskinfo.ini with disk and partition data
+  * nt6.opsiscript: on vhd: detect diskcount change (windows no media disks)
+  * nt6.opsiscript: on vhd: patch unattend if disk count changed
+  * control: extended description for the properties: system_keyboard_layout and winpe_inputlocale
+  * opsisetuplib: new: def getUuidFromDiskDevice(diskDevice = "")
+  * opsisetuplib: new: def getUuidFromPartitionDevice(partDevice = "")
+  * opsisetuplib: new: def getPartuuidFromPartitionDevice(partDevice = "")
+  * opsisetuplib: new: def getDiskuuidFromPartitionDevice(diskDevice = "")
+  * opsisetuplib: showDiskOrder gives also size and uuid
+  * nt6.py merge with opsi-vhd.py
+  * new property: installto (Is switch for vhdmode or install to disk in merged nt6.py
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed,  13 Dec 2017:15:00:00 +0200
+
+
+windows (4.0.7.4-7) stable; urgency=low
+
+  * deleting unattend.xml in cleanup script
+
+-- Mathias Radtke <m.radtke@uib.de> Thu Nov 30 11:00:58 2017 +0200
+
+
+windows (4.0.7.4-6) stable; urgency)low
+
+  * nt6.py: support for #@installdiskindex*# placeholder in unattend.xml
+  * nt6.xml: support for #@installdiskindex*# placeholder in unattend.xml
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  09 Nov 2017:15:00:00 +0200
+
+windows (4.0.7.4-5) stable; urgency)low
+
+  * nt6.py: lookup table for localized adminstrator accounts
+  * nt6.opsiscript: call setup.exe from installfiles_dir
+  * nt6.xml: use #@adminName*# instead of 'administrator'
+  * win2016: default password is Nt123?
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  02 Nov 2017:15:00:00 +0200
+
+windows (4.0.7.4-4) stable; urgency)low
+
+  * nt6.py: minor fixes
+  * nt6.opsiscript: minor fixes
+  * opsisetuplib.py: minor fixes
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  12 Oct 2017:15:00:00 +0200
+
+windows (4.0.7.4-3) stable; urgency)low
+
+  * nt6.py: check if correct opsi-script is available
+  * nt6.py: check for <productid>.png or windows.png' before copy
+  * nt6.opsiscript: check for <productid>.png or windows.png' before ShowBitmap
+  * Makefile: copy windows.png as windows.png (makes work with derivated products easyer)
+  * nt6.py: Show message about productId_ver-ver on clientId
+  * removed property: blockalignment - now always true
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  12 Oct 2017:15:00:00 +0200
+
+windows (4.0.7.4-2) experimental; urgency)low
+
+  * merge from 4.0.7.1-10: nt6.py check for opsi version opsi 4.1 compatible
+  * nt6.py: make sure that encodedPcpatchPassword is defined
+  * uefi: create system partition: more info
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  05 Oct 2017:15:00:00 +0200
+
+windows (4.0.7.4-1) experimental; urgency)low
+
+  * integrate use of opsi-script in winpe part
+  * new nt6.opsiscript
+  * modified nt6.py: changed work.cmd additonal opsi-script-infos.ini
+  * new property: multi_disk_mode with values: ["0","1","2","3","prefer_ssd","prefer_rotaional"]
+    Fallback is first disk
+  * moving postinst stuff from c:\tmp to c:\opsi.org\log
+  * removed setwallpaper, opsimbr.exe
+  * fix 99_cleanup.cmd: path to 64bit shutdown.exe
+  * opsisetuplib.py: added sleep prior making NTFS partition (mr 4.0.7.1-9)
+  * update pci.ids, usb.ids ; fixes: #2747
+  * new property: administrator_password ; fixes:  #2396
+  * new property: winpe_dir ;default=auto; auto=winpe or winpe_uefi, if not auto: used for mbr and uefi; fixes:  #2922
+  * winpe_uefi is a symlink to winpe by default ; fixes:  #2863
+  * postinst and preinst now created from postinst_nt6 and preinst_nt6
+    * nt5 stuff removed
+    * winpe* is backuped and restored in preinst/postinst
+    * create winpe_uefi as symlink if not existing (do)
+  * postinst.cmd now also allows calling powershell scripts (*.ps1) ; fixes: #2677
+
+-- Detlef Oertel <d.oertel@uib.de>  Thu,  24 Aug 2017:15:00:00 +0200
+----
+
+
+[[opsi-4.1-releasenotes-misc-changelogs-vhd-control]]
+=== Changelog opsi-vhd-control
+
+[source,changelog]
+----
+opsi-vhd-control (4.1.0.0-1) stable; urgency=low
+
+  * final (renamed from win-vhd-snapshot)
+
+-- detlef oertel <d.oertel@uib.de>  Wed, 10 Jan 2018 15:00:00 +0000
+
+win-vhd-snapshot (4.0.7.4-2) stable; urgency=low
+
+  * new property upgrade
+  * handling opsi-meta-data
+  * requires opsi-script 4.12.0.11
+
+-- detlef oertel <d.oertel@uib.de>  Wed, 13 Dec 2017 15:00:00 +0000
+
+win-vhd-snapshot (4.0.7.4-1) stable; urgency=low
+
+  * some changes for win*-vhd_4.0.7.4-x
+  * new property upgrade
+  * handling opsi-meta-data
+  * requires opsi-script 4.12.0.11
+
+-- detlef oertel <d.oertel@uib.de>  Tue, 07 Nov 2017 15:00:00 +0000
+
+win-vhd-snapshot (4.0.7.1-2) stable; urgency=low
+
+  * remove unneeded files
+
+-- detlef oertel <d.oertel@uib.de>  Mon, 10 Jan 2017 15:00:00 +0000
+
+win-vhd-snapshot (4.0.7.1-1) stable; urgency=low
+
+  * initial (dervated from wim-capture
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 19 Jan 2017 15:00:00 +0000
+----
+
+[[opsi-4.1-releasenotes-misc-changelogs-opsi-winst]]
+=== Changelog opsi-winst
+
+[source,changelog]
+----
+opsi-winst/opsi-script (4.12.0.13) stable; urgency=low
+
+  * osparser: for-to loop: fix failure at for x to x loop
+  * oslog: includelogtail: now log includelog at log level 7
+  * new function getIndexFromListByContaining(<list> : stringlist,<search string> : string) : <number> : string
+  * temporary set debug_lib always to true
+  * osparser / osdefinedfunctions: call from a local function an other local function
+      using a local variable as call by value parameter
+  * osparser: more fixes for nestinglevel (if then else through localfunctions and sub)
+  * new booealn function: runningInPE (osparser,osfunc,osfuncwin) (at linux always false)
+  * osdefinedfunctions: fixes on parsing paramtype
+  * osparser: Ifelseendiflevel : longint = 0; // global nestlevel store
+     used to pass nestlevel to evaluatestring and producestringlist  --> local functions
+  * osdefinedfunctions: fix in isVisibleLocalVar
+  * osjson: jsonAsArrayToStringList: allow strings as valid array components
+  * osparser: indeffunc3 : integer = 0; // we are between deffunc and endfunc line (even in a not active code)
+----
+
+-- Detlef Oertel <d.oertel@uib.de>  Wed, 27 Dec 2017:15:00:00 +0200
+
+[[opsi-4.1-releasenotes-misc-changelogs-opsi-script-test]]
+=== Changelog opsi-script-test
+
+[source,changelog]
+----
+opsi-script-test (4.12.0.13-1) stable; urgency=low
+
+  * localfunctions: test call from a local function an other local function
+      using a local variable as call by value parameter
+  * localfunctions: more complex if then else through localfunctions and sub
+
+-- detlef oertel <d.oertel@uib.de>  Tue,  15 Jan 2018 15:00:00 +0200
+----
+
+
+[[opsi-4.1-releasenotes-misc-changelogs-opsi-wim-capture]]
+=== Changelog opsi-wim-capture
+
+[source,changelog]
+----
+opsi-wim-capture (4.1.0.0-1) stable; urgency=low
+
+  * migrated to unified 4.1.0.0 multi disk mode
+  * requiredWinstVersion >= "4.12.0.13"
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 11 Jan 2018 15:00:00 +0000
+----
+
+[[opsi-4.1-releasenotes-misc-changelogs-local-image]]
+=== Changelog opsi-local-image
+
+[source,changelog]
+----
+opsi-local-image (4.1.0.0-1) stable; urgency=low
+
+  * migrate to unified 4.1.0.0 
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 11 Jan 2018 15:00:00 +0200
+
+opsi-local-image (4.0.7.4-4) stable; urgency=low
+
+  * fix opsisetuplib.py: checkOliPartitions
+
+-- detlef oertel <d.oertel@uib.de>  Thu, 08 Nov 2017 15:00:00 +0200
+----
+
+[[opsi-4.1-releasenotes-misc-changelogs-opsi-clonezilla]]
+=== Changelog opsi-clonezilla
+
+[source,changelog]
+----
+opsi-clonezilla (4.0.7.2-5) stable; urgency=low
+
+  * merge from 4.0.7.1-10: nt6.py check for opsi version opsi 4.1 compatible
+
+-- detlef oertel <d.oertel@uib.de>  Tue, 16 Jan 2018 15:00:00 +0200
+----
+
