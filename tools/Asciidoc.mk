@@ -28,13 +28,13 @@ MAK_VERB := -v
 endif
 
 ifdef SLIDE
-ASCIIDOC_OPTS := $(ASCIIDOC_OPTS) --backend slidy
+ASCIIDOC_OPTS := $(ASCIIDOC_OPTS) --backend deckjs
 endif
 
 
 REFERENCE_LANG := de
 
-LANG := de en fr nl
+LANG := de en fr
 DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
 FORMATS := html pdf epub
