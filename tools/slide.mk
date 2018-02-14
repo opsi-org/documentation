@@ -112,7 +112,10 @@ epub: $(addsuffix .epub,$(DOCS))
 				mkdir -p $(DEST_DIR)/slide/$(L)/$(basename $@);	\
 				if [ "$(F)" = "html" ];  then	\
 					echo "start build html";	\
-					if asciidoc -v $(ASCIIDOC_OPTS) --backend=$(TOP_DIR)/conf/deckjs \
+					cp $(TOP_DIR)/$(L)/images/opsi_logo_s3.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+					cp $(TOP_DIR)/$(L)/$(basename $@)/*.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+					cp $(TOP_DIR)/$(L)/$(basename $@)/*.jp*g $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+					if asciidoc -v $(ASCIIDOC_OPTS) -a data-uri -a icons --backend=$(TOP_DIR)/conf/deckjs \
 						--out-file=$(DEST_DIR)/slide/$(L)/$(basename $@)/$(basename $@).$(F)						\
 						$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
 						echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
@@ -148,4 +151,3 @@ epub: $(addsuffix .epub,$(DOCS))
 			;									\
 		)	\
 	)
-
