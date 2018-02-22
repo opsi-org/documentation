@@ -60,6 +60,13 @@ Possible values are `de`, `en` and `fr`.
 make LANG=de opsi-getting-started.pdf
 ```
 
+### Build Slides
+
+``` shell
+make -f tools/slide.mk LANG=de slide-test.html
+```
+
+
 ### Check spelling of all documents
 
 ``` shell
