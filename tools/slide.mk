@@ -31,7 +31,7 @@ endif
 
 REFERENCE_LANG := de
 
-LANG := de en fr nl
+LANG := de
 DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
 FORMATS := html pdf epub
@@ -112,7 +112,8 @@ epub: $(addsuffix .epub,$(DOCS))
 				mkdir -p $(DEST_DIR)/slide/$(L)/$(basename $@);	\
 				if [ "$(F)" = "html" ];  then	\
 					echo "start build html";	\
-					cp $(TOP_DIR)/$(L)/images/opsi_logo_s3.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+					cp $(TOP_DIR)/$(L)/images/logo_rechts.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
+					cp $(TOP_DIR)/$(L)/images/logo_links.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
 					cp $(TOP_DIR)/$(L)/$(basename $@)/*.png $(DEST_DIR)/slide/$(L)/$(basename $@);	\
 					cp $(TOP_DIR)/$(L)/$(basename $@)/*.jp*g $(DEST_DIR)/slide/$(L)/$(basename $@);	\
 					if asciidoc -v $(ASCIIDOC_OPTS) -a data-uri -a icons --backend=$(TOP_DIR)/conf/deckjs \
