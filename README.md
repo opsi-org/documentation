@@ -65,7 +65,9 @@ make LANG=de opsi-getting-started.pdf
 ``` shell
 make -f tools/slide.mk LANG=de slide-test.html
 ```
-
+needed packages:
+apt install source-highlight
+apt install python-pygment
 
 ### Check spelling of all documents
 
