@@ -602,8 +602,7 @@ anchor:opsi-script-configs_debug_lib[]
 
 * `opsi-script.global.debug_lib` : boolean +
 Wenn false, so werden Logmeldungen aus lokalen Funktionen welche aus Libraries importiert wurden, nur ausgegeben soweit es sich um Warnungen oder Fehler handelt. +
-Default : false +
-Die Umsetzung ist noch buggy, wird aber bis zum stable Release repariert sein.
+Default : false 
 
 anchor:opsi-script-configs_default_loglevel[]
 
@@ -1687,13 +1686,32 @@ Die Funktion gibt den String aus, der im Aufruf von '{opsi-winst}/opsi-script' n
 [[opsi-winst-string-functions-reg]]
 ==== Werte aus der Windows-Registry lesen und für sie aufbereiten [W]
 
+anchor:getRegistryValue[]
+
+*  `getRegistryValue (`<keystr>, <varstr> [, <access str>]`)` : string //since 4.12.0.16 [W] +
+versucht in der Registry den als <keystr> übergebenen String-Wert als Registrykey zu öffnen und dort den Wert <varstr> zu lesen und als String zurückzugeben. +
+Wenn <keystr> bzw. die Variable <varstr> nicht existieren, wird eine Warnung in das Logfile geschrieben und der Leerstring als Defaultwert zurückgegeben. +
+Wenn der übergebene <varstr> leer ist, so wird der Standardwert des Keys ausgelesen. +
+Die Zugriffsart ist per Default `sysnative`. Über den optionalen dritten Parameter kann die Zugriffsart auch explizit angegeben werden. Dabei muss der übergebene <access str> einer der folgenden Werte sein: `32bit`, `sysnative`, `64bit`. +
+(siehe auch: <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>)
+
+
+Beispiele:
+[source,winst]
+----
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell")
+
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell","64bit")
+----
+
 anchor:GetRegistrystringvalue[]
 
 *  `GetRegistryStringValue (`<string>`)` +
 versucht den übergebenen String-Wert als einen Ausdruck der Form +
 '[KEY] X' +
 zu interpretieren; im Erfolgsfall liest die Funktion den (String-) Wert zum Variablennamen 'X' des Schlüssels 'KEY' der Registry aus. Wird 'X' nicht übergeben so wird der Standardwert des Keys ausgelesen. +
-Wenn KEY bzw. die Variable X nicht existieren, wird eine Warnung in das Logfile geschrieben und der Leerstring als Defaultwert zurückgegeben.
+Wenn KEY bzw. die Variable X nicht existieren, wird eine Warnung in das Logfile geschrieben und der Leerstring als Defaultwert zurückgegeben. +
+siehe auch : <<getRegistryValue>>
 
 Zum Beispiel ist
 [source,winst]
@@ -1720,15 +1738,18 @@ The value of the variable "$CompValue$" is now: "standard entry"
 
 anchor:GetRegistryStringValue32[]
 
-*  `GetRegistryStringValue32(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>
+*  `GetRegistryStringValue32(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>> +
+siehe auch : <<getRegistryValue>>
 
 anchor:GetRegistryStringValue64[]
 
-*  `GetRegistryStringValue64(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>
+*  `GetRegistryStringValue64(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>> +
+siehe auch : <<getRegistryValue>>
 
 anchor:GetRegistryStringValueSysNative[]
 
-*  `GetRegistryStringValueSysNative(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>
+*  `GetRegistryStringValueSysNative(`<string>`)` ->	siehe <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>> +
+siehe auch : <<getRegistryValue>>
 
 anchor:RegString[]
 
@@ -1899,6 +1920,11 @@ anchor:lower[]
 
 * `lower(`<string>`)` [W/L] +
 liefert <string> in Kleinbuchstaben
+
+anchor:upper[]
+
+* `upper(`<string>`)` [W/L] +
+liefert <string> in Großbuchstaben
 
 anchor:contains[]
 
@@ -3255,7 +3281,8 @@ erzeugt die Liste der Teilstrings von String-Wert1, die jeweils durch String-Wer
 set $list1$ = splitString ("\\server\share\directory",  "\")
 ----
 die Liste +
-'"", "", "server", "share", "directory"'
+'"", "", "server", "share", "directory"' +
+Ist der übergebene String confidential, so werden es die hier enstehenden Teile auch sein.
 
 anchor:splitStringOnWhiteSpace[]
 
@@ -3267,7 +3294,8 @@ set $list1$ = splitStringOnWhiteSpace("Status   Lokal     Remote         Netzwer
 ----
 liefert die Liste +
 '"Status", "Lokal", "Remote", "Netzwerk"' +
-unabhängig davon, wie viele Leerzeichen oder ggf. Tabulatorzeichen zwischen den "Wörtern" stehen.
+unabhängig davon, wie viele Leerzeichen oder ggf. Tabulatorzeichen zwischen den "Wörtern" stehen. +
+Ist der übergebene String confidential, so werden es die hier enstehenden Teile auch sein.
 
 [[opsi-winst-stringlist-create-by-file]]
 ==== Laden der Zeilen einer Textdatei in eine String-Liste
@@ -4412,6 +4440,66 @@ set $exitcode$ = getLastExitcode
 net start
 ----
 
+anchor:powershellCall_list[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : stringlist (output)` //since 4.12.0.16 [W] +
+Führt <command string> mit der powershell aus. +
+Genauer gesagt wird ein Script ausgeführt das wie folgt aussieht:
+----
+trap { write-output $_ ; exit 1 }
+<commandstr>
+exit $LASTEXITCODE
+----
+Die erste Zeile dient dazu, das bei Exceptions kein exitcode=0 zurückgeliefert wird und die letzte Zeile dient dazu den letzten produzierten exit code zurückzuliefern. +
+Die Architektur der powershell.exe ist per default `sysnative`. Die Architektur kann aber auch über den optionalen zweiten Parameter <access str> angegeben werden. Dabei muss der übergebene <access str> einer der folgenden Werte sein: `32bit`, `sysnative`, `64bit`. +
+(siehe auch: <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>) +
+Da per Windows Default die Execution Policy der Powershell auf `Restricted` steht können Scripte nicht ohne weiteres ausgeführt werden. Daher hat der Befehl `powershellCall` per default folgendes Verhalten: Die aktuelle execution-policy wird gesichert und die execution-policy auf `RemoteSigned` gesetzt. Dann wird das Script ausgeführt und abschließend die Execution-policy wieder zurück gesetzt. Dieses Defaultverhalten kann über den optionalen dritten Parameter <policy bool str> geändert werden: Hat <policy bool str> den Wert "false" so wird die execution-policy nicht modifiziert. +
+Wird die Funktion `powershellCall` dort aufgerufen wo eine Stringliste erwartet wird, so enthält die Stringliste die Ausgabe von <commandstr>.
+
+Beispiel:
+[source,winst]
+----
+set $list$= powersshellCall_list('Get-Process -ProcessName "opsi*"')
+----
+Ist eine Abkürzung für den Ausdruck:
+[source,winst]
+----
+set $policy$ = takeString(0,shellCall('powershell.exe get-execution-policy'))
+shellCall('powershell.exe set-execution-policy RemoteSigned')
+set $list$ = getOutStreamFromSection ('Execwith_ps powershell.exe winst /sysnative')
+shellCall('powershell.exe set-execution-policy '+$policy$)
+
+[Execwith_ps]
+trap { write-output $_ ; exit 1 }
+Get-Process -ProcessName "opsi*"
+exit $LASTEXITCODE
+----
+
+anchor:powershellCall[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : noresult` //since 4.12.0.16 [W] +
+siehe <<powershellCall_list>> +
+Die Funktion `powershellCall` kann auch dort aufgerufen werden, wo kein Rückgabe wert erwartet wird.
+
+Beispiel:
+[source,winst]
+----
+powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
+anchor:powershellCall_str[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : string (exitcode)` //since 4.12.0.16 [W] +
+siehe <<powershellCall_list>> +
+Wird die Funktion `powershellCall` dort aufgerufen wo eine String erwartet wird, so enthält der String den Exitcode des ausgeführten Scriptes.
+
+Beispiel
+[source,winst]
+----
+set $exitcode$ = powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
+
 anchor:processCall[]
 
 * `processCall(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
@@ -4598,6 +4686,36 @@ message SetConfidential
 comment: This is a ***(secret)*** string
 comment: should be in the log file: This is a ***(confidential)*** string
 ----
+
+anchor:asConfidential[]
+
+* `asConfidential(` <secret string expression> `)` : string //since 4.12.0.16 [W/L] +
+Diese Funktion dient dazu vertrauliche Informationen von einer Funktion zu erlangen, ohne das die Werte in der Logdatei landen. Dabei kommt es zu folgenden Ablauf: +
+1. Sichern des aktuellen Loglevels +
+2. Setzen des Loglevel auf Warning (4) +
+3. Auswerten der übergeben Stringexpression (z.B. einer Funktion welche einen String liefert) +
+4. Setzen dieses ermittelten Strings als Confidential d.h. dieser String wird ab jetzt nicht mehr geloggt. +
+5. Wiederherstellen des ursprünglichen Loglevels +
+6. Rückgabe des ermittelten Stringwertes.
+
+Beispiel:
+[source,winst]
+----
+set $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+comment "this is my new secret"
+comment "should be in the log file:  ***(confidential)*** "
+----
+Log:
+[source,winst]
+----
+Set  $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+  The value of the variable "$ConstTest$" is now: "***(confidential)***"
+comment: This is a ***(confidential)*** string
+comment: should be in the log file: This is a ***(confidential)*** string----
+----
+see also : <<SetConfidential>>
+see also : <<GetConfidentialProductProperty>>
+
 
 [[opsi-winst-commands-information]]
 === Anweisungen für Information und Interaktion [W/L] 
@@ -5233,7 +5351,36 @@ anchor:stringToBool[]
 
 * `stringToBool(`<string expression: true/false>`)` : boolean // since 4.12.0.0 [W/L]
 
+anchor:RegKeyExists[]
 
+* `RegKeyExists(`<regkey>[,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Prüft ob der als <regkey> übergeben String als Rgistrykey existiert. Wird der Registrykey gefunden so wird `true` zurückgegeben, ansonsten false. +
+Die Zugriffsart ist per Default `sysnative`. Über den optionalen zweiten Parameter kann die Zugriffsart auch explizit angegeben werden. Dabei muss der übergebene <access str> einer der folgenden Werte sein: `32bit`, `sysnative`, `64bit`. +
+(siehe auch: <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>)
+
+Beispiele:
+[source,winst]
+----
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon")
+
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","32bit")
+----
+
+
+anchor:RegVarExists[]
+
+* `RegVarExists(`<regkey>, <var str> [,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Prüft ob der als <regkey> übergeben String als Registrykey existiert und ob dort eine Variable mit dem Namen <var str> existiert. Wird beides gefunden so wird `true` zurückgegeben, ansonsten false. +
+Die Zugriffsart ist per Default `sysnative`. Über den optionalen dritten Parameter kann die Zugriffsart auch explizit angegeben werden. Dabei muss der übergebene <access str> einer der folgenden Werte sein: `32bit`, `sysnative`, `64bit`. +
+(siehe auch: <<opsi-winst-64bit,Kapitel 64 Bit-Unterstützung>>)
+
+Beispiele:
+[source,winst]
+----
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon","Shell")
+
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","bootmode","32bit")
+----
 
 [[opsi-winst-commands-include]]
 === Include Kommandos [W/L] 
@@ -5723,7 +5870,8 @@ endfunc
 Ziel  dieser Erweiterung ist die Umsetzung folgender Konzepte:
 
 * Funktionen mit Rückgabewert: +
-Die Funktionen haben einen Rückgabewert welche vom Typ `string` oder `stringlist` ist. Der Aufruf eine solchen Funktion kann überall da Erfolgen, wo ein Stringausdruck bzw.eine Stringliste erwartet wird.
+Die Funktionen haben einen Rückgabewert welche vom Typ `string` oder `stringlist` ist. Der Aufruf eine solchen Funktion kann überall da Erfolgen, wo ein Stringausdruck bzw.eine Stringliste erwartet wird. +
+Funktionen ohne Rückgabewert sind ab 4.12.0.16 auch erlaubt und müssen als `void` deklariert werden..
 
 * Frei definierbare Aufrufparameter:
 Einer Funktion können Parameter übergeben werden. Diese Parameter werden bei der Deklaration der Funktion definiert. Die Aufrufparameter können vom Typ `string` oder `stringlist` sein. +
@@ -5749,7 +5897,7 @@ Der Funktionskörper kann eigene Sektionen enthalten. Diese sind lokal zu dieser
 
 *Definition*
 ----
-DefFunc <func name>([calltype parameter type][,[calltype parameter type]]) : type
+DefFunc <func name>([calltype parameter ptype][,[calltype parameter ptype]]) : ftype
 <function body>
 endfunc
 ----
@@ -5765,7 +5913,10 @@ Dabei ist:
 
 * 'parameter' ist der freigewählte Name des Aufrufparameters, welcher unter diesem Namen innerhalb der Funktion als lokale Variable zur Verfügung steht.
 
-* 'type' ist der Datentyp des Parameters bzw. der Funktion und entweder `string` oder `stringlist`;
+* 'ptype' ist der Datentyp des Parameters und entweder `string` oder `stringlist`;
+
+* 'ftype' ist der Datentyp der Funktion und entweder `string`, `stringlist` oder `void`. Die `void` Deklaration bedeutet, das es keine Rückabe gibt.
+
 
 * '<function body>': ist der Körper der Funktion, welcher dem opsi-script syntax genügen muß. +
 In diesem Teil gibt es die automatisch erzeugte lokale Variable `$result$`, 
@@ -5963,6 +6114,46 @@ set $list1$ = myFunc8('pwd')
 Erwartete Ergebnisse:
 
 * $list1$ = [+ pwd, /home/uib/gitwork/lazarus/opsi-script]
+
+
+Funktion vom Type `void` (also ohne Rückgabe) welcher ein `string` übergeben wird:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+set $str1$ = 'haha'
+
+DefFunc myNoResultFunc(ref $str1$ : string) : void
+	set $str1$ = "huhu"
+endfunc
+
+myNoResultFunc($str1$)
+comment "$str1$ is: "+$str1$ 
+----
+
+Erwartete Ergebnisse:
+
+* $str1$ is: huhu
+
+Funktion vom Type `string`  welcher kein Parameter übergeben wird:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+DefFunc myNoParamFunc() : string
+	set $result$ = "huhu"
+endfunc
+
+set $str1$ = myNoParamFunc()
+----
+
+Erwartete Ergebnisse:
+
+* $str1$ is: huhu
 
 
 [[opsi-winst-commands-libraryfunctions]]
@@ -8329,6 +8520,13 @@ Für den Zugriff auf eigentlich 64 Bit-Software vorbehaltene Bereiche kennt der 
 *  `FileExists32`
 *  `FileExists64`
 *  `FileExistsSysNative`
+
+Bei den folgenden Funktionen kann die Zugriffsart als Parameter mitgegeben werden (der default ist `sysnative`):
+
+*  `getRegistryValue`
+*  `RegKeyExists`
+*  `RegVarExists`
+*  `powershellCall`
 
 `Registry`-Sektionen schreiben in den 32 Bit-Bereich der Registry. Ebenfalls werden in `Files`-Sektionen Zugriffe auf 'c:\windows\system32' umgelenkt.
 

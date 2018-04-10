@@ -593,8 +593,7 @@ anchor:opsi-script-configs_debug_lib[]
 
 * `opsi-script.global.debug_lib` : boolean +
 If false log messages from defined functions that are imported from external library files will be suppressed excepting Warnings and Errors. +
-Default: false +
-This feature is still buggy right now, but will be fixed until the stable release.
+Default: false 
 
 anchor:opsi-script-configs_default_loglevel[]
 
@@ -1650,12 +1649,31 @@ returns the string which was given to the '{opsi-winst}/opsi-script' by the opti
 [[opsi-winst-string-functions-reg]]
 ==== Reading Values from the Windows Registry and Transforming Values into Registry Format [W]
 
+anchor:getRegistryValue[]
+
+*  `getRegistryValue (`<keystr>, <varstr> [, <access str>]`)` : string //since 4.12.0.16 [W] +
+tries to use <keystr> as Registry key and open it and read there the variable <varstr> and return the value of this variable as a string. +
+If there is no registry key <keystr> or the variable <varstr> does not exist the function produces a warning message in the log file and returns the empty string. +
+If <varstr> is an empty string, the default entry of the key will be returned. +
+By Default the registry access mode is `sysnative`. Using the optional third parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+
+Example:
+[source,winst]
+----
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell")
+
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell","64bit")
+----
+
 anchor:GetRegistrystringvalue[]
 
 * `GetRegistrystringvalue(`"[key] var"`) : string` [W] +
 tries to interpret the passed String value as an expression of format +
 '[KEY] X' +
-Then, the function tries to open the registry key `KEY`, and, in case it succeeds, to read and return the String value that belongs to the registry variable name `X` .
+Then, the function tries to open the registry key `KEY`, and, in case it succeeds, to read and return the String value that belongs to the registry variable name `X` . +
+see also : <<getRegistryValue>>
 
 E.g.
 [source,winst]
@@ -1686,20 +1704,20 @@ The value of the variable "$CompValue$" is now: "standard entry"
 anchor:GetRegistryStringValue32[]
 
 * `GetRegistryStringValue32 (`"[key] var"`) : string`  +
-->	see <<opsi-winst-64bit,Chapter 64 Bit>>
-see also : <<GetRegistrystringvalue>>
+->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
+see also : <<getRegistryValue>>
 
 anchor:GetRegistryStringValue64[]
 
 * `GetRegistryStringValue64 (`"[key] var"`) : string` +
 ->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
-see also : <<GetRegistrystringvalue>>
+see also : <<getRegistryValue>>
 
 anchor:GetRegistryStringValueSysNative[]
 
 * `GetRegistryStringValueSysNative (`"[key] var"`) : string`  +
 ->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
-see also : <<GetRegistrystringvalue>>
+see also : <<getRegistryValue>>
 
 anchor:RegString[]
 
@@ -1867,6 +1885,11 @@ anchor:lower[]
 
 * `lower(`<string>`) : string` [W/L] +
 returns <string> with lower case.
+
+anchor:upper[]
+
+* `upper(`<string>`)` [W/L] +
+returns <string> with upper case.
 
 anchor:contains[]
 
@@ -3284,7 +3307,8 @@ generates the list of partial strings of <string1> (including empty strings) bef
 set $list1$ = splitString ("\\server\share\directory", "\")
 ----
 defines the list +
-'"", "", "server", "share", "directory"'
+'"", "", "server", "share", "directory"' +
+If the given string is in the list of confidential strings, so the resulting string parts will also be added to the list of confidential strings.
 
 anchor:splitStringOnWhiteSpace[]
 
@@ -3296,7 +3320,8 @@ set $list1$ = splitStringOnWhiteSpace("Status   Lokal     Remote         Netzwer
 ----
 produces the list +
 '"Status", "Lokal", "Remote", "Netzwerk"' +
-no matter how many blanks or tabs constitute the white space between the words.
+no matter how many blanks or tabs constitute the white space between the words. +
+If the given string is in the list of confidential strings, so the resulting string parts will also be added to the list of confidential strings.
 
 [[opsi-winst-stringlist-create-by-file]]
 ==== Loading Lines of a Text File into a String List
@@ -4404,6 +4429,68 @@ set $exitcode$ = getLastExitcode
 net start
 ----
 
+anchor:powershellCall_list[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : stringlist (output)` //since 4.12.0.16 [W] +
+Runs <command string> with the powershell. +
+More exactly the powershell runs a script that looks like:
+----
+trap { write-output $_ ; exit 1 }
+<commandstr>
+exit $LASTEXITCODE
+----
+The first line of the script makes sure that we get no exit code = 0 if the script fails with an exception. The last line gives the exit code of previous command back. +
+The architecture of the called powershell.exe is `sysnative` by default.
+Using the optional second parameter <access str> you may change this default. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>) +
+By Windows default the powershell has the execution policy `Retricted` which do not allow to run any unsigned scripts. In order to run scripts the `powershellCall` function does by default the following: The current execution-policy is backuped and the execution-policy is set to `RemoteSigned`. Then the script will be executed and finally the execution-policy is restored. This default behaviour may be switched off by setting the optional third parameter <policy bool str> to "false". +
+If the `powershellCall` function is called where a stringlist is expected it returns a stringlist that contains the output of <commandstr>.
+
+
+Example:
+[source,winst]
+----
+set $list$= powershellCall_list('Get-Process -ProcessName "opsi*"')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+set $policy$ = takeString(0,shellCall('powershell.exe get-execution-policy'))
+shellCall('powershell.exe set-execution-policy RemoteSigned')
+set $list$ = getOutStreamFromSection ('Execwith_ps powershell.exe winst /sysnative')
+shellCall('powershell.exe set-execution-policy '+$policy$)
+
+[Execwith_ps]
+trap { write-output $_ ; exit 1 }
+Get-Process -ProcessName "opsi*"
+exit $LASTEXITCODE
+----
+
+anchor:powershellCall[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : noresult` //since 4.12.0.16 [W] +
+see <<powershellCall_list>> +
+The function `powershellCall` may also be called where no result is expected.
+
+Example:
+[source,winst]
+----
+powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
+anchor:powershellCall_str[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : string (exitcode)` //since 4.12.0.16 [W] +
+see <<powershellCall_list>> +
+If the `powershellCall` function is called where a string is expected it returns a string that contains the exit code of the executed script.
+
+Example:
+[source,winst]
+----
+set $exitcode$ = powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
+
 anchor:processCall[]
 
 * `processCall(`<string>`) : string (exitcode)` //since 4.11.6.1 [W/L] +
@@ -4582,6 +4669,37 @@ message SetConfidential
 comment: This is a ***(secret)*** string
 comment: should be in the log file: This is a ***(confidential)*** string
 ----
+
+
+anchor:asConfidential[]
+
+* `asConfidential(` <secret string expression> `)` : string //since 4.12.0.16 [W/L] +
+This function should be used to get confidentail strings from an other string function without without logging the secret string. The Function work in the following sequence: + 
+1. Backup the current log level. +
+2. Set the log level to Warning. (4) +
+3. Resolve the given string expression (for example calling the given string function). +
+4. Add the resulting string to the list of confidential strings that should be not logged.. +
+5. Restore of the inital log level. +
+6. Return the resulting string.
+
+Example:
+[source,winst]
+----
+set $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+comment "this is my new secret"
+comment "should be in the log file:  ***(confidential)*** "
+----
+Log:
+[source,winst]
+----
+Set  $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+  The value of the variable "$ConstTest$" is now: "***(confidential)***"
+comment: This is a ***(confidential)*** string
+comment: should be in the log file: This is a ***(confidential)*** string----
+----
+see also : <<SetConfidential>>
+see also : <<GetConfidentialProductProperty>>
+
 
 [[opsi-winst-commands-information]]
 === Commands for User Information and User Interaction  [W/L]
@@ -5190,6 +5308,38 @@ anchor:stringToBool[]
 
 * `stringToBool(`<string expression: true/false>`)` : boolean // since 4.12.0.0 [W/L]
 
+anchor:RegKeyExists[]
+
+* `RegKeyExists(`<regkey>[,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Check if the given string expression <regkey> exists as registry key.
+If the registry key was found the result value ist `true` in all other cases `false`. +
+By Default the registry access mode is `sysnative`. Using the optional second parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+Examples:
+[source,winst]
+----
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon")
+
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","32bit")
+----
+
+
+anchor:RegVarExists[]
+
+* `RegVarExists(`<regkey>, <var str> [,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Check if the given string expression <regkey> exists as registry key and if there is a variable with name <var str>.
+If both was found the result value ist `true` in all other cases `false`. +
+By Default the registry access mode is `sysnative`. Using the optional second parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+Examples:
+[source,winst]
+----
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon","Shell")
+
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","bootmode","32bit")
+----
 
 
 [[opsi-winst-commands-include]]
@@ -5702,7 +5852,8 @@ In consequence we will start to build up a central opsi-script library which is 
 In order to reach this target we have implemented the following concepts:
 
 * Functions with return value: +
-The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected.
+The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected. +
+Functions with no return value are also allowed and have to be declared as `void` (since 4.12.0.16).
 
 * Freely definable function call parameters: +
 Parameters can be passed to a function. These parameters are defined when the function is actually declared. The call parameters can be of type `string` or `stringlist`. +
@@ -5729,7 +5880,7 @@ The function body can contain its own sections of it. These are local to this fu
 
 *Definition*
 ----
-DefFunc <func name>([calltype parameter type][,[calltype parameter type]]) : type
+DefFunc <func name>([calltype parameter ptype][,[calltype parameter ptype]]) : ftype
 <function body>
 endfunc
 ----
@@ -5745,7 +5896,9 @@ Where:
 
 * 'parameter' is the free selected name of the call parameter which is available as a local variable within the function under the aforementioned name.
 
-* 'type' is the type of data of the parameter concretely the function wether `string` or `stringlist`;
+* 'ptype' is the type of data of the parameter wether `string` or `stringlist`. 
+
+* 'ftype' is the type of data of the function wether `string` ,`stringlist` or `void`. `void` declares that no result is returned.
 
 * '<function body>': is the body of the function which opsi-script syntax must suffice. +
 In this part there is the automaticly decared local variable `$result$` which should take the result of the function an so have the data type of the function.
@@ -5940,6 +6093,45 @@ set $list1$ = myFunc8('pwd')
 Expected results:
 
 * $list1$ = [+ pwd, /home/uib/gitwork/lazarus/opsi-script]
+
+Function of type `void` (no return value) which pass a `string` with a local variable:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+set $str1$ = 'haha'
+
+DefFunc myNoResultFunc(ref $str1$ : string) : void
+	set $str1$ = "huhu"
+endfunc
+
+myNoResultFunc($str1$)
+comment "$str1$ is: "+$str1$ 
+----
+
+Expected results:
+
+* $str1$ is: huhu
+
+Function of type  `string` with no parameter:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+DefFunc myNoParamFunc() : string
+	set $result$ = "huhu"
+endfunc
+
+set $str1$ = myNoParamFunc()
+----
+
+Expected results:
+
+* $str1$ is: huhu
 
 
 [[opsi-winst-commands-libraryfunctions]]
@@ -8337,6 +8529,13 @@ For a reading access to the different aereas of registry and filesystem we have 
 * `FileExists32`
 * `FileExists64`
 * `FileExistsSysNative`
+
+The following functions have the possibility to control the access mode by a parameter (the default is here `sysnative`):
+
+*  `getRegistryValue`
+*  `RegKeyExists`
+*  `RegVarExists`
+*  `powershellCall`
 
 A simple call to Registry-section results in writing to the 32 bit registry regions. Also a simple call to Files-section results in writing to the 32 bit file system regions.
 
