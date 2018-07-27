@@ -1045,6 +1045,7 @@ apt upgrade
 
 TIP: During the installation, you may be asked to modify the `smb.conf` file. Please select Yes. If you have modified the `smb.conf` file before you should save the default and make a diff on both files later. If you answered the question with default before reading this tip with 'no' you can reconfigure samba from an {opsi-Server} console with following command: `opsi-setup --auto-configure-samba`
 
+
 [[opsi-getting-started-installation-config-backend]]
 ==== Backend Configuration
 
@@ -1052,38 +1053,45 @@ opsi supports different backends for data management.
 
 The most important backends are:
 
-* file (storage in files)
-* mysql (storage in a MySQL database)
+* *file* - storage in files
+* *mysql* - storage in a MySQL database
+
+Besides these main backends there are some special backends:
+
+* *opsipxeconfd* - the service used for network boots with opsi
+* *dhcpd* - used for configuring and restarting the local dhcp service at {opsi-server}
+* *jsonrpc* - redirects all calls to another server via JSON RPC
+
+
+The default is to use the {mysql-backend} for inventory data.
+The usage of the {file-backend} for inventory data is possible but noticeable slower and therefore not recommended.
+
+NOTE: The use of the {mysql-Backend} for inventory data is free and does not required activation. +
+More information about the activation of co-financed modules can be found <<opsi-getting-started-installation-config-modules, here>>.
 
 NOTE: Some distributions use _MariaDB_ instead of _MySQL_. +
 The _mysql_ backend will also work with MariaDB.
 
-CAUTION: Since MySQL server version 5.7 the 'strict mode' is enabled by default. This mode prevents the command _opsi-setup_ _--configure-mysql_ to finish properly, with the correct configurations. To disable the strict mode please edit the file `/etc/mysql/mysql.conf.d/mysqld.cnf`. +
+
+CAUTION: Since MySQL server version 5.7 the 'strict mode' is enabled by default. +
+This mode prevents the command _opsi-setup_ _--configure-mysql_ to finish properly, with the correct configurations. +
+To disable the strict mode please edit the file `/etc/mysql/mysql.conf.d/mysqld.cnf`. +
 In the `[mysqld]` section add the following line underneath the section name: +
 `sql_mode=NO_ENGINE_SUBSTITUTION` +
  +
 Now the service `mysql` has to be restarted: `systemctl restart mysql.service`
 
 
-Besides these main backends there are some special backends:
-
-* opsipxeconfd (the service for the opsi pxe boot)
-* dhcpd (used for configuring and restarting the local dhcp service at {opsi-server})
-* jsonrpc (redirects all calls to a other server via JSON RPC)
-
-
-The default is to use the mysql backend for inventory data.
-
-NOTE: The use of the {mysql-Backend} for inventory data is free and does not required activation. +
-More information about the activation of co-financed modules can be found <<opsi-getting-started-installation-config-modules, here>>.
+We will now configure the {mysql-backend}.
+It is assumed that a MySQL server is installed and configured.
+We require the credentials for an database administrator.
+For specific information on installation and configuration of your database please refer to the manuals of your distribution.
 
 For the initial configuration of the {mysql-Backend} use the command:
 [source,prompt]
 ----
 opsi-setup --configure-mysql
 ----
-
-It is assumed that MySQL is installed and configured. We then require the credentials for an database administrator. For specific information on installation and configuration of your database please refer to the manuals of your distribution.
 
 The command will ask for information to database access and then use the provided credentials to create a database and an user with appropriate rights to access that database for opsi.
 
@@ -1095,10 +1103,13 @@ image::mysql-config-input-mask.png["Dialog opsi-setup --configure-mysql: Input m
 .Output: opsi-setup --configure-mysql: Output
 image::mysql-config-output.png["Output: opsi-setup --configure-mysql: Output",width=400]
 
-You may accept the defaults for all questions except the 'Database Admin Password'. The 'Database Admin Password' is 'linux123' on the pre-installed opsi-VM, otherwise it is the password you entered during the mysql-server installation.
+You may accept the defaults for all questions except the 'Database Admin Password'.
+The 'Database Admin Password' is `linux123` on the pre-installed opsi-VM, otherwise it is the password you entered during the mysql-server installation.
 
-Different kinds of data may be stored in different types of backends. For some actions (such as method calls) more than one backend has to be involved. Therefore, the different method calls can be used by more than one backend. These method-to-backend(s) calls are configured in the file
-`/etc/opsi/backendManager/dispatch.conf.`
+Different kinds of data may be stored in different types of backends.
+For some actions (such as method calls) more than one backend has to be involved.
+Therefore, the different method calls can be used by more than one backend.
+These method-to-backend(s) calls are configured in the file `/etc/opsi/backendManager/dispatch.conf.`
 
 Here an example:
 [source,configfile]
@@ -1129,13 +1140,17 @@ audit.*            : mysql
 .*                 : file
 ----
 
-You will find explanations and examples at the top of this file.  At the first column is the name of the opsi method being called (with wildcard \*) and after the colon is the list of backends used by that opsi method. For every called method procedure the first column of this list is proved to determine which backend have to be used. The last line (.*) matches all opsi method calls.
+You will find explanations and examples at the top of this file.
+At the first column is the name of the opsi method being called (with wildcard `.*`) and after the colon is the list of backends used by that opsi method.
+For every called method procedure the first column of this list is proved to determine which backend have to be used.
+The last line (`.*`) matches all opsi method calls.
 
-The default backend during the installation of package is the {file-backend} as main backend.
+The default configuration after the installation is the usage of the {file-backend} as main backend and the {mysql-backend} for license management and inventory data.
 
-CAUTION: Make sure that every backend used is listed in the line starting with  'backend_.*'.
+CAUTION: Make sure that every backend used is listed in the line starting with `backend_.*`.
 
-Now at the initial start-up (even without changing the file) you should call:
+Whenever you changed the file `dispatch.conf` you should execute the following commands.
+Even if you have not changed the file during the initial setup execute these commands now.
 
 [source,prompt]
 ----
@@ -1145,7 +1160,6 @@ systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 ----
 
-The access rights for calling the opsi methods are configured in `/etc/opsi/backendManager/acl.conf`.
 
 [[opsi-getting-started-installation-config-passwords]]
 ==== Set Samba Configuration and Change Passwords

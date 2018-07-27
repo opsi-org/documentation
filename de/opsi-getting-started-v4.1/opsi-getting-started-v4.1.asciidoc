@@ -1067,44 +1067,52 @@ apt upgrade
 
 TIP: Sollte beim Update nachgefragt werden, ob die `smb.conf` überschrieben werden soll, muss man dies bestätigen. Sollte die `smb.conf` vorher schon geändert worden sein, sollte man den default beibehalten und später die Dateien miteinander abgleichen. Sollte diese Nachfrage schon mit Nein beantwortet worden sein, kann man dies später auf dem {opsi-Server} durch ausführen von `opsi-setup --auto-configure-samba` nachholen.
 
+
 [[opsi-getting-started-installation-config-backend]]
 ==== Backend-Konfiguration
+
 Opsi unterstützt zur Datenhaltung unterschiedliche Backends.
 
 Im Wesentlichen sind dies:
 
-* file (Datenhaltung in Dateien)
-* mysql (Datenhaltung in einer MySQL-Datenbank)
+* *file* - Datenhaltung in Dateien
+* *mysql* - Datenhaltung in einer MySQL-Datenbank
+
+Daneben gibt es noch für spezielle Zwecke die Backends:
+
+* *{opsipxeconfd}* - der Dienst für den Netzwerkboot mit opsi
+* *dhcpd* - zur Kommunikation mit dem dhcp-Server auf dem {opsi-server}
+* *{json-rpc}* - zur Weiterleitung aller Anfragen an einen anderen Server
+
+
+Standardmäßig wird das {mysql-Backend} für die Inventarisierung verwendet.
+Die Verwendung des {file-Backend}s für Inventurdaten ist möglich, aber deutlich langsamer und deshalb nicht empfohlen.
+
+NOTE: Die Verwendung des {mysql-Backend} für Inventariserungsdaten ist kostenlos. +
+Mehr Informationen zur Freischaltung finden Sie <<opsi-getting-started-installation-config-modules, hier>>.
 
 NOTE: Einige Distributionen verwenden _MariaDB_ anstatt _MySQL_. +
 Das _mysql_-Backend funktioniert auch mit MariaDB.
 
-CAUTION: MySQL-Server verwendet seit Version 5.7 den vorher optionalen 'strict mode' nun standardmäßig. Dies führt zu einem Fehlschlag des Befehls `opsi-setup --configure-mysql`. Dementsprechend sollte vor dem Befehlsaufruf die Datei `/etc/mysql/mysql.conf.d/mysqld.cnf` editiert werden. +
+
+CAUTION: MySQL-Server verwendet seit Version 5.7 den vorher optionalen 'strict mode' nun standardmäßig. +
+Dies führt zu einem Fehlschlag des Befehls `opsi-setup --configure-mysql`. +
+Dementsprechend sollte vor dem Befehlsaufruf die Datei `/etc/mysql/mysql.conf.d/mysqld.cnf` editiert werden. +
 In der `[mysqld]` Sektion muss nun folgende Zeile eingefügt werden: +
 `sql_mode=NO_ENGINE_SUBSTITUTION` +
  +
 Danach muss der Dienst `mysql` neu gestartet werden: `systemctl restart mysql.service`
 
 
-Daneben gibt es noch für spezielle Zwecke die Backends:
-
-* {opsipxeconfd} (der Dienst für den opsi pxe-boot)
-* dhcpd (zur Kommunikation mit dem dhcp-Server auf dem {opsi-server})
-* {json-rpc} (zur Weiterleitung aller Anfragen an einen anderen Server)
-
-
-Standardmäßig wird das {mysql-Backend} für die Inventarisierung verwendet.
-
-NOTE: Die Verwendung des {mysql-Backend} für Inventariserungsdaten ist kostenlos. +
-Mehr Informationen zur Freischaltung finden Sie <<opsi-getting-started-installation-config-modules, hier>>.
+Nachfolgend wird das {mysql-Backend} zur Verwendung eingerichtet.
+Es wird davon ausgegangen, dass ein MySQL-Server eingerichtet wurde und die Zugangsdaten eines Datenbank-Administrators bekannt sind.
+Gezielte Informationen zu Installation und Einrichtung entnehmen Sie bitte den Handbüchern Ihrer Distribution.
 
 Für die initiale Konfiguration des {mysql-Backend}s nutzen Sie den Befehl:
 [source,prompt]
 ----
 opsi-setup --configure-mysql
 ----
-
-Es wird davon ausgegangen, dass MySQL eingerichtet wurde und die Zugangsdaten eines Datenbank-Administrators bekannt sind. Gezielte Informationen zu Installation und Einrichtung entnehmen Sie bitte den Handbüchern Ihrer Distribution.
 
 Der Befehl wird nach den Zugangsdaten zum Datenbanksystem fragen, um eine Datenbank und einen Benutzer mit entsprechenden Berechtigungen für diese Datenbank für opsi anzulegen.
 
@@ -1116,10 +1124,13 @@ image::mysql-config-input-mask.png["opsi-setup --configure-mysql: Eingabemaske",
 .opsi-setup --configure-mysql: Ausgabe
 image::mysql-config-output.png["opsi-setup --configure-mysql: Ausgabe",width=400]
 
-Bei den Abfragen können außer beim 'Database Admin Password' alle Vorgaben mit Enter bestätigt werden. Das 'Database Admin Password' ist auf der opsi-VM 'linux123' ansonsten das, was Sie bei der Installation des mysql-servers vergeben haben.
+Bei den Abfragen können außer beim 'Database Admin Password' alle Vorgaben mit Enter bestätigt werden.
+Das 'Database Admin Password' ist auf der opsi-VM `linux123` ansonsten das, was Sie bei der Installation des mysql-servers vergeben haben.
 
-Unterschiedliche Daten können in unterschiedlichen Backends gehalten werden. Über bestimmte Vorgänge müssen mehrere Backends informiert werden. Hierzu werden die opsi-Methoden den Backends zugeordnet. Dies geschieht in der Datei +
-`/etc/opsi/backendManager/dispatch.conf`.
+Unterschiedliche Daten können in unterschiedlichen Backends gehalten werden.
+Über bestimmte Vorgänge müssen mehrere Backends informiert werden.
+Hierzu werden die opsi-Methoden den Backends zugeordnet.
+Dies geschieht in der Datei `/etc/opsi/backendManager/dispatch.conf`.
 
 Hier ein Beispiel:
 [source,configfile]
@@ -1150,13 +1161,18 @@ audit.*            : mysql
 .*                 : file
 ----
 
-In dieser Datei sind oben Erläuterungen und Beispielkonfigurationen angegeben. In den nicht auskommentierten Zeilen steht vorne der Name der opsi-Methoden (mit wildcard \*) und nach einem Doppelpunkt die hierfür zuständigen Backends. Bei jedem Methodenaufruf wird anhand dieser Liste geprüft, welche Backends aufgerufen werden müssen. Dabei wird die erste Zeile genommen die zu dem Methoden Namen passt. Die letzte Zeile (.*) passt auf jeden Methoden Namen.
+In dieser Datei sind oben Erläuterungen und Beispielkonfigurationen angegeben.
+In den nicht auskommentierten Zeilen steht vorne der Name der opsi-Methoden (mit wildcard `.*`) und nach einem Doppelpunkt die hierfür zuständigen Backends.
+Bei jedem Methodenaufruf wird anhand dieser Liste geprüft, welche Backends aufgerufen werden müssen.
+Dabei wird die erste Zeile genommen die zu dem Methoden Namen passt.
+Die letzte Zeile (`.*`) passt auf jeden Methoden Namen.
 
-Die Defaulteinstellung bei Installation der Pakete ist das {file-Backend} als Haupt-Backend.
+Die Standardeinstellung bei der Installation von opsi die Verwendung  des {file-Backend}s als Haupt-Backend und Verwendung des {mysql-Backend} für Lizenzmanagement- und Inventur-Daten.
 
-CAUTION: Achten Sie darauf, dass alle verwendeten Backends in der Zeile beginnend mit 'backend_.*' aufgeführt werden.
+CAUTION: Achten Sie darauf, dass alle verwendeten Backends in der Zeile beginnend mit `backend_.*` aufgeführt werden.
 
-Bei Inbetriebnahme des Servers (auch ohne Änderung der Datei) und nach jeder Änderung dieser Datei sollten Sie folgende Befehle ausführen:
+Wann immer Sie die Datei `dispatch.conf` angepasst haben, führen Sie die folgenden Befehle aus.
+Auch wenn Sie bei der Inbetriebnahme des Servers die Datei nicht geändert haben, führen Sie sie diese Befehle jetzt aus.
 
 [source,prompt]
 ----
@@ -1165,8 +1181,6 @@ opsi-setup --set-rights
 systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 ----
-
-Wer welche Methoden verwenden darf, ist in der Datei '/etc/opsi/backendManager/acl.conf' festgelegt.
 
 
 [[opsi-getting-started-installation-config-passwords]]
@@ -1615,7 +1629,7 @@ Diese Methode dient zur Installation auf einzelnen Rechnern. Für ein Massen-Rol
 . Mounten Sie den share `\\<opsiserver>\opsi_depot` auf einen Laufwerksbuchstaben.
 . Starten Sie das Script `opsi-client-agent\service_setup.cmd` +
 Starten Sie da Script nicht elevated (also rechte Maustaste: 'als Administrator') sonst kann das Script evtl. nicht gestartet werden, da eine elevated Prozess kein Zugriff auf ein Netzlaufwerk hat.
-. Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script (winst32.exe) elevated. Daher bekommen Sie an dieser Stelle evtl. eine UAC Anfrage. 
+. Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script (winst32.exe) elevated. Daher bekommen Sie an dieser Stelle evtl. eine UAC Anfrage.
 . Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login-Fenster mit Service-URL ({opsi-configserver}), Benutzername und Passwort. Hier wird ein Benutzer benötigt, der Mitglied der Gruppe 'opsiadmin' ist.
 
 CAUTION: Der Client rebootet nach der Installation.
