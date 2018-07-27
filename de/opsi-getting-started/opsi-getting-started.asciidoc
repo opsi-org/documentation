@@ -995,6 +995,12 @@ muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die C
 
 Hinzufügen des opsi-SLES-Repositories per zypper:
 
+*SLES 12SP3:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:opsi40/SLE_12_SP3/home:uibmz:opsi:opsi40.repo
+zypper mr -p 50 home_uibmz_opsi_opsi40
+----
 
 *SLES 12SP2:*
 [source,prompt]
@@ -1284,115 +1290,6 @@ Machen Sie daher mit dem Punkt <<opsi-getting-started-installation-config-backen
 
 WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich auf Debian-Systeme, Sie müssen sie durch die entsprechenden CentOS-Befehle ersetzen.
 
-////
-[[opsi-getting-started-installation-base-fedora]]
-==== Installation auf einem RedHat Fedora
-
-Bitte beachten:
-
-* Die Fedora Pakete für opsi 4.0 sind gebaut für Fedora 20.
-
-* Zu Evaluierung von opsi empfiehlt die uib gmbh weiterhin dringend die Verwendung der opsi-VM.
-
-CAUTION: Fedora 20 wird momentan noch nicht offiziell unterstützt, obwohl es dafür bereits Repositories gibt. Es kann hierbei noch zu Problemen kommen, weshalb wir vom Einsatz in einer produktiven Umgegbung abraten.
-
-
-Notwendige Vorbereitungen:
-
-* Der Befehl
-+
-[source,prompt]
-----
-hostname -f
-----
-+
-muss einen fully qualified domainname zurück liefern, in dem mindestens zwei Punkte vorkommen, z.B. 'opsiserver.domain.local'.
-
-* Der Befehl
-+
-[source,prompt]
-----
-getent hosts $(hostname -f)
-----
-+
-muss die IP-Adresse der Netzwerkschnittstelle zurück liefern, zu der sich die Clients verbinden sollen. Gibt der Befehl die Adresse '127.0.0.1' oder '127.0.0.2' aus, muss die Datei '/etc/hosts' korrigiert werden.
-
-* xinetd installieren:
-+
-[source,prompt]
-----
-yum install xinetd
-----
-
-* Samba und mysql-server installieren:
-+
-[source,prompt]
-----
-yum install mysql-server samba
-----
-
-* Samba und mysql-server konfigurieren:
-+
-[source,prompt]
-----
-service mysqld start
-mysql_secure_installation
-service smb start
-service nmb start
-service xinetd start
-chkconfig smb on
-chkconfig nmb on
-chkconfig mysqld on
-chkconfig xinetd on
-----
-
-* `python-asn1` installieren:
-+
-[source,prompt]
-----
-yum install python-pyasn1
-----
-
-* Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon dhcpd konfiguriert und am Laufen sein.
-
-Hinzufügen des RHEL Repositories:
-
-[source,prompt]
-----
-yum -y install wget
-cd /etc/yum.repos.d
-wget --no-check-certificate http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Fedora_20/home:uibmz:opsi:opsi40.repo
-yum makecache
-----
-
-Nach dem Hinzufügen der Repositories kann die Installation gestartet werden:
-
-[source,prompt]
-----
-yum makecache
-yum install p7zip p7zip-plugins cabextract
-yum remove tftp-server
-yum install opsi-depotserver opsi-configed
-   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Fedora_20/repodata/repomd.xml.key
-   Is this ok [y/N]: y
-service opsiconfd restart
-service opsipxeconfd restart
-opsi-setup --auto-configure-samba
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-service smb restart
-service nmb restart
-----
-
-Bitte stellen Sie sicher, dass Ihre iptables- und SELinux-Konfiguration die folgenden Ports erlaubt: tftp Port (69/UDP) und die opsi ports (4447/TCP und 4441/TCP).
-
-Bei der Installation des {opsi-Server}s kann es zu Warnungen wegen einer nicht gefundenen `/etc/opsi/modules` kommen welche sie ignorieren sollen.
-
-Da Sie opsi auf einer existierenden Maschine eingespielt haben, gehen wir davon aus, dass Ihre Netzwerkkonfiguration korrekt ist. +
-Machen Sie daher mit dem Punkt <<opsi-getting-started-installation-config-backend>> weiter.
-
-WARNING: Die verwendeten Unix-Befehle in den folgenden Kapiteln beziehen sich auf Debian-Systeme, Sie müssen sie durch die entsprechenden RHEL-Befehle ersetzen.
-////
 
 [[opsi-getting-started-installation-config]]
 === Aktualisieren und Konfigurieren des {opsi-Server}s
@@ -1711,7 +1608,7 @@ In der vorkonfigurieren opsi VM ist bereits ein DHCP-Server installiert. +
 Der DHCP-Server auf der {opsi-Server} VM ist so konfiguriert, das er keine freien leases hat, also keine IP-Nummern an unbekannte Rechner vergibt. Wenn Sie im {opsi-configed} einen Client erzeugen, müssen Sie daher IP-Nummer und MAC-Adresse angeben, da diese in die '/etc/dhcp/dhcpd.conf' eingetragen und danach der DHCP Dienst neu gestartet wird.
 
 .Eigene Installation:
-Die opsi Serverpakete haben seit Version 4.0.3 keine Abhängigkeit zu einem DHCP-Server mehr. Wenn Sie den opsi-Server als DHCP-Server verwenden möchten, müssen Sie daher das entsprechende Paket manuell nachinstallieren
+Wenn Sie den opsi-Server als DHCP-Server verwenden möchten, müssen Sie daher das entsprechende Paket manuell nachinstallieren
 
 z.B. mit
 [source,prompt]
@@ -1724,6 +1621,21 @@ Nach der Installation muß die Konfigurationsdatei noch angepasst werden mit dem
 ----
 opsi-setup --auto-configure-dhcpd
 ----
+Damit der in der Konfiguration-Datei '/etc/opsi/backends/dhcpd.conf' aufgeführte Befehl zum Neustarten des DHCP-Servers vom opsiconfd ausgeführt werden darf, ist ein Eintrag unter /etc/sudors notwendig. Dieser wird über den Aufruf
+[source,prompt]
+----
+opsi-setup --patch-sudoers-file
+----
+erstellt.
+
+Gegebenenfalls wären noch die Berechtigungen der DHCPD Konfigurationsdatei zu kontrollieren, die zB. so aussehen sollten:
+[source,prompt]
+----
+-rw-r--r-- 1 opsiconfd opsiadmin 80174 Dez 22 14:37 /etc/dhcp/dhcpd.conf
+----
+
+
+
 
 [[opsi-getting-started-installation-config-at-other-server]]
 ==== Alternative: externer DHCP-Server
@@ -2048,9 +1960,25 @@ Danach können vorhandene opsi-Produkte auf diesen Clients installiert werden.
 
 Diese Methode dient zur Installation auf einzelnen Rechnern. Für ein Massen-Rollout siehe weiter unten.
 
+[[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt6]]
+===== service_setup.cmd auf Windows NT6
+
 . Loggen Sie sich mit administrativen Rechten auf dem Client ein.
 . Mounten Sie den share `\\<opsiserver>\opsi_depot` auf einen Laufwerksbuchstaben.
-. Starten Sie das Script `opsi-client-agent\service_setup.cmd`
+. Starten Sie das Script `opsi-client-agent\service_setup.cmd` +
+Starten Sie da Script nicht elevated (also rechte Maustaste: 'als Administrator') sonst kann das Script evtl. nicht gestartet werden, da eine elevated Prozess kein Zugriff auf ein Netzlaufwerk hat.
+. Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script (winst32.exe) elevated. Daher bekommen Sie an dieser Stelle evtl. eine UAC Anfrage. 
+. Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login-Fenster mit Service-URL ({opsi-configserver}), Benutzername und Passwort. Hier wird ein Benutzer benötigt, der Mitglied der Gruppe 'opsiadmin' ist.
+
+CAUTION: Der Client rebootet nach der Installation.
+
+[[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt5]]
+===== service_setup_NT5.cmd auf Windows NT5
+
+. Loggen Sie sich mit administrativen Rechten auf dem Client ein.
+. Mounten Sie den share `\\<opsiserver>\opsi_depot` auf einen Laufwerksbuchstaben.
+. Starten Sie das Script `opsi-client-agent\service_setup_NT5.cmd`
+. Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script (winst32.exe).
 . Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login-Fenster mit Service-URL ({opsi-configserver}), Benutzername und Passwort. Hier wird ein Benutzer benötigt, der Mitglied der Gruppe 'opsiadmin' ist.
 
 CAUTION: Der Client rebootet nach der Installation.

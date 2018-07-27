@@ -843,6 +843,13 @@ have to send the IP-adress of the network gateway the client connected with. If 
 
 You can use zypper to add the SLES-Repository:
 
+*SLES 12SP3:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:opsi40/SLE_12_SP3/home:uibmz:opsi:opsi40.repo
+zypper mr -p 50 home_uibmz_opsi_opsi40
+----
+
 *SLES 12SP2:*
 [source,prompt]
 ----
@@ -1137,116 +1144,6 @@ Next continue on with <<opsi-getting-started-installation-config-backend>>
 
 WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
 
-////
-[[opsi-getting-started-installation-base-fedora]]
-==== Installation on RedHat Fedora
-
-Please note:
-
-* opsi 4.0 is built and tested for Fedora 20.
-
-* For evaluation purposes, uib gmbh strongly recommends the usage of the opsi-VM.
-
-CAUTION: Fedora 20 is currently not officially supported but repositories exist. Problems may still occur. We do not recommend using this in a productive environment.
-
-Please read <<opsi-getting-started-introduction-software-and-configuration-preconditions>> (if you haven't done yet).
-
-Necessary preparations:
-
-* The command
-+
-[source,prompt]
-----
-hostname -f
-----
-+
-must return a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
-
-* Check the {opsi-server} entry in `/etc/hosts` or the output of
-+
-[source,prompt]
-----
-getent hosts $(hostname -f)
-----
-+
-The result should look like the following example: +
-'192.168.1.1 server.domain.tld server' +
-The result has the scheme: +
-'<IP-Number> <full qualified hostname> <hostname>' +
-If the result looks different than the example above (contains eg. '127.0.0.1' or 'localhost'), or the fully qualified hostname does not contain one or more dots, then you must correct your name resolution (DNS or `/etc/hosts` file).
-
-* Install xinetd:
-+
-[source,prompt]
-----
-yum install xinted
-----
-
-* Install samba and mysql-server:
-+
-[source,prompt]
-----
-yum install mysql-server samba samba-client
-----
-
-* Configure samba and mysql-server:
-+
-[source,prompt]
-----
-service mysqld start
-mysql_secure_installation
-service smb start
-service nmb start
-service xinetd start
-chkconfig smb on
-chkconfig nmb on
-chkconfig mysqld on
-chkconfig xinetd on
-----
-
-* Install `python-asn1`:
-+
-[source,prompt]
-----
-yum install python-pyasn1
-----
-
-* If the machine should also act as DHCP-server, then the daemon dhcpd has to be configured and should be up and running
-
-Add the opsi CentOS Repository:
-
-[source,prompt]
-----
-yum -y install wget
-cd /etc/yum.repos.d
-wget --no-check-certificate http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/Fedora_20/home:uibmz:opsi:opsi40.repo
-yum makecache
-----
-
-After adding the repository, you may start the opsi installation:
-
-[source,prompt]
-----
-yum makecache
-yum install p7zip p7zip-plugins cabextract
-yum install opsi-depotserver opsi-configed
-   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/repodata/repomd.xml.key
-   Is this ok [y/N]: y
-service opsiconfd restart
-service opsipxeconfd restart
-opsi-setup --auto-configure-samba
-chkconfig opsiconfd on
-chkconfig opsipxeconfd on
-service smb restart
-service nmb restart
-----
-
-Please make sure that your iptables and SELinux configuration allow access to the tftp Port (69/UDP) and the opsi ports (4447/TCP and 4441/TCP).
-
-Assuming all of the above steps were completed successfully, we can assume that the network is properly configured. Next continue on with <<opsi-getting-started-installation-config-backend>>
-
-WARNING: The Unix commands that are used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
-////
 
 [[opsi-getting-started-installation-config]]
 === Update and Configuration of the {opsi-server}
@@ -1522,6 +1419,16 @@ After the installation you must configure the dhcp configuration for opsi. This 
 [source,prompt]
 ----
 opsi-setup --auto-configure-dhcpd
+----
+To execute the command to restart the DHCP server from opsiconfd listed in the configuration file '/etc/opsi/backends/dhcpd.conf', an entry under /etc/sudoers is required. This is created using the command
+[source,prompt]
+----
+opsi-setup --patch-sudoers-file
+----
+If deemed necessary, the permissions of the DHCPD configuration file can be checked, which should look like this, for example:
+[source,prompt]
+----
+-rw-r--r-- 1 opsiconfd opsiadmin 80174 Dec 22 14:37 /etc/dhcp/dhcpd.conf
 ----
 
 [[opsi-getting-started-installation-config-at-other-server]]
@@ -1875,12 +1782,31 @@ To integrate existing Windows clients into opsi, the opsi-client-agent has to be
 
 This method is the first choice for installations on a single computer.  service_setup.cmd can also be used for repair purposes. For mass roll-out, see the chapter below.
 
-. login to the Windows client with administrative privileges
-. mount the shared directory on the opsi server at \\<opsiserver>\opsi_depot to a drive letter
-. on the drive letter from the previous step, start the script opsi-client-agent\service_setup.cmd
+[[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt6]]
+===== service_setup.cmd on Windows NT6
+
+
+. logon to the Windows client with administrative privileges
+. mount the shared directory on the opsi server at `\\<opsiserver>\opsi_depot` to a drive letter
+. on the drive letter from the previous step, start the script `opsi-client-agent\service_setup.cmd` +
+Do not start the script elevated (via right mouse click: 'as Administrator') because an elevated script may have no access to the network share.
+. The script copies the needed files to a temporary local directory and starts from there the opsi-script (winst32.exe) elevated in order to do the installation. Therefore you may see here an UAC Message.
+. The script connects to the opsi-webservice in order to create the client on the server side and get the pckey. The first connection is established with the user/password combination provided in the config.ini. If the connection fails, a login window will pop up, where the user can type in a Service-URL ({opsi-configserver}), with a user and a password. The provided user needs to be member of the group 'opsiadmin'.
+
+CAUTION: Der Client rebootet nach der Installation.
+
+[[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt5]]
+===== service_setup_NT5.cmd on Windows NT5
+
+
+. logon to the Windows client with administrative privileges
+. mount the shared directory on the opsi server at `\\<opsiserver>\opsi_depot` to a drive letter
+. on the drive letter from the previous step, start the script `opsi-client-agent\service_setup_NT5.cmd`
+. The script copies the needed files to a temporary local directory and starts from there the opsi-script (winst32.exe) in order to do the installation.
 . The script connects to the opsi-webservice in order to create the client on the server side and get the pckey. The first connection is established with the user/password combination provided in the config.ini. If the connection fails, a login window will pop up, where the user can type in a Service-URL ({opsi-configserver}), with a user and a password. The provided user needs to be member of the group 'opsiadmin'.
 
 WARNING: During installation, the client reboots without notice!
+
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy]]
 ==== Usage of the opsi-deploy-client-agent
