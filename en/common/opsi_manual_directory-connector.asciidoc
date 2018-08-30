@@ -27,7 +27,7 @@
 [[opsi-manual-dircon-introduction]]
 ==== Introduction
 
-The opsi directory connector is a tool to transfer data from an directory service
+The opsi directory connector is a tool to transfer data from a directory service
 to an opsi installation.
 This avoids the need of maintaining data in two separate systems.
 
@@ -37,6 +37,10 @@ This avoids the need of maintaining data in two separate systems.
 This module is currently a
 link:https://www.opsi.org/product/extensions-of-opsi/[co-funded opsi extension]. +
 Some preconditions are required, in order to use this module. That means that you need a suitable modules file to unlock this extension. You can get this file by purchasing the extension module. For evaluation purposes you can get a temporary modules file without charge. ( -> mail us at info@uib.de). +
+
+ifdef::manual[]
+More details can be found at <<opsi-manual-modules>>.
+endif::manual[]
 
 
 [[opsi-manual-dircon-preconditions-general]]
@@ -53,8 +57,9 @@ the directory and opsi over the network.
 
 It is possible to have everything running on the same server but this manual will assume that different machines are used.
 
-[[opsi-manual-dircon-preconditions-hw]]
-===== Hardware-Requirements
+
+[[opsi-manual-dircon-requirements-hardware]]
+===== Hardware Requirements
 
 These requirements are intended for a basic use in a small-sized environment
 with up to 500 clients.
@@ -64,37 +69,34 @@ so please be aware that adjustments may be necessary.
 * 256 MB of free RAM
 * Network connection
 
-[[opsi-manual-dircon-preconditions-sw]]
-===== Software-Requirements
+
+[[opsi-manual-dircon-requirements-software]]
+===== Software Requirements
 
 The installation and operation is only supported on Linux.
 Support for Windows is not planned.
 
-On the machine the following has to be installed.
+The connector uses Python 3 which has to be available in at least version 3.2.
 
-* Python 3.4 or newer
+The connector uses standardized protocols and therefore does not require any further opsi- or directory-components to be installed.
 
-The following modules for Python 3:
-
-* ldap3
-* requests
-
-Because the communication is implemented using standardized protocols
-the connector does not require any specific opsi- or directory-components
-to be installed.
-
-Installing the connector through your operating system's package manager will install these requirements automatically.
 
 [[opsi-manual-dircon-installation]]
 ==== Installation
 
-Please use your operating system's package manager to install the package `opsi-directory-connector`.
+To install the connector please add the opsi repository as described in the _Getting Started_ document.
+
+Then use your operating system's package manager to install the package `opsi-directory-connector`.
 
 On an Debian-based machine installation can be done like this:
 [source,prompt]
 ----
 apt-get install opsi-directory-connector
 ----
+
+NOTE: CentOS and RedHat version 6 and 7 do not have Python 3 as part of their core repositories.
+Therefore we currently can not support installation on these operating systems.
+
 
 [[opsi-manual-dircon-configuration]]
 ==== Configuration
@@ -127,11 +129,13 @@ the search scopes to specific areas and entries.
         "address": "ldap://192.168.12.34",
         "user": "DOMAIN\\opsiconnector",
         "password": "insertpasswordhere",
+        "passwordFile": "",
         "search_base": "dc=testcompy,dc=local",
         "search_query_computers": "(objectClass=computer) ",
         "search_query_groups": "(objectClass=organizationalUnit)",
         "connection_options": {
-            "start_tls": true
+            "start_tls": true,
+            "paged_search_limit": 768
         }
     },
     …
@@ -140,10 +144,14 @@ the search scopes to specific areas and entries.
 
 Under `address` you specify the directory-server.
 `user` and `password` are required for authentication at the directory.
+If `passwordFile` is set the value will be interpreted as path to a file that contains the password. The content of the file will be used as password.
+This allows for not having the password written in plaintext in the file.
+This will override the value set for `password` if the file can be read.
 
 TIP: We recommend using a dedicated user account.
 
-NOTE: Many systems expect to receive the full DN as username. Example: `uid=opsiconnect,cn=users,dc=test,dc=intranet`.
+NOTE: Depending on the used directory software and it's configuration the format for the username can be different. +
+Besides _Down-Level Logon Name_ in the format of `DOMAIN\\username` it is possible that the format uses _User Principal Name_ with the format of `user@domain` or a _Distinguished Name_ (DN) like `uid=opsiconnect,cn=users,dc=test,dc=intranet`.
 
 With `search_base` you specify the location from where on the connector
 looks for matching entries.
@@ -157,18 +165,39 @@ With `start_tls` it is possible the control if a secure connection should be use
 
 NOTE: Additional connection options will be implemented on demand.
 
+If the optional parameter `paged_search_limit` is present and it's value is an integer multiple queries are made to the directory in order to read it's elements.
+How many elements a response contains is limited through the given value.
+This is supported since version 20.
+
+Through the optional parameter `identifying_attribute` it is possible to set the attribute used for the unique identification of an client. This is possible since version 23.
+The default is the usage of `dn`.
+
 Since version 14 it is possible to test the connection to the directory through the paramter `--check-directory` without connecting to the opsi server.
 
 
 [[opsi-manual-dircon-conf-dir-ucs]]
 ===== Configure connnection for UCS
 
-For a connection to Univention Corporate Server the full DN hast do be used as username.
+For a connection to Univention Corporate Server a full _Distinguished Name_ hast do be used as username.
+This has the form `uid=<username>,cn=users,dc=company,dc=mydomain`.
 
-For a search through the complete directory you can set `search_base` to the output of the command `ucr get ldap/base`.
+On UCS LDAP is reachable through ports 7389 (unsecured) resp. 7636 (secured via SSL).
+If Samba is installed on the Server and used as AD-compatible domain controller then it is listening on ports 389 (unsecured) resp. 636 (secured via SSL).
+To make use of the secured ports set the connection option `start_tls` to `true`.
 
+The different connections also change the DN used for authentication.
+LDAP uses `uid=…` where are Samba works with `dn=…`.
+
+Usually clients are found in the container `computers`. The following command shows a matching value for `search_base`:
+[source,prompt]
+----
+echo "cn=computers,$(ucr get ldap/base)"
+----
 
 To search for Windows clients you can set `search_query_computers` to `(objectClass=univentionWindows)`.
+
+
+How you can create a user with read only access is described in the Univetion wiki: link:https://wiki.univention.de/index.php?title=Cool_Solution_-_LDAP_search_user[Cool Solution - LDAP search user]
 
 
 [[opsi-manual-dircon-conf-work]]
@@ -208,7 +237,8 @@ If `prefer_location_from_directory` is set to `true` clients will be
 moved in opsi to the same location they have in the directory.
 If you want to disable this set it to `false`.
 
-[[opsi-manual-dircon-conf-map]]
+
+[[opsi-manual-dircon-conf-mapping]]
 ===== Attribute-Mappings
 
 With a system as flexible as a directory service the connector must
@@ -245,6 +275,45 @@ The key of each mapping is the attribute in opsi and the value is the attribute 
 
 NOTE: If the value read from the directory for the client ID does not seem to be an FQDN an FQDN will be created. The domain part for this will be created from the DC of the read element.
 
+TIP: On UCS the value for `hardwareAddress` can be set to `macAddress` if the connection is made through LDAP (ports 7389 or 7636).
+
+
+[[opsi-manual-dircon-conf-mapping-groupnames]]
+===== Manual assignment of group names
+
+Group names are usually used without any major adjustments.
+But this may lead to cases where names should be used that are invalid in opsi.
+
+For this special cases a manual assignment of group names can be helpful.
+
+To configure this an entry `group_name` has to be created in `mapping`.
+This holds the mapping from the directory to opsi.
+Names that are not present in this mapping aren't changed.
+The group names are always processed in lowercase.
+This can be configured since version 23.
+
+The following example handles the group `_server` originating from the directory as `server` in opsi.
+
+[source,json]
+----
+{
+    ...
+    "mapping": {
+        ...
+        "group": {
+        ...
+        },
+    "group_name" {
+        "_server": "server"
+    }
+    },
+    ...
+}
+----
+
+WARNING: Please be careful with this feature as it may introduce undesired side effects. It should only be used for special cases!
+
+
 [[opsi-manual-dircon-conf-conect]]
 ===== opsi connection settings
 
@@ -258,6 +327,8 @@ This specifies how the connector accesses opsi.
         "address": "https://localhost:4447",
         "username": "syncuser",
         "password": "secret",
+        "exit_on_error": false
+        "passwordFile": "",
         "connection_options": {
             "verify_certificate": true
         }
@@ -272,8 +343,15 @@ NOTE: To use a proxy for the connection use the environment variable 'HTTPS_PROX
 
 `username` and `password` should be set accordingly to authenticate
 at the opsi server.
+If `passwordFile` is set the value will be interpreted as path to a file that contains the password.
+The content of the file will be used as password.
+This allows for not having the password written in plaintext in the file.
+This will override the value set for `password` if the file can be read.
 
 TIP: We recommended setting up a dedicated user for this task. Refer to the document _Getting Started_ on how to do this.
+
+If the parameter `exit_on_error` is `true` then any problem that appears when updating data in opsi opsi - this could be triggered by submitting values that are invalid in opsi - results in a break.
+If this is `false` then problems will be logged but the run will not be stopped.
 
 With `connection_options` the options for connecting to opsi can be set.
 `verify_certificate` configures the verification of the server certificate.
@@ -312,17 +390,7 @@ a good choice.
 
 The following example will set up the connector so that it is run five minutes after the machine was booted and from then on every hour.
 
-We require two files that need to be placed in the corresponding directory
-for user-defined units.
-The path where this files need to be stored may vary between operating systems.
-Please use `pkg-config` to obtain the path your system uses by running the following command:
-
-[source,prompt]
-----
-pkg-config systemd --variable=systemduserunitdir
-----
-
-In this directory you need to place the two following files.
+In the directory `/etc/systemd/system/`, this is the directory for user-defined units, you need to place the two following files.
 One for the timer that makes the job recurring and one for the job itself.
 
 Please put this inside `opsi-directory-connector.timer`:

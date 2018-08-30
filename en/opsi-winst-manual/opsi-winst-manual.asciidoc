@@ -593,8 +593,7 @@ anchor:opsi-script-configs_debug_lib[]
 
 * `opsi-script.global.debug_lib` : boolean +
 If false log messages from defined functions that are imported from external library files will be suppressed excepting Warnings and Errors. +
-Default: false +
-This feature is still buggy right now, but will be fixed until the stable release.
+Default: false 
 
 anchor:opsi-script-configs_default_loglevel[]
 
@@ -1023,6 +1022,12 @@ Directory which should be used for temporary files. (At Windows: `c:\opsi.org\tm
 
 `%opsiLogDir%` // since 4.11.4.3 +
 Directory which should be used for log files. (At Windows: `c:\opsi.org\log`)
+
+`%opsidata%` // since 4.12.0.12 +
+Directory which should be used for opsi data files (e.g. disks, partitions). (At Windows: `c:\opsi.org\data`)
+
+`%opsiapplog%` // since 4.12.0.12 +
+Directory which should be used for log files from programs that running in the user context. (At Windows: `c:\opsi.org\applog`)
 
 
 Example: +
@@ -1644,12 +1649,31 @@ returns the string which was given to the '{opsi-winst}/opsi-script' by the opti
 [[opsi-winst-string-functions-reg]]
 ==== Reading Values from the Windows Registry and Transforming Values into Registry Format [W]
 
+anchor:getRegistryValue[]
+
+*  `getRegistryValue (`<keystr>, <varstr> [, <access str>]`)` : string //since 4.12.0.16 [W] +
+tries to use <keystr> as Registry key and open it and read there the variable <varstr> and return the value of this variable as a string. +
+If there is no registry key <keystr> or the variable <varstr> does not exist the function produces a warning message in the log file and returns the empty string. +
+If <varstr> is an empty string, the default entry of the key will be returned. +
+By Default the registry access mode is `sysnative`. Using the optional third parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+
+Example:
+[source,winst]
+----
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell")
+
+getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell","64bit")
+----
+
 anchor:GetRegistrystringvalue[]
 
 * `GetRegistrystringvalue(`"[key] var"`) : string` [W] +
 tries to interpret the passed String value as an expression of format +
 '[KEY] X' +
-Then, the function tries to open the registry key `KEY`, and, in case it succeeds, to read and return the String value that belongs to the registry variable name `X` .
+Then, the function tries to open the registry key `KEY`, and, in case it succeeds, to read and return the String value that belongs to the registry variable name `X` . +
+see also : <<getRegistryValue>>
 
 E.g.
 [source,winst]
@@ -1662,17 +1686,17 @@ usually yields "Explorer.exe", the default Windows shell program.
 If there is no registry key `KEY` or the variable `X` does not exist the function produces a warning message in the log file and returns the empty string.
 
 For example:
-If we made a 'standard entry' with the value +standard entry+ at the key +HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\test-4.0+, we will get with
+If we made a 'standard entry' with the value +standard entry+ at the key +HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\test-4.0+, we will get with
 [source,winst]
 ----
-Set  $CompValue$ = GetRegistryStringValue32 ("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\test-4.0]")
+Set  $CompValue$ = GetRegistryStringValue32 ("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\test-4.0]")
 ----
 
 the following log:
 [source,winst]
 ----
 Registry started with redirection (32 Bit)
-Registry key [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\test-4.0]  opened
+Registry key [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\test-4.0]  opened
 Key closed
 The value of the variable "$CompValue$" is now: "standard entry"
 ----
@@ -1680,20 +1704,20 @@ The value of the variable "$CompValue$" is now: "standard entry"
 anchor:GetRegistryStringValue32[]
 
 * `GetRegistryStringValue32 (`"[key] var"`) : string`  +
-->	see <<opsi-winst-64bit,Chapter 64 Bit>>
-see also : <<GetRegistrystringvalue>>
+->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
+see also : <<getRegistryValue>>
 
 anchor:GetRegistryStringValue64[]
 
 * `GetRegistryStringValue64 (`"[key] var"`) : string` +
 ->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
-see also : <<GetRegistrystringvalue>>
+see also : <<getRegistryValue>>
 
 anchor:GetRegistryStringValueSysNative[]
 
 * `GetRegistryStringValueSysNative (`"[key] var"`) : string`  +
 ->	see <<opsi-winst-64bit,Chapter 64 Bit>> +
-see also : <<GetRegistrystringvalue>>
+see also : <<getRegistryValue>>
 
 anchor:RegString[]
 
@@ -1839,7 +1863,15 @@ SubstringBefore ("C:\programme\staroffice\program\soffice.exe", "\program\soffic
 ----
 returns '"C:\programme\staroffice"'.
 
-`takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
+anchor:getIndexFromListByContaining[]
+
+* `getIndexFromListByContaining`(<list> : stringlist,<search string> : string`)` : <number> : string  //since 4.12.0.13 [W/L] +
+Returns a string that holds the index of the first string in <list> which contains <search string>. +
+Retruns a empty string if no matching string is found. +
+The check is performed case-insensitive.
+
+
+* `takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
 returns the first string from <list> which contains <search string>. +
 Retruns a empty string if no matching string is found. +
 see also : <<takeFirstStringContaining>>
@@ -1853,6 +1885,11 @@ anchor:lower[]
 
 * `lower(`<string>`) : string` [W/L] +
 returns <string> with lower case.
+
+anchor:upper[]
+
+* `upper(`<string>`)` [W/L] +
+returns <string> with upper case.
 
 anchor:contains[]
 
@@ -3211,7 +3248,7 @@ produces e.g the log:
 ----
 Set  $INST_Resultlist$ = getProductMap
     retrieving strings from getProductMap [switch to loglevel 7 for debugging]
-        (string   0)id=opsi-winst-test
+        (string   0)id=opsi-script-test
         (string   1)name=opsi-winst test
         (string   2)description=Test  and example script for opsi-winst
         (string   3)advice=
@@ -3229,7 +3266,7 @@ Set  $INST_Resultlist$ = getProductMap
 
 Set  $string1$ = getValue("id", $INST_Resultlist$)
     retrieving strings from $INST_Resultlist$ [switch to loglevel 7 for debugging]
-        (string   0)id=opsi-winst-test
+        (string   0)id=opsi-script-test
         (string   1)name=opsi-winst test
         (string   2)description=Test  and example script for opsi-winst
         (string   3)advice=
@@ -3244,7 +3281,7 @@ Set  $string1$ = getValue("id", $INST_Resultlist$)
         (string  12)installedmodificationtime=
         (string  13)actionrequest=setup
 
-  The value of the variable "$string1$" is now: "opsi-winst-test"
+  The value of the variable "$string1$" is now: "opsi-script-test"
 ----
 
 [[opsi-winst-stringlist-create-by-value]]
@@ -3270,7 +3307,8 @@ generates the list of partial strings of <string1> (including empty strings) bef
 set $list1$ = splitString ("\\server\share\directory", "\")
 ----
 defines the list +
-'"", "", "server", "share", "directory"'
+'"", "", "server", "share", "directory"' +
+If the given string is in the list of confidential strings, so the resulting string parts will also be added to the list of confidential strings.
 
 anchor:splitStringOnWhiteSpace[]
 
@@ -3282,7 +3320,8 @@ set $list1$ = splitStringOnWhiteSpace("Status   Lokal     Remote         Netzwer
 ----
 produces the list +
 '"Status", "Lokal", "Remote", "Netzwerk"' +
-no matter how many blanks or tabs constitute the white space between the words.
+no matter how many blanks or tabs constitute the white space between the words. +
+If the given string is in the list of confidential strings, so the resulting string parts will also be added to the list of confidential strings.
 
 [[opsi-winst-stringlist-create-by-file]]
 ==== Loading Lines of a Text File into a String List
@@ -3540,26 +3579,26 @@ At first, we create entries in the registry with the following example code: +
 Registry_createkeys /32Bit
 
 [Registry_createkeys]
-openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test]
 set "var1" = "value1"
 set "var2" = REG_SZ:"value2"
 set "var3" = REG_EXPAND_SZ:"value3"
 set "var4" = REG_DWORD:444
 set "var5" = REG_BINARY:05 05 05 0F 10
 set "var6" = REG_MULTI_SZ:"value6|value7|de"
-openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key1]
-openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key2]
-openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key3]
-openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-winst-test\key4]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key1]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key2]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key3]
+openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key4]
 ----
 Given the registry entries in the example above, and the following code:
 [source,winst]
 ----
-set $list$ = getRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+set $list$ = getRegistryVarList32("hklm\software\opsi.org\opsi-script-test")
 ----
 we will see the following values in the log:
 ----
-Set  $list$ = GetRegistryVarList32("hklm\software\opsi.org\opsi-winst-test")
+Set  $list$ = GetRegistryVarList32("hklm\software\opsi.org\opsi-script-test")
 Registry started with redirection (32 Bit)
     retrieving strings from GetRegistryVarList32 [switch to loglevel 7 for debugging]
         (string   0)var1
@@ -3573,11 +3612,11 @@ Registry started with redirection (32 Bit)
 Then we call:
 [source,winst]
 ----
-set $list$ = getRegistryVarMap32("hklm\software\opsi.org\opsi-winst-test")
+set $list$ = getRegistryVarMap32("hklm\software\opsi.org\opsi-script-test")
 ----
 The following Log:
 ----
-Set  $list$ = GetRegistryVarMap32("hklm\software\opsi.org\opsi-winst-test")
+Set  $list$ = GetRegistryVarMap32("hklm\software\opsi.org\opsi-script-test")
 retrieving strings from GetRegistryVarMap32 [switch to loglevel 7 for debugging]
     (string   0)var1=value1
     (string   1)var2=value2
@@ -3590,11 +3629,11 @@ retrieving strings from GetRegistryVarMap32 [switch to loglevel 7 for debugging]
 Given the registry entries in the example above, and the following code:
 [source,winst]
 ----
-set $list$ = getRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+set $list$ = getRegistryKeyList32("hklm\software\opsi.org\opsi-script-test")
 ----
 we will get the following key in the log:
 ----
-Set  $list$ = GetRegistryKeyList32("hklm\software\opsi.org\opsi-winst-test")
+Set  $list$ = GetRegistryKeyList32("hklm\software\opsi.org\opsi-script-test")
 Registry started with redirection (32 Bit)
     retrieving strings from GetRegistryKeyList32 [switch to loglevel 7 for debugging]
         (string   1)key1
@@ -3740,6 +3779,51 @@ anchor:getListContainingList[]
 * `getListContainingList(`<list1>,<list2>`) : stringlist`  //since 4.11.3.7 [W/L] +
 returns the intersection of list1 and list2.
 
+anchor:getSubListByMatch_sl[]
+
+* `getSubListByMatch (`<search string>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of <target list> where the string matches with <search string>. +
+The check is performed case-insensitive.
+
+anchor:getSubListByMatch_ll[]
+
+* `getSubListByMatch (`<search list>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of <target list> where the string matches with one of the strings of <search list>. +
+The check is performed case-insensitive.
+
+anchor:getSubListByContaining_sl[]
+
+* `getSubListByContaining (` <search string>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of <target list> where the string contains <search string>. +
+The check is performed case-insensitive.
+
+
+anchor:getSubListByContaining_ll[]
+
+* `getSubListByContaining (`<search list>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of <target list> where the string contains with one of the strings of <search list>. +
+The check is performed case-insensitive.
+
+anchor:getSubListByKey_sl[]
+
+* `getSubListByKey (`<search string>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of <target list> where the string starts with '<search string>='. +
+The check is performed case-insensitive.
+
+anchor:getSubListByKey_ll[]
+
+* `getSubListByKey (`<search list>, <target list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns the part of the key/value <target list> where the key is one of the strings of <search list>. +
+The check is performed case-insensitive.
+
+
+anchor:getKeyList[]
+
+* `getKeyList (`<list>`)` :stringlist //since 4.12.0.14 [W/L] +
+returns from the the key/value list <list> (in the format key=value) the list of keys. +
+Is an entry in <list> not in the format key=vakue, the complete string will be part of the result list.
+
+
 * `takeFirstStringContaining(`<list>,<search string>`) : string` [W/L] +
 returns the first string from <list> which contains <search string>. +
 Return en empty string if <search string> is not found. +
@@ -3801,7 +3885,7 @@ line 9
 line 10
 ----
 
-Code from opsi-winst-test:
+Code from opsi-script-test:
 
 [source,winst]
 ----
@@ -4279,7 +4363,7 @@ else
 	LogWarning "failed"
 endif
 ----
-For more examples refer to the product 'opsi-winst-test'
+For more examples refer to the product 'opsi-script-test'
 at the section '$Flag_calculate$ = "on"'
 
 [[opsi-winst-process]]
@@ -4344,6 +4428,68 @@ set $exitcode$ = getLastExitcode
 [DosInAnIcon_netstart]
 net start
 ----
+
+anchor:powershellCall_list[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : stringlist (output)` //since 4.12.0.16 [W] +
+Runs <command string> with the powershell. +
+More exactly the powershell runs a script that looks like:
+----
+trap { write-output $_ ; exit 1 }
+<commandstr>
+exit $LASTEXITCODE
+----
+The first line of the script makes sure that we get no exit code = 0 if the script fails with an exception. The last line gives the exit code of previous command back. +
+The architecture of the called powershell.exe is `sysnative` by default.
+Using the optional second parameter <access str> you may change this default. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>) +
+By Windows default the powershell has the execution policy `Retricted` which do not allow to run any unsigned scripts. In order to run scripts the `powershellCall` function does by default the following: The current execution-policy is backuped and the execution-policy is set to `RemoteSigned`. Then the script will be executed and finally the execution-policy is restored. This default behaviour may be switched off by setting the optional third parameter <policy bool str> to "false". +
+If the `powershellCall` function is called where a stringlist is expected it returns a stringlist that contains the output of <commandstr>.
+
+
+Example:
+[source,winst]
+----
+set $list$= powershellCall_list('Get-Process -ProcessName "opsi*"')
+----
+Is a shortcut for this expression:
+[source,winst]
+----
+set $policy$ = takeString(0,shellCall('powershell.exe get-executionpolicy'))
+shellCall('powershell.exe set-executionpolicy RemoteSigned')
+set $list$ = getOutStreamFromSection ('Execwith_ps powershell.exe winst /sysnative')
+shellCall('powershell.exe set-executionpolicy '+$policy$)
+
+[Execwith_ps]
+trap { write-output $_ ; exit 1 }
+Get-Process -ProcessName "opsi*"
+exit $LASTEXITCODE
+----
+
+anchor:powershellCall[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : noresult` //since 4.12.0.16 [W] +
+see <<powershellCall_list>> +
+The function `powershellCall` may also be called where no result is expected.
+
+Example:
+[source,winst]
+----
+powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
+anchor:powershellCall_str[]
+
+* `powershellCall (`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : string (exitcode)` //since 4.12.0.16 [W] +
+see <<powershellCall_list>> +
+If the `powershellCall` function is called where a string is expected it returns a string that contains the exit code of the executed script.
+
+Example:
+[source,winst]
+----
+set $exitcode$ = powershellCall('Get-Process -ProcessName "opsi*"')
+----
+
 
 anchor:processCall[]
 
@@ -4524,6 +4670,37 @@ comment: This is a ***(secret)*** string
 comment: should be in the log file: This is a ***(confidential)*** string
 ----
 
+
+anchor:asConfidential[]
+
+* `asConfidential(` <secret string expression> `)` : string //since 4.12.0.16 [W/L] +
+This function should be used to get confidentail strings from an other string function without without logging the secret string. The Function work in the following sequence: + 
+1. Backup the current log level. +
+2. Set the log level to Warning. (4) +
+3. Resolve the given string expression (for example calling the given string function). +
+4. Add the resulting string to the list of confidential strings that should be not logged.. +
+5. Restore of the inital log level. +
+6. Return the resulting string.
+
+Example:
+[source,winst]
+----
+set $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+comment "this is my new secret"
+comment "should be in the log file:  ***(confidential)*** "
+----
+Log:
+[source,winst]
+----
+Set  $ConstTest$ = asConfidential(stringReplace("this is my old secret", "old", "new"))
+  The value of the variable "$ConstTest$" is now: "***(confidential)***"
+comment: This is a ***(confidential)*** string
+comment: should be in the log file: This is a ***(confidential)*** string----
+----
+see also : <<SetConfidential>>
+see also : <<GetConfidentialProductProperty>>
+
+
 [[opsi-winst-commands-information]]
 === Commands for User Information and User Interaction  [W/L]
 
@@ -4639,7 +4816,7 @@ available in the called sub-section as constant.
 
 Example:
 
-Code from opsi-winst-test:
+Code from opsi-script-test:
 [source,winst]
 ----
 message "for to loop"
@@ -4735,7 +4912,7 @@ EndSwitch
 
 Examples:
 
-Code from opsi-winst-test:
+Code from opsi-script-test:
 [source,winst]
 ----
 set $ConstTest$ = "5"
@@ -4981,6 +5158,12 @@ anchor:runningOnUefi[]
 Boolean function which returns 'true' if the running OS was booted in UEFI mode. +
 Available since 4.11.4.3
 
+anchor:runningInPE[]
+
+* `runningInPE` //since 4.12.0.13: [W/L] +
+true if the running OS is a Windows PE
+
+
 anchor:isDriveReady[]
 
 * `isDriveReady(`<drive letter>`)` //since 4.11.4.4: [W] +
@@ -5125,6 +5308,38 @@ anchor:stringToBool[]
 
 * `stringToBool(`<string expression: true/false>`)` : boolean // since 4.12.0.0 [W/L]
 
+anchor:RegKeyExists[]
+
+* `RegKeyExists(`<regkey>[,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Check if the given string expression <regkey> exists as registry key.
+If the registry key was found the result value ist `true` in all other cases `false`. +
+By Default the registry access mode is `sysnative`. Using the optional second parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+Examples:
+[source,winst]
+----
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon")
+
+RegKeyExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","32bit")
+----
+
+
+anchor:RegVarExists[]
+
+* `RegVarExists(`<regkey>, <var str> [,<access str>]`) : bool` //since 4.12.0.16 [W] +
+Check if the given string expression <regkey> exists as registry key and if there is a variable with name <var str>.
+If both was found the result value ist `true` in all other cases `false`. +
+By Default the registry access mode is `sysnative`. Using the optional second parameter <access str>, the access mode can be explicitly given. In this case it has to be one of the following values: `32bit`, `sysnative`, `64bit`. +
+(see also: <<opsi-winst-64bit,Chapter 64 Bit>>)
+
+Examples:
+[source,winst]
+----
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon","Shell")
+
+RegVarExists("HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general","bootmode","32bit")
+----
 
 
 [[opsi-winst-commands-include]]
@@ -5637,7 +5852,8 @@ In consequence we will start to build up a central opsi-script library which is 
 In order to reach this target we have implemented the following concepts:
 
 * Functions with return value: +
-The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected.
+The functions have a return value which is of the type `string` or `stringlist`. Executing such function can be performed wherever a string expression or a stringlist is expected. +
+Functions with no return value are also allowed and have to be declared as `void` (since 4.12.0.16).
 
 * Freely definable function call parameters: +
 Parameters can be passed to a function. These parameters are defined when the function is actually declared. The call parameters can be of type `string` or `stringlist`. +
@@ -5664,7 +5880,7 @@ The function body can contain its own sections of it. These are local to this fu
 
 *Definition*
 ----
-DefFunc <func name>([calltype parameter type][,[calltype parameter type]]) : type
+DefFunc <func name>([calltype parameter ptype][,[calltype parameter ptype]]) : ftype
 <function body>
 endfunc
 ----
@@ -5680,7 +5896,9 @@ Where:
 
 * 'parameter' is the free selected name of the call parameter which is available as a local variable within the function under the aforementioned name.
 
-* 'type' is the type of data of the parameter concretely the function wether `string` or `stringlist`;
+* 'ptype' is the type of data of the parameter wether `string` or `stringlist`. 
+
+* 'ftype' is the type of data of the function wether `string` ,`stringlist` or `void`. `void` declares that no result is returned.
 
 * '<function body>': is the body of the function which opsi-script syntax must suffice. +
 In this part there is the automaticly decared local variable `$result$` which should take the result of the function an so have the data type of the function.
@@ -5875,6 +6093,45 @@ set $list1$ = myFunc8('pwd')
 Expected results:
 
 * $list1$ = [+ pwd, /home/uib/gitwork/lazarus/opsi-script]
+
+Function of type `void` (no return value) which pass a `string` with a local variable:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+set $str1$ = 'haha'
+
+DefFunc myNoResultFunc(ref $str1$ : string) : void
+	set $str1$ = "huhu"
+endfunc
+
+myNoResultFunc($str1$)
+comment "$str1$ is: "+$str1$ 
+----
+
+Expected results:
+
+* $str1$ is: huhu
+
+Function of type  `string` with no parameter:
+[source,winst]
+----
+[actions]
+ScriptErrorMessages = false
+DefVar $str1$
+
+DefFunc myNoParamFunc() : string
+	set $result$ = "huhu"
+endfunc
+
+set $str1$ = myNoParamFunc()
+----
+
+Expected results:
+
+* $str1$ is: huhu
 
 
 [[opsi-winst-commands-libraryfunctions]]
@@ -6195,7 +6452,7 @@ Execution of Patches_DUMMY.INI
   C:\tmp\testFiles\dummy.ini saved back
 ----
 
-For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_patches$ = "on"'
+For more examples, please check the opsi standard product 'opsi-script-test' and in this product the part '$Flag_winst_patches$ = "on"'
 
 [[opsi-winst-patches-params]]
 ===== Call Parameter
@@ -6307,7 +6564,7 @@ Execution of PatchHosts_add
   C:\tmp\testFiles\hosts saved back
 ----
 
-For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_patch_hosts$ = "on"'.
+For more examples, please check the opsi standard product 'opsi-script-test' and in this product the part '$Flag_winst_patch_hosts$ = "on"'.
 
 In detail:
 
@@ -6457,7 +6714,7 @@ looks for a key/value pair with the key <keystr>  and set here as value <valuest
 [[opsi-winst-patchtextfile-examples]]
 ==== Examples
 
-For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_patch_text_file$ = "on"'
+For more examples, please check the opsi standard product 'opsi-script-test' and in this product the part '$Flag_winst_patch_text_file$ = "on"'
 
 [[opsi-winst-linkfolder]]
 === LinkFolder Sections [W/L]
@@ -6619,7 +6876,7 @@ Set  $list2$ = createStringList ('common_startmenu', 'common_programs', 'common_
 ~~~~~~ End Loop
 ----
 
-For more examples, please check the opsi standard product 'opsi-winst-test' and in this product the part '$Flag_winst_link_folder$ = "on"'.
+For more examples, please check the opsi standard product 'opsi-script-test' and in this product the part '$Flag_winst_link_folder$ = "on"'.
 
 [[opsi-winst-linkfolder-linux]]
 ==== LinkFolder-Sections in Linux
@@ -6903,7 +7160,7 @@ gives a report with numerical informations: line 0 contains the number of select
 [[opsi-winst-xmlpatch-examples]]
 ==== Examples
 
-For further examples see the product 'opsi-winst-test'
+For further examples see the product 'opsi-script-test'
 expecially the sector with '$Flag_winst_xml$ = "on"'
 
 
@@ -7030,7 +7287,7 @@ CAUTION: These options only know windows of 32-bit programms
 [[opsi-winst-winbatch-examples]]
 ==== Examples
 
-For further examples see the product 'opsi-winst-test'
+For further examples see the product 'opsi-script-test'
 expecially the sector with '$Flag_winst_winbatch$ = "on"'
 
 [[opsi-winst-dosbatch]]
@@ -7117,7 +7374,7 @@ Since Version 4.11.5 not only string constants but also string variables are all
 
 Example:
 
-Code from opsi-winst-test:
+Code from opsi-script-test:
 [source,winst]
 ----
 comment "Testing parameters for ShellBatch"
@@ -7239,7 +7496,7 @@ If the return list shall be evaluated programmatically it is advised to use the 
 [[opsi-winst-dosbatch-examples]]
 ==== Examples
 
-For further examples see the product 'opsi-winst-test'
+For further examples see the product 'opsi-script-test'
 and there look at '$Flag_winst_dos$ = "on"'
 
 [[opsi-winst-registry]]
@@ -7259,7 +7516,7 @@ set "Testvar1" = "c:\rutils;%Systemroot%\hey"
 set "Testvar2" = REG_DWORD:0001
 ----
 
-For further examples see the product 'opsi-winst-test'
+For further examples see the product 'opsi-script-test'
 and there look at '$Flag_subregistry$ = "on"'
 
 [[opsi-winst-registry-params]]
@@ -7694,7 +7951,7 @@ DefVar $ArrayStr$
 [[opsi-winst-opsiservicecall-examples]]
 ==== Examples
 
-For further examples watch the product 'opsi-winst-test' an there especially '$Flag_winst_opsiServiceCall$ = "on"'
+For further examples watch the product 'opsi-script-test' an there especially '$Flag_winst_opsiServiceCall$ = "on"'
 
 [[opsi-winst-execpython]]
 === ExecPython Sections [W/L]
@@ -7787,7 +8044,7 @@ Set pythonResult = GetOutStreamFromSection('execpython_hello -a "opt a“')
 [[opsi-winst-execpython-examples]]
 ==== Examples
 
-For further examples watch the product 'opsi-winst-test' and there especially
+For further examples watch the product 'opsi-script-test' and there especially
 '$Flag_compare_to_python$ = "on"'
 
 [[opsi-winst-execwith]]
@@ -7895,12 +8152,12 @@ powershell.exe set-executionpolicy RemoteSigned
 exit %ERRORLEVEL%
 
 [ExecWith_powershell]
-echo "powershell opsi-winst-test"
+echo "powershell opsi-script-test"
 if ($?) {Exit(0)}
 else {Exit(1)}
 ----
 
-For further examples watch the product 'opsi-winst-test' and there especially
+For further examples watch the product 'opsi-script-test' and there especially
 '$Flag_autoit3_test$ = "on"'
 
 [[opsi-winst-ldapsearch]]
@@ -8217,7 +8474,7 @@ filter: $LdapFilter$
 ----
 
 
-For further examples watch the product 'opsi-winst-test' and there especially
+For further examples watch the product 'opsi-script-test' and there especially
 '$Flag_winst_ldap_search$ = "on"'
 
 [[opsi-winst-64bit]]
@@ -8272,6 +8529,13 @@ For a reading access to the different aereas of registry and filesystem we have 
 * `FileExists32`
 * `FileExists64`
 * `FileExistsSysNative`
+
+The following functions have the possibility to control the access mode by a parameter (the default is here `sysnative`):
+
+*  `getRegistryValue`
+*  `RegKeyExists`
+*  `RegVarExists`
+*  `powershellCall`
 
 A simple call to Registry-section results in writing to the 32 bit registry regions. Also a simple call to Files-section results in writing to the 32 bit file system regions.
 
@@ -9046,8 +9310,9 @@ return elements
 set $escLine$ = EscapeString:$line$
 ; now we can work on the content of $escLine$
 ----
-We encapsulate the retrieved Strings by setting their values as a whole into an variable via an EscapeString call. Since the loop variable %line% is not a common variable but behaves like a constant all special characters in it (as < > $ % “ ') may cause difficulties.
+We encapsulate the retrieved Strings by setting their values as a whole into an variable via an EscapeString call. Since the loop variable %line% is not a common variable but behaves like a constant all special characters in it ( as < > $ % “ \' ) may cause difficulties.
 
+'
 [[opsi-winst-cookbook-xmlnamespace]]
 === Inserting a Name Space Definition Into a XML File
 
@@ -9146,6 +9411,10 @@ No network connection to server
 HTTP/1.1. 401 Unauthorized::
 The service responds but the user/password combination is not accepted.
 
+
+// Include opsi-doc-generator
+include::../../en/common/opsi-doc-generator.asciidoc[]
+
 [[opsi-winst-exercises]]
 == opsi-winst Tutorial (1.0.0)
 
@@ -9163,7 +9432,7 @@ Before we start some hints:
 ** `opsi-winst manual`
 ** `opsi-winst reference card`
 
-* You should use the opsi product 'opsi-winst-test' as a running reference script which is calling (nearly) every opsi-winst command.
+* You should use the opsi product 'opsi-script-test' as a running reference script which is calling (nearly) every opsi-winst command.
 
 [[opsi-winst-exercises-lections]]
 === Creating opsi-winst scripts
@@ -9365,3 +9634,31 @@ endif
 cd %system%
 dir *.*
 ----
+
+[[opsi-winst-libraries]]
+== opsi-script libraries
+
+[[opsi-winst-libraries_uib]]
+=== opsi-script libraries from uib
+
+Documentation of opsi-script libraries that are part of the opsiscript / opsi-winst
+and are mantained by the uib gmbh
+
+// http://www.methods.co.nz/asciidoc/userguide.html#X90
+:leveloffset: 3
+
+// Include os_uib_backend
+include::../../en/common/os-lib_uib_backend.asciidoc[]
+
+
+// Include os_uib_bootutils
+include::../../en/common/os-lib_uib_bootutils.asciidoc[]
+
+// Include os_uib_exitcode
+include::../../en/common/os-lib_uib_exitcode.asciidoc[]
+
+// Include os_uib_strutils
+include::../../en/common/os-lib_uib_strutils.asciidoc[]
+
+:leveloffset: 0
+
