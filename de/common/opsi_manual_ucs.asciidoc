@@ -1,0 +1,74 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; http://creativecommons.org/licenses/by-sa/3.0/de/
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; http://creativecommons.org/licenses/by-sa/3.0/
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      29.08.20185
+:Revision:  4.0.7
+:toc:
+:numbered:
+:website: http://opsi.org
+
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-ucs]]
+=== Hinweise zur Dateistruktur des opsi-linux-bootimages unter UCS 4.X
+
+Im Vergleich zu Ubuntu oder Debian liegen die Dateien des opsi-linux-bootimage in einem anderen Verzeichnis, nämlich:
+[source,prompt]
+----
+/var/lib/univention-client-boot
+----
+In früheren Versionen des opsi-linux-bootimage wurden Dateien aus dem Verzeichnis `/tftpboot/linux` in das Verzeichnis `/var/lib/univention-client-boot` gelinkt. Dies wurde in mit der Einführung von opsi 4.1 geändert. Im opsi-linux-bootimage Paket von opsi 4.1 wurden die Dateien direkt in das Verzeichnis `/var/lib/univention-client-boot` installiert. Nachdem der `opsi-atftpd` unter opsi 4.0 Dateien mit einer Größe von mehr als 90MiB erlaubte, wurde dieses opsi-linux-bootimage auch für opsi 4.0 zur Verfügung gestellt.
+Die Dateistruktur sieht wie folgt aus:
+[source,prompt]
+----
+ ls -l /var/lib/univention-client-boot/
+insgesamt 224424
+-rw-rw-r-- 1 997 OPSI Depot Servers     12372 Aug 13 13:13 chain.c32
+lrwxrwxrwx 1 997 OPSI Depot Servers        15 Aug 13 13:13 install -> vmlinuz-4.17.13
+lrwxrwxrwx 1 997 OPSI Depot Servers        11 Aug 13 13:13 install64 -> install-x64
+lrwxrwxrwx 1 997 OPSI Depot Servers        19 Aug 13 13:13 install-x64 -> vmlinuz-x64-4.17.13
+-rw-rw-r-- 1 997 OPSI Depot Servers     52272 Aug 13 13:13 menu.c32
+-rw-rw-r-- 1 997 OPSI Depot Servers 105388996 Aug 13 13:13 miniroot-20180813.bz2
+lrwxrwxrwx 1 997 OPSI Depot Servers        21 Aug 13 13:13 miniroot.bz2 -> miniroot-20180813.bz2
+-rw-rw-r-- 1 997 OPSI Depot Servers 108394052 Aug 13 13:13 miniroot-x64-20180813.bz2
+lrwxrwxrwx 1 997 OPSI Depot Servers        25 Aug 13 13:13 miniroot-x64.bz2 -> miniroot-x64-20180813.bz2
+-rw-rw-r-- 1 997 OPSI Depot Servers     15710 Aug 13 13:13 pxelinux.0
+drwxrwxr-x 2 997 OPSI Depot Servers      4096 Aug 28 19:19 pxelinux.cfg
+-rw-rw-r-- 1 997 OPSI Depot Servers   7763664 Aug 13 13:13 vmlinuz-4.17.13
+-rw-rw-r-- 1 997 OPSI Depot Servers   8166656 Aug 13 13:13 vmlinuz-x64-4.17.13
+----
+
+Wird der Inetd-Dienst verwendet um den `opsi-atftpd` zu steuern muss die `tftp` Zeile in der Datei `/etc/inetd.conf` wie folgt aussehen:
+[source,prompt]
+----
+tftp dgram udp wait nobody /usr/sbin/tcpd /usr/sbin/in.tftpd --tftpd-timeout 300 --retry-timeout 5 --verbose=5 /var/lib/univention-client-boot
+----
+
+Falls der Inetd-Dienst nicht verwendet wird, sondern der Dienst des opsi-atftpd direkt, muss die Konfiguration unter `/etc/default/atftpd` diesen Inhalt besitzen:
+[sourece,prompt]
+----
+USE_INETD=false
+OPTIONS="--daemon --port 69 --tftpd-timeout 300 --retry-timeout 5     --mcast-port 1758 --mcast-addr 239.239.239.0-255 --mcast-ttl 1 --maxthread 100 --verbose=5  /var/lib/univention-client-boot"
+----
+
+Unter opsi 4.1 kommt der `opsi-tftpd-hpa` zum Einsatz, dieser Patcht die entsprechende Konfigurationsdatei bei der Installation und setzt das 'TFTPROOT' Verzeichnis auf `/var/lib/univention-client-boot`
+
+UCS 4.X benötigt noch eine DHCP Richtlinie um einen PXE-Boot von einem UCS System aus zu ermöglichen.
+Diese Richtlinie muss in den Richtlinieneinstellungen der Domäne vorgenommen werden und betrifft den DHCP Boot.
+Als Boot-Server trägt man den Server ein, auf welchem die Boot Datei liegt. Der Boot-Dateiname lautet 'pxelinux.0'. Da diese Datei direkt im Verzeichnis `/var/lib/univention-client-boot` liegt, muss kein Anführendes Verzeichnis mit angegeben werden.
