@@ -89,24 +89,29 @@ Unter Linux ist das Parameterzeichen nicht "/" sondern "-". Also statt unter Win
 
 Unter Linux sind die unterschiedlichen Komponenten gemäß des Linux Filesystem Hierachie Standard nicht an einer Stelle zu finden. Daher hier ein Überblick:
 
-* Ausführbares Programm: +
-`/usr/bin/opsi-script`
+* Ausführbare Programme: +
+`/usr/bin/opsi-script` +
+`/usr/bin/opsi-script-nogui` 
 
-* Logdateien: +
-Ausgeführt als root: `/var/log/opsi-agent/opsi-script` +
+* Verzeichnisse für Logdateien: +
+Ausgeführt als root: `/var/log/opsi-script` +
 Ausgeführt als user: `/tmp`
 
 * Language files: +
-`/usr/share/opsi-client-agent/opsi-script/languages`
+`/usr/share/locale`
 
 * Skin files: +
-Default = `/usr/share/opsi-client-agent/opsi-script/skin` +
-Custom = `/usr/share/opsi-client-agent/opsi-script/customskin`
+Default = `/usr/share/opsi-script/skin` +
+Custom = `/usr/share/opsi-script/customskin`
+
+* opsi-script library files: +
+`/usr/share/opsi-script/lib` +
+
 
 * Config files: +
-`/etc/opsi-client-agent`
+`/etc/opsi-script`
 
-* Varibale files: +
+* Variable files: +
 `/var/lib/opsi-client-agent/opsi-script`
 
 [[opsi-winst-linux-pathhandling]]
@@ -575,8 +580,8 @@ Die Logdateien werden im Encoding UTF-8 angelegt.
 Die default Protokolldateien werden unter Windows in das Verzeichnis 'c:\opsi.org\log' geschrieben, welches der '{opsi-winst}/opsi-script' zu erstellen versucht. Wenn der '{opsi-winst}/opsi-script' nicht erfolgreich bei der Erstellung diese Protokollverzeichnisses ist, wird das Benutzer TEMP-Verzeichnis zum Speichern der Protokolldatei genutzt. 
 
 Logdateien unter Linux:
-Ausgeführt als root (default): /var/log/opsi-agent/opsi-script
-Ausgeführt als user: /tmp
+Ausgeführt als root (default): `/var/log/opsi-script`
+Ausgeführt als user: `/tmp`
 
 Der Name der Protokolldatei und der Speicherort können durch eine spezifizierte Kommandozeile überschrieben werden.
 
@@ -5924,6 +5929,8 @@ welche den Datentyp der Funktion hat (String/Stringliste) und dazu dient den Rü
 
 * `endfunc` zeigt als Schlüsselwort das Ende einer Funktionsdefinition an.
 
+Eine Funktion muss definiert werden *bevor* sie aufgerufen werden kann.
+
 [[opsi-winst-commands-localfunctions-examples]]
 ==== Beispiele
 
@@ -6175,7 +6182,7 @@ Entspricht: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
 * Eine Datei in `%ScriptPath%/../lib` //since 4.11.5.2 [W/L]
 
-* Eine Datei in `%WinstDir%\lib` [W]
+* Eine Datei in `%WinstDir%\lib` [W] oder `/usr/share/opsi-script/lib` [L]
 
 Die Prüfung erfolgt in dieser Reihenfolge. Die erste Datei die gefunden wird, wird genommen.
 
@@ -6394,6 +6401,7 @@ Ein existierender <new file> wird überschrieben. +
 `move` <old filename> <new filename> // since 4.11.5 [W/L] +
 Es gibt keine Unterschiede zwischen `rename` und `move`, es sind zwei Namen für die selbe Funktion +
 Ein existierender <new file> wird überschrieben. +
+Derzeit können keine Verzeichnisse umbenannt´/ verschoben werden. +
  +
 Windows: <new filename> darf in einem anderen Directory liegen oder auch in einem anderen Volume / Disk. Im zweiten Fall, wird die Datei kopiert und danach das Original gelöscht. +
 Läßt sich das Ziel nicht erstellen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. Das funktioniert natürlich nur wenn das Zielfilesystem zum Reboot-Zeitpunkt verfügbar ist, also nicht auf Netzwerkshares. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
@@ -6684,11 +6692,15 @@ Alle übrigen Anweisungen von PatchTextFile-Sektionen sind nicht auf spezielle D
 
 Die drei Suchanweisungen
 
-*  `FindLine` <Suchstring>
-*  `FindLine_StartingWith` <Suchstring>
-*  `FindLine_Containing` <Suchstring> 
+*  `FindLine` <Suchstring> +
+Findet eine Zeile die dem <Suchstring> komplett entspricht.
+*  `FindLine_StartingWith` <Suchstring> +
+Findet eine Zeile die mit <Suchstring> anfängt.
+*  `FindLine_Containing` <Suchstring> +
+Findet eine Zeile die <Suchstring> enthält.
 
-durchsuchen die Datei ab der Position, auf der der Zeilenzeiger steht. Sofern sie eine passende Zeile finden, setzen sie den Zeilenzeiger auf die erste Zeile, die <Suchstring> gleicht / mit ihm beginnt / ihn enthält. 
+durchsuchen die Datei ab der Position, auf der der Zeilenzeiger steht. Sofern sie eine passende Zeile finden, setzen sie den Zeilenzeiger auf die erste Zeile, die <Suchstring> gleicht / mit ihm beginnt / ihn enthält. +
+Die Suche ist nicht case-sensitive.
 
 Wird <Suchstring> nicht gefunden, so bleibt der Zeilenzeiger an der Ausgangsposition stehen. 
 
@@ -7208,7 +7220,10 @@ Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
 "%scriptpath%\setup.exe"
 ----
 
-Es ist abgekündigt (aber noch unterstützt) wie auch aus dem Windows Explorer heraus Daten-Dateien, die mit einem Programm verknüpft sind, direkt aufzurufen. Wenn Sie das tun bekommen Sie eine deprecated Warnung.
+Winbatch Sektionen dienen dazu *Programme* (*.exe) aufzurufen. +
+Der Aufruf von anderen Dateien, die mit einem Programm verknüpft sind, direkt aufzurufen ist abgekündigt (aber noch unterstützt). Wenn Sie das tun bekommen Sie eine deprecated Warnung. Beispiel: +
+ok: `notepad.exe test.txt` +
+depricated (not ok): `test.txt`
 
 [[opsi-winst-winbatch-params]]
 ==== Aufrufparameter (Modifier)
@@ -7687,7 +7702,7 @@ set "Path"="$Path$"
 supp "Path"; "c:\orawin\bin"
 ----
 +
-CAUTION: Nach dem Patchen des Registry-Path enthält die Umgebungsvariable Path den veränderten Wert erst nach einem Reboot.
+CAUTION: Nach dem Patchen des Registry-Path enthält die Umgebungsvariable Path den veränderten Wert erst nach einem Reboot oder nach einem Aufruf von `UpdateEnvironment` siehe: <<UpdateEnvironment>>
 
 *  `GetMultiSZFromFile` <varname> <Dateiname> +
 Liest eine Datei zeilenweise in einen Multistring ein und weist diesen <varname> zu.

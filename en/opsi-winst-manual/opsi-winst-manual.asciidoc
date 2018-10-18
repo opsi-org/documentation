@@ -97,21 +97,26 @@ At Linux the parameter delimiter is not "/" but "-". So instead of calling `opsi
 
 According to the Linux Filesystem Hierachy Standard the files that belong to 'opsi-script' are not at one place but distributed around the system. So here an overview where to find which part:
 
-* executable program: `/usr/bin/opsi-script`
+* executable programs: +
+`/usr/bin/opsi-script` +
+`/usr/bin/opsi-script-nogui` 
 
-* log files: +
-if running with root privileges: `/var/log/opsi-agent/opsi-script` +
+* log files directories: +
+if running with root privileges: `/var/log/opsi-script` +
 if not running with root privileges: `/tmp`
 
 * language files: +
-`/usr/share/opsi-client-agent/opsi-script/languages`
+`/usr/share/locale`
 
 * skin files: +
-default = `/usr/share/opsi-client-agent/opsi-script/skin` +
-custom = `/usr/share/opsi-client-agent/opsi-script/customskin`
+Default = `/usr/share/opsi-script/skin` +
+Custom = `/usr/share/opsi-script/customskin`
+
+* opsi-script library files: +
+`/usr/share/opsi-script/lib` +
 
 * config files: +
-`/etc/opsi-client-agent`
+`/etc/opsi-script`
 
 * varibale files: +
 `/var/lib/opsi-client-agent/opsi-script`
@@ -567,8 +572,8 @@ The log file encoding is UTF-8.
 By default log files are written at Windows into the directory `c:\opsi.org\log` which '{opsi-winst}/opsi-script' tries to create. If '{opsi-winst}/opsi-script' has no access to this directory it uses the user-TEMP directory.
 
 At Linux:
-If running as `root` (default): /var/log/opsi-agent/opsi-script
-If running as any other user: /tmp
+If running as `root` (default): `/var/log/opsi-script`
+If running as any other user: `/tmp`
 
 The log file name and location will be overwritten via the specific command line option.
 
@@ -5903,7 +5908,9 @@ Where:
 * '<function body>': is the body of the function which opsi-script syntax must suffice. +
 In this part there is the automaticly decared local variable `$result$` which should take the result of the function an so have the data type of the function.
 
-* `endfunc` is the keyword used to end defining a local function..
+* `endfunc` is the keyword used to end defining a local function.
+
+A local function has to be defined *before* you can call the function.
 
 [[opsi-winst-commands-localfunctions-examples]]
 ==== Examples
@@ -6153,7 +6160,7 @@ Is equivalent to: '%ProgramFiles32Dir%\opsi.org\opsiScriptHelper\lib'
 
 * A existing file in `%ScriptPath%/../lib` [W/L]
 
-* A existing file in `%WinstDir%\lib` [W]
+* A existing file in `%WinstDir%\lib` [W] or `/usr/share/opsi-script/lib` [L]
 
 The tests for the location of the <file name> are done in the order above. 'opsi-script' uses the first file it finds that has a matching name.
 
@@ -6374,6 +6381,7 @@ At Windows is `symlink` only available since NT6 and up !
 `move` <old filename> <new filename> // since 4.11.5 [W/L] +
 There is no difference between `rename` and `move`, that are just two names for the same function +
 A existing <new file> will be over written. +
+At the moment it is not possible to move or rename directories. +
  +
 Windows: <new filename> may be located in a differen directory or volume / disk. In the second case (different volume / disk) the file will be copied  and than the original file will be deleted. +
 If it is not possible to create the target file becaus the file is in use, then it can be overwritten only after a reboot. The '{opsi-winst}/opsi-script' default behaviour is therefore that a file in use will be marked for overwriting after the next reboot, AND the '{opsi-winst}/opsi-script' reboot flag is set. Setting the copy option `-c` turns the automatic reboot off. Instead normal processing continues, the copying will be completed only when a reboot is otherwise triggered. +
@@ -6656,11 +6664,15 @@ The other commands of 'PatchTextFile' sections are not file type specific. All o
 
 There are three search commands:
 
-* `FindLine <search string>`
-* `FindLine_StartingWith <search string>`
-* `FindLine_Containing <search string>`
+* `FindLine <search string>` +
+Finds a line that matches complete (is identic) to <search string>.
+* `FindLine_StartingWith <search string>` +
+Finds a line that starts with <search string>.
+* `FindLine_Containing <search string>` +
+Finds a line that contains <search string>.
 
-Each command starts searching at the current position of the line pointer. If they find a matching line the line pointer is moved to it. Otherwise the line pointer keeps its position.
+Each command starts searching at the current position of the line pointer. If they find a matching line the line pointer is moved to it. Otherwise the line pointer keeps its position. +
+The search is not case sensitive.
 
 <search string> - as all other String references in the following commands - are String surrounded by single or double citation marks.
 
@@ -7180,7 +7192,10 @@ E.g, we may start some existing setup program by the following line in a WinBatc
 "%scriptpath%\setup.exe"
 ----
 
-It is deprecated but still supported that you may call – as from Windows explorer – a file of any type for which a program is registered.
+Winbatch section are desingned to start programs (*.exe) directly. +
+To call data files that are connected to programs is deprecated but still supported. If you do this you will get a depricated warning. Example: +
+ok: `notepad.exe test.txt` +
+depricated (not ok): `test.txt`
 
 
 [[opsi-winst-winbatch-params]]
@@ -7671,7 +7686,7 @@ set "Path"="$Path$"
 supp "Path"; "c:\orawin\bin"
 ----
 +
-CAUTION: The environment variable gets a changed value after a reboot.
+CAUTION: The environment variable gets a changed value after a reboot or after a call of `UpdateEnvironment` see: <<UpdateEnvironment>>
 
 * `GetMultiSZFromFile` <varname> <filename> +
 reads the lines of a file and puts them together building a Multistring.
