@@ -2371,24 +2371,25 @@ Problems can occur when the same PCI ID can be found in the description file of 
 [[opsi-getting-started-firststeps-osinstall-driverintegration-additional]]
 ==== Drivers that will be manually assigned to clients
 
-When installing additional drivers not based on the PCI-IDs or USB-IDs, they should be installed under the directory `./drivers/drivers/additional` (where name and depth of the directory structure is not important).  You can map one or more drivers to a client using the Product-Property 'additional_drivers' by supplying one or multiple paths of driver directories under `./drivers/drivers/additional` as value.  The directories specified by 'additional_drivers' are searched recursively and all drivers which are foundwill be installed. The usage of symbolic links is also permitted, this can be used to make a specific directory based on the client type (i.e. dell-optiplex-815).
+When installing additional drivers not based on the PCI-IDs or USB-IDs, they should be installed under the directory `./drivers/drivers/additional` (where name and depth of the directory structure is not important).  You can map one or more drivers to a client using the Product-Property 'additional_drivers' by supplying one or multiple paths of driver directories under `./drivers/drivers/additional` as value.  The directories specified by 'additional_drivers' are searched recursively and all located drivers will be installed. The usage of symbolic links is also permitted, this can be used to create a specific directory based on the client type (i.e. dell-optiplex-815).
 
-When a driver is found in one of the driver directories that is specified by 'additional_drivers' and matches the PCI identifier, then other drivers in `drivers/preferred` or `drivers/` will not be used ('additional_drivers' can be thought of as 'super-preferred').  Therefore the drivers under 'additional_drivers' have the functionality that they are installed even when the corresponding devices are not found.
+When a driver is found in one of the driver directories that is specified by 'additional_drivers' and matches the PCI identifier, then other drivers in `drivers/preferred` or `drivers/` will not be used ('additional_drivers' can be thought of as 'super-preferred').  Therefore the drivers under 'additional_drivers'  are installed even when the corresponding devices are not found.
 
 [[opsi-getting-started-firststeps-osinstall-driverintegration-byaudit]]
-==== Drivers that will be Automatically Assigned to the Computers using the Fields <vendor>/<model>
+==== Drivers which will be Automatically Assigned to the Clients using the Fields <vendor>/<model>
 
-The previously described mechanism that directly maps drivers to devices is automated since the 4.0.2 Release 2 of opsi. The {opsi-linux-bootimage} will search the directory `./drivers/drivers/additional/byAudit` for a director name that matches the field 'Vendor' that was given in the Hardware Inventory. This 'Vendor' directory will be search for a 'Model' directory that corresponds to what is seen in Hardware Inventory.   If this directory is found, then it will be manually assigned to the product property 'additional_drivers'. +
+The previously described mechanism that directly maps drivers to devices is automated since the 4.0.2 Release 2 of opsi. The {opsi-linux-bootimage} will search the directory `./drivers/drivers/additional/byAudit` for a directory name that matches the field 'Vendor' that was given in the Hardware Inventory. This 'Vendor' directory will be searched for a 'Model' directory that corresponds to what is seen in Hardware Inventory. If this directory is found, it will be treated as if it was manually assigned to the product property 'additional_drivers'. +
 The directory name 'byAudit' is case sensitive.  The directory names for 'Vendor' and 'Model' are not case sensitive ('Dell' and 'dELL' are treated the same way).
 
 Since opsi 4.0.5 one can use {opsi-configed} for uploading the drivers Automatic driver upload (see opsi-manual "Automatic driver upload")
 
-The {opsi-linux-bootimage} looks first for drivers in
+The {opsi-linux-bootimage} looks for drivers successively in the following directories
 
 * `<vendor>/<model> (<sku>)`
-* If nothing is found as a first fallback at `<vendor>/<model>`
-* If nothing is found then as second fallback at motherboard `<vendor>/<motherboard-model>`
+* `<vendor>/<model>`
+* `<vendor>/<motherboard-model>`
 
+Some vendors use model identifiers containing special characters. Opsi replaces <,>,?,",:,|,\,/ and * with _ therefore a model identifier like "5000/6000/7000" will match a directory identifier like "5000_6000_7000". 
 
 [[opsi-getting-started-firststeps-osinstall-driverintegration-structure]]
 ===== Structure of the Driver Directory and Driver Files:
@@ -2421,48 +2422,48 @@ The {opsi-linux-bootimage} looks first for drivers in
 [[opsi-getting-started-firststeps-osinstall-driverintegration-processing]]
 ===== Processing of the Different Levels of Driver Integration
 
-The top priority is given to drivers that are found using the property 'additional_drivers' or using the inventory data in `./drivers/drivers/additional/byAudit`.  Tests will be made during driver integration to determine which drivers are already installed on which hardware devices. When a driver is not found for a device, the following method will be used to search for drivers.
+The top priority is given to drivers which are found using the property 'additional_drivers' or using the inventory data in `./drivers/drivers/additional/byAudit`. When installing a client these drivers will be prefered. If a device is not matched by a driver the following methods are used in order to find a matching driver.
 
-For devices that have drivers that were not listed in 'additional_drivers', opsi will search for, and integrate, an appropriate driver based off of the PCI ID (ie. USB-, HD_Audio-ID).
+For devices where no matching driver was found using 'additional_drivers' or 'byAudit', opsi will search for and integrate an appropriate driver based on the PCI-ID (respectively USB-, HD_Audio-ID).
 
 'Integration' of drivers means the following:
 
 * The driver will be copied to the local hard drive at `c:\drv\<num>`.
 
-* The Windows Setup will search for the driver sub-directory under `c:\drv\` , where the sub-directory name will be read from the unattended file in the root 'unattend' sub-directory.
+* The Windows Setup will search for the drivers in `c:\drv\`, this is specified in the unattended file.
 
 [[opsi-getting-started-firststeps-osinstall-driverintegration-drivercheck]]
 ===== Driver Addition and Checking
 
-After any changes in the directory `./drivers/drivers` have been made, call the following command from the Netboot Products root directory in order to set the permissions:
+After any changes in the directory `./drivers/drivers` have been made, call the following command from the Netboot Product root directory in order to set the permissions:
 [source,prompt]
 ----
 opsi-setup --set-rights ./drivers
 ----
 
-Then call the script `./create_driver_links.py`.  The script searches through the directories under './drivers/drivers' and generates a list of links using PCI-IDs, USB-IDs, HD-Audio-IDs that enables hardware to know about drivers.  The script will use the drivers in the preferred directories.
+Then call the script `./create_driver_links.py`.  The script searches through the directories under './drivers/drivers' and generates a list of links using PCI-IDs, USB-IDs, HD-Audio-IDs. This list is used to match drivers and devices.  The script will prioritize the drivers in the preferred directories.
 
-The script `setup.py` examines the hardware of the installed computers and identifies the necessary drivers.  These will be copied to the disk and the file unattended.txt will be patched.  The script `create_driver_links.py` examines the NT5 products one at a time in the 'i386' tree and extracts the .inf files of the necessary drivers into 'windows_builtin'.  If you make a change to the i386 directory tree (i.e. after installing a service pack), then delete that directory and run `create_driver_links.py` again.  The recognized drivers for NT6 products are found in WinPE at 'windows_builtin'.
+The script `setup.py` examines the hardware of the installed computers and identifies the necessary drivers.  These will be copied to the disk and the file unattended.xml will be patched.  The script `create_driver_links.py` examines the NT5 products one at a time in the 'i386' tree and extracts the .inf files of the necessary drivers into 'windows_builtin'.  If you make a change to the i386 directory tree (i.e. after installing a service pack), then delete that directory and run `create_driver_links.py` again.  The recognized drivers for NT6 products are found in WinPE at 'windows_builtin'.
 
-With the following command, one can see the hardware inventory for a client:
+With the following command, matching drivers for a existing hardware inventory for a client can be shown:
 [source,prompt]
 ----
 ./show_drivers.py <clientname>
 ----
-When this is command is called, it will show a selection for which drivers would be chosen for installation to the Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs, and 'additional_drivers' (or 'byAudit'),  and which hardware still has no driver.
+Furthermore devices without a matching driver will be shown.
 
-Use the output of `show_drivers.py` to check and see which drivers need to be installed.
+Use the output of `show_drivers.py` to check if the desired drivers will be integrated.
 
-It could be that manufacturers include different drivers for different operating systems (i.e. Vista vs. Win7) or different configurations (ie. SATA vs. SATA RAID).  The `create_driver_links.py` cannot make this distinction.  If you think the wrong driver has been installed, then move the driver to the 'drivers/exclude' directory and then call `create_driver_links.py` again.  Drivers in the directory 'drivers/exclude' are not used during the integration.
+It is possible that manufacturers include different drivers for different operating systems (i.e. {client-os}) or different configurations (i.e. SATA vs. SATA RAID) in one directory.  The `create_driver_links.py` cannot make this distinction.  If you think the wrong driver will be used, you can move the driver to the 'drivers/exclude' directory and then call `create_driver_links.py` again.  Drivers in the directory 'drivers/exclude' are not used during the integration.
 
-Example output of a `show_drivers.py` call:
+Example output of a `show_drivers.py` call for a client:
 
-[source,opsifiles]
+[source,prompt]
 ----
 ./show_drivers.py pcdummy
 
 PCI-Devices
-   [(StandardsystemgerÃ¤te), PCI Standard-PCI-zu-PCI-Bridge]
+   [(Standardsystemgeräte), PCI Standard-PCI-zu-PCI-Bridge]
       No driver - device directory  /var/lib/opsi/depot/<productid>/drivers/pciids/1022/9602 not found
    [ATI Technologies Inc., Rage Fury Pro (Microsoft Corporation)]
       Using build-in windows driver
@@ -2482,7 +2483,7 @@ PCI-Devices
 USB-Devices
    [(Standard-USB-Hostcontroller), USB-VerbundgerÃ¤t]
       /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
-   [Microsoft, USB-DruckerunterstÃ¼tzung]
+   [Microsoft, USB-Druckerunterstützung]
       /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
 
 Additional drivers
@@ -2490,8 +2491,8 @@ Additional drivers
      /var/lib/opsi/depot/<productid>/drivers/drivers/additional/ati_hdaudio_azalia
 ----
 
-Example with  'additional_drivers':
-[source,opsifiles]
+Example for a client with 'additional_drivers':
+[source,prompt]
 ----
  ./show_drivers.py e5800
 Manually selected drivers (additional)
@@ -2559,7 +2560,7 @@ HD-Audio-Devices
 ----
 
 Example with 'byAudit':
-[source,opsifiles]
+[source,prompt]
 ----
  ./show_drivers.py pctry5detlef
 Manually selected drivers (additional)
@@ -2574,16 +2575,16 @@ PCI-Devices
       Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
    [10DE:0053]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0053' not found
-   [10DE:005D]  (StandardsystemgerÃ¤te) : PCI Standard-PCI-zu-PCI-BrÃ¼cke
+   [10DE:005D]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005D' not found
    [1022:1100]  AMD : AMD HyperTransport(tm)-Konfiguration
       Using build-in windows driver
    [10DE:0054]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
-      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/evb_potsdam_fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
    [1022:1101]  AMD : AMD-Adresszuordnungskonfiguration
       Using build-in windows driver
    [10DE:0055]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
-      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/evb_potsdam_fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
    [1022:1102]  AMD : AMD DRAM und HyperTransport(tm)-Nachverfolgungsmoduskonfiguration
       Using build-in windows driver
    [10DE:0057]  NVIDIA : NVIDIA nForce-Netzwerkcontroller
@@ -2592,13 +2593,13 @@ PCI-Devices
       Using build-in windows driver
    [10DE:0059]  Realtek : Realtek AC'97 Audio
       Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio
-   [10DE:005E]  NVIDIA : NVIDIA nForce4 HyperTransport-BrÃ¼cke
+   [10DE:005E]  NVIDIA : NVIDIA nForce4 HyperTransport-Brücke
       /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ga-ma78-pcbon4/chipset_win7-64/SMBUS
    [104C:8025]  Texas Instruments : OHCI-konformer Texas Instruments 1394-Hostcontroller
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/104C/8025' not found
    [10DE:005A]  (Standard-USB-Hostcontroller) : Standard OpenHCD USB-Hostcontroller
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005A' not found
-   [10DE:0050]  (StandardsystemgerÃ¤te) : PCI Standard-ISA-BrÃ¼cke
+   [10DE:0050]  (StandardsystemgerÃ¤te) : PCI Standard-ISA-Brücke
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0050' not found
    [10DE:005B]  (Standard-USB-Hostcontroller) : Standard PCI-zu-USB erweiterter Hostcontroller
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005B' not found
@@ -2607,11 +2608,11 @@ PCI-Devices
       Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
    [10DE:0052]  NVIDIA : NVIDIA nForce PCI-Systemverwaltung
       Using build-in windows driver
-   [10DE:005C]  (StandardsystemgerÃ¤te) : PCI Standard-PCI-zu-PCI-BrÃ¼cke
+   [10DE:005C]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005C' not found
 
 USB-Devices
-   [1241:1111]  (StandardsystemgerÃ¤te) : USB-EingabegerÃ¤t
+   [1241:1111]  (Standardsystemgeräte) : USB-EingabegerÃ¤t
       No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/1241' not found
 
 HD-Audio-Devices
@@ -2621,7 +2622,7 @@ HD-Audio-Devices
 TIPS::
 * Directory names `NDIS1` contain Vista-Drivers ; `NDIS2` contain Win7-Driver
 
-* Some chip drivers contain description files, which specify hardware without actually providing drivers. An example would be the `cougar.inf` or `ibexahci.inf` from Intel. If such a 'Pseudo-Driver' were to be placed in 'additional_drivers' (or 'byAudit'), then the other drivers in the 'preferred' subdirectory may be excluded.  It is better to move these directories to the 'preferred' subdirectory.
+* Some chipset drivers contain description files, which specify hardware without actually providing drivers. An example would be the `cougar.inf` or `ibexahci.inf` from Intel. If such a 'pseudo-driver' were to be placed in 'additional_drivers' (or 'byAudit'), then other drivers in the 'preferred' subdirectory will be ignored.
 
 * SATA drivers and SATA-RAID drivers refer to the same PCI ID. A SATA-RAID driver will not function with a single-disk system.
 
@@ -2632,7 +2633,7 @@ TIPS::
 
 The primary objective of software distribution is to accomplish automatic software installation without user interaction. Software installation and user activity should be strictly separated. In most cases, the installation process requires administrative privileges which the user usually doesn't have. So the installation process has to be done independently from the user. This way, the user can neither interfere nor be affected by the software installation process.
 
-In order to do this, you have to write a script for the script driven installer, which is called an '{opsi-winst}' script.
+In order to do this, you have to write a script for the script driven installer, which is called an '{opsi-winst}' script. This script in addition to the installfiles and some metadata can be packed as a opsi-product, which in turn can be installed on a {opsi-Server}.
 
 [[opsi-getting-started-softwintegration-tutorial]]
 === A Brief Tutorial: How to write a {opsi-winst} Script
