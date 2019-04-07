@@ -24,7 +24,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-winst / opsi-script Manual (4.12.0)
+opsi-winst / opsi-script Manual (4.12.1)
 ========================================
 
 // Include common opsi copyright
@@ -519,7 +519,9 @@ There are the following syntactical schemata:
      `/password` <password> +
      [`/sessionid` <sessionid>] +
      [`/usercontext` <[domain\]username>] +
-     [`/allloginscripts` | `/loginscripts`] +
+     [`/allloginscripts` | `/loginscripts`|  +
+     `/productlist` <productid>[,<productid>]* | +
+     `/processproducts` <productid>[,<productid>]* ] +
      [`/silent`]
 
 Note:: At Linux the parameter delimiter is not "/" but "-". So instead of using `opsi-winst /help` like you would do at Windows you should use at Linux `opsi-script -help`.
@@ -543,6 +545,13 @@ Explanations to (4):
 
 * When called with option `/allloginscripts` or `/loginscripts` '{opsi-winst}/opsi-script' can do configurations for the logged in user (particularly in a Roaming Profile context). This is a cofunding feature - you need to buy it in order to use it. +
 See at the opsi-manual for more information about 'User Profile Management'.
+
+* `/productlist` followed by a list of productIds ignores the normal handling of action request +
+but forces to handle the given productIds like there were the action request `setup`.
+
+* `/processproducts` followed by a list of productIds limit the normal handling of action request +
+to these products that are given by the list of productIds. +
+Attention: This may break existing dependencies. 
 
 * By option `/silent` the batch surface is suppressed.
 
@@ -1833,6 +1842,7 @@ anchor:ExtractFilePath[]
 interprets the passed String value as file or path name and returns the path part (the string up to the last path delimiter, including it).
 
 Examples:
+
 [source,winst]
 ----
 set $ConstTest$ = "C:\program files\test\"
@@ -1849,7 +1859,7 @@ endif
 
 anchor:ExtractFileExtension[]
 
-* `ExtractFileExtension (`<path>`) : string` [W/L/M] +
+* `ExtractFileExtension (`<path>`) : string`   //since 4.12.1 [W/L/M] +
 interprets the passed String value as file or path name and returns the path part (the string after the last dot ('.'), including it).
 
 Examples:
@@ -1869,7 +1879,7 @@ endif
 
 anchor:ExtractFileName[]
 
-* `ExtractFileName (`<path>`) : string` [W/L/M] +
+* `ExtractFileName (`<path>`) : string`   //since 4.12.1 [W/L/M] +
 interprets the passed String value as file or path name and returns the file name part (the string after the last path delimiter, not including it).
 
 Examples:
@@ -1889,7 +1899,7 @@ endif
 
 anchor:DirectoryExists[]
 
-* `DirectoryExists (`<path> [,<access str>]`) : bool` [W/L/M] +
+* `DirectoryExists (`<path> [,<access str>]`) : bool`   //since 4.12.1 [W/L/M] +
 Tests if <path> points to a directory. +
 <access str> = one of 32bit, 64bit, sysnative ; default sysnative ; ignored at non windows
 
@@ -1898,7 +1908,7 @@ Examples:
 ----
 if ($INST_SystemType$ = "64 Bit System")
 	set $ConstTest$ = "true"
-	Set $tmp$ = "C:\Windows\system32\SecureBootUpdates"
+	Set $tmp$ = "C:\Windows\system32\Boot"
 	set $tmp1$ = "64bit"
 	set $CompValue$ = boolToString(DirectoryExists($tmp$,$tmp1$))
 	if ($ConstTest$ = $CompValue$)
@@ -1909,7 +1919,7 @@ if ($INST_SystemType$ = "64 Bit System")
 	endif
 	
 	set $ConstTest$ = "true"
-	Set $tmp$ = "C:\Windows\system32\SecureBootUpdates"
+	Set $tmp$ = "C:\Windows\system32\Boot"
 	set $tmp1$ = "sysnative"
 	set $CompValue$ = boolToString(DirectoryExists($tmp$,$tmp1$))
 	if ($ConstTest$ = $CompValue$)
@@ -1920,7 +1930,7 @@ if ($INST_SystemType$ = "64 Bit System")
 	endif
 	
 	set $ConstTest$ = "true"
-	Set $tmp$ = "C:\Windows\system32\SecureBootUpdates"
+	Set $tmp$ = "C:\Windows\system32\Boot"
 	; fall back to sysnative
 	set $CompValue$ = boolToString(DirectoryExists($tmp$))
 	if ($ConstTest$ = $CompValue$)
@@ -1931,7 +1941,7 @@ if ($INST_SystemType$ = "64 Bit System")
 	endif
 	
 	set $ConstTest$ = "false"
-	Set $tmp$ = "C:\Windows\system32\SecureBootUpdates"
+	Set $tmp$ = "C:\Windows\system32\Boot"
 	set $tmp1$ = "32bit"
 	set $CompValue$ = boolToString(DirectoryExists($tmp$,$tmp1$))
 	if ($ConstTest$ = $CompValue$)
@@ -3413,6 +3423,228 @@ Set  $string1$ = getValue("id", $INST_Resultlist$)
   The value of the variable "$string1$" is now: "opsi-script-test"
 ----
 
+anchor:getListFromWMI[]
+
+`getListFromWMI(`<wmi namespace str>,<wmi class str>,<property list>,<condition str>`) : stringlist` //since 4.12.1.0 [W] +
+Returns a info map of <wmi class str> that is limited to the properties in <property list> and also limited by the <condition str>. +
+If <property list> is empty, all properties of <wmi class str> will be returned. +
+Attention: If <property list> contains properties that not exist in the called wmi class, the query will fail. +
+Calling with properties is faster than without. +
+If <wmi namespace str> is empty, it defaults to `root\cimv2`. +
+On error a empty list will be returned 
+
+
+Example:
+[source,winst]
+----
+; this is valid because both properties are valid
+set $list1$ = createStringList ('Model','Manufacturer')
+set $str1$ = 'root\cimv2'
+set $str2$ = 'Win32_ComputerSystem'
+set $str3$ = ''
+set $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+----
+
+produces e.g the log:
+[source,winst]
+----
+Set  $list1$ = createStringList ('Model','Manufacturer')
+  The value of the variable "$list1$" is now:
+  (string   0)Model
+  (string   1)Manufacturer
+Set  $str1$ = 'root\cimv2'
+  The value of the variable "$str1$" is now: "root\cimv2"
+Set  $str2$ = 'Win32_ComputerSystem'
+  The value of the variable "$str2$" is now: "Win32_ComputerSystem"
+Set  $str3$ = ''
+  The value of the variable "$str3$" is now: ""
+Set  $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+  The value of the variable "$resultlist$" is now:
+  (string   0)Model=HP Pavilion Desktop PC 570-p0xx
+  (string   1)Manufacturer=HP
+----
+
+Example:
+[source,winst]
+----
+comment "Testing for os architecture"
+set $ConstTest$ = GetSystemType
+set $list1$ = createStringList ('systemtype')
+set $str1$ = ''
+set $str2$ = 'Win32_ComputerSystem'
+set $str3$ = ''
+set $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+----
+
+produces e.g the log:
+[source,winst]
+----
+comment: Testing for os architecture
+Set  $ConstTest$ = GetSystemType
+  The value of the variable "$ConstTest$" is now: "64 Bit System"
+Set  $list1$ = createStringList ('systemtype')
+  The value of the variable "$list1$" is now:
+  (string   0)systemtype
+Set  $str1$ = ''
+  The value of the variable "$str1$" is now: ""
+Set  $str2$ = 'Win32_ComputerSystem'
+  The value of the variable "$str2$" is now: "Win32_ComputerSystem"
+Set  $str3$ = ''
+  The value of the variable "$str3$" is now: ""
+Set  $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+  The value of the variable "$resultlist$" is now:
+  (string   0)systemtype=x64-based PC
+----
+
+Example:
+[source,winst]
+----
+comment "Testing for freespace"
+;wmic LogicalDisk "%Systemdrive%" get freespace
+set $list1$ = createStringList ('freespace')
+set $str1$ = 'root\cimv2'
+set $str2$ = 'Win32_LogicalDisk'
+set $str3$ = 'where Name="%Systemdrive%"'
+markerrornumber
+set $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+if errorsOccuredSinceMark = 0
+	set $CompValue$ = getValue("freespace", $resultlist$)
+	set $CompValue$ = calculate($CompValue$+ '-1')
+	if (HasMinimumSpace ("%Systemdrive%", $CompValue$))
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		LogWarning "failed"
+	endif
+	set $CompValue$ = calculate($CompValue$+ '+10')
+	if (HasMinimumSpace ("%Systemdrive%", $CompValue$))
+		set $TestResult$ = "not o.k."
+		LogWarning "failed"
+	else
+		comment "passed"
+	endif
+endif
+----
+
+produces e.g the log:
+[source,winst]
+----
+comment: Testing for freespace
+Set  $list1$ = createStringList ('freespace')
+  The value of the variable "$list1$" is now:
+  (string   0)freespace
+Set  $str1$ = 'root\cimv2'
+  The value of the variable "$str1$" is now: "root\cimv2"
+Set  $str2$ = 'Win32_LogicalDisk'
+  The value of the variable "$str2$" is now: "Win32_LogicalDisk"
+Set  $str3$ = 'where Name="C:"'
+  The value of the variable "$str3$" is now: "where Name="C:""
+Marked error number 1
+Set  $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+  The value of the variable "$resultlist$" is now:
+  (string   0)freespace=235092250624
+If
+  errorsOccuredSinceMark = 0   <<< result true
+Then
+  Set  $CompValue$ = getValue("freespace", $resultlist$)
+    The value of the variable "$CompValue$" is now: "235092250624"
+  Set  $CompValue$ = calculate($CompValue$+ '-1')
+    The value of the variable "$CompValue$" is now: "235092250623"
+  If
+      Free on Disk C:: 235.092.250.624 bytes  This is more than the required amount of 235.092.250.623 bytes
+    HasMinimumSpace ("C:", $CompValue$)   <<< result true
+    (HasMinimumSpace ("C:", $CompValue$))   <<< result true
+  Then
+    comment: passed
+  Else
+  EndIf
+  Set  $CompValue$ = calculate($CompValue$+ '+10')
+    The value of the variable "$CompValue$" is now: "235092250633"
+  If
+      Free on Disk C:: 235.092.250.624 bytes  This is less than the required amount of 235.092.250.633 bytes
+    HasMinimumSpace ("C:", $CompValue$)   <<< result false
+    (HasMinimumSpace ("C:", $CompValue$))   <<< result false
+  Then
+  Else
+    comment: passed
+  EndIf
+EndIf
+----
+
+Example:
+[source,winst]
+----
+comment "Testing for drive count"
+;wmic LogicalDisk "%Systemdrive%" get name
+set $list1$ = createStringList ('Name')
+set $str1$ = ''
+set $str2$ = 'Win32_LogicalDisk'
+set $str3$ = ''
+set $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+set $CompValue$ = count($resultlist$)
+set $resultlist$ = powershellCall('get-psdrive -psprovider filesystem | select-object -expand Name')
+set $ConstTest$ = count($resultlist$)
+if ($ConstTest$ = $CompValue$)
+	comment "getListFromWMI passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "testing getListFromWMI failed"
+endif
+----
+
+produces e.g the log:
+[source,winst]
+----
+comment: Testing for drive count
+Set  $list1$ = createStringList ('Name')
+  The value of the variable "$list1$" is now:
+  (string   0)Name
+Set  $str1$ = ''
+  The value of the variable "$str1$" is now: ""
+Set  $str2$ = 'Win32_LogicalDisk'
+  The value of the variable "$str2$" is now: "Win32_LogicalDisk"
+Set  $str3$ = ''
+  The value of the variable "$str3$" is now: ""
+Set  $resultlist$ = getListFromWMI($str1$,$str2$,$list1$,$str3$)
+  The value of the variable "$resultlist$" is now:
+  (string   0)Name=C:
+  (string   1)Name=D:
+  (string   2)Name=P:
+Set  $CompValue$ = count($resultlist$)
+  The value of the variable "$CompValue$" is now: "3"
+Set  $resultlist$ = powershellCall('get-psdrive -psprovider filesystem | select-object -expand Name')
+PowerhellCall Executing: get-psdrive -psprovider filesystem | select-object -expand Name ; mode: sysnative
+ShellCall Executing: "C:\Windows\\cmd64.exe" /C "powershell.exe get-executionpolicy"
+ExitCode 0
+ShellCall Executing: "C:\Windows\\cmd64.exe" /C "powershell.exe set-executionpolicy RemoteSigned"
+ExitCode 0
+
+Execution of tmp-internal powershell.exe winst /sysnative
+  Save to file with encoding: system
+  trap { write-output $_ ; exit 1 }
+  get-psdrive -psprovider filesystem | select-object -expand Name
+  exit $LASTEXITCODE
+  ExitCode 0
+The file: c:\opsi.org\tmp\_opsiscript_Lw32Rh40.ps1 has been deleted
+
+ShellCall Executing: "C:\Windows\\cmd64.exe" /C "powershell.exe set-executionpolicy Restricted"
+ExitCode 0
+  The value of the variable "$resultlist$" is now:
+  (string   0)C
+  (string   1)D
+  (string   2)P
+Set  $ConstTest$ = count($resultlist$)
+  The value of the variable "$ConstTest$" is now: "3"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: getListFromWMI passed
+Else
+EndIf
+----
+
+
 [[opsi-winst-stringlist-create-by-value]]
 ==== Producing String Lists from Strings [W/L/M]
 
@@ -4545,6 +4777,23 @@ see also : <<opsi-winst-xml2-sections>>
 
 === Regular expression related functions [W/L/M]
 
+WARNING: Working with regular expressions has some disadvantages: +
+Finding the correct regular expression can be difficult. So use tools to test your expressions. +
+Code written with regular expressions is hard to read. +
+Make comments in your code that explain what you try to do.
+
+There are different kinds of regular expressions: Perl, Javascript, Java, ... +
+The kind of regular expression implemented here is the `perl style` or `PCRE`.
+
+TIP: Use tools to test yor expression. +
+Select the correct style in the tool or check twice that it uses the correct one. +
+There are online tools, for example: +
+https://regexr.com/ +
+https://regex101.com/ +
+https://rubular.com/ +
+There are also installable tools, for example: +
+http://www.weitz.de/regex-coach/
+
 anchor:isRegexMatch[]
 
 * `isRegexMatch(<string>, <pattern>) : boolean` +
@@ -4582,6 +4831,7 @@ anchor:getSubListByContainingRegex[]
 * `getSubListByContainingRegex(<pattern>, <target list>) : stringlist` +
 It will extract a sublist from target list by matching a single pattern, +
 where sublist is a list of whole lines containing the pattern.
+
 
 * `getSubListByContainingRegex(<pattern list>, <target list>) : stringlist` +
 It will extract a sublist from target list by matching a list of patterns, +
@@ -4628,6 +4878,7 @@ anchor:getRegexMatchList[]
 * `getRegexMatchList(<pattern>, <target list>) : stringlist` +
 It will extract a sublist from the target list by matching a single pattern, +
 where sublist is a list of exact matches for the pattern.
+
 
 * `getRegexMatchList(<pattern list>, <target list>) : stringlist`  +
 It will extract a sublist from the target list by matching a list of patterns, +
@@ -4754,13 +5005,32 @@ else
 endif
 ----
 
+For further examples see the product 'opsi-script-test'
+expecially the file `sub-scripts/regex.opsiscript`
+
 [[opsi-winst-url]]
 === URL related functions [W/L/M]
+
+These functions can be used to analyze and create URLs. +
+
+They convert string URLs to a string list with the URL components:
+
+----
+'Protocol=proto'
+'Username=usr'
+'Password=pwd'
+'Host=host'
+'Port=8080'
+'Path=/path/'
+'Document=doc'
+'Params=param'
+'Bookmark=bookmark'
+----
 
 anchor:parseUrl[]
 
 * `parseUrl(<url string>) : stringlist`  +
-Return url components for the given url string.
+Return url components as stringlist for the given <url string>.
 
 Example:
 [source,winst]
@@ -4804,7 +5074,8 @@ endif
 anchor:createUrl[]
 
 * `createUrl(<urlcomponents list>) : string`  +
-return url string for the given urlcomponents.
+return url string for the given urlcomponents. +
+The <urlcomponents list> has not to be complete. You may give only the needed parts.
 
 Example:
 [source,winst]
@@ -4838,6 +5109,9 @@ else
 		LogWarning "testing createUrl failed"
 endif
 ----
+
+For further examples see the product 'opsi-script-test'
+expecially the file `sub-scripts/urlparser.opsiscript`
 
 [[opsi-winst-networkfunc]]
 === Network related functions [W/L/M]
@@ -5006,6 +5280,8 @@ else
 endif
 ----
 
+For further examples see the product 'opsi-script-test'
+expecially the file `sub-scripts/networkcalc.opsiscript`
 
 [[opsi-winst-process]]
 === Process and Script Related functions [W/L/M]
@@ -6902,6 +7178,10 @@ In a Files section the following commands are defined:
 
 * `move` [W/L/M]
 
+* `zipfile` [W/L/M]
+
+* `unzipfile` [W/L/M]
+
 
 `Copy` and `Delete` roughly correspond the the Windows shell commands xcopy resp. del.
 
@@ -7033,6 +7313,22 @@ hardlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\hardlink.txt"
 symlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\symlink.txt"
 rename "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\rename.txt"
 move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
+----
+
+`zipfile` <source dir> <zip file> // since 4.12.1 [W/L/M]
+
+`unzipfile` <zip file> <target dir>  // since 4.12.1 [W/L/M]
+
+Example:
+[source,winst]
+----
+[Files_zip_unzip]
+zipfile "$HomeTestFiles$\" "%opsiTmpDir%\testdir.zip" 
+zipfile "$HomeTestFiles$\dummy.msi" "%opsiTmpDir%\testfile.zip" 
+Del -s -f "$HomeTestFiles$\"
+checktargetpath = "$HomeTestFiles$\"
+unzipfile "%opsiTmpDir%\testdir.zip" "$HomeTestFiles$\" 
+unzipfile "%opsiTmpDir%\testfile.zip" "$HomeTestFiles$\" 
 ----
 
 [[opsi-winst-patches]]
@@ -7592,10 +7888,10 @@ XML meta data at the beginning of a xml file. In our example: +
 `<?xml version="1.0" encoding="UTF-8"?>`
 
 * `node` +
-The xml node starts with a open element `<` followed by a identifier and `>` and ends with the clode element `<\` followed by the same identifier and `>` Example: +
+The xml node starts with a open element `<` followed by a identifier and `>` and ends with the close element `<\` followed by the same identifier and `>` Example: +
 `<mynode><\mynode>` +
 If like in the example above there is no additional information this node can be written as: +
-`` +
+`<mynode\>` +
 In the open element the identifier may be followed by one or more `atributes`. +
 Between the open and the close element you may find the `nodetext`.
 
@@ -7683,17 +7979,12 @@ The <xml2 path> is the path to our target node. +
 It may have two different forms, according to the value of 'strictMode': +
 
 * <xml2 path> `strictMode =false` (Default): +
-A line of xml node names only with no attributes seprated by '` // `' +
+A line of xml node names only with *no* attributes seprated by '` // `' +
 Example: +
 `node_level-1_number-1 // node_level-2_B `
 
-* <xml2 path> `strictMode =false`: +
-A line of xml node names with optional one attribute seprated by '` // `' +
-Example: `node_level-1_number-1 // node_level-2_B color="green"`
-
-
 * <xml2 path> `strictMode =true`: +
-A line of xml node names with all existing attributes seprated by '` // `' +
+A line of xml node names with *all* existing attributes seprated by '` // `' +
 Example: +
 `node_level-1_number-1 // node_level-2_B color="green" count="65"`
 
@@ -7724,11 +8015,438 @@ Make the parent node to the actual node.
 
 [[opsi-winst-xml2-examples]]
 ==== Examples
+We assume we have file `dummy.xml` with the content:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<rootnode>
+    <node_level-1_number-1>
+        <node_level-2_A color="blue">Hello World</node_level-2_A>
+        <node_level-2_B color="green" count="65">
+        </node_level-2_B>
+        <node_level-2_C>
+        </node_level-2_C>
+    </node_level-1_number-1>
+    <node_level-1_number-2>
+    </node_level-1_number-2>
+</rootnode>
+----
+
+The following code:
+
 [source,winst]
 ----
+comment "Testing: "
+message "opennode not existing node"
+set $xml2strictMode$ = 'false'
+set $xml2nodepath$ ='node_level-1_number-1 // node_level-2_B // node_level-3_A'
+set $xml2changeValue$ = '"color" "yellow"'
+set $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+set $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+set $xml2cmdLine3$ = "SetAttribute "+$xml2changeValue$
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+set $ConstTest$ = "yellow"
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+set $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "yellow"		
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[XML2_dummy_xml]
+$xml2cmdLine1$
+$xml2cmdLine2$
+$xml2cmdLine3$
+$xml2cmdLine4$
+$xml2cmdLine5$
+$xml2cmdLine6$
+$xml2cmdLine7$
+$xml2cmdLine8$
+$xml2cmdLine9$
 ----
+
+[source,winst]
+----
+message "opennode not existing node"
+
+; The call
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+
+; Test 1
+set $ConstTest$ = "yellow"
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+set $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+; Test 2
+set $ConstTest$ = "yellow"		
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[XML2_dummy_xml]
+strictMode = false
+openNode 'node_level-1_number-1 // node_level-2_B // node_level-3_A'
+SetAttribute "color" "yellow"
+----
+
+produces e.g the log:
+
+[source,winst]
+----
+message opennode not existing node
+Set  $xml2nodepath$ ='node_level-1_number-1 // node_level-2_B // node_level-3_A'
+  The value of the variable "$xml2nodepath$" is now: "node_level-1_number-1 // node_level-2_B // node_level-3_A"
+Set  $xml2changeValue$ = '"color" "yellow"'
+  The value of the variable "$xml2changeValue$" is now: ""color" "yellow""
+Set  $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+  The value of the variable "$xml2cmdLine1$" is now: "strictMode = false"
+Set  $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+  The value of the variable "$xml2cmdLine2$" is now: "openNode 'node_level-1_number-1 // node_level-2_B // node_level-3_A'"
+Set  $xml2cmdLine3$ = "SetAttribute "+$xml2changeValue$
+  The value of the variable "$xml2cmdLine3$" is now: "SetAttribute "color" "yellow""
+
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  try to load File: c:\opsi.org\tmp\testFiles\dummy.xml
+  File: c:\opsi.org\tmp\testFiles\dummy.xml read
+  success: create xmldoc from file: c:\opsi.org\tmp\testFiles\dummy.xml
+  StrictMode is set to : False
+  We will OpenNode : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  -- pathes.Count: 3
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  Found node 1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_B
+  thisnodename
+  leavingPath node_level-2_B
+  node 2: nodename node_level-2_B
+  begin to get node  nodename: node_level-2_B with attributes:
+  Found node 2: nodename: node_level-2_B
+  path element 3 : node_level-3_A
+  thisnodename
+  leavingPath node_level-3_A
+  node 3: nodename node_level-3_A
+  begin to get node  nodename: node_level-3_A with attributes:
+  opennode: node not found 3: nodename: node_level-3_A
+  actNode=nil; opennode: node not found, maybe 3: nodename: node_level-3_A
+  nodepath does not exists - try to create: node_level-1_number-1 // node_level-2_B // node_level-3_A
+  begin to make node with path: node_level-1_number-1 // node_level-2_B // node_level-3_A and  TEXT_CONTENT:
+  actNodeSet <> nil
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  -- pathes.Count: 3
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  actnode: rootnode
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  node(s) found with name node_level-1_number-1: 1
+  
+  1 -> find attributes for node node_level-1_number-1, number of attributes 0
+  all attributes have to fit, nodename node_level-1_number-1
+  actnodeset after retrieving key/value
+  
+  actNodeSet:
+     node 0 elementname: "node_level-1_number-1"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-1_number-1
+  Found node 1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_B
+  thisnodename
+  leavingPath node_level-2_B
+  node 2: nodename node_level-2_B
+  actnode: node_level-1_number-1
+  begin to get node  nodename: node_level-2_B with attributes:
+  node(s) found with name node_level-2_B: 1
+  
+  1 -> find attributes for node node_level-2_B, number of attributes 0
+  all attributes have to fit, nodename node_level-2_B
+  Attribute count mismatch: given by path: 0 but node has: 2
+  actnodeset after retrieving key/value
+  
+  actNodeSet:
+  Non-null element(s) in act node set: 0
+  result false, actnode is nil, lenght of actNodeSet is 0
+  makeNodePathWithTextContent: node not found 2: nodename: node_level-2_B, Node will be created
+  begin to make node with nodename: node_level-2_B
+  path element 3 : node_level-3_A
+  thisnodename
+  leavingPath node_level-3_A
+  node 3: nodename node_level-3_A
+  actnode: node_level-2_B
+  makeNodePathWithTextContent: node not found 3: nodename: node_level-3_A, Node will be created
+  begin to make node with nodename: node_level-3_A
+  actNode know node 3: nodename: node_level-3_A
+  successfully created nodepath: node_level-1_number-1 // node_level-2_B // node_level-3_A
+  We will setAttribute : color : yellow
+  begin setAttribute name: color, value: yellow
+  setAttribute, create attribute with name: color value: yellow
+  successfully setAttribute : color : yellow
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  file saved: c:\opsi.org\tmp\testFiles\dummy.xml
+  successful written xmldoc to file: c:\opsi.org\tmp\testFiles\dummy.xml
+  Set  $ConstTest$ = "yellow"
+    The value of the variable "$ConstTest$" is now: "yellow"
+  Set  $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+    The value of the variable "$list1$" is now:
+    (string   0)<?xml version="1.0" encoding="utf-8"?>
+    (string   1)<rootnode>
+    (string   2)  <node_level-1_number-1>
+    (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+    (string   4)    <node_level-2_B color="green" count="65"/>
+    (string   5)    <node_level-2_C/>
+    (string   6)    <node_level-2_B>
+    (string   7)      <node_level-3_A color="yellow"/>
+    (string   8)    </node_level-2_B>
+    (string   9)  </node_level-1_number-1>
+    (string  10)  <node_level-1_number-2/>
+    (string  11)</rootnode>
+  Set  $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+    The value of the variable "$tmp$" is now: "      <node_level-3_A color="yellow"/>"
+  Set  $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+    The value of the variable "$CompValue$" is now: "yellow"
+  If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+Set  $ConstTest$ = "yellow"
+  The value of the variable "$ConstTest$" is now: "yellow"
+Set  $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+  The value of the variable "$list1$" is now:
+  (string   0)
+  (string   1)<rootnode>
+  (string   2)  <node_level-1_number-1>
+  (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+  (string   4)    <node_level-2_B color="green" count="65"/>
+  (string   5)    <node_level-2_C/>
+  (string   6)    <node_level-2_B>
+  (string   7)      <node_level-3_A color="yellow"/>
+  (string   8)    </node_level-2_B>
+  (string   9)  </node_level-1_number-1>
+  (string  10)  <node_level-1_number-2/>
+  (string  11)</rootnode>
+Set  $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+  The value of the variable "$list2$" is now:
+  (string   0)
+  (string   1)<node_level-3_A color="yellow"/>
+Set  $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+  The value of the variable "$CompValue$" is now: "yellow"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+The following code:
+
+[source,winst]
+----
+message "addNewNode"
+set $xml2strictMode$ = 'false'
+set $xml2nodepath$ ='node_level-1_number-1 // node_level-2_C'
+set $xml2changeValue$ = '"node_level-3_C"'
+set $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+set $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+set $xml2cmdLine3$ = "addNewNode "+$xml2changeValue$
+set $xml2cmdLine4$ = 'SetAttribute "node" "new"'
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+set $ConstTest$ = '<node_level-3_C node="new"/>'
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_C")
+set $CompValue$ = Trim($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "addNewNode passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "addNewNode failed"
+endif
+set $ConstTest$ = "new"
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_C")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"node")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+
+[XML2_dummy_xml]
+$xml2cmdLine1$
+$xml2cmdLine2$
+$xml2cmdLine3$
+$xml2cmdLine4$
+$xml2cmdLine5$
+$xml2cmdLine6$
+$xml2cmdLine7$
+$xml2cmdLine8$
+$xml2cmdLine9$
+----
+
+produces e.g the log:
+[source,winst]
+----
+message addNewNode
+Set  $xml2nodepath$ ='node_level-1_number-1 // node_level-2_C'
+  The value of the variable "$xml2nodepath$" is now: "node_level-1_number-1 // node_level-2_C"
+Set  $xml2changeValue$ = '"node_level-3_C"'
+  The value of the variable "$xml2changeValue$" is now: ""node_level-3_C""
+Set  $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+  The value of the variable "$xml2cmdLine1$" is now: "strictMode = true"
+Set  $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+  The value of the variable "$xml2cmdLine2$" is now: "openNode 'node_level-1_number-1 // node_level-2_C'"
+Set  $xml2cmdLine3$ = "addNewNode "+$xml2changeValue$
+  The value of the variable "$xml2cmdLine3$" is now: "addNewNode "node_level-3_C""
+Set  $xml2cmdLine4$ = 'SetAttribute "node" "new"'
+  The value of the variable "$xml2cmdLine4$" is now: "SetAttribute "node" "new""
+
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  try to load File: c:\opsi.org\tmp\testFiles\dummy.xml
+  File: c:\opsi.org\tmp\testFiles\dummy.xml read
+  success: create xmldoc from file: c:\opsi.org\tmp\testFiles\dummy.xml
+  StrictMode is set to : True
+  We will OpenNode : node_level-1_number-1 // node_level-2_C
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_C
+  -- pathes.Count: 2
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  node(s) found with name node_level-1_number-1: 1
+  
+  1 -> find attributes for node node_level-1_number-1, number of attributes 0
+  all attributes have to fit, nodename node_level-1_number-1
+  actnodeset after retrieving key/value
+  
+  actNodeSet:
+     node 0 elementname: "node_level-1_number-1"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-1_number-1
+  Found node with attributes_strict1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_C
+  thisnodename
+  leavingPath node_level-2_C
+  node 2: nodename node_level-2_C
+  begin to get node  nodename: node_level-2_C with attributes:
+  node(s) found with name node_level-2_C: 1
+  
+  1 -> find attributes for node node_level-2_C, number of attributes 0
+  all attributes have to fit, nodename node_level-2_C
+  actnodeset after retrieving key/value
+  
+  actNodeSet:
+     node 0 elementname: "node_level-2_C"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-2_C
+  Found node with attributes_strict2: nodename: node_level-2_C
+  actNode know node 2: nodename: node_level-2_C
+  successfully opend node: node_level-1_number-1 // node_level-2_C
+  We will addNewNode : node_level-3_C
+  begin to make node with nodename: node_level-3_C attributeName:  attributeValue:
+  successfully addNewNode: node_level-3_C
+  We will setAttribute : node : new
+  begin setAttribute name: node, value: new
+  setAttribute, create attribute with name: node value: new
+  successfully setAttribute : node : new
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  file saved: c:\opsi.org\tmp\testFiles\dummy.xml
+  successful written xmldoc to file: c:\opsi.org\tmp\testFiles\dummy.xml
+  Set  $ConstTest$ = '<node_level-3_C node="new"/>'
+    The value of the variable "$ConstTest$" is now: "<node_level-3_C node="new"/>"
+  Set  $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+    The value of the variable "$list1$" is now:
+    (string   0)<?xml version="1.0" encoding="utf-8"?>
+    (string   1)<rootnode>
+    (string   2)  <node_level-1_number-1>
+    (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+    (string   4)    <node_level-2_B color="green" count="65"/>
+    (string   5)    <node_level-2_C>
+    (string   6)      <node_level-3_C node="new"/>
+    (string   7)    </node_level-2_C>
+    (string   8)  </node_level-1_number-1>
+    (string   9)  <node_level-1_number-2/>
+    (string  10)</rootnode>
+  Set  $tmp$ = takeFirstStringContaining($list1$,"node_level-3_C")
+    The value of the variable "$tmp$" is now: "      <node_level-3_C node="new"/>"
+  Set  $CompValue$ = Trim($tmp$)
+    The value of the variable "$CompValue$" is now: "<node_level-3_C node="new"/>"
+  If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: addNewNode passed
+Else
+EndIf
+Set  $ConstTest$ = "new"
+  The value of the variable "$ConstTest$" is now: "new"
+Set  $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+  The value of the variable "$list1$" is now:
+  (string   0)
+  (string   1)<rootnode>
+  (string   2)  <node_level-1_number-1>
+  (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+  (string   4)    <node_level-2_B color="green" count="65"/>
+  (string   5)    <node_level-2_C>
+  (string   6)      <node_level-3_C node="new"/>
+  (string   7)    </node_level-2_C>
+  (string   8)  </node_level-1_number-1>
+  (string   9)  <node_level-1_number-2/>
+  (string  10)</rootnode>
+Set  $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_C")
+  The value of the variable "$list2$" is now:
+  (string   0)
+  (string   1)<node_level-3_C node="new"/>
+Set  $CompValue$ = getXml2AttributeValueByKey($list2$,"node")
+  The value of the variable "$CompValue$" is now: "new"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
 For further examples see the product 'opsi-script-test'
-expecially the sector with '$Flag_winst_xml2$ = "on"'
+expecially the file `sub-scripts/xml2test.opsiscript`
 
 
 
