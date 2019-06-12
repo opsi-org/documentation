@@ -1,0 +1,1047 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.1
+:doctype:   book
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-4.1-releasenotes]]
+= opsi Version 4.1 Release Notes
+
+// Include common opsi copyright
+include::../common/opsi_manual_copyright.asciidoc[]
+
+[[opsi-4.1-releasenotes-overview]]
+== Übersicht der Neuerungen
+
+*Schwerpunkte dieser Freigabe sind:*
+
+* opsi Server
+** Neuer TFTPD: `opsi-tftp-hpa`
+** Neues Werkzeug: `opsi-package-updater`
+** Konfigurierbarer Pfad der Workbench
+** Das Werkzeug `opsi-makeproductfile` wurde umbenannt zu `opsi-makepackage`
+** Das Paket `opsi-depotserver` wurde umbenannt zu `opsi-server`
+** Konfigurierbare Ports für Wake-On-LAN
+** Geänderte Standardeinstellungen
+** systemd als einziges unterstütztes Init-System
+** Python 2.7 als Voraussetzung
+* Windows Betriebssystem Installation (Netboot-Produkte) (auch für opsi 4.0)
+** Multidiskmode: Unterstützung der Installation auf Systemen mit mehreren Festplatten
+** Möglichkeit gezielt auf die erste SSD-Platte zu installieren
+** Vergabe des Administrator Passworts über ein Property
+* Neue opsi Erweiterung für Schulen / Schulungsräume 'opsi-vhd-reset' (auch für opsi 4.0)
+** Schnelle Wiederherstellung eines Schulungsrechners
+** Installation von Windows 10 in eine VHD Datei.
+** Snapshot des Orginalzustands über eine 'Child'-VHD welche die Änderungen aufnimmt.
+** Schnelle Wiederherstellung durch Austausch der 'Child'-VHD
+** Kostenpflichtige Erweiterung verbunden mit 'opsi-local-image'.
+Das heist mit dem Erwerb der Freigabe von opsi-local-image kann sowohl
+'opsi-local-image' als auch 'opsi-vhd-reset' verwendet werden.
+
+
+[[opsi-4.1-releasenotes-important]]
+== Wichtige Hinweise - Unbedingt Beachten
+
+opsi 4.1 ist ein eigenständiges Release, welches eigene Paketquellen mitbringt.
+Diese müssen vor der Installationen in das zu aktualisierende System eingebunden werden.
+
+Für ein Update von opsi 4.0 ist es notwendig, dass die Betriebsystem-Pakete auf dem Server den aktuellen stabilen Stand verwenden.
+Weitere Betriebssystem-Pakete, bspw. MySQL-Server, sollten ebenfalls auf dem aktuellsten verfügbaren Stand sein.
+Andernfalls ist mit Problemen beim Update zu rechnen.
+
+Das Ersetzen von `opsi-product-updater` durch `opsi-package-updater` wird begleitet durch neue Konfigurationsdateien.
+Die Übernahme der Konfiguration wird später in diesem Dokument beschrieben.
+
+Falls Sie `opsi-product-updater` automatisiert - bspw. mit einem regelmäßigen Cronjob - oder in einem Script ausführen, stellen Sie sicher, dass Sie zu `opsi-package-updater` wechseln.
+
+Es ist außerdem empfohlen, dass 'opsi-winst', 'opsi-client-agent' bzw. 'opsi-linux-client-agent' vor dem Update auf den Clients auf den aktuellsten Stand aus opsi 4.0 gebracht werden.
+
+Sollte nach der Migration eine Meldung in der Form: "Your hostcontrol backend configuration uses the old format for broadcast addresses .." erscheinen, lesen Sie bitte hier welche Konfigurations Anpassungen notwendig sind: <<opsi-releasenotes-4.1-changes-wake-on-lan-ports, Konfigurierbare Ports für Wake-On-LAN>>
+
+Der Einsatz der neuen Netboot, opsi-local-image und opsi-vhd Produkte
+erfordert eine  opsi-winst >= 4.12.0.13
+
+
+[[opsi-4.1-releasenotes-important-dispatch-and-acl.conf]]
+=== Neues Verhalten von dispatch.conf und acl.conf
+
+opsi 4.1 bringt Änderungen in der Serverkonfiguration mit sich. Bei opsi 4.0.x waren die beiden Dateien *dispatch.conf* und *acl.conf* unterhalb von /etc/opsi/backendManager ein symbolischer Link auf die *.default Dateien.
+
+[source,prompt]
+----
+cd /etc/opsi/backendManager
+ls -la
+dispatch.conf -> dispatch.conf.default
+acl.conf -> acl.conf.default
+----
+
+Mit opsi 4.1 werden diese beiden Dateien nicht mehr als symbolische Links angelegt. Die opsi 4.1 Pakete versuchen vor dem Upgrade automatisiert eine solche Situation auf zu lösen.
+
+Wenn beide oder einer der genannten Dateien existieren, wird der Link verfolgt und die Ziel-Datei wird anstelle des symbolischen Links kopiert.
+
+Die beiden *.default Dateien wurden umbenannt in *.example und werden nun immer in das gewohnte Verzeichnis kopiert und sollen nur als Referenz dienen. Ansonsten haben Sie keine Bedeutung.
+
+Somit sollte nach einem Upgrade auf 4.1 das System ohne Probleme mit der alten *dispatch.conf* und *acl.conf* Konfiguration weiterlaufen. Dennoch empfehlen wir nach dem Upgrade diese beiden Dateien noch mal zu überprüfen.
+
+
+[[opsi-4.1-releasenotes-installation]]
+== Hinweise zur Installation
+
+Wir empfehlen vor der Installation des Updates eine Sicherung Ihres Backends mittels {opsi-backup} durchzuführen:
+[source,prompt]
+----
+opsi-backup create
+----
+
+Die Produkte welche im Rahmen dieses Releases veröffentlicht werden,
+sind in etlichen Teilen voneinander abhängig.
+Sie sollten daher nicht versuchen, nur Teile zu installieren.
+
+Wir empfehlen zuerst den Server und danach die opsi-Produkte zu aktualisieren.
+
+In einer Multi-Depot-Umgebung wird empfohlen die Aktualisierung auf dem Configserver zu beginnen und erst danach die Depots zu aktualisieren.
+
+Wir empfehlen nach dem Update die Ausführung von `opsi-setup --set-rights`,
+um sicher zu stellen, dass die Zugriffsberechtigungen korrekt gesetzt sind.
+Die Ausführung des Befehls kann mehrere Minuten in Anspruch nehmen.
+
+
+[[opsi-4.1-releasenotes-installation-systempackages]]
+=== Hinweise zum Aktualisieren der Betriebssystem-Pakete
+
+Bitte stellen Sie sicher, dass Sie zum Zeitpunkt der Aktualisierung die
+jeweils aktuellsten Pakete von opsi 4.0 aus dem Stable-Bereich verwenden!
+
+Da dieses Update Änderungen der Datenstruktur im Backend mit sich bringt, ist es erforderlich als ersten Schritt nach dem Update die Backends zu migrieren.
+
+Unter UCS wird die Migration der Backends durch das Join-Script vorgenommen und muss nicht mehr manuell durchgeführt werden.
+
+Im opsi 4.1 Release wird der 'opsi-atftpd' durch den neuen 'opsi-tftpd-hpa' ersetzt.
+
+IMPORTANT: Hierbei ist zu beachten das eine bestehende Konfiguration für `tftpd` in der Datei '/etc/inetd.conf' bzw. '/etc/xinetd.conf' bzw. '/etc/default/atftpd' entfernt sowie der inetd-Service gestoppt werden muss.
+
+
+[[opsi-4.1-releasenotes-installation-opsipackages]]
+=== Hinweise zum Aktualisieren von opsi-Paketen
+
+opsi-Pakete sind in der Regel kompatibel zu sowohl opsi 4.0 als auch opsi 4.1.
+
+opsi 3-Pakete sind nicht mehr kompatibel, da die Unterstützung hierfür entfernt wurde.
+
+Die offiziellen opsi 4.1 Repositories auf _download.uib.de_ enthalten Pakete, welche mit opsi 4.1 kompatibel sind.
+Bitte beachten Sie, dass diese Pakete nicht zwingend `4.1` als Version angegeben haben müssen, um kompatibel zu sein.
+
+
+[[opsi-4.1-releasenotes-installation-migration]]
+=== Migration eines opsi 4.0 Servers
+
+Auf unterstützten Betriebsystemen ist es möglich eine bestehende opsi 4.0 Installation auf opsi 4.1 zu migrieren.
+
+Falls die opsi-Server durch opsi gemanaged werden, so kann die Migration mit dem Paket `l-opsi-server-migrate` durchgeführt werden.
+
+
+[[opsi-4.1-releasenotes-installation-migration-repositories]]
+==== Wechseln zu den neuen Repositories
+
+Als erstes müssen die opsi 4.1 Repositories korrekt in die Paketquellen Ihres Betriebsystems eingetragen werden.
+
+Die nachfolgenden Befehle fügen die neuen Repositories hinzu und fügen außerdem den Repository-Schlüssel hinzu, sofern benötigt.
+Diese Befehle benötigen 'root'-Rechte.
+
+
+*Ubuntu 16.04 LTS _Xenial Xerus_:*
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/xUbuntu_16.04/ /" > /etc/apt/sources.list.d/opsi.list
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_16.04/Release.key -O Release.key
+apt-key add - < Release.key
+----
+
+*Debian 9 _Stretch_:*
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Debian_9.0/ /" > /etc/apt/sources.list.d/opsi.list
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_9.0/Release.key -O Release.key
+apt-key add - < Release.key
+----
+
+*Debian 8 _Jessie_:*
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Debian_8.0/ /" > /etc/apt/sources.list.d/opsi.list
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_8.0/Release.key -O Release.key
+apt-key add - < Release.key
+----
+
+*UCS 4.2:*
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Univention_4.2/ /" > /etc/apt/sources.list.d/opsi.list
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Univention_4.2/Release.key -O Release.key
+apt-key add - < Release.key
+----
+
+*openSUSE Leap 42.3:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/openSUSE_Leap_42.3/home:uibmz:opsi:4.1:stable.repo
+----
+
+*SLES 12SP3:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP3/home:uibmz:opsi:4.1:stable.repo
+----
+
+*SLES 12SP2:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP2/home:uibmz:opsi:4.1:stable.repo
+----
+
+*SLES 12SP1:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP1/home:uibmz:opsi:4.1:stable.repo
+----
+
+*SLES 12:*
+[source,prompt]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12/home:uibmz:opsi:4.1:stable.repo
+----
+
+*RHEL 7:*
+[source,prompt]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/RHEL_7/home:uibmz:opsi:4.1:stable.repo
+----
+
+*CentOS 7:*
+[source,prompt]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/CentOS_7/home:uibmz:opsi:4.1:stable.repo
+----
+
+*Entfernen Sie anschliessend ggfs noch vorhandene Verweise auf opsi 4.0-Repositories.*
+
+* Debian/Ubuntu/UCS : etwa in Datei `/etc/apt/sources.list`
+* CentOS / Redhat : im Verzeichnis `/etc/yum.repos.d`
+* OpenSuse / SLES : mit folgendem Befehl `zypper rr opsi40`
+
+
+
+[[opsi-4.1-releasenotes-installation-migration-migrate]]
+==== Aktualisierung der Betriebssystem-Pakete
+
+Nach dem Eintragen der neuen Paketquellen kann das System migriert werden.
+
+IMPORTANT: Bei RPM-basierten Distributionen werden im Rahmen der Migration bereits vorhandene Konfigurationsdateien durch Neue ersetzt. Beachten Sie hierzu die Hinweise unter den entsprechenden Distributionen.
+
+*Auf Debian und Ubuntu aktualisieren Sie auf opsi 4.1 wie folgt:*
+[source,prompt]
+----
+update-inetd --remove tftp
+apt update
+apt install opsi-tftpd-hpa
+apt upgrade
+apt install opsi-server
+----
+
+
+Während der Installation können Dialoge zu folgenden Konfigurationsdateien angzeigt werden.
+
+Hier können Sie in der Regel Ihre Version behalten und mit "N" antworten:
+[source,prompt]
+----
+Konfigurationsdatei »/etc/opsi/backendManager/dispatch.conf.default«
+ ==> Geändert (von Ihnen oder von einem Skript) seit der Installation.
+ ==> Paketverteiler hat eine aktualisierte Version herausgegeben.
+   Wie möchten Sie vorgehen? Ihre Wahlmöglichkeiten sind:
+    Y oder I : Die Version des Paket-Betreuers installieren
+    N oder O : Die momentan installierte Version beibehalten
+       D     : Die Unterschiede zwischen den Versionen anzeigen
+       Z     : Eine Shell starten, um die Situation zu begutachten
+ Der Standardweg ist das Beibehalten der momentanen Version.
+*** dispatch.conf.default (Y/I/N/O/D/Z) [Vorgabe=N] ?
+
+----
+
+Hier können Sie in der Regel Ihre Version behalten und mit "N" antworten:
+[source,prompt]
+----
+Konfigurationsdatei »/etc/opsi/backends/hostcontrol.conf«
+ ==> Geändert (von Ihnen oder von einem Skript) seit der Installation.
+..
+...
+*** hostcontrol.conf (Y/I/N/O/D/Z) [Vorgabe=N] ?
+----
+
+Hier können Sie in der Regel Ihre Version behalten und mit "N" antworten:
+[source,prompt]
+----
+Konfigurationsdatei »/etc/opsi/opsiconfd.conf«
+ ==> Geändert (von Ihnen oder von einem Skript) seit der Installation.
+..
+...
+*** opsiconfd.conf (Y/I/N/O/D/Z) [Vorgabe=N] ?
+----
+
+
+
+*RedHat und CentOS sind wie folgt zu aktualisieren:*
+[source,prompt]
+----
+yum makecache
+yum install opsi-server
+yum update
+----
+
+Hierbei kann es zu folgenden Warnungen kommen:
+[source,prompt]
+----
+warning: /etc/opsi/backends/hostcontrol.conf created as /etc/opsi/backends/hostcontrol.conf.rpmnew
+warning: /etc/opsi/opsiconfd.conf created as /etc/opsi/opsiconfd.conf.rpmnew
+warning: /etc/opsi/opsi-product-updater.conf saved as /etc/opsi/opsi-product-updater.conf.rpmsave
+----
+Die Veränderungen an den Konfigurationsdateien `hostcontrol.conf` und `opsiconfd.conf` müssen Sie überprüfen.
+Auf den geänderten Namen der ursprünglichen `opsi-product-updater.conf` wird beim Aufruf des Migrationssriptes eingegangen.
+
+*SLES und OpenSUSE benötigen die folgenden Schritte für eine Migration:*
+[source,prompt]
+----
+zypper refresh
+zypper dup --from home_uibmz_opsi_4.1_stable
+----
+
+Hierbei kann es zu folgenden Warnungen kommen:
+[source,prompt]
+----
+warning: /etc/opsi/backends/hostcontrol.conf created as /etc/opsi/backends/hostcontrol.conf.rpmnew
+warning: /etc/opsi/opsiconfd.conf created as /etc/opsi/opsiconfd.conf.rpmnew
+warning: /etc/opsi/opsi-product-updater.conf saved as /etc/opsi/opsi-product-updater.conf.rpmsave
+----
+Die Veränderungen an den Konfigurationsdateien `hostcontrol.conf` und `opsiconfd.conf` müssen Sie überprüfen.
+Auf den geänderten Namen der ursprünglichen `opsi-product-updater.conf` wird beim Aufruf des Migrationssriptes eingegangen.
+
+
+*Unter UCS aktualisieren Sie auf opsi 4.1 wie folgt:*
+[source,prompt]
+----
+univention-install opsi-tftpd-hpa
+univention-upgrade
+----
+
+
+[[opsi-4.1-releasenotes-installation-migration-backends]]
+==== Migrieren der Backends
+
+Anschließend müssen auf den *Konfigservern* die Backends aktualisiert, die aktuelle Konfigration angewendet und die Dienste neu gestartet werden.
+
+Auf Depotservern sind diese Arbeiten nicht notwendig!
+
+[source,prompt]
+----
+# Bei der Verwendung des MySQL-Backends zur Datenhaltung
+opsi-setup --update-mysql
+opsi-setup --init-current-config
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
+
+# Bei der Verwendung eines gemischten Backends (File und MySQL) zur Datenhaltung
+opsi-setup --update-mysql
+opsi-setup --update-file
+opsi-setup --init-current-config
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
+----
+
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages]]
+==== Aktualisierung der opsi-Pakete
+
+Der letzte Schritt ist die Aktualisierung auf die neusten opsi-Pakete. Der hierzu bislang verwendete `opsi-product-updater` wird in opsi 4.1 durch den `opsi-package-updater` ersetzt. Dabei ist zu beachten, dass sich hier neben dem erweiterten Funktionsumfang auch eine wesentliche Änderung an der Konfiguration ergeben hat. Die allgemeine Beschreibung des neuen `opsi-package-updater` finden Sie im opsi-Handbuch. Im Folgenden werden nur die notwendigen Anpassungen im Rahmen der Migration beschrieben.
+
+Für den Fall, dass Sie an der `opsi-product-updater.conf` bislang keine Veränderungen vorgenommem haben können Sie direkt zum  Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-standard, Verwendung der Standardkonfiguration>> gehen.
+
+Falls Sie Anpassungen an der Konfigurationsdatei des `opsi-product-updater` gemacht haben, um z.B. zusätzliche Repositories zu Verwenden (Abo-Pakete) oder bei der Synchronisation von anderen opsi-Servern, müssen Sie entsprechende Anpassungen an der Konfiguration für den `opsi-package-updater` vornehmen. Verfahren Sie dann bitte wie im Kapitel <<opsi-4.1-releasenotes-installation-migration-opsi-packages-others, Migration bei veränderter Konfiguration>> beschrieben.
+
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages-standard]]
+===== Verwendung der Standardkonfiguration
+
+Wenn Sie keine Veränderungen gegenüber der Standard Auslieferung der `opsi-product-updater.conf` vorgenommen haben, erkennen Sie dies nach der Mirgration auf 4.1 daran, dass Ihre `/etc/opsi/opsi-product-updater.conf` nicht mehr vorhanden ist und vollständig durch die Repos-Dateien unter `/etc/opsi/package-updater.repos.d/` ersetzt wurden.
+In diesem Fall können Sie die opsi-Pakete direkt über den aufgeführten Aufruf aktualisieren:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+Nach diesen Schritten ist Ihr opsi 4.0 Server auf das Release 4.1 migriert und einsatzbereit.
+
+
+[[opsi-4.1-releasenotes-installation-migration-opsi-packages-others]]
+===== Migration bei veränderter Konfiguration
+
+Um die Umstellung mit zusätzlichen Repositories oder anderen Änderungen an der `opsi-product-updater.conf` zu erleichtern, haben wir Ihnen ein Migrations-Script zur Verfügung gestellt: `opsi-migrate-product-updater-configuration`.
+Das Script erstellt aus den Daten Ihrer `opsi-product-updater.conf` entsprechende Repo-Dateien unter `/etc/opsi/package-updater.repos.d/` und passt in diesen die Pfade zu den 4.1 Repos an.
+Wenn Sie das Script mit der folgenden Optionen aufrufen, werden nur die neu erstellten Repo-Dateien aktiviert, was in der Regel das von Ihnen gewünschte Verhalten sein wird:
+[source,prompt]
+----
+opsi-migrate-product-updater-configuration --disable-repos
+
+# auf RedHat, CentOS, SLES und OpenSUSE
+opsi-migrate-product-updater-configuration --configfile /etc/opsi/opsi-product-updater.conf.rpmsave --disable-repos
+----
+
+Die Überprüfung welche Repos nach der Migration aktiviert sind, können Sie wie folgt sehen:
+[source,prompt]
+----
+opsi-package-updater list --active-repos
+----
+
+Eine Ausgabe könnte wie folgt aussehen:
+[source,prompt]
+----
+Active repositories:
+uib: http://download.uib.de
+uib_linux: http://download.uib.de
+uib_local_image: http://download.uib.de
+----
+
+Wenn Sie mit der Ausgabe der aktiven Repositories zufrieden sind, können Sie die Aktualisierung starten:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+Nach diesen Schritten ist Ihr opsi 4.0 Server auf das Release 4.1 migriert und einsatzbereit.
+
+
+
+*Beispiele für Repos-Dateien:*
+
+Bisher standen in der `/etc/opsi/opsi-product-updater.conf` verschiedene Sektionen für die verschiedenen Repositories:
+
+[source,prompt]
+----
+[repository_abo_mshotfix]
+baseUrl = http://download.uib.de
+dirs = abo/mshotfix/opsi4/glb
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_abo_standard]
+baseUrl = http://download.uib.de
+dirs = abo/standard/opsi4
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_abo_msoffice]
+baseUrl = http://download.uib.de
+dirs = abo/msoffice/opsi4
+active = false
+username = <user>
+password = <pass>
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+onlyDownload = false
+
+[repository_uib_local_image]
+active = true
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/opsi-local-image
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+Daraus werden für opsi 4.1 folgende Repos-Dateien unter `/etc/opsi/package-updater.repos.d/`:
+
+abo_mshotfix.repo
+[source,prompt]
+----
+[repository_uib_abo_mshotfix]
+description = Updates for Microsoft OS packaged by uib.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/mshotfix/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+abo_standard.repo
+[source,prompt]
+----
+[repository_uib_abo_standard]
+description = Packages from uib for standard products.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/standard/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+abo_msoffice.repo
+[source,prompt]
+----
+[repository_uib_abo_msoffice]
+description = Updates for Microsoft Office packaged by uib.
+active = true
+baseUrl = http://download.uib.de
+dirs = abo/msoffice/opsi4
+username = < INSERT YOUR USERNAME HERE >
+password = < INSERT YOUR PASSWORD HERE >
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+uib-local_image.repo
+[source,prompt]
+----
+[repository_uib_local_image]
+description = opsi Local Image Backup extension
+active = false
+baseUrl = http://download.uib.de
+dirs = opsi4.1/stable/packages/opsi-local-image/localboot/, opsi4.1/stable/packages/opsi-local-image/netboot/
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+
+[[opsi-4.1-releasenotes-installation-migration-cleanup]]
+==== Optionale Aufräumarbeiten
+
+Es kann nach einer Migration sein, dass noch eine Reihe nicht mehr benötigter Dateien vorhanden sind.
+Die Ursache dafür kann entweder eine manuelle Anpassung sein oder dass diese Dateien durch das Einspielen eines Backups wieder auf dem System gelandet sind.
+
+Die folgenden Dateien bzw. Ordner können entfernt werden:
+
+* `/etc/opsi/version`
+* `/etc/opsi/backendManager/30_configed.conf`
+* Das Verzeichnis `/etc/opsi/backendManager/extend.d/configed/` samt Inhalt
+* `/etc/opsi/opsi-product-updater.conf` - beachten Sie hierzu bitte die Hinweise unter <<opsi-4.1-releasenotes-installation-migration-opsi-packages,Aktualisierung der opsi-Pakete>>, bevor Sie diese Entfernen.
+
+
+[[opsi-4.1-releasenotes-installation-migration-cleanup-opsi-depotserver]]
+===== Debian / Ubuntu: Übergangspaket entfernen
+
+Im Rahmen dieser Veröffentlichung wurde das Paket `opsi-depotserver` zu `opsi-server` umbenannt.
+
+Für Debian und Ubuntu existiert ein Übergangs-Paket.
+Falls Sie nach der Migration dieses Paket entfernen wollen, müssen Sie zuerst `opsi-server` als manuell installiert markieren und dann das Übergangs-Paket entfernen.
+
+Das ist möglich mit den folgenden Schritten:
+
+[source,prompt]
+----
+apt install opsi-server
+apt remove opsi-depotserver
+----
+
+[[opsi-4.1-releasenotes-knownbugs]]
+== Known Bugs / Known Problems
+
+.KNOWN BUGS:
+
+* Bei der Installation von Windows XP taucht eine Fehlermeldung wegen fehlender _powershell.exe_ auf, welche manuell geschlossen werden muss.
+
+
+.KNOWN PROBLEMS:
+
+* Nach einer Migration eines opsi4.0 Servers, der auf der opsiVM basiert, werden die auf dem Desktop vorhandenen Aufrufe des `opsi-product-updaters` nicht mehr funktionieren.
+
+
+[[opsi-4.1-releasenotes-eol]]
+== Abkündigung
+
+In diesem Kapitel werden die Abkündigungen aufgelistet.
+
+
+[[opsi-4.1-releasenotes-eol-opsi3]]
+=== Abkündigung: Support für opsi 3
+
+Mit opsi 4.1 wird es keine Unterstützung mehr für opsi 3 geben.
+Das betrifft Pakete, deren Control-Datei eventuell noch die Syntax von opsi 3 verwendet.
+
+Außerdem wurden einige in opsi 3 vorhandene, aber für opsi 4 nicht portierte
+Methoden aus der Backend-Erweiterung `20_legacy.conf` entfernt.
+Diese Methoden waren in opsi 4.0 dadurch erkennbar, dass sie eine Fehlermeldung
+_NotImplementedError_ zurückgaben, wenn ein Zugriff auf sie erfolgte.
+
+Betroffene Methoden können dem Changelog von python-opsi entnommen werden.
+
+
+[[opsi-4.1-releasenotes-eol_server]]
+=== Abkündigung: Distributionen für opsi-server
+
+Diese Distributionsversionen werden aus verschiedenen Gründen nicht weiter von opsi unterstützt.
+
+* CentOS 6.x
+* Debian 7.x
+* openSUSE Leap 42.2
+* RedHat Enterprise Linux 6.x
+* Suse Linux Enterprise Server 11
+* Univention Corporate Server 3.x
+* Univention Corporate Server 4.1
+
+Siehe auch gesondertes Kapitel: <<opsi-4.1-releasenotes-supportmatrix>>.
+
+
+[[opsi-4.1-releasenotes-supportmatrix]]
+== opsi Support Matrix
+
+Im folgenden finden Sie eine Übersicht auf welchen Plattformen opsi
+als Server läuft.
+
+include::supportmatrix-server.asciidoc[]
+
+Sollten Sie den opsi-server auf einer Betriebssystemversion einsetzen,
+welche im vorigen Abschnitt nicht als Unterstützt aufgeführt ist,
+so empfehlen wir Ihnen ein Betriebssystem-Update bevor Sie opsi 4.1 einspielen.
+
+
+[[opsi-releasenotes-4.1-changes-opsi-package-updater]]
+== Neues Werkzeug 'opsi-package-updater'
+
+In opsi 4.1 wird das aus vorherigen Versionen bekannten Werkzeug `opsi-product-updater` durch das Werkzeug `opsi-package-updater` ersetzt.
+
+Die Aufgaben der Werkzeuge gleichen sich, allerdings haben sich die Aufrufparamter geändert und es sind eine Reihe von neuen Optionen hinzugekommen.
+
+Das neue Werkzeug liefert einfache Möglichkeiten die vorhandenen Updates
+zu sehen oder neue Pakete einzuspielen.
+
+Eine ausführliche Beschreibung des Werkzeugs findet sich im Handbuch.
+
+IMPORTANT: Falls Sie `opsi-product-updater` automatisiert - bspw. mit einem regelmäßigen Cronjob - oder in einem Script ausführen, stellen Sie sicher, dass Sie zu `opsi-package-updater` wechseln.
+
+
+[[opsi-releasenotes-4.1-changes-opsi-package-updater-quickstart]]
+=== Schnelleinstieg 'opsi-package-updater'
+
+Zum Anzeigen der vorhandenen Aktualisierungen kann der folgende Befehl verwendet werden:
+
+[source,prompt]
+----
+opsi-package-updater list --updatable-products
+----
+
+Die Aktualisierungen für die Pakete 'firefox' und 'javavm' können wie folgt eingespielt werden:
+
+[source,prompt]
+----
+opsi-package-updater -v update firefox javavm
+----
+
+Die Aktualisierung aller verfügbaren Pakete ohne sichtbare Ausgabe wird wie folgt vorgenommen:
+
+[source,prompt]
+----
+opsi-package-updater update
+----
+
+Eine Übersicht über die in allen Repositories zur Verfügung stehenden Pakete liefert der folgende Befehl:
+
+[source,prompt]
+----
+opsi-package-updater list --products
+----
+
+Die Installation des Pakets 'ubuntu' aus dem Repository 'uib_linux' kann wie folgt durchgeführt werden:
+
+[source,prompt]
+----
+opsi-package-updater -v --repo uib_linux install ubuntu
+----
+
+
+[[opsi-releasenotes-4.1-changes-opsi-makepackage]]
+== Neues Werkzeug 'opsi-makepackage'
+
+In opsi 4.1 wird das aus vorherigen Versionen bekannte Werkzeug `opsi-makeproductfile` durch das Werkzeug `opsi-makepackage` ersetzt.
+
+Der neue Name soll den Unterschied zwischen einem Produkt und einem Paket verdeutlichen.
+Die aus opsi 4.0 bekannten Kommandozeilenparameter können wie zuvor verwendet werden.
+
+`opsi-makepackage` wird standardmäßig bei der Erstellung eines Pakets Prüfsummendateien erstellen.
+Über die Schalter `--no-md5` bzw. `--no-zsync` kann dieses Verhalten deaktiviert werden.
+
+
+[[opsi-4.1-releasenotes-opsi-configed]]
+== Update der Managementoberfläche 'opsi-configed'
+
+Mit dem Release wird ein umfangreiches Update des Konfigurations-Editors `{opsi-configed}` zur Verfügung gestellt.
+Die neue Version läuft mit einem opsi-Server der Version 4.1 wie auch der Version 4.0.7.
+
+Die neue Oberfläche enthält zahlreiche Verbesserungen hinsichtlich der Nutzung.
+Dazu zählen unter anderem neue Optionen für die Depotselektion, eine verbesserte Navigation im Client-Tree, die zusätzliche Unterstützung von Mehrfachauswahl für wichtige Clientfunktionen (Software-Inventur mit Batch-Ausgabe der Ergebnisse) sowie die Möglichkeit einzelne Client-Property-Werte statt alle Werte im Block auf den Server-Default zurückzusetzen.
+
+Die umfangreichste Überarbeitung hat das Lizenzmanagement erfahren.
+Für alle Tabellen sind jetzt Freitext-Suchfunktionen zu schnelleren Datensatzauswahl eingerichtet.
+Die Zuordnungen zwischen Lizenzpool und Software-ID sind mit zusätzlichen Strukturierungsmöglichkeiten ausgestattet, so dass das Handling dieser elementaren Funktion deutlich erleichtert wird.
+
+
+[[opsi-releasenotes-4.1-changes-workbench]]
+== Neuer Pfad der Workbench
+
+Das Workbench-Verzeichnis wird bei Neu-Installationen standardmäßig unter
+`/var/lib/opsi/workbench` angelegt.
+Dadurch ergibt sich ein einheitlicher Aufbau von opsi auf unterschiedlichen Systemen und das Backup einer kompletten opsi-Installation wird vereinfacht.
+
+Es ist möglich über das Depot-Attribut `workbenchLocalUrl` den verwendeten Pfad anzupassen.
+
+Bei dem Update einer bestehenden Installation wird im Rahmen des Backend-Updates der Wert dieses Attributs auf `/home/opsiproducts` für existierende Depotserver gesetzt.
+Auf SUSE-artigen Betriebssystemen wird von `/var/lib/opsi/workbench` als Verzeichnis ausgegangen und dieses gesetzt.
+Bei Misch-Installationen muss gegebenenfalls eine nachträgliche, manuelle Anpassung erfolgen.
+
+Ein automatischer Umzug vorhandener Daten aus dem alten Workbench-Verzeichnis findet nicht statt.
+
+
+[[opsi-releasenotes-4.1-changes-wake-on-lan-ports]]
+== Konfigurierbare Ports für Wake-On-LAN
+
+Es ist nun möglich für jede Broadcast-Adresse die für Wake-On-LAN zu verwendenden Ports zu konfigurieren.
+
+Dabei hat sich das Format für 'broadcastAddresses' in der Konfigurationsdatei `/etc/opsi/backends/hostcontrol.conf` verändert.
+Es gibt zwei Varianten in der das neue Format eingetragen werden kann.
+
+Variante 1:
+[source,json]
+----
+"broadcastAddresses": {
+	# the format used is: 'address' : [port1, port2, ...]
+	"255.255.255.255": [7, 9, 12287],
+}
+----
+
+Variante 2:
+[source,json]
+----
+"broadcastAddresses": {"255.255.255.255": (12287,)}
+----
+
+
+
+Wird das Format von opsi 4.0 vorgefunden, so wird in den opsiconfd-Logs darauf hingewiesen, wie diese im neuen Format aussehen sollen.
+[source,prompt]
+----
+Your hostcontrol backend configuration uses the old format for broadcast addresses. The new format allows to also set a list of ports to send the broadcast to.
+Please use this new value in the future: ...
+----
+Die Konfigurationsdatei wird nicht automatisch angepasst.
+
+Im Backend wird das alte Format automatisch konvertiert und dabei wird standardmäßig der Port 12287 verwendet.
+In opsi 4.0 wurde nur Port 12287 verwendet.
+Die Konfigurationsdatei `/etc/opsi/backends/hostcontrol.conf` muss manuell angepasst werden.
+
+
+[[opsi-releasenotes-4.1-changes-changed-defaults]]
+== Geänderte Standardeinstellungen
+
+Mit opsi 4.1 wurden einige Standard-Einstellungen geändert, um Erfahrungen aus dem opsi-Betrieb wiederzuspiegeln.
+
+Wichtig ist dies vorallem, wenn in einer bestehenden Umgebung neue opsi-Server installiert werden, da sich diese unter Umständen anders verhalten.
+
+* Für den opsiconfd wurde die Einstellung `update ip` auf `yes` gestellt.
+* In der Datei 'dispatch.conf' wird nun von der Verwendug des mysql-Backends zur Inventarisierung ausgegangen.
+
+
+[[opsi-releasenotes-4.1-changes-python-27]]
+== Python 2.7 als Voraussetzung
+
+Es wird die Verwendung von Python 2.7 vorausgesetzt.
+Ältere Versionen werden nicht mehr unterstützt.
+
+
+[[opsi-releasenotes-4.1-changes-systemd]]
+== systemd als Init-System
+
+opsi 4.1 wird auf systemd als Init-System setzen.
+Andere Init-Systeme werden offiziell nicht mehr unterstützt.
+
+[[opsi-releasenotes-4.1-changes-tftpd-hpa]]
+== opsi-tftpd-hpa als neuer TFTP Daemon
+
+opsi 4.1 wechselt von `opsi-atftpd` zu `opsi-tftpd-hpa`. Der `opsi-tftpd-hpa` unterstützt, wie der `opsi-atftpd`, *named pipes* und ermöglicht es Dateien von mehr als 90 MiB zu übertragen.
+
+IMPORTANT: Hierbei ist zu beachten das eine bestehende Konfiguration für `tftpd` in der Datei '/etc/inetd.conf' bzw. '/etc/xinetd.conf' bzw. '/etc/default/atftpd' entfernt sowie der inetd-Service gestoppt werden muss.
+
+
+[[opsi-releasenotes-4.1-changes-http-headers]]
+== HTTP header 'content-type'
+
+Bei Kommunikation mit einem opsi 4.0 Webservice, liefert dieser
+einen HTTP-Header _content-type_ welcher nicht zum tatsächlichen Inhalt
+passt.
+Mit opsi 4.1 ist ein link:https://www.ietf.org/rfc/rfc2616.txt[RFC 2616] compatibles Verhalten immer gegeben.
+Dieses Verhalten war in opsi 4.0 optional.
+
+
+[[opsi-releasenotes-4.1-changes-netboot-nt6]]
+== Hinweise zu den NT6 Netbootprodukten (Win 7 bis Win 10)
+
+Bei den Netboot Produkten gibt es zwischen 4.0.7.1 und 4.1.0.0
+eine Fülle von Veränderungen.
+
+=== Voraussetzungen
+
+Alle Netbootprodukte der Version >= '4.1.0.0' benötigen einen auf dem Server installierten opsi-winst >= '4.12.0.13'.
+Diese Netbootprodukte laufen auch unter opsi 4.0.x.
+
+=== Multidiskmode
+
+Der neue Multidiskmode bietet eine Unterstützung der Betriebssystem Installation auf Systemen mit mehreren Festplatten.
+Dabei kann gezielt die gewünschte Zielfestplatte ausgewählt werden.
+Es kann auch gezielt 'die erste SSD' oder 'die erste rotierende Festplatte' ausgewählt werden.
+
+IMPORTANT: Wenn Sie auf einem Rechner mit *MBR BIOS* über das Property `multidiskmode` eine Platte wählen, so müssen Sie dafür sorgen, das diese Platte auch die erste Platte in der BIOS Bootreihenfolge ist. +
+Bei *UEFI BIOS* Systemen müssen Sie nichts unternehmen, da hier die Bootreihenfolge durch die Installation gesteuert werden kann.
+
+=== Neue Properties
+
+* `multi_disk_mode` +
+Diese Property dient zur Wahl der Festplatte auf die installiert werden soll. +
+Mögliche Werte sind: "0","1","2","3","prefer_ssd","prefer_rotational" +
+Die Werte "0","1","2","3" geben den Index der Festplatte direkt an ("0"= 1. Festplatte) +
+Der Wert "prefer_ssd" wählt die erste SSD Platte aus. +
+Der Wert "prefer_rotational" wählt die erste klassische Platte (mit rotirenden Scheiben)aus. +
+Default = "0"
+
+* `administrator_password` +
+Hier kann das Passort angegeben werden, welches bei der Installation für den lokalen Administrator gesetzt wird. +
+Default = 'nt123'
+
+* `winpe_dir` +
+Diese Property dient zu Debug Zwecken. +
+Der Wert "auto" wählt ermittelt das passende standard winpe Verzeichnis im Verzeichnis des Netbootproduktes. Dies ist 'winpe' bzw. 'winpe_uefi' +
+Andere Werte müssen auf ein entsprechendes, existierendes Verzeichnis im Verzeichnis des Netbootproduktes verweisen. +
+Default = 'auto'
+
+
+* `installto` +
+Diese Property ist nicht editierbar. Es dient beim Ablauf zur Unterscheidung zwischen stahdard (disk), opsi-local-image (oli) und opsi-vhd (vhd). +
+Bitte: Finger weg.
+
+=== Entfallene Properties
+
+* `blockalignment` +
+Diese Property diente dazu zu Entscheiden ob Partitionen an den Blockgrenzen ausgerichtet werden sollen oder nicht. +
+Die Partitionen werden jetzt immer an Blockgrenzen ausgerichtet.
+
+
+=== Verhalten im PE
+
+Bei der Windows Betriebssystem Installation wird durch das opsi-linux-bootimage
+die Festplatte vorbereitet und ein Win-PE Partition erstellt. Diese wird gebootet um die eigentliche Windowsinstallation zu starten. +
+In den 4.1.0.0 Produkten wird hier opsi-script gestartet um die Notwendigen Arbeiten durch zu führen. Die Vorteile dieses Vorgehens sind:
+
+* Einfacheres und übersichtlichers Scripting
+
+* Erstellung einer Log-Datei der Vorgänge im Win-PE
+
+* Automatische Übertragung der Logdatei an den opsi-server. +
+(Diese Logdatei wird an das bootimage Log angehängt.)
+
+include::./opsi-vhd.asciidoc[]
+
+[[opsi-4.1-releasenotes-linux]]
+== Linuxsupport
+
+=== Supportmatrix
+
+include::supportmatrix-linclient.asciidoc[]
+
+[[opsi-4.1-releasenotes-netboot-windows]]
+== opsi Support Matrix Windows Clients
+
+Im folgenden finden Sie eine Übersicht auf welchen Windows Plattformen opsi
+als Client läuft.
+
+include::supportmatrix-winclient.asciidoc[]
+
+[[opsi-4.1-releasenotes-python-opsi]]
+== Änderungen in python-opsi
+
+=== Wegfall der Versions-Datei
+
+Die Datei `/etc/opsi/version` wird nicht mehr verwendet.
+
+Wird Python verwendet, so liefert `OPSI.__version__` die verwendete Version.
+Das kann genutzt werden, um mit dem folgenden Befehl zu prüfen ob opsi 4.1 zum Einsatz kommt:
+[source,prompt]
+----
+$ python -c "from OPSI import __version__ as v; print(v)"
+----
+
+Wird opsi 4.0 eingesetzt, so ist der exit code `1`, beim Einsatz von opsi 4.1 ist er `0`.
+
+Die Backend-Methode 'backend_info' gibt Auskunft über die Version der verwendeten Python-Bibliothek.
+Darauf kann bspw. per `opsi-admin` zugegriffen werden:
+
+[source,prompt]
+----
+$ opsi-admin -d method backend_info | grep opsiVersion
+"opsiVersion" : "4.1.1.6",
+----
+
+
+[[opsi-4.1-releasenotes-api-changes]]
+== Änderung der API
+
+Die API hat in opsi 4.1 Änderungen erhalten.
+
+Betroffen hiervon sind u.A. die API des Webservices, `opsi-admin` und
+mittels `opsiServiceCall` getätigte Aufrufe in opsiscript.
+
+
+[[opsi-4.1-releasenotes-changed-api-methods]]
+=== Änderungen der API
+
+ * `getHostId` wirft nun einen `ValueError`, falls kein _hostname_ gegeben wird
+ * `getOpsiHostKey` wirft nun einen `ValueError`, falls kein _hostId_ gegeben wird
+ * `setProductActionRequestWithDependencies`: Der vorher als veraltet markierte Parameter `force` wurde entfernt
+ * Neue Methode `backend_getSystemConfiguration`
+
+
+[[opsi-4.1-releasenotes-deprecated-api-methods]]
+=== Veraltete API-Methoden
+
+Die folgenden Methoden werden als veraltet angesehen.
+Sie werden mit dem nächsten Major oder Minor Release entfernt werden.
+
+ * `createOpsiBase`
+ * `createServer`
+ * `deleteClient` - stattdessen kann `host_delete` verwendet werden
+ * `deleteDepot` - stattdessen kann `host_delete` verwendet werden
+ * `deleteGroup` - stattdessen kann `group_delete` verwendet werden
+ * `deleteProductDependency`
+ * `setHostLastSeen`
+
+
+[[opsi-4.1-releasenotes-removed-api-methods]]
+=== Entfernung von API-Methoden
+
+Die folgenden API-Methoden wurden entfernt:
+
+* `createServerProduct`
+* `deleteNetworkConfig`
+* `deleteOpsiBase`
+* `deleteProductProperties`
+* `deleteProductProperty`
+* `filterHostsByHardwareInformation`
+* `generateOpsiHostKey`
+* `getDefaultNetBootProductId`
+* `getServerProductIds_list`
+* `getUninstalledProductIds_list`
+* `setNetworkConfigValue`
+* `setPXEBootConfiguration`
+* `softwareInformationToProductInstallationStatus`
+* `unsetPXEBootConfiguration`
+
+Diese Methoden stehen nicht mehr zur Verfügung.
+
+
+[[opsi-4.1-releasenotes-misc]]
+== Sonstiges
+
+* Aus `opsi-makeproductfile` wird `opsi-makepackage`.
+
+* `opsi-makepackage` wird automatisch ergänzende .md5 und .zsync-Dateien bei der Erstellung eines Pakets generieren. Die kann durch `--no-md5` bzw. `--no-zsync` unterdrückt werden.
+
+* `opsi-newprod` wird aus den angegeben Dateinamen für die einzelnen Aktionen automatisch neue leere Dateien erstellen.
+
+
+[[opsi-4.1-releasenotes-packages]]
+== Paketliste
+
+.Server-Pakete:
+* opsi4ucs 4.1.1.4-11
+* opsiconfd 4.1.1.10-3
+* opsipxeconfd 4.1.1.8-1
+* opsi-configed 4.0.7.6.34-2
+* opsi-linux-bootimage 20180208-1
+* opsi-tftpd-hpa 5.2.8-47
+* opsi-server 4.1.1.4-9
+* opsi-utils 4.1.1.17-2
+* opsi-utils-deprecated 4.0.7.18-1
+* python-opsi 4.1.1.28-1
+
+.opsi-Pakete Localboot Linux:
+* l-opsi-server 4.1.1.1-6
+* l-opsi-server-migrate 4.1.1-5
+
+.opsi-Pakete Netboot Linux:
+* opensusel42-3 4.0.7.2-5
+
+.opsi-Pakete opsi-local-image (beinhaltet _opsi-vhd-reset_)
+* opsi-local-image Win NT6 Produkte in der Version 4.1.0.0-4
+* opsi-local-image-prepare 4.1.0.0-1
+* opsi-local-image-backup 4.1.0.0-1
+* opsi-local-image-restore 4.1.0.0-1
+* opsi-vhd-win10-x64 4.1.0.0-4
+* opsi-vhd-control 4.1.0.0-2
+
+.opsi-Pakete Localboot Windows:
+* opsi-wim-capture 4.1.0.0-1
+* opsi-winpe 4.1.0.0-1
+* opsi-configed 4.0.7.6.34-1
+* opsi-winst 4.12.0.13
+* opsi-script-test 4.12.0.13
+* opsi-client-agent 4.0.7.24-3
+
+.opsi-Pakete Netboot Windows:
+* Win NT6 Produkte in der Version 4.1.0.0-4
+* opsi-clonezilla 4.0.7.2-5
+
+
+NOTE: Die aktualisierten opsi-Pakete sind mit diesem Release auch für opsi 4.0 verfügbar. Ausgenommen hiervon sind `l-opsi-server` und `l-opsi-server-migrate`.
+
+// Changelogs
+include::./opsi-v4.1-changelogs.asciidoc[]

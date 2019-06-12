@@ -1,0 +1,234 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      25.1.2018
+:Revision:  4.1.0
+:toclevels: 6
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-vhd]]
+=== opsi vhd reset
+
+[[opsi-manual-vhd-preconditions]]
+==== Vorbedingungen für die opsi Erweiterung 'opsi vhd reset
+
+Dieses Modul ist momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
+Es ist gebundelt mit der Erweiterung 'opsi-local-image' (siehe <<opsi-manual-localimage>>) - das heißt: die Freischaltung für 'opsi-local-image' gilt auch für 'opsi-vhd-reset'. +
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
+zu können. Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie, wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+
+
+Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+
+Technische Voraussetzungen sind opsi >= 4.0.7 mit den Paketständen:
+
+.Benötigte Pakete
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-winst |>= 4.12.0.13
+|==========================
+
+
+[[opsi-manual-vhd-introduction]]
+==== Einführung
+
+Um in Schulungsräumen Rechner innerhalb von kurzer Zeit wie z.B. in einer Pause zwischen zwei Kursen wieder in einen definierten Zustand zu versetzen bedarf es besonderer Mittel. Mit 'opsi-local-image' bietet opsi hier bereits etwas an,
+das nun ergänzt wird durch eine neue Methode welche spezifische Vor- und Nachteile hat.
+
+. Initiale Windows 10 Installation in einen VHD Container
+. 'Versiegelung' der initialen Installation durch eine 'child' VHD
+. Schnelle Wiederherstellung durch Austausch der 'child' VHD.
+. Upgrade der initialen Installation durch einen merge der 'child' VHD.
+. Das Verfahren arbeitet mit den aus der Virtualisierung bekannten snapshot Techniken ohne selbst eine Virtualisierung zu benötigen.
+
+
+
+[[opsi-manual-vhd-proceedings]]
+==== Abläufe
+
+[[opsi-manual-vhd-proceedings-initial]]
+===== Initiale Installation
+
+Über das Produkt `opsi-vhd-win10-x64` ein Windows 10 in einen VHD-Container installiert.
+
+.Schema: Initiale Installation 1: Erstellen der VHD
+image::opsi-vhd-inst1.png["Schema: Initiale Installation  mit opsi-vhd-win10-x64", width=400]
+
+.Schema: Initiale Installation 2: Windows Installation
+image::opsi-vhd-inst2.png["Schema: Initiale Installation  mit opsi-vhd-win10-x64", width=400]
+
+Anschließend können in dieses Windows die gewünschten Applikationen installiert werden.
+
+.Schema: Initiale Installation 3: Software Installation
+image::opsi-vhd-inst3.png["Schema: Initiale Installation  mit opsi-vhd-win10-x64", width=400]
+
+Durch einen Aufruf des opsi Produktes 'opsi-vhd-control' werden zunächst die aktuellen opsi Meta Daten zu diesem Client (welches Produkt ist in welcher Version installiert) in der initialen Installation abgelegt. +
+Anschließend wird für die weiteren Vorgänge das Windows PE aktiviert und gebootet. +
+Das Produkt opsi-vhd-control hat eine sehr niedrige Priorität (-97) und kommt daher erst nach der Installation von Anwendungssoftware an die Reihe. Dies hat zur Folge, das das Produkt opsi-vhd-control schon zusammen mit der Anwendungssoftware auf 'setup' gestellt werden kann.
+
+.Schema: Initiale Installation 4: Aktivierung der PE Partition
+image::opsi-vhd-inst4.png["Schema: Initiale Installation  mit opsi-vhd-win10-x64", width=450]
+
+Vom Windows PE aus wird durch anlegen einer Child VHD die initiale Installation gegen Veränderungen geschützt.
+
+.Schema: opsi-vhd-control: Versiegelung der initialen Installation
+image::opsi-vhd-control-1stsnap.png["Schema: Versiegelung der initialen Installation  mit opsi-vhd-control", width=400]
+
+Änderungen landen ab jetzt in der 'child' VHD.
+
+.Schema: Arbeiten mit dem 'versiegelten' System
+image::opsi-vhd-control-work.png["Schema: Arbeiten mit dem 'versiegelten' System", width=400]
+
+
+[[opsi-manual-vhd-proceedings-restore]]
+===== Schnelle Wiederherstellung
+
+Über das opsi Produkt 'opsi-vhd-control' kann die Initiale Installation wieder hergestellt werden. +
+Zunächst werden die gespeicherten opsi Meta Daten aus dem System wiederhergestellt.
+Dann wird für das Child VHD handling wieder in das Windows PE gebootet.
+
+.Schema: opsi-vhd-control: Wiederherstellung der initialen Installation 1
+image::opsi-vhd-control-activatepe.png["Schema: Wiederherstellung der initialen Installation  mit opsi-vhd-control 1", width=400]
+
+Vom Windows PE aus wird die 'child' VHD mit den Veränderungen gelöscht und gegen eine neue, leere 'child' VHD ausgetauscht.
+
+.Schema: opsi-vhd-control: Wiederherstellung der initialen Installation 2
+image::opsi-vhd-control-resnap.png["Schema: Wiederherstellung der initialen Installation  mit opsi-vhd-control 2", width=400]
+
+
+[[opsi-manual-vhd-proceedings-update]]
+===== Update eines Images mit `opsi-vhd-auto-upgrade`
+
+Für ein Update der initialen Installation mit Patches und Softwareupdates, kann wie folgt vorgegangen werden:
+
+* Wiederherstellung der initialen Installation (wie oben beschrieben)
+* Einspielen der Updates
+* Integration der Updates in die initiale Installation und Neuversiegelung durch start von 'opsi-vhd-control' mit dem Property 'upgrade=true'
+* Dies startet auch das Ablegen der neuen opsi Meta Daten im System
+
+Diese Vorgänge werden automatisiert durchgeführt durch das Produkt `opsi-vhd-control` mit dem Property 'upgrade=true'.
+
+
+[[opsi-manual-vhd-components]]
+==== Die opsi-vhd Produkte
+
+Die Erweiterung 'opsi vhd reset' besteht aus folgenden Produkten
+
+Das Netbootprodukt zur initialen Installation
+
+* `opsi-vhd-win10-x64`
+
+Das Localboot Produkt zur Steuerung der Erstellung, des Austausches und des Merge der Child-VHD's.
+
+* `opsi-vhd-control`
+
+Das Localboot Produkt zum Vollautomatischen Update der Parent VHD.
+
+* `opsi-vhd-auto-upgrade`
+
+
+[[opsi-manual-vhd-components-uefi]]
+===== UEFI Kompatibilität
+
+Die opsi-vhd Produkte sind UEFI kompatibel.
+
+
+[[opsi-manual-vhd-components-netboot]]
+===== Das opsi Netboot Produkt 'opsi-vhd-win10-x64' und seine Properties
+
+Diese Netbootprodukt gleicht vom Aufbau her den normalen Netbootprodukten (4.1.0) zur Windows Installation
+und muß entsprechend befüllt werden wie dies im 'Getting-started' Handbuch beschrieben ist. +
+Auch die Properties sind weitgehend die selben. 
+
+
+Folgende Properties sind speziell für dieses Produkt:
+
+* `windows_vhd_size` +
+Dieses Property gibt die Größe der Basis VHD absolut oder in Prozent der Festplattengröße
+abzüglich der WinPE Partition an. Der Defaultwert von 100% wird automatisch auf 80 % gekürzt,
+um Platz für die child VHD zu lassen. Wird (absolut oder relativ) ein Wert angegeben der über 80% landet,
+so wird dieser auch auf 80% vermindert. +
+Dieses Property ersetzt das Standard Property 'windows_partition_size' +
+(Default = 100%)
+
+* `installto`: +
+Der Wert ist 'vhd' und soll und kann auch nicht geändert werden
+
+Folgende Properties fehlen bei diesem Produkt:
+
+* `windows_partition_size`, `windows_partition_label` +
+Siehe oben,.Das Label der Partition in welcher die VHD's liegen ist 'CONTAINER'
+* `data_partition_size`, `data_partition_letter`, `data_partition_create`, `data_partition_preserve` +
+Die Verwaltung einer Data-Partition ist bisher bei opsi-vhd nicht vorgesehen.
+* `boot_partition_size`, `boot_partition_letter`, `boot_partition_label` +
+Die Verwaltung einer Boot-Partition ist bisher bei opsi-vhd nicht vorgesehen.
+* `pre_format_system_partitions`, `preserve_winpe_partition` +
+Bei opsi-vhd stehen diese beiden Werte fest auf 'true'.
+
+[[opsi-manual-vhd-components-control]]
+===== Das opsi Localboot Produkt 'opsi-vhd-control' und seine Properties
+
+Das Produkt opsi-vhd-control hat eine sehr niedrige Priorität (-96).
+
+* `disabled` +
+Diese Property dient zu Debug Zwecken. +
+Wenn 'true' führt das Produkt keine Aktionen aus. +
+Default = 'false'
+
+* `upgrade` +
+Wenn 'true': Merge die in der Child CHD gesammelten Änderungen in die Haupt VHD.
+Danach tausche die child VHD gegen eine leere child VHD aus. +
+Wenn 'false': Tausche die child VHD gegen eine leere child VHD aus. +
+Am Ende eines erfolgreichen 'upgrade' Laufs wird dieses Property automatisch auf 'false' zurückgestellt. +
+Default = 'false'
+
+* `stop_on_no_network_in_pe` +
+Diese Property dient zu Debug Zwecken. +
+Wenn 'true': Breche mit einer Fehlermeldung ab, damit untersucht werden kann,
+warum keine Netzwerkverbindung aufgebaut werden konnte.
+Default = 'false'
+
+[[opsi-manual-vhd-components-upgrade]]
+===== Das opsi Localboot Produkt 'opsi-vhd-auto-upgrade' und seine Properties
+
+Das Produkt opsi-vhd-auto-upgrade hat eine sehr niedrige Priorität (-97),
+welche noch geringer ist als die von opsi-vhd-control.
+
+* `disabled` +
+Diese Property dient zu Debug Zwecken. +
+Wenn 'true' führt das Produkt keine Aktionen aus. +
+Default = 'false'
+
+* `rebootflag` +
+Bitte während des Laufes nicht ändern. Sollte vor dem Start '0' sein.
+
+* `stop_after_step` +
+Diese Property dient zu Debug Zwecken. +
+Wenn nicht '0' dann anzahl der reboots nach denen gestopt wird.
+Default = '0'
+
+[[opsi-manual-vhd-restrictions]]
+===== Bekannte Probleme und Einschränkungen
+
+* Es gibt auch eine 32 Bit Version. Diese ist aufgrund eines Problems beim Diskpart merge Befehls in den 32 Windows PE Versionen nur eingeschränkt verwendbar.
+
+* Theoretisch wäre auch eine Implementierung für Windows 8.1 bzw Windows 7 Enterprise möglich. Diese werden wir aber nur auf Bedarf anfertigen.
+
+* Es gibt Hinweise darauf, das ein Windows 10 Release Upgrade einer Installation in einer VHD fehlschlägt. +
+(https://www.heise.de/newsticker/meldung/VHD-Boot-Windows-Update-demoliert-Aktivierung-3806023.html)

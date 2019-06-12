@@ -1,0 +1,354 @@
+////                                                            
+; Copyright (c) uib gmbh (www.uib.de)                           
+; This documentation is owned by uib                            
+; and published under the german creative commons by-sa license 
+; see:                                                          
+; https://creativecommons.org/licenses/by-sa/3.0/de/             
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode    
+; english:                                                      
+; https://creativecommons.org/licenses/by-sa/3.0/                
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode       
+;                                                               
+;                          
+////                                                            
+                                                                
+:Revision:                                                 
+:doctype: book                                               
+:Author:    detlef oertel
+:Email:    d.oertel@uib.de
+:toc:
+   
+   
+   
+
+[[Doc_fileuib_backend.opsiscript]]
+= Documentation of opsi library: `uib_backend.opsiscript`
+
+
+
+* Email:     d.oertel@uib.de
+* Version:  1.0
+* Copyright:  AGPLv3
+
+
+
+
+
+anchor:setProductsToSetup[]
+
+[[Doc_func_setProductsToSetup]]
+== Documentation of local function `setProductsToSetup`
+
+
+Definition::
+`setProductsToSetup($productlist$ : stringlist) : string`
+
+Description::
+Sets for the given list of opsi productIds the action request
+to 'setup' (also resolving the dependencies)
+
+* Parameter: `$productlist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+** Parameter `$productlist$` Description: +
+List of opsi product Ids
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     17.5.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+[actions]
+DefStringlist $productlist$
+
+set $productlist$ = CreateStringList("opsi-logviewer","opsi-configed")
+if not(stringtobool(setProductsToSetup($productlist$)))
+  comment "call of setProductsToSetup failed"
+endif
+----
+
+
+
+anchor:getInstalledLocalbootProducts[]
+
+[[Doc_func_getInstalledLocalbootProducts]]
+== Documentation of local function `getInstalledLocalbootProducts`
+
+
+Definition::
+`getInstalledLocalbootProducts(ref $productlist$ : stringlist) : string`
+
+Description::
+Gets a list of productIds which are
+* known to the client (productOnClient object exists)
+* and localboot products.
+to 'setup' (also resolving the dependencies)
+
+* Parameter: `$productlist$`
+** Type: `Stringlist`  -  Calltype: `CallByReference`
+** Parameter `$productlist$` Description: +
+Output list of opsi product Ids that were be found
+** Parameter `$productlist$` Advice: +
+May be empty
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     20.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.1
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+if stringToBool(getInstalledLocalbootProducts($resultlist$))
+	comment "getInstalledLocalbootProducts successful finished"
+else
+	LogError "getInstalledLocalbootProducts failed"
+endif
+set $tmplist$ = getListContainingList($baseproducts$,$resultlist$)
+if stringToBool(compareLists($tmplist$,$baseproducts$))
+	comment "check installed products successful finished"
+else
+	LogError "check installed products failed"
+endif
+comment " now install and rest products ...."
+if stringToBool(setProductsToSetup($resetproducts$))
+	comment "setProductsToSetup successful finished"
+else
+	LogError "setProductsToSetup failed"
+endif
+----
+
+
+
+anchor:delOpsiPoc[]
+
+[[Doc_func_delOpsiPoc]]
+== Documentation of local function `delOpsiPoc`
+
+
+Definition::
+`delOpsiPoc($donotdelList$ : stringlist) : string`
+
+Description::
+Delete all productOnClientObjects for this client and
+only for localboot products and
+not for products that are included in the $donotdelList$ parameter
+
+* Parameter: `$donotdellist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     17.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+set $opsiMetaDataFile$ = $targetDir$+"\poc.json"
+if Fileexists($opsiMetaDataFile$)
+	comment "Delete existing meta data ...."
+	set $tmplist$ = createStringList ("opsi-vhd-tester","opsi-vhd-control","opsi-vhd-auto-upgrade")
+	if stringToBool(delOpsiPoc($tmplist$))
+		comment "Delete existing meta data successful finished"
+	else
+		LogError "Delete existing meta data failed"
+	endif
+	comment "Restore existing meta data ...."
+	if stringToBool(restoreOpsiPoc($opsiMetaDataFile$))
+		comment "Restore existing meta data successful finished"
+	else
+		LogError "Restore existing meta data failed"
+	endif
+else
+	comment "No meta data existing - creating it...."
+	if stringToBool(backupOpsiPoc($opsiMetaDataFile$))
+		comment "Backup meta data successful finished"
+	else
+		LogError "Backup meta data failed"
+	endif
+endif
+----
+
+
+
+anchor:backupOpsiPoc[]
+
+[[Doc_func_backupOpsiPoc]]
+== Documentation of local function `backupOpsiPoc`
+
+
+Definition::
+`backupOpsiPoc($filename$ : string) : string`
+
+Description::
+Get all localboot productOnClient objects for this client
+and write it to the json file $filename$
+
+* Parameter: `$filename$`
+** Type: `String`  -  Calltype: `CallByValue`
+** Parameter `$filename$` Description: +
+Complete name of the file to create
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* References:     <<restoreOpsiPoc>> 
+<<delOpsiPoc>> 
+* Author:     detlef oertel
+* Date:     17.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see delOpsiPoc
+----
+
+
+
+anchor:restoreOpsiPoc[]
+
+[[Doc_func_restoreOpsiPoc]]
+== Documentation of local function `restoreOpsiPoc`
+
+
+Definition::
+`restoreOpsiPoc($filename$ : string) : string`
+
+Description::
+Load productOnClient objects from $filename$
+and write it to to the server
+
+* Parameter: `$filename$`
+** Type: `String`  -  Calltype: `CallByValue`
+** Parameter `$filename$` Description: +
+Complete name of the file to read
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     17.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see delOpsiPoc
+----
+
+
+
+anchor:getInstalledLocalbootProductsWithVersion[]
+
+[[Doc_func_getInstalledLocalbootProductsWithVersion]]
+== Documentation of local function `getInstalledLocalbootProductsWithVersion`
+
+
+Definition::
+`getInstalledLocalbootProductsWithVersion(ref $productlist$ : stringlist) : string`
+
+Description::
+Get all localboot productOnClient objects for this client
+and create a key/value list in the format <productId>=<productVersion>-<packageVersion>
+This list is be written to $productlist$
+
+* Parameter: `$productlist$`
+** Type: `Stringlist`  -  Calltype: `CallByReference`
+** Parameter `$productlist$` Description: +
+The key/value list with all <productId>=<productVersion>-<packageVersion> of the client
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     17.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+comment "check for installed products ...."
+if stringToBool(getInstalledLocalbootProductsWithVersion($installedproducts$))
+	comment "getInstalledLocalbootProducts successful finished"
+else
+	LogError "getInstalledLocalbootProducts failed"
+endif
+comment "check for installable products ...."
+if stringToBool(getInstallableLocalbootProductsWithVersion($possibleproducts$))
+	comment "getInstallableLocalbootProductsWithVersion successful finished"
+else
+	LogError "getInstallableLocalbootProductsWithVersion failed"
+endif
+comment "fill $upgradeproducts$ .."
+set $tmplist$ = getKeyList($installedproducts$)
+set $possibleproducts$ = getSubListByKey($tmplist$,$possibleproducts$)
+for %aktprod% in $installedproducts$ do sub_find_updatable_products
+----
+
+
+
+anchor:getInstallableLocalbootProductsWithVersion[]
+
+[[Doc_func_getInstallableLocalbootProductsWithVersion]]
+== Documentation of local function `getInstallableLocalbootProductsWithVersion`
+
+
+Definition::
+`getInstallableLocalbootProductsWithVersion(ref $productlist$ : stringlist) : string`
+
+Description::
+Get all localboot productOnDepot objects for the depot of this client
+and create a key/value list in the format <productId>=<productVersion>-<packageVersion>
+This list is be written to $productlist$
+
+* Parameter: `$productlist$`
+** Type: `Stringlist`  -  Calltype: `CallByReference`
+** Parameter `$productlist$` Description: +
+The key/value list with all
+<productId>=<productVersion>-<packageVersion> of the depot of this client
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"
+* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
+* Author:     detlef oertel
+* Date:     17.4.2018
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see getInstalledLocalbootProductsWithVersion
+----
+
+

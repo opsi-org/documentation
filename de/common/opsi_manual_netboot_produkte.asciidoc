@@ -3,19 +3,19 @@
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
-; http://creativecommons.org/licenses/by-sa/3.0/de/
-; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
 ; english:
-; http://creativecommons.org/licenses/by-sa/3.0/
-; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
 ; credits: http://www.opsi.org/credits/
 ////
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      31.03.2011
-:Revision:  4.0.1
+:Date:      14.03.2018
+:Revision:  4.0.7
 :toclevels: 6
 
 
@@ -46,6 +46,18 @@ Eine weitere wichtige Standardeinstellung ist das Passwort von root im Bootimage
 Um diese angesprochenen Modifikationen durch zu führen, muss man die Konfiguration: 'opsi-linux-bootimage.append' am besten in der Serverkonfiguration anpassen.
 
 Die hier wichtige Option ist 'pwh'. Dieser Option muss man das verschlüsselte Passwort als Hash-Wert mitgeben. Dieser wird dann automatisch beim Booten in die Datei '/etc/shadow' geladen. Somit wird bevor ein Login auf dem Client möglich ist, das Passwort verändert. Um diesen Hash zu bekommen gibt es verschiedene Wege. Um sicher zu gehen, dass man den richtigen Hash in der richtigen Formatierung und Art (MD5, SHA1, etc...) bekommt, empfehlen wir folgendes Vorgehen.
+
+Möchte man ein Python Skript vor dem eigentlichen Netboot Produkt starten gibt es noch die Parameter:
+
+* +pre-execute+
+
+* +pre-script+
+
+Als zusatz benötigen die Parameter noch eine Adresse, von der das entsprechende Skript gezogen werden soll. Dies kann eine 'http://' oder 'tftp://' Adresse sein. Hier ein Beispiel:
+
+* +tftp://172.16.166/linux/test.py+
+
+Es ist zu beachten das der Port für die Kommunikation mit dem tftp-Server standardmäßig auf 69 gestellt ist.
 
 Einen opsi-Client per PXE oder mit der aktuellen opsi-client-boot-cd starten. Dann per Putty oder direkt vom '{opsi-server}' aus per ssh als root eine Verbindung aufbauen. Vom '{opsi-server}' aus:
 
@@ -296,17 +308,52 @@ Windowsinstallation' finden Sie im Handbuch opsi-getting-started.
 [[opsi-manual-netboot-nt6]]
 ==== Hinweise zu den NT6 Netbootprodukten (Win 7 bis Win 10)
 
-Die Netbootprodukte zur Installation von NT6 Betriebssystemen enthalten eine Fülle von Produktproperties, welche in Ihrer Funktion in der Folge erläutert werden sollen:
+.Voraussetzungen
+
+Alle Netbootprodukte der Version >= '4.1.0.0' benötigen einen auf dem Server installierten opsi-winst >= '4.12.0.13'.
+Diese Netbootprodukte laufen auch unter opsi 4.0.x.
+
+.Multidiskmode
+
+Der neue Multidiskmode bietet eine Unterstützung der Betriebssystem Installation auf Systemen mit mehreren Festplatten.
+Dabei kann gezielt die gewünschte Zielfestplatte ausgeählt werden.
+Es kann auch gezielt 'die erste SSD' oder 'die erste rotierende Festplatte' ausgewählt werden. +
+Der Multidiskmode ist nur implementiert für die Property-Einstellung: *winpenetworkmode = true*.
+
+
+IMPORTANT: Wenn Sie auf einem Rechner mit *MBR BIOS* über das Property `multidiskmode` eine Platte wählen, so müssen Sie dafür sorgen, das diese Platte auch die erste Platte in der BIOS Bootreihenfolge ist. +
+Bei *UEFI BIOS* Systemen müssen Sie nichts unternehmen, da hier die Bootreihenfolge durch die Installation gesteuert werden kann.
+
+.Verhalten im PE
+
+Bei der Windows Betriebssystem Installation wird durch das opsi-linux-bootimage 
+die Festplatte vorbereitet und ein Win-PE Partition erstellt. Diese wird gebootet um die eigentliche Windowsinstallation zu starten. +
+In den 4.1.0.0 Produkten wird hier opsi-script gestartet um die notwendigen Arbeiten durch zu führen. Die Vorteile dieses Vorgehens sind: 
+
+* Einfacheres und übersichtlichers Scripting
+
+* Erstellung einer Log-Datei der Vorgänge im Win-PE
+
+* Automatische Übertragung der Logdatei an den opsi-server. +
+(Diese Logdatei wird an das bootimage Log angehängt.)
+
 
 .NT6 Productproperties
+
+Die Netbootprodukte zur Installation von NT6 Betriebssystemen enthalten eine Fülle von Produktproperties, welche in Ihrer Funktion in der Folge erläutert werden sollen:
+
 image::netboot-win-nt6-properties.png["NT6 Productproperties",width=200]
 
 additional_drivers:: Liste von Verzeichnissen unterhalb von `<productid>\drivers\drivers\additional`. Alle Treiberverzeichnisse unterhalb der angegebenen Verzeichnisse werden unabhängig von der automatischen Treibererkennung zusätzlich in die Installation mit eingebunden.
-Wir hierüber Treiber für ein Gerät eingebunden, so wird für dieses Gerät kein weiterer Treiber über die automatische Treiberintegration mehr eingebunden.
+Wird hierüber Treiber für ein Gerät eingebunden, so wird für dieses Gerät kein weiterer Treiber über die automatische Treiberintegration mehr eingebunden.
+
+administrator_password:: Hier kann das Passort angegeben werden, welches bei der Installation für den lokalen Administrator gesetzt wird. +
+Default = 'nt123'
+
+architecture:: Wählt die Architektur des bootimages (z.B. 32bit /64bit). Das Property hat keinen (!) Einfluß auf die architektur des zu installierenden Betriebssystems. +
+Default = '65bit' Seit Version 4.1.0.0-15
 
 askbeforeinst:: Soll vor Beginn der Installation gefragt werden
-
-blockalignment:: Soll die Partition an den Blöcken ausgerichtet sein
 
 boot_partition_label:: Label der 'boot_partition' (Bitlocker Partion)
 
@@ -324,8 +371,19 @@ fullname:: Vollständiger Name des Lizenznehmers wie er der Installation überge
 
 imagename:: Name der Variante des Betriebssystems das zu installieren ist.
 
+installto:: Diese Property ist nicht editierbar. Es dient beim Ablauf zur Unterscheidung zwischen stahdard (disk), opsi-local-image (oli) und opsi-vhd (vhd). +
+Bitte: Finger weg.
+
 .NT6 Imagenames
 image::netboot-win-nt6-properties-imagenames.png["NT6 Imagenames",width=200]
+
+multi_disk_mode:: Diese Property dient zur Wahl der Festplatte auf die installiert werden soll. +
+Mögliche Werte sind: "0","1","2","3","prefer_ssd","prefer_rotational" +
+Die Werte "0","1","2","3" geben den Index der Festplatte direkt an ("0"= 1. Festplatte) +
+Der Wert "prefer_ssd" wählt die erste SSD Platte aus. +
+Der Wert "prefer_rotational" wählt die erste klassische Platte (mit rotierenden Scheiben)aus. +
+Das Property wird auf Systemen mit nur einer Platte ignoriert. +
+Default = "0"
 
 orgname:: Vollständiger Name der Firma / Organisation des Lizenznehmers wie er der Installation übergeben wird.
 
@@ -337,7 +395,7 @@ productkey:: Lizenzschlüssel zur Installation. Wird nur ausgewertet wenn der Ho
 
 setup_after_install:: Welches Produkt soll nach dem Betriebssystem installiert werden?
 
-system_keyboard_layout:: Sprachauswahl für die Tastatur. (siehe: http://msdn.microsoft.com/en-us/goglobal/bb895996 )
+system_keyboard_layout:: Sprachauswahl für die Tastatur. (siehe: link:http://msdn.microsoft.com/en-us/goglobal/bb895996 )
 
 .Sprachauswahl für die Tastatur
 image::netboot-win-nt6-properties-keyboards.png["Sprachauswahl für die Tastatur",width=200]
@@ -354,6 +412,11 @@ windows_partition_size:: Größe der Partition (Festplatte C:) auf die das Betri
 
 .Größe der C: Partition
 image::netboot-win-nt6-properties-winpartionsize.png["Größe der C: Partition",width=200]
+
+winpe_dir:: Diese Property dient zu Debug Zwecken. +
+Der Wert "auto" wählt ermittelt das passende standard winpe Verzeichnis im Verzeichnis des Netbootproduktes. Dies ist 'winpe' bzw. 'winpe_uefi' +
+Andere Werte müssen auf ein entsprechendes, existierendes Verzeichnis im Verzeichnis des Netbootproduktes verweisen. +
+Default = 'auto'
 
 winpe_inputlocale:: Microsoft-Windows-International-Core-WinPE InputLocale
 

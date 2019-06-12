@@ -3,11 +3,11 @@
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
-; http://creativecommons.org/licenses/by-sa/3.0/de/
-; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
 ; english:
-; http://creativecommons.org/licenses/by-sa/3.0/
-; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
 ; credits: http://www.opsi.org/credits/
 ////
@@ -35,9 +35,14 @@ Dadurch wird mehrfacher Pflegeaufwand in unterschiedlichen Systemen vermieden.
 ==== Vorbedingungen für die opsi Erweiterung 'opsi directory connector'
 
 Dieses Modul ist momentan eine
-http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
+link:http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
 Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
 zu können. Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie, wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+
+ifdef::manual[]
+Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+endif::manual[]
+
 
 [[opsi-manual-dircon-preconditions-general]]
 ===== Allgemeine Anforderungen
@@ -54,7 +59,8 @@ Es ist möglich alle Komponenten auf der gleichen Maschine zu betreiben,
 aber es wird davon ausgegangen, dass jeweils getrennte Maschinen
 verwendet werden.
 
-[[opsi-manual-dircon-preconditions-hw]]
+
+[[opsi-manual-dircon-requirements-hardware]]
 ===== Hardware-Anforderungen
 
 Diese Anforderungen richten sich an eine einfache Verwendung in einer kleinen Umgebung mit bis zu 500 Clients.
@@ -63,30 +69,25 @@ Diese Anforderungen fallen in großen Umgebungen gegebenenfalls größer aus, we
 * 256 MB freier Arbeitsspeicher
 * Netzwerkverbindungen
 
-[[opsi-manual-dircon-preconditions-sw]]
+
+[[opsi-manual-dircon-requirements-software]]
 ===== Software-Anforderungen
 
 Es wird nur die Installation und der Betrieb des Connectors unter Linux unterstützt.
 Eine Unterstützung für Windows ist nicht geplant.
 
-Auf der Maschine muss folgendes installiert sein.
-
-* Python 3.4 oder neuer
-
-Die folgenden Module für Python 3:
-
-* ldap3
-* requests
+Der Connector verwendet Python 3, welches mindestens in Version 3.2 vorliegen muss.
 
 Durch die Verwendung standardisierter Protokolle zur Kommunikation werden
-keine opsi- oder Verzeichnisdienst-spezifischen Komponenten benötigt.
+keine zusätzlichen opsi- oder Verzeichnisdienst-spezifischen Komponenten benötigt.
 
-Bei der Installation des Connectors über den Paket-Manager des Betriebssystems werden diese Abhängigkeiten automatisch installiert.
 
 [[opsi-manual-dircon-installation]]
 ==== Installation
 
-Bitte verwenden Sie den Paket-Manager des Betriebssystems um das Paket `opsi-directory-connector` zu installieren.
+Zur Installation fügen Sie bitte das opsi-Repository wie im Dokument _Getting Started_ beschrieben hinzu.
+
+Anschließend verwenden Sie den Paket-Manager des Betriebssystems um das Paket `opsi-directory-connector` zu installieren.
 
 Auf einer Debian-basierten Maschine kann die Installation wie folgt durchgeführt werden:
 
@@ -94,6 +95,10 @@ Auf einer Debian-basierten Maschine kann die Installation wie folgt durchgeführ
 ----
 apt-get install opsi-directory-connector
 ----
+
+NOTE: CentOS und RedHat stellen in Version 6 und 7 kein Python 3 als Teil ihrer Kern-Repositories bereit, weshalb die Installation auf diesen Maschinen
+von uns nicht unterstützt wird.
+
 
 [[opsi-manual-dircon-configuration]]
 ==== Konfiguration
@@ -126,11 +131,13 @@ herzustellen und den Suchbereich auf bestimmte Bereiche und Objekte einzugrenzen
         "address": "ldap://192.168.12.34",
         "user": "DOMAIN\\opsiconnector",
         "password": "insertpasswordhere",
+        "passwordFile": "",
         "search_base": "dc=testcompy,dc=local",
-        "search_query_computers": "(objectClass=computer) ",
-        "search_query_groups": "(objectClass=organizationalUnit)",
+        "search_query_computers": "(objectClass=computer)",
+        "identifying_attribute": "dn",
         "connection_options": {
-            "start_tls": true
+            "start_tls": true,
+            "paged_search_limit": 768
         }
     },
     …
@@ -139,39 +146,63 @@ herzustellen und den Suchbereich auf bestimmte Bereiche und Objekte einzugrenzen
 
 Unter `address` muss angegeben werden unter welcher Adresse der Server angesprochen wird.
 `user` und `password` werden für die Authentifikation an Selbigem verwendet.
+Sofern für `passwordFile` ein Wert angegeben wird, wird dieser als Pfad zu einer Datei, welche das Passwort enthält, interpretiert.
+Der Inhalt dieser Datei wird als Passwort verwendet werden.
+Dadurch muss das Passwort nicht im Klartext in der Konfigurationsdatei vorgehalten werden.
+Das so ausgelesene Passwort wird eventuell gesetzte Werte für `password` überschreiben.
 
-NOTE: In vielen Systemen wird als User der komplette DN erwartet. Bspw. `uid=opsiconnect,cn=users,dc=test,dc=intranet`.
+TIP: Wir empfehlen die Verwendung eines gesonderten Benutzerkontos.
+
+NOTE: Je nach verwendeter Directory-Software und dessen Konfiguration können zur Anmeldung verschiedene Formate eines Benutzernamens zum Tragen kommen. +
+Neben _Down-Level Logon Name_ im Stile von `DOMAIN\\username` kann das Format auch _User Principal Name_ im Stile von `user@domain` oder ein _Distinguished Name_ (DN) wie `uid=opsiconnect,cn=users,dc=test,dc=intranet` sein.
 
 Über `search_base` wird angegeben ab welchem Punkt nach passenden Element
 gesucht wird.
-Über `search_query_computers` und `search_query_groups` können Bedingungen für die Suche nach Eintragen konfiguriert werden.
+Über `search_query_computers` kann der für die Suche nach Clients verwendete Filter konfiguriert werden.
 
-Entweder `search_query_computers` oder `search_query_groups` oder beides
-muss konfiguriert sein. Um eine Bedingung zu deaktivieren,
-kann der Wert auf `""` gesetzt werden.
-Die Suche nach Gruppen wird in einer zukünftigen Version implementiert werden. Bis dahin hat diese Einstellung keine Auswirkungen.
+Über den optionalen Parameter `identifying_attribute` wird ab Version 23 festgelegt welches Attribut verwendet werden soll um einen Client eindeutig zu identifizieren.
+Als Standard wird hier `dn` verwendet.
+Eine häufige Alternative zu `dn` ist der Wert `distinguishedName`, diese Variante kommt oftmals in Microsoft Active Directory zum Einsatz.
 
 Der Parameter `connection_options` beinhaltet zusätzliche Optionen zur Konfiguration der Verbindung.
 Mit `start_tls` kann gesteuert werden, ob eine gesicherte Verbindung verwendet werden soll.
 
+Ist der optionale Parameter `paged_search_limit` vorhanden und als Wert eine Ganzzahl
+angegeben, so werden zum Auslesen der Elemente aus dem Directory mehrere Abfragen
+verwendet. Wieviele Elemente eine Antwort maximal enthält wird über den gesetzten Wert gesteuert.
+Dieses Verhalten wird seit Version 20 unterstützt.
+
 NOTE: Weitere Verbindungs-Optionen werden auf Nachfrage implementiert.
-
-
-[[opsi-manual-dircon-conf-dir-ucs]]
-===== Verbindung zu UCS konfigurieren
-
-Für eine Verbindung zu Univention Corporate Server muss für die Verbindung als Benutzername der komplette DN verwendet werden.
-
-Soll das Verzeichnis komplett durchsucht werden, kann für `search_base` die Ausgabe des Befehls `ucr get ldap/base` verwendet werden.
-
-Für die Suche nach Windows-Clients kann `(objectClass=univentionWindows)` als Wert für `search_query_computers` angegeben werden.
-
 
 Seit Version 14 ist es möglich über den Aufrufparameter `--check-directory` die Verbindungseinstellungen zum Verzeichnis zu prüfen, ohne dass eine Verbindung zum opsi-Server hergestellt wird.
 
-[[opsi-manual-dircon-conf-work]]
-===== Verhaltens-Einstelllungen
 
+[[opsi-manual-dircon-conf-dir-ucs]]
+===== Verbindung zu Univention Corporate Server
+
+Für eine Verbindung zu Univention Corporate Server (UCS) muss für die Verbindung als Benutzername ein vollständiger _Distinguished Name_ verwendet werden.
+Dieser hat die Form `uid=<username>,cn=users,dc=company,dc=mydomain`.
+
+Unter UCS ist LDAP über die Ports 7389 (ungesichert) bzw. 7636 (SSL-gesichert) erreichbar.
+Ist auf dem Server ebenfalls Samba installiert und als AD-kompatibler Domaincontroller eingerichtet, so lauscht dieser auf den Ports 389 (ungesichert) bzw. 636 (SSL-gesichert).
+Für die Verwendung der SSL-gesicherten Ports muss die Verbindungseinstellung `start_tls` auf `true` gesetzt werden.
+
+Die beiden möglichen Verbindungen unterscheiden sich auch in der Art der Anmeldung. Bei LDAP kommt `uid=…` zum Tragen, wohingegen bei Samba mittels `dn=…` gearbeitet wird.
+
+In der Regel wird man nach Rechner-Objekten im Container `computers` suchen.
+Der folgende Befehl gibt den dazu passenden Wert für `search_base` aus:
+[source,prompt]
+----
+echo "cn=computers,$(ucr get ldap/base)"
+----
+
+Für die Suche nach Windows-Clients kann `(objectClass=univentionWindows)` als Wert für `search_query_computers` angegeben werden.
+
+Wie ein Benutzer mit nur lesendem Zugriff angelegt werden kann, ist im Univention-Wiki zu finden: link:https://wiki.univention.de/index.php?title=Cool_Solution_-_LDAP_search_user[Cool Solution - LDAP search user]
+
+
+[[opsi-manual-dircon-conf-work]]
+===== Verhaltens-Einstellungen
 
 Die Einstellungen steuern das Verhalten des Connectors.
 
@@ -181,7 +212,7 @@ Die Einstellungen steuern das Verhalten des Connectors.
     …
     "behaviour": {
         "write_changes_to_opsi": true,
-        "root_dir_in_opsi": "Directory",
+        "root_dir_in_opsi": "clientdirectory",
         "update_existing_clients": true,
         "prefer_location_from_directory": true
     },
@@ -195,15 +226,18 @@ Mit dieser Einstellung ist es möglich die Verbindungseinstellungen zu überprü
 Per `root_dir_in_opsi` wird angegeben welche Gruppe in opsi als Wurzelgruppe verwerndet werden soll.
 Es muss von Ihnen sichergestellt werden, dass diese Gruppe existiert.
 
+NOTE: Die Gruppe _clientdirectory_ wird im Configed als _DIRECTORY_ angezeigt.
+Sollen also Clients oder Gruppen direkt unterhalb von _DIRECTORY_ erscheinen, so muss als Wert für `root_dir_in_opsi` der Wert `clientdirectory` eingetragen werden.
+
 Wird `update_existing_clients` auf `false` gesetzt, so werden bereits in opsi existierende Clients nicht verändert.
 Wird dieser Wert auf `true` gesetzt, so werden möglicherweise manuell gesetzte Daten mit den Werten aus dem Directory überschrieben.
 
 Falls `prefer_location_from_directory` auf `true` gesetzt, werden Clients in opsi an die Position verschoben, welche sie im Directory haben.
 Für das Deaktivieren dieses Verhalten, muss dieser Wert auf `false` gesetzt werden.
 
-[[opsi-manual-dircon-conf-map]]
-===== Mappings
 
+[[opsi-manual-dircon-conf-mapping]]
+===== Mappings
 
 Mit einem derart flexiblen System wie ein Verzeichnisdienst benötigt der
 Connector Informationen darüber welche Attribute im Directory auf welche
@@ -240,6 +274,45 @@ Der Schlüssel jedes Mappings ist das Attribut in opsi und der Wert ist das Attr
 NOTE: Sollte der aus dem Verzeichnis ausgelesene Wert für die ID des Clients nicht als FQDN erkennbar sein, so wird ein enstprechender FQDN erstellt.
 Der Domain-Teil hierfür wird aus den DC-Werten des Elements gebildet.
 
+TIP: Unter Univention Corporate Server (UCS) kann bei `hardwareAddress` der Wert `macAddress` angegeben werden, wenn die Verbindung über LDAP (Port 7389 oder 7636) hergestellt wird.
+
+
+[[opsi-manual-dircon-conf-mapping-groupnames]]
+===== Manuelle Zuordnung von Gruppennamen
+
+Gruppennamen werden in der Regel ohne große Anpassungen übernommen.
+Allerdings kann es dabei vorkommen, dass Gruppennamen verwendet werden sollen, welche in opsi ungültig sind.
+
+Für diese Sonderfälle kann eine manuelle Zuordnung von Gruppennamen vorgenommen werden, welche es erlaubt auch diese Fälle zu behandeln.
+
+Zur Einrichtung wird in `mapping` ein Eintrag `group_name` angelegt, in welchem eine Zuordnung der Directory-Seite zur opsi-Seite vorgenommen wird.
+Für Gruppen, welche in dieser Zuordnung nicht vorkommen, wird der Namen nicht angepasst.
+Die Gruppennamen werden immer in Kleinbuchstaben verarbeitet, weshalb die Einträge hier in Kleinbuchstaben erfolgen müssen.
+Möglich ist dies ab Version 23.
+
+
+Das folgende Beispiel behandelt die aus dem Directory stammende Gruppe `_server` in opsi als `server`.
+
+[source,json]
+----
+{
+    ...
+    "mapping": {
+        ...
+        "group": {
+        ...
+        },
+    "group_name" {
+        "_server": "server"
+    }
+    },
+    ...
+}
+----
+
+WARNING: Bei unbedachtem Einsatz kann die manuelle Zuordnung unerwünschte Seiteneffekte haben. Deshalb sollte diese Zuordnungsmöglichkeit nur in Ausnahmefällen eingesetzt werden.
+
+
 [[opsi-manual-dircon-conf-conect]]
 ===== opsi-Verbindungs-Einstellungen
 
@@ -254,6 +327,8 @@ Hierüber wird gesteuert wie der Connector sich zu opsi verbindet.
         "address": "https://localhost:4447",
         "username": "syncuser",
         "password": "secret",
+        "exit_on_error": false,
+        "passwordFile": "",
         "connection_options": {
             "verify_certificate": true
         }
@@ -268,9 +343,15 @@ NOTE: Ein Proxy für die Verbindung kann über die Umgebungsvariable 'HTTPS_PROX
 
 Mittels `username` und `password` wird geregelt welche Zugangsdaten zur
 Authentifizierung am opsi-Server verwendet werden.
+Sofern für `passwordFile` ein Wert angegeben wird, wird dieser als Pfad zu einer Datei, welche das Passwort enthält, interpretiert.
+Der Inhalt dieser Datei wird als Passwort verwendet werden.
+Dadurch muss das Passwort nicht im Klartext in der Konfigurationsdatei vorgehalten werden.
+Das so ausgelesene Passwort wird eventuell gesetzte Werte für `password` überschreiben.
 
-Es empfiehlt sich spezielle Benutzer für die Synchronisation anzulegen.
-Bitte entnehmen Sie dem Handbuch die notwendigen Schritte.
+TIP: Wir empfehlen die Verwendung eines gesonderten Benutzers. Die Anlage zusätzlicher Benutzer ist im Dokument _Getting Started_ beschrieben.
+
+Ist der Parameter `exit_on_error` auf `true` gestellt, so führt ein Problem bei der Aktualisierung der Daten in opsi - das kann bspw. auch durch die Übermittlung von für opsi ungültige Werte geschehen - zu einem Abbruch.
+Steht dies auf `false`, so werden Fehler geloggt, aber der Lauf wird nicht beendet.
 
 Unter `connection_options` werden Optionen für die Verbindung zum
 opsi-Server festgelegt.
@@ -306,16 +387,7 @@ Im Gegensatz zu cronjobs wird systemd verhindern, dass überlappende Läufe stat
 
 Das folgende Beispiel wird den Connector so einrichten, dass er fünf Minuten nach dem Start der Maschine ausgeführt wird und danach jede Stunde.
 
-Wir benötigen zwei Dateien, welche in dem entsprechenden Verzeichnis für benutzerdefinierte Units abgelegt werden müssen.
-Der Pfad kann je nach verwendetem Betriebssystem unterschiedlich ausfallen.
-Bitte verwenden Sie nachfolgend `pkg-config` um an den entsprechenden Pfad zu kommen:
-
-[source,prompt]
-----
-pkg-config systemd --variable=systemduserunitdir
-----
-
-In diesem Verzeichnis müssen die zwei folgenden Dateien abgelegt werden.
+Unter `/etc/systemd/system/`, dem Verzeichnis für benutzerdefinierte Units, müssen die zwei folgenden Dateien abgelegt werden.
 Eine Datei ist der Timer, welche unseren Job wiederkehrend aufruft und die Andere ist für den Job selbst.
 
 Bitte füllen Sie die Datei `opsi-directory-connector.timer` mit dem folgenden Inhalt:

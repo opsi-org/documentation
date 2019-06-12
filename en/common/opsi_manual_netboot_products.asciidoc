@@ -3,19 +3,19 @@
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
-; http://creativecommons.org/licenses/by-sa/3.0/de/
-; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
 ; english:
-; http://creativecommons.org/licenses/by-sa/3.0/
-; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
 ; credits: http://www.opsi.org/credits/
 ////
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      15.06.2011
-:Revision:  4.0.1
+:Date:      14.03.2018
+:Revision:  4.0.7
 :toclevels: 6
 
 
@@ -85,6 +85,17 @@ So the option for 'opsi-linux-bootimage.append' may be:
 pwh=$6$344YXKIT$D4RPZfHMmv8e1/i5nNkOFaRN2oYNobCEjCHnkehiEFA7NdkDW9KF496OHBmyHHq0kD2FBLHZoTdr5YoDlIoWz/
 ----
 
+One can execute a pythin script before the execution of the desired netboot product. Therefore the bootimage append supports two parameter:
+
+* +pre-execute+
+
+* +pre-script+
+
+In addition these parameter require an address with the script. This can be a 'http://' or 'tftp://' address. Please refer to the following example:
+
+* +tftp://172.16.166/linux/test.py+
+
+When using tftp please keep in mind that the default port 69 is used.
 
 [[opsi-manual-netboot-unattended]]
 ==== Unattended automated OS installation
@@ -295,16 +306,47 @@ The information about the 'Simplified driver integration with symlinks' is found
 [[opsi-manual-netboot-nt6]]
 ==== Some hints to the NT6 netboot products (Win7 to Win 10)
 
-The netboot products for the installation of the operating systems of the NT6 familiy, contain a lot of properties which will be described below.
+.Preconditions
+
+All netboot products with the version  >= '4.1.0.0' require an opsi-winst >= '4.12.0.13' installed on the opsi server. +
+The netboot products with the version   '4.1.0.0' also run on opsi 4.0.7.
+
+.Multidisk mode
+
+Windows OS installations on systems with more than one hard disk are now supported with the new multidiskmode property.
+The multidiskmode property allows to select the target disk for the Windows installation by selecting the disk number. It is also possible to select the first SSD by using `prefer_ssd` or to select the first rotational ('classic') disk by `prefer_rotational` +
+In order to work with the multidisk mode, the property *`winpenetworkmode` has to be `true`*.
+
+IMPORTANT: By using the multidiskmode on a computer with *MBR BIOS* you have to make sure, that the by multidiskmode selected disk is also the first disk in the BIOS boot sequence. +
+On *UEFI BIOS* systems no further actions are necessary, due to the fact that the boot sequence it's controlled by the installation software. 
+
+
+.Actions while running inside the Windows PE
+The preparation of a Windows installation starts with the opsi-linux bootimage, which select and prepares the hard disk. It also copies a Windows PE to a partition of the hard disk. This Windows PE is booted in order to start the Windows setup. +
+Starting with the 4.1.0.0 netboot products we use an opsi-script inside the Windows PE. This has the following advantages:
+
+* Easier and clearer scripts
+
+* The creation of a log file of the actions inside the PE
+
+* Sending of this log file to the opsi server
+
 
 .NT6 product properties
+
+The netboot products for the installation of the operating systems of the NT6 familiy, contain several properties which will be described below.
+
 image::netboot-win-nt6-properties.png["NT6 product properties",width=200]
 
 additional_drivers:: One or more directories below `<productid>\drivers\drivers\additional`. All driver directories below the given directories will be integrated. If there is here a driver for a found device, no other driver will be integrated by the automatic driver integration.
 
-askbeforeinst:: Should there be a confirmation dialog before start installing
+administrator_password:: At this property you set the password for the local Administrator. +
+Default = 'nt123'
 
-blockalignment:: Option to write the partition block aligned
+architecture:: Select the bootimage architecture (e.g. 32/64 Bit). This will not (!) affect the architecture of the installed Operating System. +
+Default = '65bit' Since version 4.1.0.0-15
+
+askbeforeinst:: Should there be a confirmation dialog before start installing
 
 boot_partition_label:: Label of the 'boot_partition' (Bitlocker partion)
 
@@ -325,6 +367,19 @@ imagename:: Name of the operating system variant
 .NT6 image names
 image::netboot-win-nt6-properties-imagenames.png["NT6 image names",width=200]
 
+installto:: This property should never be changed. It ist not editable. It is used internally to difference between standard (disk) installations, opsi-local-image (oli) and opsi-vhd (vhd). +
+Please do not try to change it.
+
+multi_disk_mode:: This property is used to select the target disk of the Windows installation. +
+Possible values are: "0","1","2","3","prefer_ssd","prefer_rotational" +
+The values "0","1","2","3" are the index of the hard disks ("0"= 1. harddisk) +
+The value "prefer_ssd" selects the first SSD. +
+The value "prefer_rotational" selects the first rotational ('classic') disk. +
+This property is ignored on systems with only one disk. +
+Default = "0"
+
+
+
 orgname:: Name of the company or organisation of license holder, which is given to the setup program
 
 pre_format_system_partitions:: Should we format the windows and boot partition before installation starts to remove any traces of former installations ? (takes time !)
@@ -344,6 +399,12 @@ system_language:: Select system language
 
 system_timezone:: Select time zone
 
+winpe_dir:: This property only is used for debuging +
+The value "auto" detects the matching standard winpe directory. These are 'winpe' or 'winpe_uefi' +
+Any other value must point to an existing directory inside the product directory on the opsi depot share. +
+Default = 'auto'
+
+
 winpe_inputlocale:: Microsoft-Windows-International-Core-WinPE InputLocale
 
 winpe_partition_size:: Size of the  winpe_partition
@@ -359,7 +420,7 @@ windows_partition_size:: Size of the system partion (c:). The size may be given 
 .Size of the system partion
 image::netboot-win-nt6-properties-winpartionsize.png["Size of the system partion",width=200]
 
-winpenetworkmode:: If 'true' the PE tries to mount the depot share and start the operating system setup from the share (faster). If 'false' all installation files will be copied to the hard disk and the installtion starts from the local disk (slower).
+winpenetworkmode:: If 'true' the PE tries to mount the depot share and start the operating system setup from the share (faster). If 'false' all installation files will be copied to the hard disk and the installation starts from the local disk (slower).
 
 [[opsi-manual-netboot-memtest]]
 ==== memtest
