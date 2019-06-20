@@ -7,7 +7,7 @@ This is the official documentation for the open source client management solutio
 Building the opsi manuals requires the following software to be installed on your system:
 
 * asciidoc >= 8.6.3
-* dblatex  >= 0.3
+* dblatex  >= 0.3 (part of texlive-extra-utils)
 * aspell
 
 ### Additional packages on Ubuntu
