@@ -21,6 +21,13 @@ Since Ubuntu 13.04 you need the following additional packages:
 See also:
 http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option-francais
 
+
+Easy line for installation:
+
+``` shell
+sudo apt install asciidoc aspell texlive-lang-german texlive-lang-english texlive-lang-french lmodern texlive-extra-utils
+```
+
 ## How to build an opsi manual
 
 ### Build all documents in all available languages and formats
