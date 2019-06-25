@@ -7,8 +7,13 @@ This is the official documentation for the open source client management solutio
 Building the opsi manuals requires the following software to be installed on your system:
 
 * asciidoc >= 8.6.3
-* dblatex  >= 0.3
+* dblatex  >= 0.3 (part of texlive-extra-utils)
 * aspell
+
+To build the documentation using make you will need:
+
+* make
+
 
 ### Additional packages on Ubuntu
 
@@ -20,6 +25,13 @@ Since Ubuntu 13.04 you need the following additional packages:
 
 See also:
 http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option-francais
+
+
+Easy line for installation:
+
+``` shell
+sudo apt install asciidoc aspell texlive-lang-german texlive-lang-english texlive-lang-french lmodern texlive-extra-utils make
+```
 
 ## How to build an opsi manual
 

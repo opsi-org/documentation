@@ -3,11 +3,11 @@
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
-; http://creativecommons.org/licenses/by-sa/3.0/de/
-; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
 ; english:
-; http://creativecommons.org/licenses/by-sa/3.0/
-; http://creativecommons.org/licenses/by-sa/3.0/legalcode
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
 ; credits: http://www.opsi.org/credits/
 ////
@@ -131,8 +131,8 @@ the search scopes to specific areas and entries.
         "password": "insertpasswordhere",
         "passwordFile": "",
         "search_base": "dc=testcompy,dc=local",
-        "search_query_computers": "(objectClass=computer) ",
-        "search_query_groups": "(objectClass=organizationalUnit)",
+        "search_query_computers": "(objectClass=computer)",
+        "identifying_attribute": "dn",
         "connection_options": {
             "start_tls": true,
             "paged_search_limit": 768
@@ -155,22 +155,20 @@ Besides _Down-Level Logon Name_ in the format of `DOMAIN\\username` it is possib
 
 With `search_base` you specify the location from where on the connector
 looks for matching entries.
-Through `search_query_computers` and `search_query_groups` the conditions
-for finding entries can be configured.
-Either `search_query_computers` or `search_query_groups` or both need to be configured. To disable one of these set them to `""`.
-The search for groups will be implemented in a future version. Until then the setting has no effect.
+Through `search_query_computers` the filter used for finding clients can be configured.
+
+Through the optional parameter `identifying_attribute` it is possible to set the attribute used for the unique identification of an client. This is possible since version 23.
+The default is the usage of `dn`.
+A common alternative to `dn` is the value `distinguishedName` which is often used in Microsoft Active Directory.
 
 The parameter `connection_options` contains additional options to configure the connection.
 With `start_tls` it is possible the control if a secure connection should be used.
-
-NOTE: Additional connection options will be implemented on demand.
 
 If the optional parameter `paged_search_limit` is present and it's value is an integer multiple queries are made to the directory in order to read it's elements.
 How many elements a response contains is limited through the given value.
 This is supported since version 20.
 
-Through the optional parameter `identifying_attribute` it is possible to set the attribute used for the unique identification of an client. This is possible since version 23.
-The default is the usage of `dn`.
+NOTE: Additional connection options will be implemented on demand.
 
 Since version 14 it is possible to test the connection to the directory through the paramter `--check-directory` without connecting to the opsi server.
 
@@ -238,6 +236,16 @@ moved in opsi to the same location they have in the directory.
 If you want to disable this set it to `false`.
 
 
+The handling of groups can be configured through the optional key `group_handlng` since version 31.
+The default is `cn`. With this setting the groups are extracted from the DN of a computer and created as part of the opsi directory. A client can only be member of one group.
+
+If `group_handling` is set to `ucsatschool` the handling will be adapted for use in link:https://www.univention.de/produkte/ucsschool/[UCS@School] environments.
+opsi-directory-connector will search for schools and find their rooms automatically.
+For every school a group will be created in opsi.
+In UCS@School a computer can be member of multiple rooms.
+To follow this behaviour the groups in opsi will be created as groups and not as part of the opsi directory.
+
+
 [[opsi-manual-dircon-conf-mapping]]
 ===== Attribute-Mappings
 
@@ -258,20 +266,14 @@ of the corresponding opsi objects.
             "ipAddress": "",
             "inventoryNumber": "",
             "oneTimePassword": ""
-        },
-        "group": {
-            "id": "name",
-            "description": "description",
-            "notes": ""
         }
     },
     …
 }
 ----
 
-There is a mapping for clients and one for groups.
-
-The key of each mapping is the attribute in opsi and the value is the attribute from the directory. If the value (in the mapping) is empty no mapping will be done.
+There is a mapping for client attributes.
+The key of the mapping is the attribute in opsi and the value is the attribute from the directory. If the value (in the mapping) is empty no mapping will be done.
 
 NOTE: If the value read from the directory for the client ID does not seem to be an FQDN an FQDN will be created. The domain part for this will be created from the DC of the read element.
 
@@ -299,13 +301,12 @@ The following example handles the group `_server` originating from the directory
 {
     ...
     "mapping": {
-        ...
-        "group": {
-        ...
+        "client": {
+            ...
         },
-    "group_name" {
-        "_server": "server"
-    }
+        "group_name": {
+            "_server": "server"
+        }
     },
     ...
 }
@@ -327,7 +328,7 @@ This specifies how the connector accesses opsi.
         "address": "https://localhost:4447",
         "username": "syncuser",
         "password": "secret",
-        "exit_on_error": false
+        "exit_on_error": false,
         "passwordFile": "",
         "connection_options": {
             "verify_certificate": true
