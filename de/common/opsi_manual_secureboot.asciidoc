@@ -1,0 +1,76 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      09.05.2019
+:Revision:  4.1
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-secureboot]]
+=== opsi mit Secureboot
+
+Microsoft liefert mit Secureboot eine zusätzliche Sicherheitsebene, mit der nur autorisierte Sooftware und Betriebssysteme installiert werden können.
+Hierfür sind alle Schritte der Installation mit einer sogenannten `chain of trust` abgesichert. Nur wenn alle Elemente der Sicherheitskette die Signaturen verifizieren, ist die Installation erfolgreich.
+
+Dieses Modul ist momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen zu können.
+Dies bedeutet unter anderem, das Sie zum Einsatz eine Freischaltung benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+ Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+
+ Technische Voraussetzungen sind opsi 4.1 mit den Paketständen:
+
+ .Benötigte Paketstände
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-linux-bootimage|>= 20190805-4
+|opsipxeconfd |>= 4.1.1.15-1
+|==========================
+
+[[opsi-manual-secureboot-weitere hinweise]]
+==== Weitere Hinweise für die Verwendung des opsi-Moduls secureboot
+
+Die Installation eines Clients mit Secureboot wird nur, wie mit UEFI, in 64-Bit unterstützt.
+
+* Für die Installation über PXE-boot wird ein UEFI-taugliches winpe_uefi (analog dem winpe für die legacy-Installation) benötigt. Oftmals enthält ein existentes winpe bereits UEFI- Unterstützung (Ordner `EFI` und Datei `bootmgr.efi` im winpe-Ordner des opsi-Netboot-Produkts. )
+Ist dies nicht der Fall, sollte ein aktuelles winpe mittels dism erstellt werden (siehe: "Erstellen eines Winpe" im "Getting-Started - Dokument". )
+Ein UEFI winpe wird im Ordner 'winpe_uefi' neben dem 'winpe' verzeichnis erwartet. Sofern man ein winpe für beide Bootmodi hat, kann man 'winpe_uefi' durch einen Soft-Link auf 'winpe' ersetzen.
+
+Einen externen DHCP-Server müssen Sie so konfigurieren, dass er ein PXE-Boot über den {opsi-Server} ermöglicht. Als Bootfile ist einzutragen: 'linux/pxelinux.cfg/shimx64.efi.signed'
+
+* Im Managementinterface {opsi-configed} muss für uefi-Clients das Häkchen "Uefi-Boot" gesetzt sein (seit version 4.0.5.8.1) oder aber der Hostparameter +clientconfig.dhcpd.filename=linux/pxelinux.cfg/elilo.efi+ Client-spezifisch konfiguriert werden. Diese Einstellung kann auch über folgenden Kommandozeilen-Aufruf erfolgen:
++
+[source,prompt]
+----
+opsi-admin -d method configState_create "clientconfig.dhcpd.filename" "hier.host.id" "linux/pxelinux.cfg/shimx64.efi.signed"
+----
+
+Zusätzlich müssen in der Konfigurationsdatei des `opsipxeconfd` die Template Dateien für die UEFI Installation geändert werden.
+Die Konfiguration des `uefi netboot config template x64` hat standartmäßig auf dem Wert `/tftpboot/linux/pxelinux.cfg/install-elilo-x64` und muss zu `/tftpboot/linux/pxelinux.cfg/install-grub-x64` geändert werden.
+Alle UEFI Clients booten die vom `opsi-linux-bootimage` mitgelieferte und von Microsoft signierte Datei `shimx64.efi.signed`.
+Clients mit aktiviertem Secureboot verifizieren die Signatur und springen in den nächsten Schritt. Clients ohne Secureboot scheitern bei der Verifikation. Nichtsdestotrotz springen die Clients dann in den Grub2 Bootloader und fahren mit der Installation fort.
+Der Installationvorgang unterscheidet sich nicht. Secureboot Clients sind bei Installationsabschluss im sogenannten `sicheren Startzustand`, gewöhnliche UEFI Clients nicht.
+
+* Einstellungen im BIOS: +
+Da die BIOS-Menüs sehr unterschiedlich sind und unterschiedliche Begrifflichkeiten verwenden, müssen Sie hier überlegen wie das hier gesagte am besten auf Ihr BIOS passt.
+
+** Secureboot enabled +
+Dieser Eintrag liegt meistens im Bereich 'Boot' oder 'Startup' kann aber auch im Bereich 'Security' liegen.
+
+** Schalten Sie das BIOS in den UEFI-Mode. Wenn Sie die Wahl haben zwischen 'UEFI only','Legacy only', 'Both' dann nehmen Sie 'UEFI only'. Wenn der Rechner fest auf 'Both' steht ist dies schlecht, kann aber evtl. trotzdem funktionieren. Wenn es 'Legacy Support' gibt, so diesen disablen. 'CSM Support' in Verbindung mit 'UEFI only' kann enabled bleiben., ansonsten eher disablen. 'UEFI Network Boot' muss enabled werden. Der entsprechende Eintrag kann auch 'Network Stack' heissen und unterhalb von 'UEFI' liegen. Wenn dies noch gesondert für 'IPv4' und 'IPv6' passieren kann ist hier 'IPv4' die richtige Wahl.
