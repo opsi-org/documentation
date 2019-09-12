@@ -3,6 +3,7 @@ image: docker.uib.local/opsi/opsidoc-builder
 stages:
   - build
   - package
+  - publish
 
 # per document-type job templates
 .build_template_html: &build_template_html
@@ -177,5 +178,19 @@ package_docs:
     paths:
       - pub/
     expire_in: 3 days
+  only:
+    - stable
+
+
+# Publishing documentation to internal server
+publish_docs:
+  stage: publish
+  before_script:
+    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/git-stable/"
   only:
     - stable
