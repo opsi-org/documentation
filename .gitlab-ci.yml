@@ -3,6 +3,7 @@ image: docker.uib.local/opsi/opsidoc-builder
 stages:
   - build
   - package
+  - publish
 
 # per document-type job templates
 .build_template_html: &build_template_html
@@ -73,6 +74,13 @@ en-html-winst-manual:
     LANGUAGE: en
     DOCUMENT: opsi-winst-manual
 
+en-html-winst-reference-card:
+  <<: *build_template_html
+  variables:
+    LANGUAGE: en
+    DOCUMENT: opsi-winst-reference-card
+
+
 # - epub build jobs -
 de-epub-getting-started-v4.1:
   <<: *build_template_epub
@@ -103,6 +111,19 @@ de-epub-winst-manual:
   variables:
     LANGUAGE: de
     DOCUMENT: opsi-winst-manual
+
+en-epub-winst-manual:
+  <<: *build_template_epub
+  variables:
+    LANGUAGE: en
+    DOCUMENT: opsi-winst-manual
+
+en-epub-winst-reference-card:
+  <<: *build_template_epub
+  variables:
+    LANGUAGE: en
+    DOCUMENT: opsi-winst-reference-card
+
 
 # - pdf build jobs -
 de-pdf-getting-started-v4.1:
@@ -135,6 +156,20 @@ de-pdf-winst-manual:
     LANGUAGE: de
     DOCUMENT: opsi-winst-manual
 
+en-pdf-winst-manual:
+  <<: *build_template_pdf
+  variables:
+    LANGUAGE: en
+    DOCUMENT: opsi-winst-manual
+
+en-pdf-winst-reference-card:
+  <<: *build_template_pdf
+  variables:
+    LANGUAGE: en
+    DOCUMENT: opsi-winst-reference-card
+
+
+# Packaging and renaming of documents
 package_docs:
   stage: package
   script:
@@ -143,5 +178,19 @@ package_docs:
     paths:
       - pub/
     expire_in: 3 days
+  only:
+    - stable
+
+
+# Publishing documentation to internal server
+publish_docs:
+  stage: publish
+  before_script:
+    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/git-stable/"
   only:
     - stable
