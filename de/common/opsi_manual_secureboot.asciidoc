@@ -1,0 +1,111 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      15.08.2019
+:Revision:  4.1
+:toclevels: 6
+
+
+include::../common/opsi_terms.asciidoc[]
+
+[[opsi-manual-secureboot]]
+=== opsi mit Secureboot
+
+Die verschiedenen OEM Hersteller liefern mit Secureboot (manchmal auch _Secure Boot_ geschrieben) eine zusätzliche Sicherheitsebene, mit der nur autorisierte Software und Betriebssysteme installiert werden können.
+Diese Autorisierung geschieht über eine Schlüsselabfrage im UEFI.
+Sofern die verwendeten Schlüssel zueinander passen, gilt die Software als autorisiert.
+Die Schlüssel im UEFI wurden vom Microsoft und meist dem OEM Hersteller erstellt und jedes geladene Binary im Secureboot Modus muss auch von mit dem privaten Schlüssel des Schlüsselerstellers signiert werden.
+Diesen Vorgang nennt man auch _chain of trust_.
+Nur wenn alle Elemente der Sicherheitskette die Signaturen verifizieren, ist die Installation erfolgreich.
+
+Dieses Modul ist momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung].
+Dies bedeutet unter anderem, das Sie zum Einsatz eine gekaufte Freischaltung benötigen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung (-> mail an info@uib.de).
+Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+
+[[opsi-manual-secureboot-requirements]]
+==== Vorausetzungen
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen zu können.
+
+Technische Voraussetzungen sind opsi mit den Paketständen:
+
+.Benötigte Paketstände
+[options="header"]
+|==========================
+|Paket|Version
+|opsi-linux-bootimage|>= 201900923-4
+|opsipxeconfd |>= 4.1.1.15-1
+|==========================
+
+[[opsi-manual-secureboot-notes]]
+==== Weitere Hinweise für die Verwendung des opsi-Moduls secureboot
+
+Die Installation eines Clients mit Secureboot wird nur, wie mit UEFI, in 64-Bit unterstützt.
+
+Für die Installation über UEFI Netboot wird ein UEFI-taugliches winpe_uefi (analog dem winpe für die legacy-Installation) benötigt.
+Oftmals enthält ein existentes winpe bereits UEFI-Unterstützung (Ordner `EFI` und Datei `bootmgr.efi` im winpe-Ordner des opsi-Netboot-Produkts).
+Ist dies nicht der Fall, sollte ein aktuelles winpe mittels `dism` erstellt werden (siehe: "Erstellen eines Winpe" im "Getting-Started - Dokument").
+Ein UEFI taugliches winpe wird im Ordner 'winpe_uefi' neben dem 'winpe' verzeichnis erwartet.
+Sofern man ein winpe für beide Bootmodi hat, kann man 'winpe_uefi' durch einen Soft-Link auf 'winpe' ersetzen.
+
+[[opsi-manual-secureboot-server-configuration]]
+==== Konfiguration des opsi Servers für Secureboot Clients
+
+Einen externen DHCP-Server müssen Sie so konfigurieren, dass er ein UEFI Netboot über den {opsi-Server} ermöglicht.
+Als Bootfile ist einzutragen: `linux/pxelinux.cfg/shimx64.efi.signed`
+
+Im Managementinterface {opsi-configed} muss für uefi-Clients das Häkchen "Uefi-Boot" gesetzt sein oder aber der Hostparameter _clientconfig.dhcpd.filename_ den Wert _linux/pxelinux.cfg/elilo.efi_ Client-spezifisch konfiguriert werden.
+Diese Einstellung kann auch über folgenden Kommandozeilen-Aufruf erfolgen:
+
+[source,prompt]
+----
+opsi-admin method configState_create "clientconfig.dhcpd.filename" "<hier host id einfügen>" "linux/pxelinux.cfg/elilo.efi"
+----
+
+CAUTION: Die Angabe der Datei 'elilo.efi' dient lediglich zum setzen des UEFI Hakens im opsi-configed.
+Dies hat keinerlei Einfluss auf die Verwendung der DHCP Bootdatei.
+Der opsi-configed wird in einer zukünftigen Version die korrekte Datei akzeptieren und eine Secureboot Checkbox setzen.
+
+Zusätzlich müssen in der <<opsi-manual-important-files-etc-opsi-opsipxeconfd,Konfigurationsdatei des `opsipxeconfd`>> die Template-Dateien für die UEFI Installation geändert werden.
+Die Konfiguration des `uefi netboot config template x64` muss zu `/tftpboot/linux/pxelinux.cfg/install-grub-x64` geändert werden.
+Nach dieser Änderung ist es ratsam den Befehl 'opsi-setup --init-current-config' durchzuführen.
+
+Alle UEFI Clients booten die vom `opsi-linux-bootimage` mitgelieferte und von Microsoft signierte Datei `shimx64.efi.signed`.
+Clients mit aktiviertem Secureboot verifizieren die Signatur und springen in den nächsten Schritt.
+Clients ohne Secureboot scheitern bei der Verifikation.
+Nichtsdestotrotz springen die Clients dann in den Grub2 Bootloader und fahren mit der Installation fort.
+Der Installationvorgang unterscheidet sich nicht.
+Secureboot Clients sind bei Installationsabschluss im sogenannten `sicheren Startzustand`, gewöhnliche UEFI Clients nicht.
+Diesen Zustand können Sie mit dem Befehl `msinfo32` im gebooteten Windows prüfen.
+
+[[opsi-manual-secureboot-client-configuration]]
+==== Konfiguration des Clients
+
+NOTE: Bitte beachten Sie, dass die Begriffe sich je nach Hersteller und Hardware-Modell unterscheiden.
+
+Das UEFI des Clients sollte wie folgt konfiguriert werden:
+
+* Secureboot enabled +
+Dieser Eintrag liegt meistens im Bereich 'Boot' oder 'Startup' kann aber auch im Bereich 'Security' liegen.
+
+* Schalten Sie das BIOS in den UEFI-Mode. +
+Wenn Sie die Wahl haben zwischen 'UEFI only', 'Legacy only', 'Both' dann nehmen Sie 'UEFI only'.
+Secure boot funktioniert nur mit einer 'UEFI only' Einstellung.
+Wenn es 'Legacy Support' gibt, sollten Sie diesen deaktivieren.
+'CSM Support' in Verbindung mit 'UEFI only' können Sie aktiviert lassen, im Zweifelsfall sollten Sie diesen deaktivieren.
+'UEFI Network Boot' muss enabled werden.
+Der entsprechende Eintrag kann auch 'Network Stack' heissen und unterhalb von 'UEFI' liegen.
+Wenn dies noch gesondert für 'IPv4' und 'IPv6' passieren kann ist hier 'IPv4' die richtige Wahl.

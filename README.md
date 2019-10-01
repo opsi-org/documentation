@@ -1,6 +1,9 @@
 # Documentation for opsi
 
-This is the official documentation for the open source client management solution [opsi](http://www.opsi.org/).
+This is the source of the official documentation for the open source client management solution [opsi](http://www.opsi.org/).
+
+A rendered version is available [here](https://download.uib.de/opsi4.1/documentation/).
+
 
 ## Dependencies
 
