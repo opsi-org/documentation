@@ -31,31 +31,49 @@ include::../common/opsi_manual_copyright.asciidoc[]
 == Introduction
 These instructions explain in detail the installation and starting of an {opsi-server}. It starts from the provided installation package and leads to the test installation of a client.
 
-The network configuration described here is exemplary and relates to a network without a concurrent DHCP server (i.e. the first trials are done in an isolated test network with an {opsi-server} and a few clients).
+The installation and commissioning of an {opsi-Server} is done in several steps:
 
-We strongly recommend that the first trials of opsi be done in a test network, separated from other DHCP servers. A temporary connection to the main network can be used for downloads of actual product packages.
+. Basic installation of the server
+. Configuration of the server (adaptation to network conditions, setting up users and passwords, installation of products to be distributed)
+. Recording and integration of computers in opsi.
+. Deploying Windows to Clients.
+. Packaging and distribution of own software
 
-uib provides consulting services for the integration of opsi into your existing production environment.
+Then an operating system including software can be automatically installed on a client and a hardware and software inventory can be perform.
 
-[[opsi-getting-started-introduction-first-steps]]
-=== Steps for Installation and Getting Starting
-The four steps to install and start an {opsi-server} are:
+Further features are described in the opsi manual.
+There, you will also find explanations about the co-financed extensions and their setup.
 
-. base installation of the server
-. configuration of the server: +
-configuration of the network, setting passwords (opsi administrator, pcpatch, samba), server updates
-. download and installation of the required opsi client products to the opsi server
-. completion of the system software base packages for Windows using the original Windows DVD or other sources.
+The shown network configuration is exemplary and refers to a network without competing DHCP servers (e.g. an isolated test network in which the {opsi-Server} and its clients can be placed for the first tests).
 
-At that point, a client can be automatically integrated into the opsi server.
+We strongly suggest that you make your first tests with opsi in a test network that is separate from other DHCP servers, but which you can temporarily connect to your main network, e.g. to download updates and packages from the Internet.
 
-Depending on your requirements, opsi offers different types of base installations.
-The procedure to perform different types of base installations are described in the chapter <<opsi-getting-started-installation>> of this manual.
-The types of installations included offer the possibility to either use an existing virtual machine or to perform a direct installation of opsi to
-the host machine.
+For the integration into existing networks you can use link:https://uib.de/de/support-schulung/support/[consulting services by uib].
 
-[[opsi-getting-started-introduction-hardware-preconditions]]
-=== Hardware Requirements
+[[opsi-getting-started-convention]]
+== Conventions of this document
+
+Commands are highlighted separately:
+
+[source,prompt]
+----
+this is a command
+----
+
+During installation and configuration, you can usually copy and execute the commands from these fields one after the other using _copy & paste_ from this document.
+
+
+[[opsi-getting-started-requirements]]
+== Requirements
+
+Subsequently the requirements for the installation from opsi in a server will be described.
+
+// Add the support matrix
+include::../common/opsi_manual_supportmatrix.asciidoc[]
+
+
+[[opsi-getting-started-requirements-hardware]]
+=== Hardware requirements
 
 For a {opsi-server} the following hardware is recommended:
 
@@ -64,6 +82,7 @@ For a {opsi-server} the following hardware is recommended:
 * 2GB RAM or higher
 
 * a hard disk with 60 GB capacity or more
+** An {opsi-Server} should have at least a minimum free space of 16 GB in the directory '/var/lib/opsi'
 
 The requirements of the server are moderate in testing environments. In the case of production environments it is recommended to increase the capabilities of the host system.
 
@@ -71,34 +90,59 @@ We recommend in the case of testing with a Virtual machine, that the host comput
 For testing purposes, a test client can be run as another Virtual machine on the same host computer.
 
 
-[[opsi-getting-started-introduction-software-and-configuration-preconditions]]
-=== Configuration Requirement
+[[opsi-getting-started-requirements-software]]
+=== Configuration requirements
 
 Your server and your network have to comply the following requirements to install and work with opsi:
 
-* *valid DNS domain name* +
-Your DNS domain name should contain at least a domain name and a top level domain. So the full qualified domain name (FQDN) should contain one or more dots. The top level domain must contain at least two chars. +
+[[opsi-getting-started-requirements-software-dns-domainname]]
+==== Valid DNS domain name
+
+Your DNS domain name must consist of at least one domain and one toplevel domain.
+In other words: the fully qualified domain name must contain at least one point.  Furthermore, the toplevel domain must consist of at least two characters.
+
 Valid domain names are e.g.: 'domain.local' , 'uib.de', 'subdomain.domain.de'.
 An invalid example: 'mydomain.d' because this is only one character at the top-level domain
 An invalid example: 'mydomain' because this is only a top-level domain +
 see also: +
-http://en.wikipedia.org/wiki/Domain_name
+* https://en.wikipedia.org/wiki/Domain_name
+* https://en.wikipedia.org/wiki/Hostname
 
-* *valid DNS hostname* +
-The hostnames (also the client hostnames) have to follow standard naming rules. They may contain the ASCII letters a-z, digits 0-9 and the hyphen '-'. No underscores are allowed. +
+[[opsi-getting-started-requirements-software-dns-hostname]]
+==== Valid DNS hostname
+
+The hostnames (also of the clients) must comply with the guidelines.
+This includes, for example, that they must not contain any underscores.
+
+Make sure that at your {opsi-Server}, returns a 'fully qualified domainname', in which at least come two dots, e.g. 'opsiserver.domain.local':
+
+[source,prompt]
+----
+hostname -f
+----
+
+Should the result not look like this (e.g. '127.0.0.1' or 'localhost') then you check your '/etc/hosts' directory or the name  resolution first.
+
 see also: +
-http://en.wikipedia.org/wiki/Hostname
+* https://en.wikipedia.org/wiki/Hostname
 
-* *correct name resolution for the server* +
-Execute the following command and check the result:
-+
+[[opsi-getting-started-requirements-software-dns-resolving]]
+==== Correct name resolution for the server
+
+Check the entry for the {opsi-Server} in the file '/etc/hosts', or check the output of:
+
 [source,prompt]
 ----
 getent hosts $(hostname -f)
 ----
-+
+
 The result should look like the following example: +
-'192.168.1.1 server.domain.tld server' +
+'192.168.1.1 server.domain.tld server'
+
+Dabei sollte die IP-Adresse der Netzwerkschnittstelle aufgeführt sein, zu der sich die Clients später verbinden sollen.
+
+Sieht das Ergebnis nicht so aus (enthält z.B. '127.0.0.1', '127.0.0.2' oder 'localhost'), dann müssen Sie die Datei `/etc/hosts` oder Ihre Namensauflösung korrigieren.
+
 The result has the scheme: +
 '<IP-Number> <full qualified hostname> <hostname>' +
 If the result looks different from the above example (contains eg. '127.0.0.1' or 'localhost'), or the full qualified hostname does not contain one or more dots, then you must correct your name resolution (DNS or `/etc/hosts` file).
@@ -108,68 +152,106 @@ NOTE: The names must be in accordance of the rules of a DNS system but a DNS ser
 
 NOTE: opsi does not required an _Active Directory_ or similar. Integrating opsi is possible but not required.
 
-Check needed network ports at: <<opsi-getting-started-installation-config-ports>>
+[[opsi-getting-started-requirements-software-lang]]
+==== Localization settings
 
-* *localisation settings*
 opsi requires configured language settings ('locale') on the server.
 It is recommended to use an UTF-8 compatible locale.
-+
+
 The following command performs a simplified check:
-+
+
 [source,prompt]
 ----
 test -e /etc/default/locale && echo "ok" || (echo "Check locales:" && locale)
 ----
-+
+
 If the output is _ok_ locales are set.
 If the output is _check locales:_ you should check if the following list
 has settings for _LANG_ or _LC_ALL_ that are according to your used language.
-+
+
 For English we recommend `en_GB.UTF-8` or `en_US.UTF-8`.
-+
+
 The following commands show how these settings can be changed if no or an
 undesired value is set:
-+
+
 [source,prompt]
 ----
 sudo locale-gen en_GB.UTF-8
 update-locale LANG=en_GB.UTF-8
 ----
-+
+
 To apply these settings systemwide the server should be restarted.
-+
+
 For more information please consult the manuals of your Linux distribution.
 
 
-[[opsi-getting-started-supportmatrix]]
-== opsi Support Matrix (opsi runs on which server)
+[[opsi-getting-started-installation-config-ports]]
+=== Needed network ports
 
-Here an overview on which distributions and releases the opsi-server will run:
+This is an overview of the used ports and network protocolls.
 
-include::../common/opsi_manual_supportmatrix.asciidoc[]
+* opsi-server web service: TCP 4447 +
+Client to server, depot to server (bidirectional, connections via localhost).
 
-[[opsi-getting-started-installation]]
-== Installation
+* opsi-client web service: TCP 4441 +
+Server to client, connection from client to itself via localhost.
+
+* opsi-client web service: TCP 4442 +
+Connection from client to itself via localhost.
+
+* opsi-client Notifier: TCP 45000 - 65536 +
+Connection from client to itself via localhost. +
+A random port from the given range is selected.
+
+* TFTP: UDP 69 +
+Client to server.
+
+* CIFS/SMB: UDP 137 / UDP 138 (netbios) / TCP 139 / TCP 445 +
+Client to server (bidirectional). +
+Depends on the version of the client operating system.
+
+* WEBDAV: TCP 80
+* WINEXE: UDP 137 / UDP 138 (netbios) / TCP 139 / TCP 445
+Server to client (bidirectional). +
+Depends on the version of the client operating system.
+
+* SSH (optional): TCP 22
+
+* DNS: TCP 53
+
+* WakeOnLan (WOL): UDP 7 / UDP 9 / UDP 12287 +
+Server to Client. These ports are configurable.
+
+* HTTP: TCP 80 +
+E.g. To download server updates from http://download.opensuse.org/
+
+* HTTPS: TCP 443 +
+To download updates from https://download.uib.de (opsi-package-updater)
+
 
 [[opsi-getting-started-installation-base]]
-=== {opsi-server} Base Installation
+== {opsi-server} Base Installation
 
-This chapter describes different types of {opsi-server} installations. You can choose your installation type and skip the other instructions.
+This chapter describes the installation and configuration of an opsi-Server.
 
-If all required steps are successful, then the server system is properly configured and ready to start. Before you run the {opsi-server}, you should update your system according to the chapter 'Update of the {opsi-server}'.
+After you have worked through this chapter, you have a functioning opsi-Server.
+This serves as a basis for all further chapters.
 
-For evaluation purposes, we recommend using the Virtual-Machine provided by uib.
+In the following chapters we assume that you have a working network configuration on your server.
 
-Please follow the instructions by entering the commands in the
-[source,prompt]
-----
-marked fields
-----
-(via cut-and-paste from this document)
+=== {opsi-Server} Basic installation
+
+In this section different variants of the installation of an '{opsi-server}s' are shown.
+You'll end up with a server system ready for final configuration and commissioning.
+To evaluate opsi we recommend using the <<opsi-getting-started-installation-base-vm,pre-installed virtual machine>>.
+Otherwise, you should select the operating system you are most familiar with.
+
+In this case please make sure that the packages of the server are up to date.
 
 Please set the apropriate environment variables `http_proxy` and `https_proxy` on your {opsi-server} .
 
-If you encounter any problems, please ask for help at https://forum.opsi.org
+In case of problems you can check the link:https://forum.opsi.org[free support] provided by the community.
+
 
 [[opsi-getting-started-installation-base-vm]]
 ==== Starting up the uib preconfigured Virtual Machine
@@ -354,6 +436,8 @@ If the network connection works, then you can install opsi packages or update th
 
 To update your opsi-Server you need to double click the Icon 'Update OS' on the desktop. To do this please introduce the current password for the adminuser.
 
+include::opsi-getting-started-apt-proxy-config.adoc[]
+
 [[opsi-getting-started-installation-base-vm-update-opsi-product]]
 ===== Install the standard opsi-products
 
@@ -365,7 +449,8 @@ For more information see <<opsi-getting-started-installation-config-get-essentia
 
 [[opsi-getting-started-installation-base-vm-start-configed]]
 ===== Starting opsi-Server Interface
-For a description of the Server Interface check <<opsi-getting-started-installation-config-configed>>.
+
+For a description of the Server Interface check <<opsi-getting-started-firststeps-software-deployment-configed-start>>.
 
 You have a running opsi server now, i.e. the opsi application itself is fully configured.
 
@@ -379,13 +464,9 @@ You can now proceed with:
 [[opsi-getting-started-installation-base-deb]]
 ==== Installation on a Debian / Ubuntu
 
-In this chapter, we assume you are familiar with the debian-package system (you will find information about the debian-package in the appropriate Debian books, in the manual pages, or under https://www.debian.org/doc/).
+In this chapter, we assume you are familiar with the debian-package system (you will find information about the debian-package in the appropriate Debian books, in the manual pages, or under https://www.debian.org/doc/[debian documentation]).
 
-Please note that an {opsi-server} needs storage in `/var/lib/opsi`. A minimum of 16 GB of free space is recommended.
-
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
+IMPORTANT: Please check the <<opsi-getting-started-requirements,requirements>>.
 
 We recommend the following software installations:
 
@@ -401,7 +482,7 @@ opsi needs samba, which can be installed as:
 apt install samba samba-common smbclient cifs-utils
 ----
 
-The MySQL-Server which is used for inventory- and license management can be installed as follows:
+Now install the MySQL-Server which is used for inventory- and license management as follows:
 
 [source,prompt]
 ----
@@ -457,14 +538,14 @@ Execute the following command in order to import the signature key of the reposi
 *Ubuntu 18.04 LTS _Bionic Beaver_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_18.04/Release.key -O Release.key
+wget -nv http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_18.04/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
 *Ubuntu 16.04 LTS _Xenial Xerus_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_16.04/Release.key -O Release.key
+wget -nv http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_16.04/Release.key -O Release.key
 sudo apt-key add - < Release.key
 ----
 
@@ -478,14 +559,14 @@ apt-key add - < Release.key
 *Debian 9 _Stretch_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_9.0/Release.key -O Release.key
+wget -nv http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_9.0/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
 *Debian 8 _Jessie_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_8.0/Release.key -O Release.key
+wget -nv http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_8.0/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
@@ -498,6 +579,8 @@ apt-key list
 should contain the output: +
 `pub   2048R/D8361F81 2017-09-30 [verfällt: 2019-12-09]
 uid                  home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>`
+
+include::opsi-getting-started-apt-proxy-config.adoc[]
 
 Execute the following commands in order to install opsi at your server:
 
@@ -545,15 +628,13 @@ To configure ID mapping you can insert the following into the `[global]` section
 idmap config * : range = 1000-1999999
 ----
 
-Assuming all of the above steps completed successfully, we can assume that the network is properly configured. Next continue on with <<opsi-getting-started-installation-config-backend>>
+Assuming all of the above steps completed successfully, we can assume that the network is properly configured. Next continue on with <<opsi-getting-started-installation-config>>
+
 
 [[opsi-getting-started-installation-base-ucs]]
 ==== Installation on a Univention Corporate Server (UCS)
 
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
-
+IMPORTANT: Please check the <<opsi-getting-started-requirements,configuration requirements>>!
 
 The installation on a Univention Corporate Server is possible through the
 Univention App Center as well as on the classic way by using the repositories maintained by uib.
@@ -594,8 +675,9 @@ On an major or minor update package updates will installed automatically.
 Please note that no automatic transfer of clients to opsi takes place.
 More information at <<opsi-getting-started-installation-base-ucs-listener>>.
 
-After the described steps the opsi-Installation on a UCS-Server with the help of the Univention App-Center is finished. Please continue with following chapter:
-<<opsi-getting-started-installation-config-modules>>
+The opsi installation on a UCS server via the Univention App Center is now complete.
+Continue with <<opsi-getting-started-firststeps-software-deployment-client-integration>>
+
 
 [[opsi-getting-started-installation-upgrade-appcenter]]
 ===== Upgrading an existing opsi-Installation from UCS 3 to UCS 4 (over the App-Center)
@@ -619,9 +701,7 @@ Nevertheless, it is recommended after importing the update to check every opsi s
 [[opsi-getting-started-installation-base-ucs-manually]]
 ===== Manual opsi-installation on UCS (without App-Center)
 
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
+IMPORTANT: Please check the <<opsi-getting-started-requirements,requirements>>.
 
 Necessary preparations:
 
@@ -747,7 +827,7 @@ Since UCS 3 there is no direct link between the Univention LDAP backend and opsi
 This problem is further discussed in <<opsi-getting-started-installation-base-ucs-listener>>.
 
 Since opsi was installed on an already running server we assume that the network configuration is correct. +
-Continue with the installation be skipping forward to <<opsi-getting-started-installation-config-backend>>.
+Continue with the installation be skipping forward to <<opsi-getting-started-installation-config>>.
 
 WARNING: The Unix commands used in the following chapters are for Debian systems. You may have to change them to match your Linux system.
 
@@ -784,7 +864,7 @@ Optional you can run the udm-commands at the console. You can find more informat
 [[opsi-getting-started-installation-base-ucs-listener]]
 ===== Synchronising data from LDAP to opsi
 
-In an opsi4ucs installation Windows-Clients have to be created in the UDM first and in a second step they have to be created in opsi.
+In an opsi4ucs installation Windows-Clients have to be created in the UDM first and in a second step they have to be created in {opsi-configed}.
 Changes to the client in UDM will not be passed on to opsi.
 For example if a client's MAC address changes in LDAP and in opsi a netboot-product is set to setup, the boot configuration would be provided with a wrong MAC address.
 
@@ -792,13 +872,10 @@ A solution for this is the extension 'opsi-directory-connector'.
 Please consult the manual for more information.
 
 
-[[opsi-getting-started-installation-base-opensuse]]
-==== Installation on openSUSE
+[[opsi-getting-started-installation-base-opensuse-sles]]
+==== Installation on openSUSE or Suse Linux Enterprise Server (SLES)
 
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
-
+IMPORTANT: Please check the <<opsi-getting-started-requirements,requirements>>.
 
 Necessary preparations:
 
@@ -823,79 +900,17 @@ has to return the IP-adress of the networkinterface the clients should connect w
 
 * Samba has to be installed and configured.
 
-* MariaDB-server has to be installed.
+* mariadb-server has to be installed.
 
 * If the machine should also act as DHCP-server then the daemon dhcpd has to be configured and be active.
 
-You can use zypper to add the opsi-SUSE-Repository:
+You can use zypper to add the opsi repositories:
 
 *openSUSE Leap 42.3:*
 [source,prompt]
 ----
 zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/openSUSE_Leap_42.3/home:uibmz:opsi:4.1:stable.repo
 ----
-
-After adding the repository, you may start the opsi installation:
-
-[source,prompt]
-----
-zypper refresh
-  Do you want to (r)eject the Key, (t)emporary or (a)lways trust? [r/t/a/?] (a): a
-zypper -v install opsi-server
-zypper -v install opsi-windows-support
-----
-
-Please make sure that your firewall configuration allows access to the tftp Port (69/UDP) and the opsi ports (4447/TCP and 4441/TCP).
-
-If you used a tool like yast or autoyast to help you with your network configuration, then the tool may have created an entry in your `/etc/hosts` file that has the following pattern:
-[source,configfile]
-----
-127.0.0.2 <fqdn> <hostname>
-----
-
-If you want opsi to manage the configuration of the DHCP server, then you need to correct this entry to point to the server's public IP adress.
-
-Assuming all of the above steps completed successful we can assume that the network is properly configured.
-Next continue on with <<opsi-getting-started-installation-config-backend>>
-
-WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
-
-[[opsi-getting-started-installation-base-sles]]
-==== Installation on Suse Linux Enterprise Server (SLES)
-
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
-
-
-Necessary preparations:
-
-* The command
-+
-[source,prompt]
-----
-hostname -f
-----
-+
-returns a full qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
-
-* Check the {opsi-server} entry in `/etc/hosts` or the output of
-+
-[source,prompt]
-----
-getent hosts $(hostname -f)
-----
-+
-to make sure it returns the IP-adress of the networkinterface the clients should connect to. If the command send the result '127.0.0.1' or '127.0.0.2' then file `/etc/hosts` has to be corrected.
-
-* Samba has to be configured.
-
-* `mariadb-server` must be installed.
-
-* If the machine should also act as DHCP-server then the daemon dhcpd has to be configured and be running.
-
-You can use zypper to add the opsi-SLES-Repository:
-
 *SLES 12SP4:*
 [source,prompt]
 ----
@@ -936,26 +951,29 @@ zypper -v install opsi-server
 zypper -v install opsi-windows-support
 ----
 
+Please make sure that your firewall configuration allows the connection to the following ports:
+
+* tftp: 69/UDP
+* opsi: 4447/TCP und 4441/TCP
+
 In case you used a tool like yast or autoyast to help you with your network configuration it's possible the tool may have created an entry in your `/etc/hosts` file like:
 [source,configfile]
 ----
 127.0.0.2 <fqdn> <hostname>
 ----
 
-If you want opsi to manage the configuration of the DHCP server, then you need to correct this entry to point to the server's public IP adress.
+If you want to leave the configuration of the DHCP server to opsi, this entry has to be changed to the public IP address, where the server can be reached.
 
-Assuming all of the above steps completed successful we can assume that the network is properly configured.
-Next continue on with <<opsi-getting-started-installation-config-backend>>
+Please continue with <<opsi-getting-started-installation-config>>.
 
 WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
 
-[[opsi-getting-started-installation-base-rhel]]
-==== Installation on RedHat Enterprise Linux (RHEL)
+[[opsi-getting-started-installation-base-centos-rhel]]
+==== Installation on CentOS or RedHat Enterprise Linux (RHEL)
 
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
+The installation from opsi on CentOS or Red Hat Enterprise Linux (RHEL) differs only on the applied repository.
 
+IMPORTANT: Please check the <<opsi-getting-started-requirements,configuration requirements>>!
 
 Necessary preparations:
 
@@ -999,10 +1017,21 @@ mysql_secure_installation
 
 * If the machine should also act as DHCP-server then the daemon dhcpd has to be configured and be running.
 
-Register at the Red Hat Network:
+* In the case of Red Hat Enterprise Linux, you must register with the Read Hat Network to have access to all required packages in Red Hat repositories:
+
 [source,prompt]
 ----
 rhn_register
+----
+
+Add the CentOS Repository:
+
+*CentOS 7:*
+[source,prompt]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/CentOS_7/home:uibmz:opsi:4.1:stable.repo
+yum makecache
 ----
 
 Add the opsi RHEL Repository:
@@ -1015,8 +1044,7 @@ wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/RHEL_
 yum makecache
 ----
 
-
-After the repository is added you may start the opsi installation:
+After adding the repository you may start the opsi installation:
 
 [source,prompt]
 ----
@@ -1025,136 +1053,32 @@ yum install opsi-server
 yum install opsi-windows-support
 ----
 
-It could happened that the following dialog windows prompt you if you want to import the GPG key of the repository:
+You may be asked to import the GPG key of the repository.
+The message is pretty similar to the following one:
 
 [source,prompt]
 ----
-   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/RedHat_RHEL-6/repodata/repomd.xml.key
-   Is this ok [y/N]: y
-----
-Please answer with 'y'.
-
-Please make sure that your iptables and SELinux configuration allows the access to the tftp Port (69/UDP) and the opsi ports (4447/TCP and 4441/TCP).
-
-If you want opsi to manage the configuration of the DHCP server, then you need to correct this entry, and point it to the server's public IP address.
-
-Assuming all of the above steps were completed successfully we can assume that the network is properly configured.
-Next, please continue on with <<opsi-getting-started-installation-config-backend>>
-
-WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
-
-
-[[opsi-getting-started-installation-base-centos]]
-==== Installation on CentOS Server
-
-IMPORTANT: *Check here if your Server Operating System Version is supported by opsi:*
-<<opsi-getting-started-supportmatrix>> +
-Please note the Configuration Requirements:  <<opsi-getting-started-introduction-software-and-configuration-preconditions>>.
-
-
-Necessary preparations:
-
-* The command
-+
-[source,prompt]
-----
-hostname -f
-----
-+
-returns a fully qualified domain name containing two dots, e.g. 'opsidemo.domain.local'
-
-* The command
-+
-[source,prompt]
-----
-getent hosts $(hostname -f)
-----
-+
-returns the IP-adress of the network interface that the clients should connect to. If the command returns the results '127.0.0.1' or '127.0.0.2' then the file `/etc/hosts` has to be corrected.
-+
-* Install samba and database server:
-+
-[source,prompt]
-----
-yum install mariadb-server samba samba-client
-----
-
-* Configure samba and database server:
-+
-[source,prompt]
-----
-systemctl start smb.service
-systemctl start nmb.service
-systemctl start mariadb.service
-systemctl enable smb.service
-systemctl enable nmb.service
-systemctl enable mariadb.service
-mysql_secure_installation
-----
-
-* If the machine should also act as DHCP-server then the daemon dhcpd has to be configured and up and running.
-
-Add the opsi CentOS Repository:
-
-*CentOS 7:*
-[source,prompt]
-----
-cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/CentOS_7/home:uibmz:opsi:4.1:stable.repo
-yum makecache
-----
-
-After adding the repository you may start the opsi installation:
-
-[source,prompt]
-----
-yum install opsi-server
-yum install opsi-windows-support
-----
-
-It could happened that the following dialog window prompt you if you want to import the GPG key of the repository:
-
-[source,prompt]
-----
-   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/repodata/repomd.xml.key
+   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/CentOS_7/repodata/repomd.xml.key
    Is this ok [y/N]: y
 ----
 Please answer with 'y'.
 
 
-Please make sure that your iptables and SELinux configuration allow access to the tftp Port (69/UDP) and the opsi ports (4447/TCP and 4441/TCP).
+Please make sure that your iptables and SELinux configuration allow access to the following ports:
+
+* tftp: 69/UDP
+* opsi: 4447/TCP and 4441/TCP
 
 Assuming all of the above steps were completed successfully we can assume that the network is properly configured.
-Next continue on with <<opsi-getting-started-installation-config-backend>>
+Next continue on with <<opsi-getting-started-installation-config>>
 
-WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your linux system.
+WARNING: The unix commands used in the following chapters are working on Debian systems. You may have to change them to match your CentOS- /RHEL system.
 
 
 [[opsi-getting-started-installation-config]]
 === Update and Configuration of the {opsi-server}
 
-[[opsi-getting-started-installation-config-proxy]]
-==== Proxy Entry in apt-configuration File
-
-If necessary please adapt the file `/etc/apt/apt.conf` to your network configuration (enter the correct proxy or comment/delete unnecessary lines). You can edit your file with a program like midnight commander:
-
-[source,prompt]
-----
-mcedit /etc/apt/apt.conf
-----
-
-[[opsi-getting-started-installation-config-update]]
-==== Update of the {opsi-server}
-
-Update the {opsi-server} with the commands:
-
-[source,prompt]
-----
-apt update
-apt upgrade
-----
-
-TIP: During the installation, you may be asked to modify the `smb.conf` file. Please select 'Yes'. If you have modified the `smb.conf` file before you should save the default and make a diff on both files later. If you answered the question with default before reading this tip with 'no' you can reconfigure samba from an {opsi-Server} console with following command: `opsi-setup --auto-configure-samba`
+In this chapter, the installed {opsi-Server} is set up.
 
 
 [[opsi-getting-started-installation-config-backend]]
@@ -1178,7 +1102,7 @@ The default is to use the {mysql-backend} for inventory data.
 The usage of the {file-backend} for inventory data is possible but noticeably slower and therefore not recommended.
 
 NOTE: The use of the {mysql-Backend} for inventory data is free and does not require activation. +
-More information about the activation of co-financed modules can be found <<opsi-getting-started-installation-config-modules, here>>.
+More information about the activation of co-financed modules can be found on the opsi manual.
 
 NOTE: Some distributions use _MariaDB_ instead of _MySQL_. +
 The _mysql_ backend will also work with MariaDB.
@@ -1289,6 +1213,10 @@ systemctl restart smbd.service
 systemctl restart nmbd.service
 ----
 
+TIP: If the server update asks if the file smb.conf should be overwritten, you have to confirm this. +
+If the smb.conf has been changed before, you should keep the default and synchronize the files later. +
+If this question has already been answered with No, you can do this later on the {opsi-Server} by running `opsi-setup --auto-configure-samba`.
+
 A 'pcpatch' user is created on the system. This user can install software on a client PC. The 'pcpatch' user allows access to the configuration data on the host shares. The user 'pcpatch' needs to get a correct password - once as system user, as samba user and as opsi user.
 
 In a terminal window the program '{opsi-admin}' should be called which will set the pcpatch-password for opsi, unix and samba.
@@ -1299,35 +1227,6 @@ opsi-admin -d task setPcpatchPassword
 ----
 
 After sending the command enter the password.
-
-
-[[opsi-getting-started-installation-config-java]]
-==== Checking the Java Configuration
-
-The {opsi-server}s and the connected clients are administrated with the program {opsi-configed}.
-It communicates with the opsi server via HTTPS therefore it can be used on every computer which can build a HTTPS
-connection to the opsi server.
-The computer where the program is installed currently requires at least Java Runtime Enviromnent (JRE) version 8 (internal version 1.8).
-
-If you would like to run the opsi management interface '{opsi-configed}' directly on the server you need to install a graphical environment and the Java Runtime Environment on it.
-If this is not needed or possible on the server this chapter can be skipped.
-
-A graphical environment and Java Runtime Environment are already installed in the virtual machine provided by uib.
-
-To check the Java version enter the following command in a terminal window:
-
-[source,prompt]
-----
-java -version
-----
-
-If the shown version is too old install a newer one.
-
-
-TIP: Mind the resolution of the display of your virtual machine.
-Usage of {opsi-configed} is clumsy with a resolution of less than 1024x768.
-To improve graphics and mouse drivers in a virtual machine it is helpful to install 'VMware tools' for a VMware machine or the 'virtual-guest-additions' for a VirtualBox machine.
-
 
 [[opsi-getting-started-installation-config-users-and-groups]]
 ==== Create Users and administrate the groups opsiadmin / pcpatch
@@ -1409,7 +1308,7 @@ sudo opsi-set-rights .
 
 
 [[opsi-getting-started-installation-config-dhcp]]
-=== DHCP Configuration
+==== DHCP Configuration
 
 It is essential for opsi that the DNS in combination with DHCP can be used for address lookups.
 To simplify the setup the {opsi-server} VM is delivered with a running DHCP server.
@@ -1418,7 +1317,7 @@ Both alternatives are described below.
 
 
 [[opsi-getting-started-installation-config-dhcp-at-opsi]]
-==== Using a DHCP Server at the {opsi-server}
+===== Using a DHCP Server at the {opsi-server}
 
 .Using the opsi-Server VM:
 The opsi server VM has an installed DHCP server. +
@@ -1452,7 +1351,7 @@ If deemed necessary, the permissions of the DHCPD configuration file can be chec
 ----
 
 [[opsi-getting-started-installation-config-at-other-server]]
-==== Using an External DHCP Server
+===== Using an External DHCP Server
 
 .Using the opsi-Server VM:
 If you use an external DHCP server, then you may want to uninstall the DHCP server at the {opsi-server}, which is done by entering:
@@ -1482,7 +1381,7 @@ If you are using a Windows server, then the corresponding entries may be 'bootse
 If you create a client at the {opsi-server}, then you only have to supply the MAC-address, but not the IP-number.
 
 [[opsi-getting-started-installation-config-dhcp-backend]]
-==== Checking the Backend Configuration for DHCP Entries
+===== Checking the Backend Configuration for DHCP Entries
 
 Regardless of whether or not you use the dhcp of the {opsi-server}, you have to configure the {opsi-server}.
 
@@ -1515,7 +1414,7 @@ systemctl restart opsipxeconfd.service
 
 
 [[opsi-getting-started-installation-config-nameresolution]]
-=== Configure how the opsi-server gets the Client's IP-Address
+==== Configure how the opsi-server gets the Client's IP-Address
 
 In the default method of the opsi software deployment, only the client must know how to contact the {opsi-server}.
 
@@ -1555,14 +1454,16 @@ systemctl restart opsiconfd.service
 === Install the minimal opsi-products
 
 To deploy software with opsi prepared packages exist.
-They contain amongst other things the agent that is required for managing clients.
+They contain amongst other things the agent ('opsi-client-agent'), which is required for managing clients.
 
 It is possible to install the packages in automated or manual fashion.
 The automated way is recommended.
 
-For this there is the tool `opsi-package-updater`.
-It will automatically retrieve current packages and then install them on the server.
-The configuration is made in the file '/etc/opsi/opsi-package-updater.conf'.
+
+[[opsi-getting-started-installation-config-get-essential-products-automatic]]
+==== Automatic import of the minimal opsi products
+
+For the automatic installation of opsi products the `opsi-package-updater` tool is available, which configures as in '/etc/opsi/opsi-package-updater.conf', automatically fetches the current packages from the opsi repository and installs them on the server.
 
 You should now download and install the opsi products with the command:
 [source,prompt]
@@ -1592,162 +1493,180 @@ NOTE: Please notice that the OS-Installation products like win10 aren't ready fo
 
 
 [[opsi-getting-started-installation-config-get-essential-products-manually]]
-=== Manual Installation of opsi-products
+==== Manual Installation of opsi-products
 
 There is also the possibility to manually download and install the packages.
 
 Download the current opsi packages in the `.opsi` package format.
-The packages can be found at http://download.uib.de/opsi4.1/stable/packages/windows in the directories `netboot/`, `localboot/` and for Linux-clients also in `https://download.uib.de/opsi4.1/stable/packages/linux`.
+The packages can be found at https://download.uib.de/opsi4.1/stable/packages/windows in the directories `netboot/`, `localboot/` and for Linux-clients also in `https://download.uib.de/opsi4.1/stable/packages/linux`.
 
 We recommend storing the .opsi-files at `/var/lib/opsi/repository`.
 To make sure the access rights allow opsiconfd to access these files run `opsi-set-rights /var/lib/opsi/repository`.
 
 After the download you must to manually install the packages on your server with the command `opsi-package-manager -i <packagename>.opsi`.
 
-
-[[opsi-getting-started-installation-config-modules]]
-=== Installing and Checking the Activation File
-
-Even though opsi is open source, there are some components which are not free at the moment. These components are developed in a project that is co-funded by various partners.  Which means that until the complete development costs are recuperated by the co-funders, the modules are only allowed to be used by the co-funders or for evaluation purposes. Once the costs of development have been financed, these modules will be released for free. To control the use of these components until they are free, there is an activation file `/etc/opsi/modules`, which is protected against changes via electronic signature. If this activation file doesn't exist, then only the modules which are part of the free core of opsi will be available.
-
-If you would like to evaluate opsi's modules, then a temporary activation file can be obtained by contacting 'info@uib.de'.
-
-If you become a co-funder, you will get an unlimited activation file. Copy the file to `/etc/opsi` as root.
-
-Then execute the following command:
+If the packages are stored under `/var/lib/opsi/repository`, the following command can be used for the initial installation:
 
 [source,prompt]
 ----
-opsi-set-rights
+opsi-package-manager --install /var/lib/opsi/repository/*.opsi
 ----
 
-You may check your activation state with one of the following methods:
+[[opsi-getting-started-firststeps-software-deployment-configed]]
+== Management interface {opsi-configed}
 
-Using '{opsi-configed}', choose the menu entry 'Help/status of opsi-modules' to check the activation state.
+Opsi offers with the {opsi-configed} a comfortable management interface.
+It communicates via HTTPS with the opsi server and can therefore be used on any computer that can establish a corresponding connection.
 
-Or at the command line, you can enter `opsi-admin` with the method 'backend_info'. (Remark: Never give your activation file or the output of this command to a third party without deleting the signature).
+TIP: When using a virtual machine, make sure that the virtual screen has a sufficient screen resolution.
+For the {opsi-configed} a resolution of 1024x768 pixels (at least) is required.
+To improve the graphics and mouse driver integration at a higher resolution, it is helpful to install the 'VMware Tools' on a VMware machine or the virtual guest additions on a VirtualBox machine.
+
+[[opsi-getting-started-firststeps-software-deployment-configed-installation]]
+=== Installation of the management interface {opsi-configed}
+
+The management interface is installed as a local a application on the administration PCs.
+In your web browser, call up the address `https://<opsidepotserver>:4447/`.
+There you will find links to installers for different operating systems.
+
+Alternatively you can find corresponding installer under link:https://download.uib.de/opsi4.1/misc/helper/[].
+
+IMPORTANT: The Windows installer must be executed with administrative rights.
+To do this, right click to open the context menu of the installer and then select 'Run as administrator'.
+
+Once a PC is equipped with the management interface, further PCs can have the interface installed <<opsi-getting-started-firststeps-software-deployment-product-tests-configed>>, if the <<opsi-getting-started-adding-clients,opsi agent>> is already installed on the PC.
+
+[[opsi-getting-started-firststeps-software-deployment-configed-start]]
+=== Start of the management interface {opsi-configed}
+
+Start {opsi-configed} from the shortcut in your Start menu.
+Login as a user who is a member of the group {opsi-admin-group}.
+
+The operation of the management interface is pretty much self explanatory.
+You will find detailed instructions in the opsi manual.
+
+NOTE: Changes in the opsi management interface must be saved before they take effect and changes in the data must be retrieved from the server via 'Reload data' button.
+
+[[opsi-getting-started-adding-clients]]
+== Add clients to opsi
+
+To be able to manage computers with opsi, they must be known to the system.
+Besides, the agent must run on these computers so that communication between server and client is possible.
+No administration is possible without the client agent.
+
+Depending on the environment in which opsi is to be used, there are different procedures.
+If clients already exist in the environment with an installed operating system that are to be managed with opsi immediately, they can be integrated in different ways <<opsi-getting-started-firststeps-software-deployment-client-integration,>>.
+
+The alternative to this is that the computers to be managed by opsi are equipped with a new operating system.
+Within the scope of this operating system installation, opsi installs the required agent at the same time, but removes all previously existing software (incl. operating system).
+With this procedure you first add a <<opsi-getting-started-firststeps-osinstall-create-client,Client to opsi>> and then do a <<opsi-getting-started-firststeps-osinstall,Operating system installation>>.
+
+[[opsi-getting-started-firststeps-osinstall-create-client]]
+=== Creation of a new opsi client
+
+To manage computers, they must be known to the {opsi-Server}.
+This chapter describes different ways to create a client in opsi for a later administration.
+This is particularly helpful if you want to install an <<opsi-getting-started-firststeps-osinstall,operating system>> on your computer using opsi.
+For the integration of clients with an already installed operating system, please read <<opsi-getting-started-firststeps-software-deployment-client-integration,chapter integration of existing Clients>>.
+
+[[opsi-getting-started-firststeps-osinstall-create-client-configed]]
+==== Creating a new opsi client via the graphical management interface
+
+A client can be added through the graphical user interface '{opsi-configed}'.
+
+From the menu, choose 'OpsiClient/Create new opsi client' and enter the following for the client:
+
+* Client-name
+* DNS domain (if different from the default),
+* client description
+* IP-Address (required if you can not use DNS to resolve the address of the client)
+* MAC-address (required if the {opsi-Server} is also your DHCP server or if you want to use PXE boot with this client)
+
+The client will be created in opsi.
+If the client is configured as a PXE-client, then it will also be configured in the DHCP on the {opsi-server} if the {opsi-server} also is DHCP-server.
+
+To see all created clients in '{opsi-configed}' choose the tab 'Clients', which puts '{opsi-configed}' in the mode 'Configuration of clients', and reload the data by pressing F5 or use the context menu.
+
+
+[[opsi-getting-started-firststeps-osinstall-create-client-commandline]]
+==== Creating a new opsi client via the command line
+
+A client can added to opsi through the command line using the tool `opsi-admin`
+
+The syntax is the following:
+
 [source,prompt]
 ----
-opsi-admin -d method backend_info
+opsi-admin -d method host_createOpsiClient <client-id> [opsiHostKey] [description] [notes] [hardwareAddress] [ipAddress] [inventoryNumber] [oneTimePassword] [created] [lastSeen]
 ----
 
-Example:
-[source,configfile]
+Missing values will usually resort to a default - for most this will be empty.
+
+The following command will create the client `testclient.domain.local` with a random host key,
+the description `Testclient`, no notes, the MAC address of `00:53:00:00:00:00` and the IP address `192.0.2.1`.
+
+[source,prompt]
 ----
-{
-"opsiVersion" : "4.0.1",
-"modules" :
-          {
-          "customer" : "uib GmbH",
-          "dynamic_depot" : true,
-          "vista" : true,
-          "treeview" : true,
-          "license_management" : true,
-          "swondemand" : true,
-          "expires" : "2011-04-30",
-          "valid" : true,
-          "multiplex" : true,
-          "signature" : "THIS-IS-NOT-A-VALID-SIGNATURE",
-          "vpn" : true,
-          "mysql_backend" : true,
-          "high_availability" : true
-          }
-}
+opsi-admin -d method host_createOpsiClient testclient.domain.local "null" "Testclient" "" 00:53:00:00:00:00 192.0.2.1
 ----
 
-Note that you only need the modules-file for additional usage, and not for the general use of opsi.
+[[opsi-getting-started-firststeps-osinstall-create-client-bootcd]]
+==== Create a New Client using the opsi-client-bootcd
 
-[[opsi-getting-started-installation-config-configed]]
-=== Starting the management interface ({opsi-configed})
+On the download page of uib you will find various ISO images of the 'opsi-client-boot-cd' at link:https://download.uib.de/opsi4.1/boot-cd/[].
 
-Opsi offers a user-friendly configuration management interface with the {opsi-configed} application.
+Download the latest and burn it to a CD.
 
-The management interface hast to be installed as a local application on the administrative PCs.
-Visit `https://<opsi-server>:4447/` in a browser.
-There you will find links to installers for various operating systems.
+Start the computer from the CD.
 
-Alternatively you will find these installers at link:https://download.uib.de/opsi4.1/misc/helper/[].
+You should see the following picture:
 
-IMPORTANT: The installer for Windows needs to be explicitely started with elevated rights.
-To do so open the context menu through a right click on the installer and then choose 'Run As Administator'.
+.Start image opsi-client-boot-cd
+image::opsi-client-boot-cd.png["Screenshot: Start image opsi-client-boot-cd",width=400]
 
+Choose 'Start opsi (English)'. After a while, the following screen will appear. If your DHCP server assigns IP-addresses to unknown DHCP clients, then most fields will already have valid values. You have to complete the missing data. You must at least give the hostname.
 
-If a PC has the management interface installed further PCs can have the interface deployed to by using the localboot product *opsi-configed*.
+.bootimage/boot-cd configuration screen
+image::boot-cd-config.png["Screenshot: bootimage/boot-cd configuration screen",width=400]
 
-When {opsi-configed} is started a login window will appear.
-Log in with an user who is member of the group {opsi-admin-group}.
+Confirm with 'OK'.
 
-The {opsi-configed} interface is mostly self-explanatory.
-A detailed description can be found in the opsi manual.
+.bootimage/boot-cd:  Choose how to create Client
+image::boot-cd-select.png["Screenshot: bootimage/boot-cd:  Choose how to create Client",width=200]
 
+Choosing 'Admin account' the client will register itself at the {opsi-server} using provided credentials.
 
-NOTE: Any changes have to be saved in order to show any effect.
-Saving changes can be done with the check-mark button.
-To see changes that may have taken place, you have to reload the data, which can be done with the button at the top left hand corner that has the reload arrows.
-Reloading can also be done with a right mouse click, and selecting reload.
+.bootimage / boot-cd: Authenticate as member of {opsi-admin-group} group
+image::boot-cd-authent.png["Screenshot: bootimage / boot-cd: Authenticate as member of {opsi-admin-group} group",width=400]
 
+Therefore you will get a login window, where you should authenticate yourself as a member of the {opsi-admin-group} group. If the authorization is successful, then the client gives its data to the server, at which point the client will be created at the server. In the next step, the server provides a list of Netboot products to the client.
 
-[[opsi-getting-started-installation-config-ports]]
-=== Network Ports used by a opsi installation
+.bootimage/boot-cd: netboot product list
+image::boot-cd-product.png["Screenshot: bootimage/boot-cd: netboot product list",width=200]
 
-This is an overview of ports and network protocols that will be used.
-
-* opsi-server Webservice: TCP 4447 +
-Client to server, depot to server (bidirectional, self connection).
-
-* opsi-client Webservice: TCP 4441 +
-Server to client, client self connection via localhost.
-
-* opsi-client Webservice: TCP 4442 +
-Client self connection via localhost.
-
-* opsi-client Notifier: TCP 45000 - 65536 +
-Client self connection via localhost.
-A random port in the given range is selected.
-
-* TFTP: UDP 69 +
-Client to server
-
-* CIFS/SMB: UDP 137 / UDP 138 (netbios) / TCP 139 / TCP 445 +
-Client to server (bidirectional). +
-According to the version of client OS.
-
-* WEBDAV: TCP 80
-* WINEXE: UDP 137 / UDP 138 (netbios) / TCP 139 / TCP 445 +
-Server to client (bidirectional). +
-According to the version of client OS.
-
-* SSH (optional): TCP 22
-
-* DNS: TCP 53
-
-* WakeOnLan (WOL): UDP 7 / UDP 9 / UDP 12287 +
-Server to client. These ports can be configured.
-
-* HTTP: TCP 80 +
-E.g. server updates from http://download.opensuse.org/
-
-* HTTPS: TCP 443 +
-opsi-packages from https://download.uib.de (opsi-package-updater)
+Now you may choose the operating system that you would like to install (or e.g. <<opsi-getting-started-firststeps-osinstall-tests-hwinvent,hwinvent>> for testing).
 
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration]]
-== Integration of Existing Clients
+=== Integration of Existing Clients
 
-To integrate existing Windows clients into opsi, the opsi-client-agent has to be installed on these systems. There are different ways to do this, which are described below. After you have done so, you should see the client in the {opsi-configed} after selecting the tab 'Clients'.
-
-Afterwards existing opsi-products can be installed on such clients.
-
-[[opsi-getting-started-firststeps-software-deployment-client-integration-install-opsi-client-agent]]
-=== Installation of the opsi-client-agent
+To include existing Windows clients in opsi, the {opsi-client-agent} must be installed on them.
+This can be done in several ways. After you have installed the {opsi-client-agent} as described below, the client will also appear in the client list of the {opsi-configed}.
+This can be realized in several ways.
+ After you have installed the {opsi-client-agent} as described below, the client will also appear in the client list of the {opsi-configed}, unless you haven't done that already.
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup]]
-==== Usage of service_setup.cmd
+Basically there is the possibility to install the agent <<opsi-getting-started-firststeps-software-deployment-client-integration-service-setup,on the client>> or <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,from the server>> start the installation.
 
-This method is the first choice for installations on a single computer.  service_setup.cmd can also be used for repair purposes. For mass roll-out, see the chapter below.
+Executing the installation directly on the client is suitable for individual computers.
+For a mass agent rollout have a lookt at <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>.
+If there is other way to distribute software already, it is also possible to distribute the opsi-client-agent through it and execute the script `silent_setup.cmd` included in the package.
+
+Once the agent is installed, existing opsi products can be <<opsi-getting-started-firststeps-software-deployment-product-tests,installed>> on these clients.
+
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt6]]
-===== service_setup.cmd on Windows NT6
+==== Usage of the service_setup.cmd on Windows NT6
 
 
 . logon to the Windows client with administrative privileges
@@ -1761,7 +1680,7 @@ CAUTION: During installation the client reboots without notice!
 
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration-service-setup_nt5]]
-===== service_setup_NT5.cmd on Windows NT5
+==== Usage of the service_setup_NT5.cmd on Windows NT5
 
 
 . logon to the Windows client with administrative privileges
@@ -1775,18 +1694,20 @@ WARNING: During installation, the client reboots without notice!
 [[opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy]]
 ==== Usage of the opsi-deploy-client-agent
 
-The `opsi-deploy-client-agent` script installs the {opsi-client-agent} directly from the {opsi-server} to the clients. Requirements for the clients are:
+The `opsi-deploy-client-agent` script installs the {opsi-client-agent} directly from the {opsi-server} to the clients. It is now easier to integrate a large number of clients from the server into an opsi environment. Requirements for the clients are:
 
 * an open C$ share
 * an open admin$ share
 * an administrative account
+* a non interfering solution when using the `winexe`
 
 On the server side we require the program `winexe`.
-A statically linked binary of version 1.0 is part of {opsi-client-agent}.
+This one is part of the package `opsi-windows-support`.
 
-Winexe may be provided through the repositories of the used distribution.
-For some distributions you may find a newer version at http://download.opensuse.org/repositories/home:/uibmz:/winexe/.
-If you do not find any packages suiting your distribution or want to create a current version of the program yourself you will find further information on the project page at http://sourceforge.net/projects/winexe/.
+The `opsi-deploy-client-agent` script can be found at `/var/lib/opsi/depot/opsi-client-agent` +
+Execute the script with 'root' privileges.
+If the script is not executable, you can solve this issue by executing the following command: +
+`opsi-set-rights /var/lib/opsi/depot/opsi-client-agent/opsi-deploy-client-agent`.
 
 The script creates the client on the server, then copies the installation files and the configuration information including the pckey to the client.  After copying the necessary information, `opsi-deploy-client-agent` starts the installation on the client.
 
@@ -1808,6 +1729,7 @@ Run this script with 'root' privileges.
 It may be possible that you have to make the script executable with: +
 `opsi-set-rights /var/lib/opsi/depot/opsi-client-agent/opsi-deploy-client-agent`
 
+Possible parameters can be found by using the `--help`:
 
 [source,prompt]
 ----
@@ -1874,11 +1796,18 @@ optional arguments:
                         it will be removed in case of failure.
 ----
 
+
 [[opsi-getting-started-firststeps-software-deployment-product-tests]]
-=== Rollout existing products
+== Rollout existing products
+
+For the rollout of software on clients the 'opsi-client-agent' must be installed.
+This can be rolled out on <<opsi-getting-started-firststeps-software-deployment-client-integration,existing computers>>.
+If <<opsi-getting-started-firststeps-osinstall,operating system installation>> via opsi, 'opsi-client-agent' will be installed automatically.
+
+Subsequently the management interface <<opsi-getting-started-firststeps-software-deployment-configed,{opsi-configed}>> is used to distribute software to clients.
 
 [[opsi-getting-started-firststeps-software-deployment-product-tests-configed]]
-==== Usage of opsi standard products: opsi-configed
+=== Usage of opsi standard products: opsi-configed
 
 One of the opsi standard products is the product `opsi-configed`. This product installs the opsi Management Interface. This Application is a Java Program therefore the Java Runtime Engine is bundled within the product.
 
@@ -1888,10 +1817,13 @@ If you haven't done so yet, reload all the data by clicking the reload button at
 
 Switch to the tab 'Product configuration', look for the line with the product-id `opsi-configed`. Go to the column 'Requested Action', and select the action 'setup' using a left mouse click. Finally, save the new action with a click on the checkmark button at the top (or by right clicking the mouse and selecting 'save').
 
-Now reboot the client and the product `opsi-configed` should automatically be installed. After the installation you should find the entry `opsi-configed` in the `Start Menue`
+Restart the client.
+
+The opsi-client-agent should start and install the product +opsi-configed+.
+After the installation you should find the `opsi-configed` in the `start menu`.
 
 [[opsi-getting-started-firststeps-software-deployment-product-tests-inventory]]
-==== Hard- and Software Inventory with the Products hwaudit and swaudit
+=== Hard- and Software Inventory with the Products hwaudit and swaudit
 
 Using '{opsi-configed}', choose the client by pressing the tab 'Clients', which puts '{opsi-configed}' in the mode 'Configuration of clients'.
 
@@ -1899,13 +1831,16 @@ If you haven't done so yet, reload all the data by clicking the reload button at
 
 Switch to the tab 'Product configuration', look for the lines that audit the software and hardware of the system ('hwaudit' and/or 'swaudit'). Go to the column 'Requested Action', and select the action 'setup' using a left mouse click. Finally, save the new action with a click on the checkmark button at the top (or by right clicking the mouse and selecting 'save').
 
-Now reboot the client, and the 'hwaudit' and/or 'swaudit' should automatically start. The client scans the hardware and/or software inventory and sends the results back to the server.
+Now reboot the client, +opsi-client-agent+ executes the 'hwaudit' and/or 'swaudit' which should automatically start. The client scans the hardware and/or software inventory and sends the results back to the server.
 
-To see the changes at the '{opsi-configed}' management interface, select reload with the button at the top or with a right mouse click. You may see the update after selecting the tabs 'Hardware information' and 'Software inventory'.
+To see the changes at the '{opsi-configed}' management interface, select reload with the button at the top or with a right mouse click. You may see the update after selecting the tabs 'Hardware information' and/or 'Software inventory'.
 
 
 [[opsi-getting-started-firststeps-software-deployment-product-tests-hwinvent]]
-==== Hardware Inventory with the Netboot Product hwinvent
+[[opsi-getting-started-firststeps-osinstall-tests-hwinvent]]
+=== Hardware Inventory with the Netboot Product hwinvent
+
+If the product 'hwinvent' is already installed on your opsi server and you have added a client <<opsi-getting-started-firststeps-osinstall-create-client>> which is configured to boot over the network, you can do something else useful: Hardware inventory without an existing operating system installed.
 
 Using '{opsi-configed}', choose the client by pressing the tab 'Clients', which puts '{opsi-configed}' in the mode 'Configuration of clients'.
 
@@ -1913,7 +1848,7 @@ If you haven't done so yet, reload all the data by clicking the reload button at
 
 Switch to the tab 'Netboot products', look for the line that has 'hwinvent'. Go to the column 'Requested Action', and select the action 'setup'. Finally, save the new action with a click on the checkmark button at the top (or by right clicking the mouse and selecting 'save').
 
-Now reboot the client (over PXE), and the bootimage with 'hwinvent' should start automatically. At first, the client reboots using the Linux boot image, and then it scans the hardware and sends the results back to the server.
+Then reboot the client. It should now use a PXE Linux image over the network, to scan the hardware of the PC and then reboot it (if the computer was not already set up, the message that no operating system is installed on the disk will be displayed).
 
 To see the changes at the '{opsi-configed}' management interface, select reload with the button at the top or with the mouse.  You may see the update after selecting the tab 'Hardware information'.
 
@@ -1921,107 +1856,24 @@ NOTE: In case the screen only turns black after booting the bootimage or a netwo
 This can be achieved using the '{opsi-configed}' in the tab 'Hostparameter' by editing the entry 'opsi-linux-bootimage.append'.
 
 [[opsi-getting-started-firststeps-osinstall]]
-== Installation of a new Windows OS using opsi
+== Installation of a new Windows PC through opsi (OS Installations)
 
-The following chapter describes how Windows can be deployed on a computer without an operating system with opsi.
+The following describes how a computer with no operating system can get a Windows OS installed via opsi.
 
-You need a physical or virtual computer with a minimum of 2048MB RAM that is able to boot per PXE over the network.
-Booting over the network perhaps has to be activated and/or moved to be the first boot entry in BIOS.
+Suitable clients are real or virtual computers with at least 2048 MB RAM and a network card with network boot support:
+This means that they support the PXE protocol for loading boot systems via the network.
+The network boot has to be activated in the BIOS menu or moved to the first position of the boot options.
 
-The advantage of virtual hardware is that it usually supports the standard drivers from windows.
-For an initial test you can download a link:http://download.uib.de/vmware_pxeclient.zip[corresponding vmware-image] that acts as an _empty_ client and can be used through _VMWare Workstation Player_.
+Virtual hardware is usually well supported by the Windows standard drivers if you later perform a test installation of Windows.
+To install Windows on newer real-world machines, you may need to integrate additional drivers first.
+For an initial test, you can use a link:https://download.uib.de/vmware_pxeclient.zip[VMware Appliance] that maps an _empty_ machine and can run in _VMware Workstation Player_.
 
-NOTE: Some utilities useful for deploying Windows with opsi are installed by the package 'opsi-windows-support'.
-
-
-[[opsi-getting-started-firststeps-osinstall-create-client-configed]]
-=== Creating a New Client using the opsi Management Interface
-
-Once the client exists you have to add it in opsi.
-This can be done using either the graphical user interface (GUI) or the command line.
-
-.Using the GUI:
-
-A client can be added through the graphical user interface '{opsi-configed}'.
-
-From the menu, choose 'OpsiClient/Create new opsi client' and enter the following for the client:
-
-* Client-name
-* DNS domain (if different from the default),
-* client description
-* IP-Address (required if you can not use DNS to resolve the address of the client)
-* MAC-address (required if the {opsi-Server} is also your DHCP server or if you want to use PXE boot with this client)
-
-The client will be created in opsi.
-If the client is configured as a PXE-client, then it will also be configured in the DHCP on the {opsi-server} if the {opsi-server} also is DHCP-server.
-
-To see all created clients in '{opsi-configed}' choose the tab 'Clients', which puts '{opsi-configed}' in the mode 'Configuration of clients', and reload the data by pressing F5 or use the context menu.
+For the following chapter you should create the corresponding client in opsi <<opsi-getting-started-firststeps-osinstall-create-client>>.
+Take a look here <<opsi-getting-started-firststeps-osinstall-create-client, through {opsi-configed}>>.
 
 
-.Through the command line:
+NOTE: Some tools useful for deploying Windows with opsi are installed through the 'opsi-windows-support' package.
 
-A client can added to opsi through the command line using the tool `opsi-admin`
-
-The syntax is the following:
-
-[source,prompt]
-----
-opsi-admin -d method host_createOpsiClient <client-id> [opsiHostKey] [description] [notes] [hardwareAddress] [ipAddress] [inventoryNumber] [oneTimePassword] [created] [lastSeen]
-----
-
-Missing values will usually resort to a default - for most this will be empty.
-
-The following command will create the client `testclient.domain.local` with a random host key,
-the description `Testclient`, no notes, the MAC address of `00:53:00:00:00:00` and the IP address `192.0.2.1`.
-
-[source,prompt]
-----
-opsi-admin -d method host_createOpsiClient testclient.domain.local "null" "Testclient" "" 00:53:00:00:00:00 192.0.2.1
-----
-
-
-[[opsi-getting-started-firststeps-osinstall-tests-hwinvent]]
-==== Hardware Inventory with the Netboot Product hwinvent
-
-Using '{opsi-configed}', choose the client by pressing the tab 'Clients', which puts '{opsi-configed}' in the mode 'Configuration of clients'.
-
-If you haven't done so yet, reload all the data by clicking the reload button at the top left corner of the '{opsi-configed}' interface (or use the 'File' menu).
-
-Switch to the tab 'Netboot products', look for the line that has 'hwinvent'. Go to the column 'Requested Action', and select the action 'setup'. Finally, save the new action with a click on the checkmark button at the top (or by right clicking the mouse and selecting 'save').
-
-Now reboot the client (over PXE), and the bootimage with 'hwinvent' should start automatically. At first, the client reboots using the Linux boot image, and then it scans the hardware and sends the results back to the server.
-
-To see the changes at the '{opsi-configed}' management interface, select reload with the button at the top or with the mouse.  You may see the update after selecting the tab 'Hardware information'.
-
-[[opsi-getting-started-firststeps-osinstall-create-client-bootcd]]
-=== Create a New Client using the opsi-client-bootcd
-
-You can find ISO images of the opsi-client-bootcd in https://download.uib.de/opsi4.1/boot-cd/. Just download the newest image and burn it to a cd-rom or dvd-rom. Boot your computer from this medium. You should see the following image:
-
-.Start image opsi-client-boot-cd
-image::opsi-client-boot-cd.png["Screenshot: Start image opsi-client-boot-cd",width=400]
-
-Choose 'Start opsi (English)'. After a while, the following screen will appear. If your DHCP server assigns IP-addresses to unknown DHCP clients, then most fields will already have valid values. You have to complete the missing data. You must at least give the hostname.
-
-.bootimage/boot-cd configuration screen
-image::boot-cd-config.png["Screenshot: bootimage/boot-cd configuration screen",width=400]
-
-Confirm with 'OK'.
-
-.bootimage/boot-cd:  Choose how to create Client
-image::boot-cd-select.png["Screenshot: bootimage/boot-cd:  Choose how to create Client",width=200]
-
-Choosing 'Admin account' the client will register itself at the {opsi-server} using provided credentials.
-
-.bootimage / boot-cd: Authenticate as member of {opsi-admin-group} group
-image::boot-cd-authent.png["Screenshot: bootimage / boot-cd: Authenticate as member of {opsi-admin-group} group",width=400]
-
-Therefore you will get a login window, where you should authenticate yourself as a member of the {opsi-admin-group} group. If the authorization is successful, then the client gives its data to the server, at which point the client will be created at the server. In the next step, the server provides a list of Netboot products to the client.
-
-.bootimage/boot-cd: netboot product list
-image::boot-cd-product.png["Screenshot: bootimage/boot-cd: netboot product list",width=200]
-
-Now you may choose the operating system that you would like to install (or e.g. hwinvent for testing).
 
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages]]
 === OS-Installation: Complete the Base Package for Windows
@@ -2031,14 +1883,14 @@ The opsi win-OS-packages contain only the files that are necessary to perform ou
 If you want to make use of fully automated OS installations of {client-os}, you have to complete these packages as described below.
 
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6]]
-==== NT6 family: as of Win7 / 2008R2
+=== NT6 family: as of Win7 / 2008R2
 
 In order to perform an OS Installation, a so-called WinPE is being used as a 'Live OS'. You can create it using an opsi package (+opsi-winpe+), or do it all yourself manually following the steps described.
 Generally speaking, the Windows-Version of the PE does not matter with regard to the Windows OS version being installed. Still, working drivers should be present for at least disk and network devices.
 Microsoft recommends 32-Bit PE for x86 installations , and 64-Bit PE for x64 installations.
 
 '"To install a 64-bit version of Windows you must use a 64-bit version of Windows PE. Likewise, to install a 32-bit version of Windows, you must use a 32-bit version of Windows PE."' +
-http://technet.microsoft.com/en-us/library/cc766093.aspx
+https://technet.microsoft.com/en-us/library/cc766093.aspx
 
 Regardless of how you want to create your PE, you'll need an installed "Assessment and Deployment Kit" (ADK, Win8.1 bzw 10), or its predecessor "Windows Automated Installation Kit" (Windows AIK; since Windows 7): +
 
@@ -2046,7 +1898,7 @@ Regardless of how you want to create your PE, you'll need an installed "Assessme
 
 It's sufficient to install 'Windows PE add-on for the ADK' and the dependencies automatically selected. Stick with the suggested install path in `Program Files (x86)`. +
 
-* link: http://www.microsoft.com/downloads/details.aspx?displaylang=en&FamilyID=696dd665-9f76-4177-a811-39c26d3b3b34[WAIK Windows 7]
+* link: https://www.microsoft.com/downloads/details.aspx?displaylang=en&FamilyID=696dd665-9f76-4177-a811-39c26d3b3b34[WAIK Windows 7]
 
 This site provides you with an ISO file, which may then be burnt to a CD or mounted. The content of this CD must be installed in an OS mentioned in the previous system requirements.
 
@@ -2253,7 +2105,7 @@ Error log for a specialize phase
 * `c:\Windows\ntbtlog.txt` (only when the startup protocol is activated)
 
 [[opsi-getting-started-firststeps-osinstall-productkey]]
-==== Windows Product Key
+=== Windows Product Key
 
 If you are using the opsi license management module, then you may administrate your Windows product keys using the license management software. Information on how to do this can be found in the opsi manual.
 
@@ -2296,7 +2148,7 @@ opsi-admin -d method productPropertyState_getObjects [] '{"productId":"win10-x64
 ----
 
 [[opsi-getting-started-firststeps-osinstall-start]]
-==== Start the Windows Installation
+=== Start the Windows Installation
 
 To start a Windows installation:
 
@@ -2463,8 +2315,9 @@ The {opsi-linux-bootimage} looks for drivers successively in the following direc
 
 Some vendors use model identifiers containing special characters. Opsi replaces <,>,?,",:,|,\,/ and * with _ therefore a model identifier like "5000/6000/7000" will match a directory identifier like "5000_6000_7000".
 
+
 [[opsi-getting-started-firststeps-osinstall-driverintegration-structure]]
-===== Structure of the Driver Directory and Driver Files:
+==== Structure of the Driver Directory and Driver Files
 
 [source,configfile]
 ----
@@ -2491,8 +2344,9 @@ Some vendors use model identifiers containing special characters. Opsi replaces 
                  !-mydriverpacks/	(example driver packages)
 ----
 
+
 [[opsi-getting-started-firststeps-osinstall-driverintegration-processing]]
-===== Processing of the Different Levels of Driver Integration
+==== Processing of the Different Levels of Driver Integration
 
 The top priority is given to drivers which are found using the property 'additional_drivers' or using the inventory data in `./drivers/drivers/additional/byAudit`. When installing a client these drivers will be prefered. If a device is not matched by a driver the following methods are used in order to find a matching driver.
 
@@ -2504,8 +2358,9 @@ For devices where no matching driver was found using 'additional_drivers' or 'by
 
 * The Windows Setup will search for the drivers in `c:\drv\`, this is specified in the unattended file.
 
+
 [[opsi-getting-started-firststeps-osinstall-driverintegration-drivercheck]]
-===== Driver Addition and Checking
+==== Driver Addition and Checking
 
 After any changes in the directory `./drivers/drivers` have been made, call the following command from the Netboot Product root directory in order to set the permissions:
 [source,prompt]
@@ -2700,1426 +2555,13 @@ TIPS::
 
 * Check the output of `./show_drivers.py` carefully !
 
-[[opsi-getting-started-softwintegration]]
-== Integration of New Software Packages into the opsi Server
-
-The primary objective of software distribution is to accomplish automatic software installation without user interaction. Software installation and user activity should be strictly separated. In most cases, the installation process requires administrative privileges which the user usually doesn't have. So the installation process has to be done independently from the user. This way, the user can neither interfere nor be affected by the software installation process.
-
-In order to do this, you have to write a script for the script driven installer, which is called an '{opsi-winst}' script. This script in addition to the installfiles and some metadata can be packed as a opsi-product, which in turn can be installed on a {opsi-Server}.
-
-[[opsi-getting-started-softwintegration-tutorial]]
-=== A Brief Tutorial: How to write a {opsi-winst} Script
-
-[[opsi-getting-started-softwintegration-tutorial-introduction]]
-==== Introduction
-
-This tutorial merely helps you getting started with opsi. It can't replace professional training (which you may order through uib), or thoroughly studying the complete opsi manuals (which might be time consuming and partially error prone if you lack background knowledge).
-uib now offers training in English, too.
-
-.Training and Support:
-
-Get Training by uib gmbh in Europe or possibly Northern America: +
-https://uib.de/en/support-training/support/
-
-.Manuals:
-
-The opsi Manuals can be found at:
-https://uib.de/en/opsi-documentation/documentation/
-important for scripting: +
-opsi-winst reference card and opsi-winst manual
-
-.Wiki (Scripts, Tips, Links):
-
-https://forum.opsi.org/wiki
-
-.Support Forum (fast and free vendor support):
-https://forum.opsi.org
-
-[[opsi-getting-started-softwintegration-tutorial-general]]
-==== Methods of Non-Interactive Installation
-
-Regardless of whether or not you are using opsi or another management solution, there are three different ways to install software without user interaction:
-
-. *Unattended or Silent Installation* +
-The original setup binary from the software manufacturer can be executed with command line arguments which enable a 'silent' or 'unattended' mode. It depends on whether or not the program supports a silent installation mode. A special case of this method is the unattended installation of MSI packages.
-*"silent" Installation of a MSI-Package*:+
-A MSI-Package can be installed using the "quiet" Option.
-
-. *Interactive Setup with recorded Answers* +
-The actions executed by the administrator while running the manufacturer's setup program during a manual installation are automatically recorded using the free tools 'Autoit' or 'Autohotkey'. This generates an autoIt script which in turn can be used for an unattended installation.
-
-. *Recreate the setup-routine with opsi-winst*: +
-The actions executed by the setup-routine when installing manually are recorded and the opsi-winst is used to reproduce them.
-
-NOTE: opsi supports all of these variants. +
-Usually a combination of these methods in one script provides the best result. For example, performing the basic installation using the original setup if available, and then doing some customizing by patching the registry or the file based configuration.
-
-[[opsi-getting-started-softwintegration-tutorial-script-structure]]
-==== Structure of a opsi-script / opsi-winst Script
-
-An example of a simple opsi-winst script:
-[source,winst]
-----
-[Actions]
-WinBatch_7z_silent_install
-
-[WinBatch_7z_silent_install]
-"%ScriptPath%\7z.exe" /S
-----
-
-An opsi-winst script contains a *primary* and *secondary* sections. The section headers are in square brackets, similar to what you may have seen in ini-files. The primary section is noted by the identifier [Actions], and the secondary section is noted by the identifier [WinBatch_...].
-
-The core tasks, like starting programs or copying files, are specified in the secondary sections, not in the primary sections. These secondary sections are topic specific, and have a specific syntax that relates to their specific topic.
-
-The name of a secondary section starts with a reserved word identifying the type of the secondary section followed by a free identifier.
-
-In the above example, the primary section +[Actions]+ calls a secondary section +[WinBatch_7z_silent_install]+. +
-This secondary section has the type +WinBatch+. The content of the secondary sections, of type 'WinBatch', are executed by the Windows API. In this case, the binary `7z.exe` will be started with the parameter +/S+.
-
-[[opsi-getting-started-softwintegration-tutorial-primary-sections]]
-==== Primary Sections
-
-Actions::
-The section +[Actions]+ is the main program. +
-Any part of the code that is called more then one time can be placed in sub sections.
-
-Sub-sections::
-Primary sections which may be called multiple times or have their code in external files.
-
-The primary sections are the main program which control the program flow. There you will find:
-
-* Variables: strings and string lists
-* if else endif statements
-* for loops that traverse string lists
-* Functions
-
-.double code for deinstallation
-image::opsi-winst-without-delsub.png["example of repetitive code (for deinstallation)",width=300]
-
-.avoid double code by using sub sections
-image::opsi-winst-with-delsub.png["avoid repetitive code by using sub sections",width=300]
-
-[[opsi-getting-started-softwintegration-tutorial-secondary-sections]]
-==== Important Kinds of Secondary Sections
-
-Files::
-File operations include
-
-* copying (regarding the internal version information, recursive, ...)
-* deleting files or directories
-* creating directories
-
-WinBatch::
-It's used for calling programs using the Windows API. For example, WinBatch calls the setup programs in the silent mode.
-
-DosBatch/DosInAnIcon::
-The content of these sections are interpreted by the `cmd.exe` like normal batch files. +
-A variant of 'DosBatch' is 'DosInAnIcon' which is run in a minimized window.
-
-ExecWith::
-A program is given as a parameter, and then that program interprets the content of this section (e.g. AutoIt).
-
-Registry::
-The 'Registry' sections are used for registry manipulations.
-
-Linkfolder::
-Link folder sections are used for the manipulation of start menus and desktop icons.
-
-[[opsi-getting-started-softwintegration-tutorial-global-constants]]
-==== Global Constants
-
-Global constants are placeholders which can be used in primary and secondary sections. These placeholders are replaced by their values at runtime.
-
-Examples:
-
-+%ProgramFiles32Dir%+:: c:\program files
-+%Systemroot%+::        c:\windows
-+%System%+::            c:\windows\system32
-+%Systemdrive%+::       c:\
-+%Scriptpath%+::        <path to the running script>
-
-[[opsi-getting-started-softwintegration-tutorial-second-example]]
-==== Second Example: tightvnc
-
-The following example shows a simple script that is used for a tightvnc installation. This script should contain only the winbatch call for the silent installation. If you call the sub-section silent installation more the one time, a confirmation window appears (which is a bug in the installer). This confirmation window will be closed by a 'autoit' script if it appears.
-
-tightvnc.ins:
-[source,winst]
-----
-[Actions]
-Message "Install tightvnc 1.3.9 ..."
-ExecWith_autoit_confirm "%ScriptPath%\autoit3.exe" WINST /letThemGo
-WinBatch_tightvnc_silent_install
-KillTask "autoit3.exe"
-
-[WinBatch_tightvnc_silent_install]
-"%ScriptPath%\tightvnc-1.3.9-setup.exe" /silent
-
-[ExecWith_autoit_confirm]
-; Wait for the confirm dialog which only appears if tightvnc was installed before as service
-; Waiting for the window to appear
-WinWait("Confirm")
-; Activate (move focus to) window
-WinActivate("Confirm")
-; Choose answer no
-Send("N")
-----
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands]]
-==== Elementary Commands for Primary Sections
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-string-variable]]
-===== String Variable
-
-Declaration of a variable:: DefVar <variable name>
-
-Setting a value:: Set <variable name> = <value>
-
-Example:
-[source,winst]
-----
-DefVar $ProductId$
-Set $ProductId$ = "firefox"
-----
-
-IMPORTANT: The use of string variables is different in primary versus secondary sections. In the primary section, the string variables are handled as independent objects. String variables can only be declared and set to values in primary sections. Therefore you have to use a operator ('+') to concatenate variables and strings in a string expression. +
-Example:`"Installing "+$ProductId$+" ..."` +
-In secondary sections string variables are used as a placeholder for their values. +
-Example: `"Installing $ProductId$ ..."` +
-You should keep this in mind if you cut and paste string expressions between primary and secondary sections. +
-The advantage of handling string variables in this format is that is possible to use these variables in secondary sections that are interpreted by other programs (DosBatch / Execwith).
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-message]]
-===== Message / showbitmap
-
-Displaying text during runtime: +
-`Message <string>`
-
-Example:
-[source,winst]
-----
-Message "Installing "+ $ProductId$ +" ..."
-----
-
-Displaying a picture during installation: +
-`ShowBitMap [<file name>] [<sub title>]`
-
-Example:
-[source,winst]
-----
-ShowBitmap "%ScriptPath%\python.png" "Python"
-----
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-if-else-endif]]
-===== if [else] endif
-
-*Syntax:*
-[source,winst]
-----
-if <condition>
-	;statement(s)
-[
-else
-	;statement(s)
-]
-endif
-----
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-functions]]
-===== Functions
-
-HasMinimumSpace:: Check for free space on the hard disk
-FileExists:: Check for the existence of a file or directory
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-error]]
-===== Error, Logging and Comments
-
-comment char ';':: Lines starting with the ';' char are simply ignored.
-comment:: writes a comment to the log file
-LogError:: writes error messages to the log file
-isFatalError:: aborts the script, and return the installation state 'failed' to the server.
-
-[[opsi-getting-started-softwintegration-tutorial-elementary-commands-requirements]]
-===== Requirements
-
-requiredWinstVersion:: Minimum required version of {opsi-winst}
-
-
-[[opsi-getting-started-softwintegration-tutorial-template]]
-==== Third example: The Generic Template 'opsi-template'
-
-This third template should be used as a rough guide whenever you create your own opsi product. Do not cut-and-paste from this manual, but instead look at http://download.uib.de for a new version of the 'opsi-template' product package. Using the opsi-package-manager command you may install 'opsi-template' (-i) or extract (-x) at your server and then grab the scripts.
-
-.setup32.opsiscript: installation script
-[source,winst]
-----
-; Copyright (c) uib gmbh (www.uib.de)
-; This sourcecode is owned by uib
-; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/en/credits/
-
-[Actions]
-requiredWinstVersion >= "4.11.4.6"
-ScriptErrorMessages=off
-
-DefVar $MsiId$
-DefVar $UninstallProgram$
-DefVar $LogDir$
-DefVar $ProductId$
-DefVar $MinimumSpace$
-DefVar $InstallDir$
-DefVar $ExitCode$
-DefVar $LicenseRequired$
-DefVar $LicenseKey$
-DefVar $LicensePool$
-DefVar $displayName32$
-DefVar $displayName64$
-
-DefStringlist $msilist$
-
-Set $LogDir$ = "%opsiLogDir%"
-
-; ----------------------------------------------------------------
-; - Please edit the following values                             -
-; ----------------------------------------------------------------
-;$ProductId$ should be the name of the product in opsi
-; therefore please: only lower letters, no umlauts,
-; no white space use '-' as a separator
-Set $ProductId$       = "opsi-template"
-Set $MinimumSpace$    = "1 MB"
-; the path where the product will be found after the installation
-Set $InstallDir$      = "%ProgramFiles32Dir%\<path to the product>"
-Set $LicenseRequired$ = "false"
-Set $LicensePool$     = "p_" + $ProductId$
-; ----------------------------------------------------------------
-
-if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
-	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
-	isFatalError "No Space"
-	; Stop process and set installation status to failed
-else
-	comment "Show product picture"
-	ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
-
-	if FileExists("%ScriptPath%\delsub32.opsiscript")
-		comment "Start uninstall sub section"
-		Sub "%ScriptPath%\delsub32.opsiscript"
-	endif
-
-	Message "Installing " + $ProductId$ + " ..."
-
-	if $LicenseRequired$ = "true"
-		comment "Licensing required, reserve license and get license key"
-		Sub_get_licensekey
-	endif
-
-	comment "Start setup program"
-	ChangeDirectory "%SCRIPTPATH%"
-	Winbatch_install
-	Sub_check_exitcode
-
-	comment "Copy files"
-	Files_install /32Bit
-
-	comment "Patch Registry"
-	Registry_install /32Bit
-
-	comment "Create shortcuts"
-	LinkFolder_install
-
-endif
-
-[Winbatch_install]
-; Choose one of the following examples as basis for your installation
-; You can use $LicenseKey$ var to pass a license key to the installer
-;
-; === Nullsoft Scriptable Install System ================================================================
-; "%ScriptPath%\Setup.exe" /S
-;
-; === MSI package =======================================================================================
-; You may use the parameter PIDKEY=$Licensekey$
-; msiexec /i "%ScriptPath%\some.msi" /l* "$LogDir$\$ProductId$.install_log.txt" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
-;
-; === InstallShield + MSI=====================================================================================
-; Attention: The path to the log file should not contain any whitespaces
-; "%ScriptPath%\setup.exe" /s /v" /l* $LogDir$\$ProductId$.install_log.txt /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
-; "%ScriptPath%\setup.exe" /s /v" /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
-;
-; === InstallShield =====================================================================================
-; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
-; You may use an answer file by the parameter /f1"c:\setup.iss"
-; "%ScriptPath%\setup.exe" /s /sms /f2"$LogDir$\$ProductId$.install_log.txt"
-;
-; === Inno Setup ========================================================================================
-; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
-; You may create setup answer file by: setup.exe /SAVEINF="filename"
-; You may use an answer file by the parameter /LOADINF="filename"
-; "%ScriptPath%\setup.exe" /sp- /silent /norestart /nocancel /SUPPRESSMSGBOXES
-
-[Files_install]
-; Example of recursively copying some files into the installation directory:
-;
-; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
-
-[Registry_install]
-; Example of setting some values of an registry key:
-;
-; openkey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
-; set "name1" = "some string value"
-; set "name2" = REG_DWORD:0001
-; set "name3" = REG_BINARY:00 af 99 cd
-
-[LinkFolder_install]
-; Example of deleting a folder from AllUsers startmenu:
-;
-; set_basefolder common_programs
-; delete_subfolder $ProductId$
-;
-; Example of creating an shortcut to the installed exe in AllUsers startmenu:
-;
-; set_basefolder common_programs
-; set_subfolder $ProductId$
-;
-; set_link
-; 	name: $ProductId$
-; 	target: <path to the program>
-; 	parameters:
-; 	working_dir: $InstallDir$
-; 	icon_file:
-; 	icon_index:
-; end_link
-;
-; Example of creating an shortcut to the installed exe on AllUsers desktop:
-;
-; set_basefolder common_desktopdirectory
-; set_subfolder ""
-;
-; set_link
-; 	name: $ProductId$
-; 	target: <path to the program>
-; 	parameters: <some_param>
-; 	working_dir: $InstallDir$
-; 	icon_file: <path to icon file>
-; 	icon_index: 2
-; end_link
-
-[Sub_get_licensekey]
-if opsiLicenseManagementEnabled
-	comment "License management is enabled and will be used"
-
-	comment "Trying to get a license key"
-	Set $LicenseKey$ = demandLicenseKey ($LicensePool$)
-	; If there is an assignment of exactly one licensepool to the product the following call is possible:
-	; Set $LicenseKey$ = demandLicenseKey ("", $ProductId$)
-	;
-	; If there is an assignment of a license pool to a windows software id, it is possible to use:
-	; DefVar $WindowsSoftwareId$
-	; $WindowsSoftwareId$ = "..."
-	; Set $LicenseKey$ = demandLicenseKey ("", "", $WindowsSoftwareId$)
-
-	DefVar $ServiceErrorClass$
-	set $ServiceErrorClass$ = getLastServiceErrorClass
-	comment "Error class: " + $ServiceErrorClass$
-
-	if $ServiceErrorClass$ = "None"
-		comment "Everything fine, we got the license key '" + $LicenseKey$ + "'"
-	else
-		if $ServiceErrorClass$ = "LicenseConfigurationError"
-			LogError "Fatal: license configuration must be corrected"
-			LogError getLastServiceErrorMessage
-			isFatalError
-		else
-			if $ServiceErrorClass$ = "LicenseMissingError"
-				LogError "Fatal: required license is not supplied"
-				isFatalError
-			endif
-		endif
-	endif
-else
-	LogError "Fatal: license required, but license management not enabled"
-	isFatalError
-endif
-
-
-[Sub_check_exitcode]
-comment "Test for installation success via exit code"
-set $ExitCode$ = getLastExitCode
-; informations to exit codes see
-; http://msdn.microsoft.com/en-us/library/aa372835(VS.85).aspx
-; http://msdn.microsoft.com/en-us/library/aa368542.aspx
-if ($ExitCode$ = "0")
-	comment "Looks good: setup program gives exitcode zero"
-else
-	comment "Setup program gives a exitcode unequal zero: " + $ExitCode$
-	if ($ExitCode$ = "1605")
-		comment "ERROR_UNKNOWN_PRODUCT	1605	This action is only valid for products that are currently installed."
-		comment "Uninstall of a not installed product failed - no problem"
-	else
-		if ($ExitCode$ = "1641")
-			comment "looks good: setup program gives exitcode 1641"
-			comment "ERROR_SUCCESS_REBOOT_INITIATED	1641	The installer has initiated a restart. This message is indicative of a success."
-		else
-			if ($ExitCode$ = "3010")
-				comment "looks good: setup program gives exitcode 3010"
-				comment "ERROR_SUCCESS_REBOOT_REQUIRED	3010	A restart is required to complete the install. This message is indicative of a success."
-			else
-				logError "Fatal: Setup program gives an unknown exitcode unequal zero: " + $ExitCode$
-				isFatalError
-			endif
-		endif
-	endif
-endif
-----
-
-.delsub32.opsiscript: external deinstallation sub section
-[source,winst]
-----
-; Copyright (c) uib gmbh (www.uib.de)
-; This sourcecode is owned by uib gmbh
-; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/en/credits/
-
-Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
-Set $UninstallProgram$ = $InstallDir$ + "\uninstall.exe"
-
-Message "Uninstalling " + $ProductId$ + " ..."
-
-if FileExists($UninstallProgram$)
-	comment "Uninstall program found, starting uninstall"
-	Winbatch_uninstall
-	sub_check_exitcode
-endif
-if not (GetRegistryStringValue32("[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ + "] DisplayName") = "")
-	comment "MSI id " + $MsiId$ + " found in registry, starting msiexec to uninstall"
-	Winbatch_uninstall_msi
-	sub_check_exitcode
-endif
-
-comment "Delete files"
-Files_uninstall /32Bit
-
-comment "Cleanup registry"
-Registry_uninstall /32Bit
-
-comment "Delete program shortcuts"
-LinkFolder_uninstall
-
-[Winbatch_uninstall]
-; Choose one of the following examples as basis for program uninstall
-;
-; === Nullsoft Scriptable Install System ================================================================
-; maybe better called as
-; Winbatch_uninstall /WaitforProcessending "Au_.exe" /Timeoutseconds 10
-; "$UninstallProgram$" /S
-;
-; === Inno Setup ========================================================================================
-; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
-
-[Winbatch_uninstall_msi]
-msiexec /x $MsiId$ /qb-! REBOOT=ReallySuppress
-
-[Files_uninstall]
-; Example for recursively deleting the installation directory:
-;
-; del -sf "$InstallDir$\"
-
-[Registry_uninstall]
-; Example of deleting a registry key:
-;
-; deletekey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
-
-[LinkFolder_uninstall]
-; Example of deleting a folder from AllUsers startmenu:
-;
-; set_basefolder common_programs
-; delete_subfolder $ProductId$
-;
-; Example of deleting a shortcut from AllUsers desktop:
-;
-; set_basefolder common_desktopdirectory
-; set_subfolder ""
-; delete_element $ProductId$
-
-[Sub_check_exitcode]
-;(.... see above .....)
-----
-
-.uninstall32.opsiscript: deinstallation script
-[source,winst]
-----
-; Copyright (c) uib gmbh (www.uib.de)
-; This sourcecode is owned by uib
-; and published under the Terms of the General Public License.
-; credits: http://www.opsi.org/en/credits/
-
-[Actions]
-requiredWinstVersion >= "4.11.4.6"
-ScriptErrorMessages=off
-
-DefVar $MsiId$
-DefVar $UninstallProgram$
-DefVar $LogDir$
-DefVar $ExitCode$
-DefVar $ProductId$
-DefVar $InstallDir$
-DefVar $LicenseRequired$
-DefVar $LicensePool$
-
-Set $LogDir$ = "%opsiLogDir%"
-
-; ----------------------------------------------------------------
-; - Please edit the following values                             -
-; ----------------------------------------------------------------
-Set $ProductId$       = "opsi-template"
-Set $InstallDir$      = "%ProgramFiles32Dir%\<path to the product>"
-Set $LicenseRequired$ = "false"
-Set $LicensePool$     = "p_" + $ProductId$
-; ----------------------------------------------------------------
-
-
-comment "Show product picture"
-ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
-
-Message "Uninstalling " + $ProductId$ + " ..."
-
-if FileExists("%ScriptPath%\delsub32.opsiscript")
-	comment "Start uninstall sub section"
-	Sub "%ScriptPath%\delsub32.opsiscript"
-endif
-
-if $LicenseRequired$ = "true"
-	comment "Licensing required, free license used"
-	Sub_free_license
-endif
-
-[Sub_free_license]
-comment "License management is enabled and will be used"
-
-comment "Trying to free license used for the product"
-DefVar $result$
-Set $result$ = FreeLicense($LicensePool$)
-; If there is an assignment of a license pool to the product, it is possible to use
-; Set $result$ = FreeLicense("", $ProductId$)
-;
-; If there is an assignment of a license pool to a windows software id, it is possible to use
-; DefVar $WindowsSoftwareId$
-; $WindowsSoftwareId$ = "..."
-; set $result$ = FreeLicense("", "", $WindowsSoftwareId$)
-----
-
-[[opsi-getting-started-softwintegration-tutorial-create-and-test-script]]
-==== Interactive Creation and Testing of a {opsi-winst} Script
-
-It is possible to interactively adapt and test your own opsi-winst script using winst32.exe.
-
-Start by creating a directory where you will build and test your script (e.g. `c:\test`), and then copy the template scripts from the opsi-template (`setup.ins`, `delsub.ins` und `uninstall.ins`) to this directory.
-
-Start the {opsi-winst} (`winst32.exe`) program via a double mouse click. (On Windows 7 Clients, you must right-click on the mouse button and select "run as Administrator"). If the opsi-client-agent is installed on your computer you will find the {opsi-winst} at the directory `C:\program files\opsi.org\opsi-client-agent\opsi-winst. If the {opsi-client} agent is not installed you will find the {opsi-winst} at the share
-'\\<opsiserver\opsi_depot_rw' in the directory `install\opsi-winst\files`.
-
-After starting {opsi-winst}, you will see the following window:
-
-.opsi-winst Started in Interactive Mode
-image::winst-interactive["Screenshot: {opsi-winst} started in interactive mode",400]
-
-* 'Select Script' is used to choose the script that you want to execute.
-* 'Start' will start the execution of the selected script.
-* 'View Log' is used to read the log file from the script that was run most recently.
-
-Select the 'setup.ins' script and run it.
-
-.{opsi-winst} log view window
-image::winst-log-view.png["{opsi-winst} log view window",400]
-
-* Look at the log file to see how {opsi-winst} interpreted the script.
-
-* After figuring out which setup.exe that you will use to install software, copy setup.exe to the directory where the scripts are located (e.g. `c:\test`).
-
-* Open the `setup.ins` script with a editor. You may use any text editor you like. We suggest the 'jEdit' with syntax highlighting for {opsi-winst} which is part of the essential {opsi-product}s.
-
-.jEdit with a opsi script
-image::jedit-with-winst-script.png["jEdit with a opsi script",400]
-
-* You may now change the script using the editor. Save the changes (keep the editor open).
-
-* Now switch to the {opsi-winst} and start the script again. (You don't have to reselect the script. Just press the 'start' button).
-
-* Just have a look at the log again and see how the program flow changed according to your script changes.
-
-* You can interactively develop a script until it fits your needs by performing these steps in this order: +
- - Change the script and save +
- - run the script +
- - review the log +
-
-
-The next chapter contains some hints about handle any problems that may arise while building a opsi-winst script. <<opsi-getting-started-softwintegration-create-opsi-package-newprod>> describes how to create an {opsi-product} from your scripts, and how to install the products on the {opsi-server}.
-
-
-[[opsi-getting-started-softwintegration-tutorial-template-details]]
-==== Suggestions on How to Solve Problems with {opsi-winst} Scripts
-
-[[opsi-getting-started-softwintegration-tutorial-find-switches]]
-===== Search for Unattend or Silent Switches
-
-For an unattended or silent setup, the original setup will be switched to an unattended non-interactive mode using the proper command line arguments.
-
-The problem is to find the correct arguments
-
-.Look on the internet:
-Before you start integrating a new package, you'd better first have a look online to see if somebody has already done that job for you:
-
-Ready to run {opsi-winst} scripts, built by the community, can be found at the link:https://forum.opsi.org/wiki/[opsi wiki].
-
-A collection of links to web sites with switch collections can be found at link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi wiki: Software integration web-links].
-
-.Search the software producer's site:
-Many software manufacturers are aware of the needs of unattended software distribution, so there are often some hints and instructions in the product documentation or on the software producer's website.
-
-.Identify the manufacturer of the setup program:
-Most setup programs are built using frameworks like 'Inno', 'NSIS', 'Installshield' or 'Wise'. Each one of these setup frameworks has their own switch.  The following method can be used to determine the framework and other necessary information:  The input strings can be determined using the command line program 'strings' given the setup program 'setup.exe', and the output framework names can be found using 'grep' or 'findstr'.
-
-The Linux commands looks like this (change <mysetup.exe> to the name of your setup.exe):
-
-[source,prompt]
-----
-strings <mysetup.exe> | grep -i -E "(inno|nsis|installshield|wise)"
-----
-
-Windows does not have a native `strings` command, so you will have to install it. You can download a `strings.exe` program from here: http://technet.microsoft.com/en-us/sysinternals/bb897439
-
-To use this program, enter these commands at the command line interface (change <mysetup.exe> to the name of your setup.exe):
-[source,prompt]
-----
-strings.exe <mysetup.exe> | findstr /i /r "inno installshield nsis wise"
-----
-
-The same method is used in the `opsi-setup-detector`.  See the example below:
-
-.opsi setup detector
-image::opsi-setup-detector.png[width="100mm"]
-
-This GUI program can be called from the Windows context menu Explore.
-
-.opsi setup detector in Windows Explore context menu
-image::opsi-setup-detector-context-small-en.png[width="70mm"]
-
-The 'opsi setup detector' is part of the Windows package repositories and can be obtained through them.
-
-At the link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi wiki: Software integration web-links
-] you will find links to websites that give hints on how to detect the manufacturer of the setup program.
-
-
-[[opsi-getting-started-softwintegration-tutorial-winst-commands]]
-===== Some Important {opsi-winst} Commands
-
-A short overview of the {opsi-winst} commands can be found in the link:https://download.uib.de/opsi4.0/doc/opsi-winst-reference-card-en.pdf[opsi-script reference card].
-
-All syntax details are described in the link:https://download.uib.de/opsi4.0/doc/opsi-winst-manual-en.pdf[opsi-script manual].
-
-Here are some hints regarding important methods:
-
-.Stringlisten
-String lists can be powerful tools to review the output from other programs. Read the {opsi-winst} manual for details.
-
-.ExitWindows
-* `ExitWindows /Reboot` +
-Reboot after the script is finished
-
-* `ExitWindows /ImmediateReboot` +
-Reboot now
-
-* `ExitWindows /ImmediateLogout`
-Exit the {opsi-winst} now
-
-.Product Properties
-For some products it is important to know which product properties can modify the installation in order to make a client-specific installation. Creating these properties is described below in <<opsi-getting-started-softwintegration-create-opsi-package,"Creating an opsi package">>.
-
-To evaluate these properties, {opsi-winst} provides the function `GetProductProperty`
-
-[source,winst]
-----
-if GetProductProperty("example-property", "no") = "yes"
-	Files_copy_extra_files
-endif
-----
-
-[[opsi-getting-started-softwintegration-tutorial-opsiadmin]]
-===== Installation When the User is Logged on
-
-Before we begin, we assume that you have tried an unattended installation using an {opsi-winst} script, and the installation worked OK when the user had administrative privileges.
-However with some software products, you will see that the installation fails when started from within the opsi deployment software (opsi-client-agent). A possible reason for that difference might be that the installation process requires knowledge about the user environment or profile.
-
-In the case of a MSI package, the option 'ALLUSERS=1' might help.
-Example:
-
-[source,winst]
-----
-[Actions]
-DefVar $MsiLogFile$
-Set $MsiLogFile$ = %opsiLogDir% + "\myproduct.log"
-winbatch_install_myproduct
-
-[winbatch_install_myproduct]
-msiexec /qb-! /l* $MsiLogFile$ /i "%ScriptPath%\files\myproduct.msi" ALLUSERS=1
-----
-
-Another possibility is that the installation starts a second process and stops before the second process is finished. So from the point of view of the {opsi-winst} script, the task is finished while in fact the second process is still working (installing / uninstalling). +
-In this case, you may use the modifier +/WaitSeconds <seconds>+ , or
-+/WaitForProcessEnding "program.exe" /TimeOutSeconds "<seconds>"+, in the WinBatch section so that the script waits for the end of the second process.
-
-Another more complex way to solve the problem is to create a temporary administrative user account and use this account for the program installation. For a detailed description on how to do this, please refer to the {opsi-winst} manual chapter 8.3 'Script for installation in the context of a local administrator' and use the template 'opsi-template-with-admin'.
-
-[[opsi-getting-started-softwintegration-tutorial-msi]]
-===== Working with MSI-packages
-
-With Windows 2000, Microsoft launched its own installation concept based on the Microsoft Installer Service "MSI". Since then, many setup programs have become MSI compliant.
-
-To be MSI compliant means to provide a package with installation instructions for the MSI. Usually this is a file named 'product.msi'.
-
-In practice, the setup.exe of a product contains a 'product.msi' file and an additional control program for the installation. The control program unpacks the 'product.msi' and pops up a window that asks if it is allowed to start the installation. If installation has been approved, then the control program checks whether or not MSI is installed, and if so passes 'product.msi' to MSI. If no MSI is found, then the control program tries to install MSI.
-
-If you were to interrupt the installation at that point, you will often find the unpacked MSI-package in a temporary directory.
-
-For example, this package can be used for an unattended installation with the statement:
-[source,winst]
-----
-msiexec /i "%ScriptPath%\Product.msi" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
-----
-
-[[opsi-getting-started-softwintegration-tutorial-customizing]]
-===== Customization after a silent/unattended Installation
-
-After a successful silent installation, some customizing might be useful. The {opsi-winst} is a powerful tool to do that job. First, find out what patches have to be applied. For example, that could mean analyzing which registry settings are affected by the GUI customizing tools.
-
-You can use the tools shown in <<opsi-getting-started-softwintegration-tutorial-analyse-and-repackage>>. Some other tools can be found here:
-
-Some other often used tools are:
-
-* link:http://www.sysinternals.com/[sysinternals]
-* link:https://sourceforge.net/projects/regshot/[regshort]
-
-
-[[opsi-getting-started-softwintegration-tutorial-autoit]]
-===== Integration with Automated Answers for the setup Program
-
-Another fast way of integration is to provide an automated answer file for the setup process. The answer file contains pre-defined answers.  To be more precise, the answer file is used by a control tool, which waits for the setup to come up with the interactive windows.  The control tool then passes input to these windows as defined in the answer file. As a control tool we recommend 'AutoIt'. The AutoIt program and the documentation can be found at: http://www.hiddensoft.com/autoit3.
-
-AutoIt provides a lot of commands to control the setup process. Also, several error states can be handled (if known in advance) with the '[ADLIB]' section in the script.
-
-There is, however, a fundamental challenge in using AutoIt: +
-The AutoIt script must provide input for every window that might pop up during installation. So if any unexpected window pops up, which isn't handled in the [ADLIB] section, AutoIt provides no input for this window and the installation stops at that point while waiting for input. This input could be done interactively by a user, and then the script can take over again and handle the next windows.
-
-Another situation that may cause failure of an AutoIt installation: +
-The user can interfere with the installation if the mouse and keyboard are not disabled. Therefore we regard 'unattended' or 'silent' setup as a more stable solution.
-
-A combination of both might do a good job: +
-The 'silent'-setup does the main installation and the AutoIt script handles special conditions that might occur.
-
-If you use the opsi option of running the installation on another desktop than the current desktop, or if the current desktop is locked, then you will find that some autoit functions do not work properly under these conditions.
-
-Therefore you should avoid using the following autoit commands in '{opsi-winst}' scripts:
-
-* winwait()
-
-* winactivate()
-
-* Send()
-
-Because these commands are so widely used, we provide substitutes:
-*winwait()* +
-should be replaced by the function +
-`opsiwinwait($title, $text, $maxseconds, $logname)` +
-which is defined as:
-[source,configfile]
-----
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-The parameters are:
-
-* `$title` the title of the window
-
-* `$text` a part of the readable text in the window
-
-* `$maxseconds` the timeout in seconds
-
-* `$logname` the name of the log file
-
-
-*Send()* +
-should be replaced by the function +
-`opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
-respectively by +
-`opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
-which are defined as:
-[source,configfile]
-----
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title , $text,$id)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-The parameters are:
-
-* `$title` the title of the window
-
-* `$text` a part of the readable text in the window
-
-* `$id` the numerical ControlId of the button or edit field
-
-* `$sendtext` the text to insert to a edit field
-
-* `$maxseconds` the timeout in seconds
-
-* `$logname` the name of the log file
-
-Therefore, you should use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly:
-
-Below is an example from a script. +
-In this script we produce a log file from the autoit activities, which may be integrated in the '{opsi-winst}' log file with the following commands:
-[source,winst]
-----
-includelog %opsiLogDir% + "\au3.log" "500"
-----
-
-Example:
-[source,configfile]
-----
-[ExecWith_autoit_confirm]
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title packet
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-; exact title match
-Opt("WinTitleMatchMode", 3)
-$mylog = FileOpen("%opsiLogDir%\au3.log", 2)
-FileWriteLine($mylog,"auto-it started - waiting for the window")
-FileClose($mylog)
-
-opsiwinwait("InstallShield Wizard" , "Wollen Sie wirklich", 200, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Wollen Sie wirklich", 6, 5, "%opsiLogDir%\au3.log")
-opsiwinwait("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 400, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 1, 5, "%opsiLogDir%\au3.log")
-
-Sleep(500)
-;and good bye
-Exit
-----
-
-see also: +
-http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
-http://www.autoitscript.com/autoit3/docs/ +
-http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
-http://www.autoitscript.com/autoit3/docs/functions.htm
-
-
-[[opsi-getting-started-softwintegration-tutorial-analyse-and-repackage]]
-===== Analyze and Repackage
-
-When a software developer builds a setup for deployment, the developer usually knows about the required components of the software that have to be installed. But if somebody has a black box as a setup, then they need first to analyze what the setup does. This can be done by monitoring the setup activities with the appropriate tools (e.g. monitoring files and registry access) or by comparing the system states before and after installation.
-
-To analyze the before or after states, there are several tools. For Example:
-
-* link:http://download.fyxm.net/download-now-InstallWatch-Pro-OS-OS-Info-83813.html[InstallWatch Pro]
-
-* link:http://www.itninja.com/media/downloads/appdeploy-repackager.msi[appdeploy-repackager]
-
-
-[[opsi-getting-started-softwintegration-tutorial-deinstall]]
-===== How to uninstall Products
-
-To uninstall a software product from a computer, you need an 'uninstall' script to perform the deletion. The fundamental difficulty in software deletion is deciding what exactly has to be removed. Not all of the files that came with a software package can be deleted afterwards. Sometimes a package comes with standard modules that are also referred to by other programs. Often only the software manufacturer himself knows what parts have to be removed. The manufacturer's setup might offer an unattended uninstall option which can be embedded in the opsi uninstall script. Otherwise {opsi-winst} provides several commands for software deletion:
-
-.Using an uninstall routine
-If the product manufacturer provides an option for software deletion, you must checked whether or not it can be run unattended (or in silent mode). If it requires some user interaction, an AutoIt script combined with the uninstall routine might do the job. The uninstall statement can be embedded in a [WinBatch] section of the {opsi-winst} script:
-[source,winst]
-----
-[WinBatch_start_ThunderbirdUninstall]
-"%SystemRoot%\UninstallThunderbird.exe" /ma
-----
-
-When using an uninstall program, always run a test to see if all of the files have been deleted and the computer is still in a stable state.
-
-Products that are installed by MSI normally come with an uninstall option, which is usually the program `msiexec.exe` combined with the parameter `/x`. The parameter `/qb-!` is for the unattended mode (or without user interaction). So here is an example of an unattended uninstall command:
-
-[source,winst]
-----
-msiexec.exe /x some.msi /qb-! REBOOT=ReallySuppress
-----
-
-Instead of the package name, you could also use the GUID (Global Unique ID) with `msiexec.exe`. This GUID identifies the product in the system, which can be found in the registry directory
-'HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-
-A request using the GUID looks like this:
-[source,winst]
-----
-msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
-----
-
-If none of these methods are available or sufficient, the uninstall can be done using a {opsi-winst} script as described below:
-
-.Useful {opsi-winst} commands for uninstall
-
-If a product has been installed by {opsi-winst} functions, or if there is no uninstall routine for the product, the complete uninstall has to be done by a {opsi-winst} script. {opsi-winst} comes with some powerful uninstall functions. This chapter provides a brief overview of the uninstall functions, and more detailed information can be found in the {opsi-winst} handbook.
-
-Basic uninstall means deleting one or more files from the file system. This command can be executed from a {opsi-winst} files section:
-[source,winst]
-----
-delete -f <file name>
-----
-
-or to delete a directory including sub directories:
-
-[source,winst]
-----
-delete -sf <dir name>\
-----
-
-The parameter 'f' means 'force' or to delete the files even if they are marked as 'read only' and the parameter 's' means including the 'subdirectories'. A file or directory can be deleted from all user profiles using the option '/AllNTUserProfiles' (see {opsi-winst} manual for details).
-
-Directories containing files with the attribute 'hidden' or 'system' can be deleted by using a 'DosInAnIcon'-section:
-
-[source,winst]
-----
-[DosInAnIcon_deleteDir]
-rmdir /S /Q "<List>"
-----
-
-To stop a running process before deletion use the `killtask` command with the process' name (look at the task manager for process name):
-
-[source,winst]
-----
-KillTask "thunderbird.exe"
-----
-
-If the product or part of it, runs as a service, you will have to stop the service before deleting the files. One way to do so, is to set the service state to inactive in the registry and restart the computer. Or to stop the service by using the command 'net stop', which doesn't need a reboot:
-[source,winst]
-----
-net stop <servicename>
-----
-
-Deleting DLL files also requires special attention, since DLLs could also be used by other products. There is no general way of handling this.
-
-To delete registry entries with {opsi-winst} you can use the command DeleteVar. This command deletes entries from the currently open key:
-
-[source,winst]
-----
-DeleteVar <VarName>
-----
-
-To delete a registry key with all sub keys and registry variables, you can use the {opsi-winst} command DeleteKey:
-[source,winst]
-----
-DeleteKey [HKLM\Software\Macromedia]
-----
-
-
-[[opsi-getting-started-softwintegration-tutorial-64bit]]
-===== Known Issues with the 64 Bit Support
-
-The opsi installer {opsi-winst} is a 32 bit program. There are no known problems when installing 32 bit software on a 64 bit system using {opsi-winst}. For the installation of 64 bit software, some constants (like '%ProgramFilesDir%') give wrong values.
-
-New versions of {opsi-winst} have special commands to handle these problems. So read the link:https://download.uib.de/opsi4.0/doc/opsi-winst-manual-en.pdf[opsi-script manual] for these issues.
-
-
-[[opsi-getting-started-softwintegration-create-opsi-package]]
-=== Creating an opsi Package
-
-In opsi, the new software is integrated into the system as a package. This package contains the installation files, the {opsi-winst} installation script, and any meta data.
-
-The advantages of this format are essentially:
-
-* Simplified menu driven handling using the program `opsi-newprod`.
-* Holding all meta data in one file, which is easy to edit.
-* Optional menu driven installation of the package, with optional default overriding.
-* Information about the package will be saved; including product version, package version, and customer extensions. The package information is stored in the installation directory, and all the information can be seen in the package name and the opsi-configeditor. This means that different package versions can be easily handled (product life cycle management).
-* For creating and unpacking products, no root privileges are required. Privileges of the group 'pcpatch' are sufficient.
-
-The package itself is merely a Gzip compressed cpio archive. This archive includes three directories:
-
-* `CLIENT_DATA` +
-holds the files which are to be copied into the product directory (`/var/lib/opsi/depot/<productid>`).
-
-* `OPSI` +
-The file named `control` holds the product meta data (like the product dependencies). The files `preinst` and `postinst` will be executed before and after the installation. Any customer extensions might be added here.
-
-
-[[opsi-getting-started-softwintegration-create-opsi-package-handling]]
-==== Create, Pack, and Unpack a New Product
-
-In order to create a new opsi package, you must login to the server and do some things at the command line. To be able to do this from windows you may use putty.exe:
-(http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html).
-
-The essential commands to create and install packages are:
-
-* `opsi-newprod`
-* `opsi-makepackage`
-* `opsi-package-manager -i <opsi-product-file>`
-
-The privileges of the group 'pcpatch' are required to create a new product.
-
-Opsi makes use of parallel compression provided by `pigz` if installed. This requires a minimum version 2.2.3 or any higher version. If a sufficient version is installed, opsi will automatically use it for (de-)compression of products.
-Please keep in mind that archives created by `gzip` or `pigz` can profit from the bandwidth preserving synchronization via `rsync` but they are not bit-compatible. This will become relevant if you have been using `gzip` before to create your packages and synchronized these packages to other depots. If you now use `pigz` for compression an sync, it will transmit more than the expected differences. This is the case for the first synchronization after a switch of the used compression program. Any further synchronization will then again only transmit the differences.
-It is possible to explicitly disable the usage of `pigz` on your server by setting the value for `use_pigz` under the section `packages` in the file `/etc/opsi/opsi.conf` to `False` as shown below:
-
-[source,configfile]
-----
-[packages]
-use_pigz = False
-----
-
-You should create products in the directory `/var/lib/opsi/workbench`. This directory is also available as share 'opsi_workbench'. The group 'pcpatch' has to be owner of the directory and the directory permissions are 2770 ('set group ID' bit is set for group pcpatch).
-
-
-[[opsi-getting-started-softwintegration-create-opsi-package-newprod]]
-===== Create with opsi-newprod
-
-WARNING: Do not use any country-specific symbols (umlaut), since the actual country code might vary for different code tables.
-
-
-To start creating a new product, change directories to the product directory, and start the creation of the new product by entering the command `opsi-newprod`. The next question will ask you about the type of product you want to create. Choose the type 'localboot' for products which should be installable by '{opsi-client-agent}'/'{opsi-winst}'. The product type 'netboot' is used for products which are activated as a bootimage (like OS installation)
-
-.Choose the product type: localboot
-image::newprod-localboot.png["Screenshot: Choose the product type: localboot",width=400]
-
-Confirm your choice with tab (or F12). Next, fill in the basic product parameters. At the top of the window there is an explanation for the current input field.
-
-.Input of the product information
-image::newprod-product-info.png["Screenshot: Input of the product information",width=400]
-
-Product Id:: is a distinct short name for the product, independent from the product version (we recommend to use only plain ASCII letters and '-', no white space, no special characters)
-
-Product name:: is the full name of the product
-
-Description:: is an additional description of the product.
-
-Advice:: is some additional information on how to handle the product (a note).
-
-Product version:: is the version of the packed software (max 32 chars).
-
-Package Version:: is the version of the package for the product version. For example, this helps to distinguish between packages with the same product version but with modified '{opsi-winst}' scripts.
-
-License required:: is only relevant to netboot products.
-
-Priority:: controls the installation sequence. Possible Values are between 100 (at the very beginning) and -100 (at the end). Note: product dependencies also have influence on the installation sequence. See the opsi manual for more information.
-
-After the product information is completed, fill in which action scripts should be provided:
-
-.Input of the {opsi-winst} script names for different actions
-image::newprod-script-names.png["Screenshot: Input of the {opsi-winst} script names for different actions",width=400]
-
-After editing the product information you should mention the script you want to use for different activities.
-
-Usually the *+Setup script+* is named `setup.ins`
-
-Usually the *+Uninstall script+* is named `uninstall.ins`
-
-An *+Update-Script+* will be used for minor changes on existing big installations. If this product is switched to the required action 'setup', then the update script will be automatically executed after the setup script.
-
-An *+Always-Script+* will be executed at the beginning of every activity of '{opsi-client-agent}' (e.g. on every boot).
-
-A *+Once-Script+* has the resulting state `not_installed`. It is a very special kind of script, and you should only use it if you really know what you are doing.
-
-A *+Custom-Script+* doesn't change the resulting state.  It is a very special kind of script, and you should only use it if you really know what you are doing.
-
-A *+userLoginScript+* is used to modify the user's profile after the user logs into the system. It only works with the opsi extension 'User Profile Management', which is described at the 'User Profile Management' chapter in the opsi-manual.
-
-
-|=======================
-| Type | resulting state | resulting action
-| setup | installed | none
-| uninstall | not_installed | none
-| update | installed | none
-| always | installed | always
-| once | not_installed | none
-| custom | _unchanged_ | _unchangend_
-| User login | _unchanged_ | _unchanged_
-|=======================
-
-The next step is to define one or more product dependencies. If there are no product dependencies, select 'No'.
-
-.Create product dependency: No/Yes
-image::newprod-product-new-dependency.png["Screenshot: Create product dependency: No/Yes",width=400]
-
-To create a product dependency, enter the following data (help is available at the top of the window):
-
-Dependency for Action:: Which product action shall the dependency create, or when should the dependency be checked (setup, uninstall ...).
-
-Required product id:: Product id of the required product.
-
-Required action:: Select the required action (if any) for the required product. Actions can be as 'setup', 'uninstall', 'update'. If no 'required action' is set, a 'required installation status' must be set
-
-Required installation status:: Select the required status of the required product (if any). Usually this is 'installed'. So the required product will be installed if it isn't installed on the client yet. If no 'required installation status' is set, a 'required action' must be set
-
-Requirement type:: This is regarding the installation order. If the required product has to be installed before the installation of the actual product, this is set to 'before'. If it has to be installed after the actual product, set 'requirement type' to 'after'. Leave it blank if the installation order doesn't matter.
-
-NOTE: The possibility to define uninstall actions or dependencies is broken.
-After defining a product dependency, you will be asked if you want to create another product dependency. If you choose 'Yes', then the procedure for defining a product dependency is repeated.  If you choose 'No', then you will be asked to define some product properties, which means defining additional  switches for product customization.
-
-NOTE: The installation sequence results from a combination of product dependencies and product priorities. For details on how this is done, and what you can configure, see the opsi-manual.
-
-.A(nother) product property to create?
-image::newprod-new-property.png["Screenshot:  A(nother) product property to create?",width=400]
-
-If you answer 'Yes', you will have to describe the product properties.
-
-The product properties are client specific, and have names (keys) which can hold different values. These values can be evaluated by the '{opsi-winst}' script, and result in installing different options at installation time.
-
-First we have to decide if our property is a text value ('unicode') or a logical value e.g. true/false ('boolean'). If you are not sure choose 'unicode'.
-
-
-.Choose the data type of the property
-image::newprod-property-type.png["Screenshot: Choose the data type of the property",width=400]
-
-Next, a description for the switch needs to be specified.  This description will be shown in the {opsi-configed} as a help text. Next, you can define the set of values for the switch (separated by comma). If this is left blank, then any value is allowed for the switch.
-
-NOTE: If a values contains a backslash `\` it has to be doubled. +
-An example showing how a path would be defined: `C:\\temp`
-
-.Description of the product properties
-image::newprod-property-desc.png["Screenshot: Description of the product properties",width=400]
-
-Next, you can decide if the product property has a default value (switch).
-
-.Default value of the product property
-image::newprod-property-default.png["Screenshot: Default value of the product property",width=400]
-
-If you choose 'boolean' as the data type, then the description will contain only the 'Property name' and 'Property description'.
-
-.Description of a boolean property
-image::newprod-property-boolean.png["Screenshot: Description of a boolean property",width=400]
-
-After defining a product property, you will be asked if you want to create another product property. If you choose 'Yes', then the procedure of defining a property will be repeated.  If you choose 'No', then you will be asked for name and email of the product maintainer. This data will be written on the changelog.
-
-.Input of the maintainer data
-image::newprod-maintainer.png["Screenshot: Input of the maintainer data",width=400]
-
-Finally, the basic definitions for the new product are done.
-
-Using the list command (`ls`), you can see the directory structure as described above. Change to the `OPSI` folder and list the content. The `control` file now contains the data you just defined, and you can load the file into an editor to view or change the entries.
-
-.Example of a `control` file:
-
-[source,configfile]
-----
-[Package]
-version: 1
-depends:
-incremental: False
-
-[Product]
-type: localboot
-id: mytest
-name: My Test
-description: A test product
-advice:
-version: 3.14
-priority: 10
-licenseRequired: False
-productClasses:
-setupScript: setup.ins
-uninstallScript:
-updateScript:
-alwaysScript:
-onceScript:
-customScript:
-userLoginScript:
-
-[ProductDependency]
-action: setup
-requiredProduct: javavm
-requiredStatus: installed
-
-[ProductProperty]
-type: unicode
-name: mytextprop
-multivalue: False
-editable: True
-description: hint
-values: ["off", "on"]
-default: ["off"]
-
-[ProductProperty]
-type: bool
-name: myboolprop
-description: yes or no
-default: False
-
-[Changelog]
-mytest (3.14-1) testing; urgency=low
-
-  * Initial package
-
- -- jane doe <j.doe@opsi.org>  Mi, 14 Jul 2010 12:47:53 +0000
-----
-
-For the next step, you will have to copy the product '{opsi-winst}' script, and any necessary data files (i.e. program-installation-executable.exe), into the `CLIENT_DATA` folder.
-
-So if the script you have written is currently at `c:\test`, just mount the share '\\<opsiserver\opsi_workbench' e.g. to 'w:', and then copy the complete content of `c:\test` to the directory 'CLIENT_DATA'.
-
-[[opsi-getting-started-softwintegration-create-opsi-package-makeproductfile]]
-===== Build the Package with opsi-makepackage
-
-Now you may build the package. Change to the root directory of the product (maybe `/var/lib/opsi/workbench/myproduct/`, and enter 'opsi-makepackage'. The product package will be built.  The package (`<package name>`) will be a file that has a format similar to `/var/lib/opsi/workbench/<myproduct>/<myproduct_ProductVersion-PackageVersion>.opsi`.
-
-Finally, install the package. The resulting package can be installed on the {opsi-server} with the command +
-`opsi-package-manager -i <package name>`.
-
-`opsi-makepackage` can be started with different options:
-
-[source,prompt]
-----
-$ opsi-makepackage --help
-usage: opsi-makepackage [--help] [--version] [--quiet] [--verbose]
-                        [--log-level {0,1,2,3,4,5,6,7,8,9}] [--no-compression]
-                        [--archive-format {cpio,tar}] [--follow-symlinks]
-                        [--custom-name custom name | --custom-only custom name]
-                        [--temp-directory directory] [--md5 | --no-md5]
-                        [--zsync | --no-zsync] [--no-pigz] [--keep-versions]
-                        [--package-version packageversion]
-                        [--product-version productversion]
-                        [source directory]
-
-Provides an opsi package from a package source directory. If no source
-directory is supplied, the current directory will be used.
-
-positional arguments:
-  source directory
-
-optional arguments:
-  --help                Show help.
-  --version, -V         show program's version number and exit
-  --quiet, -q           do not show progress
-  --verbose, -v         verbose
-  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
-                        Set log-level (0..9)
-  --no-compression, -n  Do not compress
-  --archive-format {cpio,tar}, -F {cpio,tar}
-                        Archive format to use. Default: cpio
-  --follow-symlinks, -h
-                        follow symlinks
-  --custom-name custom name, -i custom name
-                        custom name (add custom files)
-  --custom-only custom name, -c custom name
-                        custom name (custom only)
-  --temp-directory directory, -t directory
-                        temp dir
-  --md5, -m             Create file with md5 checksum.
-  --no-md5              Do not create file with md5 checksum.
-  --zsync, -z           Create zsync file.
-  --no-zsync            Do not create zsync file.
-  --no-pigz             Disable the usage of pigz
-
-Versions:
-  Set versions for package. Combinations are possible.
-
-  --keep-versions, -k   Keep versions and overwrite package
-  --package-version packageversion
-                        Set new package version
-  --product-version productversion
-                        Set new product version for package
-----
-
-It is recommended to create the packages with a corresponding md5 checksum file.
-This file is used amongst others by `opsi-package-updater` to check after a file transfer to ensure package integrity.
-This file is created by default but its creation can be suppressed for special purposes.
-
-When transferring packages to {opsi-depotserver} zsync can be used to only transfer differences between different packages.
-To be able to use this method a special `.zsync` file is required.
-This file is created by default but its creation can be suppressed for special purposes.
-
-If you are running into the problem that the creation of a package fails because of insufficient free space in `/tmp` you can use the option `--temp-directory` to specify a different temporary folder.
-
-If there is already a package file with the same version information, opsi-makepackage will ask for overwrite confirmation:
-
-[source,prompt]
-----
-Package file '/var/lib/opsi/workbench/mytest/mytest_3.14-1.opsi' already exists.
-Press <O> to overwrite, <C> to abort or <N> to specify a new version:
-----
-Choosing `o` will overwrite, `c` abort, and 'n' will ask for new version information.
-
-The created opsi-package can be installed at the {opsi-server} with the command: +
-`opsi-package-manager --install <packagefile>`
-
-More information about the opsi-package-manager can be found in the opsi-manual.
-
+include::opsi-packaging-tutorial-windows.adoc[]
 
 [[opsi-getting-started-more-info]]
 == More Information
-More detailed information can be found in the opsi-manual (http://download.uib.de/opsi_stable/doc/opsi-manual-stable-en.pdf).
+The link:https://download.uib.de/opsi_stable/doc/opsi-manual-stable-en.pdf[opsi manual] contains a wide array of additional information that is important for productive operations.
+If you are using your opsi server productively, we recommend that you familiarize yourself with the 'opsi-backup' tool in order to create a backup of your data.
 
-If you need help during your evaluation of opsi, then more help can be found at https://forum.opsi.org
+If you do not find what you are looking for or need help, please contact link:https://forum.opsi.org[the opsi community].
 
-For production-level installations, we offer commercial support:
-http://uib.de/en/support-training/support/
+For productive installations we recommend professional support by uib with a link:https://uib.de/en/support-training/support/[maintenance and support contract].
