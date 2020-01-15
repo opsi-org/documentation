@@ -225,9 +225,6 @@ Nach erfolgtem Shutdown oder Reboot wird der +shutdown_cancel_counter+ zurückge
 
 TIP: Der Ablauf des Event und auch die Aktionen des Benutzers sind in der Timeline auf der Info-Seite des '{opsiclientd}s' sichtbar (siehe <<opsi-manual-clientagent-infopage>>).
 
-.Vollständiges Ablaufdiagramm eines Events
-image::opsiclientd-event-processing-flow.png["Abbildung: Vollständiges Ablaufdiagramm eines Events",height=650]
-
 [[opsi-manual-clientagent-configuration]]
 ===== Konfiguration
 
@@ -308,10 +305,56 @@ Dieses Problem wird am Beispiel von +event_on_demand+ wie folgt konfiguriert:
 
 * In der Event-Konfiguration +event_on_demand\{user_logged_in\}+ wird +shutdown_warning_time = 300+ gesetzt (300 Sekunden Vorwarnzeit).
 
+
+
+[[opsi-manual-clientagent-working-window]]
+===== Working Window
+
+Für alle Events kann ein sogenanntes 'working_window' konfiguriert werden.
+Dieses begrenzt die Funktion eines Events auf einen Zeitraum innerhalb einer konfigurierbaren Start- und Endzeit.
+
+NOTE: Für das 'working_window' Feature wird der '{opsi-client-agent}' >= Version 4.1.0.0-39 benötigt.
+
+Um das 'working_window' zu verwenden muss der Konfiguration eines Events der Key 'working_window' hinzugefügt werden.
+Falls dieser Key nicht existiert, oder keinen, oder einen ungültigen Wert hat, so gilt das 'working_window' als leer und es gibt keine zeitliche Beschränkung für das Event.
+
+NOTE: Startzeit und Endzeit müssen im Format hh:mm angegeben werden und sind durch einen Bindestrich voneinander getrennt. Leerzeichen zwischen Start und Endzeit sind nicht erlaubt!
+
+Ein 'working_window' kann in allen events angelegt werden. +
+Die Konfiguration des 'working_window' erfolgt über das Hinzufügen des '{opsi-config-objects}' 'working_window' für das gewünschte Event.
+Das kann entweder über den '{opsi-configed}', oder über das Tool '{opsi-admin}' auf dem '{opsi-configserver}' erfolgen.
+
+Die folgenden Beispiele zeigen wie ein 'working_window' für das Event 'event_gui_startup' per '{opsi-admin}' konfiguriert werden kann.
+Siehe Kapitel <<opsi-manual-clientagent-configuration-webservice>> für das Hinzufügen von '{opsi-config-objects}' per '{opsi-configed}'.
+
+Beispiel 1: Globales Erstellen eines leeren 'working_window' für das Event 'event_gui_startup'. Die zeitliche Einschränkung erfolgt clientspezifisch (siehe Beispiel 3).
+[source,prompt]
+opsi-admin -d method config_createUnicode opsiclientd.event_gui_startup.working_window
+
+Beispiel 2: Globales Erstellen eines 'working_window' für die Zeit zwischen 20:00 Uhr und 07:00 Uhr für das Event 'event_gui_startup'.
+[source,prompt]
+opsi-admin -d method config_createUnicode opsiclientd.event_gui_startup.working_window "gui_startup.working_window" "20:00-07:00"
+
+Beispiel 3: Clientspezifisches Einstellen des 'working_window' für die Zeit zwischen 07:00 Uhr und 19:00 Uhr für das Event 'event_gui_startup'.
+[source,prompt]
+opsi-admin -d method configState_create opsiclientd.event_gui_startup.working_window "client.domain.de" "07:00-19:00"
+
+Ist die Startzeit größer ist als die Endzeit gilt das 'working_window' über den nächtlichen Tageswechsel (23:59-0:00). +
+Beispiel am Tag (Startzeit < Endzeit): working_window=07:00-19:00 +
+Beispiel in der Nacht (Startzeit > Endzeit): working_window=20:00-07:00 +
+
+Für das Beispiel "working_window=20:00-07:00" würde das Log des opsiclientd beispielsweise so aussehen:
+
+[source,ini]
+[5] [<timestamp>] [ event processing gui_startup] We have now: 2019-11-05 01:02:13.993000   (EventProcessing.pyo|1121)
+[5] [<timestamp>] [ event processing gui_startup] Working Window configuration starttime: 2019-11-04 20:00:00 endtime:
+2019-11-05 07:00:00 systemtime now: 2019-11-05 01:02:13.993000   (EventProcessing.pyo|1138)
+[5] [<timestamp>] [ event processing gui_startup] We are in the configured working window   (EventProcessing.pyo|1139)
+
 [[opsi-407-releasenotes-clientagent-configuration-proxysupport]]
 ===== Proxysupport-Konfiguration
 
-In der global-Sektion von der opsiclientd.conf gibt es jetzt die Möglichkeit, den opsi-client-agent einen Proxyserver mit zu konfigurieren.
+In der Sektion: "global" von der opsiclientd.conf gibt es jetzt die Möglichkeit, den opsi-client-agent einen Proxyserver mit zu konfigurieren.
 Wenn ein Proxy konfiguriert wurde, werden alle HTTP- und HTTPS-Verbindungen vom opsiclientd über diesen Proxy umgeleitet.
 
 [source,ini]
