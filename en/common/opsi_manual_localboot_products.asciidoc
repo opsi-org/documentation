@@ -413,27 +413,27 @@ This opsi product can be combined well with a cron job that executes the script 
 
 
 [[opsi-manual-localboot-product-order]]
-==== Manipulating the installation sequence by product priorities
+==== Manipulating the installation sequence by priorities and dependencies
 
-Since opsi 4.0 the installation sequence will be calculated by regarding product dependencies and product priotities.
+Since opsi 4.0, the installation order is determined by the {opsi-server} taking into account product dependencies and product priorities.
 
-* product dependencies +
-defines dependencies and needed installation sequence between opsi-packages. A typical example is the dependency between a java program and the java runtime environment (javavm).
+* Product dependencies +
+Defines dependencies and the necessary installation order between opsi-packages. A typical example is the dependency of Java programs on the Java Runtime Environment (javavm).
 
-* product priorities +
-will be used to push some packages to the beginning of the installation sequence and other packages to the end. For example it is useful install service pack and hotfixes at the beginning of a installation sequence and software inventory at the end. +
+* Product priorities +
+Priorities are used to push certain packages forward or backward in the order of installation. It makes sense to install service packs and patches first and a software inventory at the end of an installation sequence. +
 Product priorities are numbers between 100 and -100 (0 is the default)
 
-There are different possibilities how these two factors are used to calculate the installation sequence. According to this opsi provides two different algorithms.
+There are different possibilities how these two factors are used to determine the installation order. Therefore, opsi provides two algorithms.
 
-You may switch between these algorithms:
+Switch between these algorithms can be done either:
 
-* using the opsi-configed, in the 'Host parameter' Tab of the 'server configuration'
+using '{opsi-configed}', in the server configuration
 
 .'{opsi-configed}': server configuration
 image::configed_serverconfiguration_en.png["opsi-configed: server configuration",width=500]
 
-or you can do this on the commend line:
+or on the command line with the following command:
 [source, prompt]
 ----
 opsi-setup --edit-config-defaults
@@ -446,33 +446,39 @@ image::opsi-setup-product_sort_algorithm.png["Choose the sort algorithm: Part 1"
 image::opsi-setup-product_sort_algorithm2.png["Choose the sort algorithm: Part 2",width=300]
 
 [[opsi-manual-localboot-product-order-algorithm1]]
-===== Algorithm1: product dependency above priority (default)
+===== Algorithm1: product dependency before priority (default)
 
-Using this algorithm, the product installation sequence at first will be calculated by the product priorities. In a second step it will be resorted to met the product dependencies. This algorithm may push products with low priority before products with higher priority to met the needs of product dependencies. But therefore you will not see installation problems as result of not resolved product dependencies. +
-The installation sequence of products with action requests is exactly the sequence you see in the configed if sort the products by the products by the column 'position' and its order even if the scripts have partly been executed. Especially, if the execution of a script is stopped by an "ExitWindows /ImmediateReboot" command, then it is guaranteed that the suspended product installation is directly continued after reboot.
+With this algorithm, the products are first sorted based on their priorities and then re-sorted based on the product dependencies. This of course allows a product with a very low priority to be pushed far forward because it is required by a product other than 'required before'. On the other hand, it prevents installation problems due to unresolved product dependencies. +
+Algorithm 1 ensures that the installation order is constant, regardless of how many products are set to setup. This order corresponds to the order which is shown in configed when the products are sorted according to the position column. +
+This ensures that if a setup script is only interrupted with "ExitWindows /immediateReboot", the processing of the interrupted script is continued immediately after the reboot.
 
 [[opsi-manual-localboot-product-order-algorithm2]]
-===== Algorithm2: product priority above dependency
+===== Algorithm2: product priority before dependency
 
-The base philosophy of this algorithm is, that in practice there are three needed priority classes:
+This algorithm is based on the idea that in practice, there are essentially three priority classes:
 
-* Products which have to be installed at the beginning of a sequence, like OS-Patches. These products need a high priority (e.g. 100)
+* Products to be installed first such as OS patches and drivers that bring the PC to a standard state. Is realized by assigning a high priority (maximum +100).
 
-* "normal" products to install applications (default priority = 0)
+* "Normal" products that install applications (default priority 0).
 
-* Products which have to be installed at the end of a installation sequence, like software inventory. These products need a low priority (e.g. -100)
+* Products that should be installed last, e.g. software inventory control. Realized by assigning a low priority (lowest possible -100).
 
-Product dependicies will only resolved inside of priority class. This guarantees that products with a high priority will be installed very early. But is in your reponsibility that there are non product dependencies which go cross priority class borders.
+Product dependencies are only resolved within a priority class. This ensures that products with a high priority are actually installed at the beginning. Cross-priority product dependencies are not taken into account or give a warning. It is therefore important to note when packaging that product dependencies are only defined within one priority class.
+
+The product dependencies are interpreted here in such a way that with "normal" products they automatically lead to a consistent order that takes all dependencies into account. If contradictory (circular) dependencies have been defined, an error is displayed.
+
+In the case of products with high priorities that are essential for setup of the computer, however, the administrator should set the exact order by hand - similar to, for example, Unix start-up scripts - by assigning a specific priority between +100 and +1 for each product according to the desired order. The same applies to the final products with low priorities.
+
+
 
 [[opsi-manual-localboot-product-order-create]]
 ===== Defining product priorities and dependencies
 
-Product priorities and dependencies belong to the meta data of a product. You will be asked for these meta data creating a new product using the command
-`opsi-newprod`.
+Priorities and product dependencies belong to the metadata of an {opsi-product}. You will be asked for these when creating a product with the command `opsi-newprod`.
 
-These meta data will be stored in the product control file and may be edited there. After changing the control file you have create and install the package again.
+This metadata is stored in the control file of the product and can be edited there. After a change in the control file, the product must be repacked and installed again.
 
-For more details see at 'getting started' manual in the chapter creating a opsi-package.
+See also the chapter 'Creating an opsi product package' in the opsi-getting-started manual.
 
 [[opsi-manual-localboot-own_software]]
 ==== Integration of new software packages into the opsi software deployment.
