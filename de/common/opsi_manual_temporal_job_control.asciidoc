@@ -1,0 +1,172 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      25.05.2020
+:Revision:  4.1.0
+:toc:
+:numbered:
+:website: http://opsi.org
+
+
+include::../common/opsi_terms.asciidoc[]
+
+
+[[opsi-manual-temporal-job-control]]
+=== Zeitliche Steuerung von Installationen
+
+
+[[opsi-manual-temporal-job-control-cron-opsi-auto-update]]
+=== Der cronjob wake_clients_for_setup.py, opsi-auto-update und working_window
+
+Mit dem opsi Produkt `opsi-auto-update` lassen sich Geräte einfach und sicher aktualisieren
+ohne das die Aktualisierung für jedes einzelne Gerät angepasst werden muß.
+Das Produkt `opsi-auto-update` ist hier: <<opsi-manual-localboot-opsi-auto-update>> beschrieben.
+
+Mithilfe von cron jobs auf dem opsi-config-server läßt sich die Ausführung von opsi-produkten zeitlich steuern und so z.B. in die Nacht verlegen. 
+
+Voraussetzung hierfür ist das sich die Clients per `wake-on-lan` (WOL) wecken lassen oder per BIOS zeitgesteuert geweckt werden.
+
+Um die Steuerung per cron job möglichst einfach und effektiv zu machen, haben wir das Script `wake_clients_for_setup.py` entwickelt. Dieses Script hat folgende Aufgaben:
+
+* Für eine bestimmte Gruppe von Clients
+
+* wird eine bestimmte Gruppe von Produkten auf `setup` gesetzt
+
+* danach werden die ausgewählten Clients per `wake-on-lan` geweckt
+
+* Für den Fall das die Clients nur `geschlafen` haben und nicht gebootet wurden, kann den Clients noch das Signal gesendet werden ein bestimmtes Event auszuführen.
+
+Die Angabe der ausgewählten Clients erfolgt dabei wahlweise : +
+
+* über die Angabe einer 'Host Gruppe' die z.B. mit dem opsi-configed erstellt werden kann (siehe: <<opsi-manual-configed-treeview>>) +
+`--host-group-id HOSTGROUPID`
+
+* über die Angabe eines opsi-depots (alle Clients des Depots werden behandelt) +
+`--depotId DEPOTID`
+
+* über die Angabe einer Datei in der die Clients gelistet sind +
+`--host-file INPUTFILE`
+
+Die Angabe der ausgewählten Produkte welche auf `setup` gesetzt werden, erfolgt dabei über die Angabe einer Produktgruppe die z.B. mit dem opsi-configed erstellt werden kann (siehe: <<software-on-demand_product-group-management>>) +
+`--product-group-id PRODUCTGROUPID`
+
+Die Angabe des auszulösenden Events erfolgt über den Parameter `--event EVENTNAME`
+
+CAUTION: Die Namen von Gruppen in opsi müssen 'einmalig' sein. Egal ob es um eine Hostgruppe aus dem Bereich `Directory` oder `Gruppen` oder um eine Produktgruppe geht: Ein Gruppenname darf nur einmal vorkommen.
+
+Hier eine Übersicht der Aufrufparameter von `wake_clients_for_setup.py`:
+
+[source,prompt]
+----
+# wake_clients_for_setup.py --help
+usage: wake_clients_for_setup.py [-h] [--version] [--verbose]
+                                 [--log-level {0,1,2,3,4,5,6,7,8,9}]
+                                 [--wol-timeout WOLTIMEOUT]
+                                 [--ping-timeout PINGTIMEOUT]
+                                 [--connect-timeout CONNECTTIMEOUT]
+                                 [--event-timeout EVENTTIMEOUT]
+                                 [--reboot-timeout REBOOTTIMEOUT]
+                                 [--host-group-id HOSTGROUPID]
+                                 [--depotId DEPOTID] [--host-file INPUTFILE]
+                                 [--product-group-id PRODUCTGROUPID]
+                                 [--event EVENTNAME] [--reboot]
+                                 [--no-auto-update NOAUTOUPDATE]
+
+Wake clients for software installation.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --host-group-id HOSTGROUPID, -H HOSTGROUPID
+                        Group in which clients have to be to be waked up.
+                        (default: None)
+  --depotId DEPOTID, -D DEPOTID
+                        DepotId in which clients have to be registered to be
+                        waked up. (default: None)
+  --host-file INPUTFILE, -F INPUTFILE
+                        Filename with clients per line have to be waked up.
+                        (default: None)
+  --product-group-id PRODUCTGROUPID, -P PRODUCTGROUPID
+                        ID of the product group to set to setup on a client                                                                                                                  
+                        (default: None)                                                                                                                                                      
+  --event EVENTNAME, -E EVENTNAME                                                                                                                                                            
+                        Event to be triggered on the clients (default: None)                                                                                                                 
+  --reboot, -X          Triggering reboot on the clients (default: False)                                                                                                                    
+  --no-auto-update NOAUTOUPDATE, -N NOAUTOUPDATE                                                                                                                                             
+                        Do not use opsi-auto-update product. (default: False)                                                                                                                
+                                                                                                                                                                                             
+Logging:                                                                                                                                                                                     
+  --verbose, -v         increase verbosity on console (can be used multiple                                                                                                                  
+                        times) (default: 4)
+  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                        Set the desired loglevel for the logfile. (default:
+                        None)
+
+Timeouts:
+  --wol-timeout WOLTIMEOUT
+                        Time to wait until opsiclientd should be reachable.
+                        (default: 300)
+  --ping-timeout PINGTIMEOUT
+                        Time to wait until client should be pingable.
+                        (default: 300)
+  --connect-timeout CONNECTTIMEOUT
+                        Timeout for connecting to opsiclientd. (default: 15)
+  --event-timeout EVENTTIMEOUT
+                        Time to wait until opsiclientd should be processing.
+                        (default: 300)
+  --reboot-timeout REBOOTTIMEOUT
+                        Time to wait before opsiclientd will be reboot the
+                        client. (default: 60)
+----
+
+Das script `wake_clients_for_setup.py` finden Sie hier: +
+https://download.uib.de/opsi4.1/misc/time-driven-maintenance-tools/wake_clients_for_setup.py +
+Speichern Sie es unter `/usr/local/bin` auf dem opsi-server ab und machen es ausführbar: +
+`chmod u+x /usr/local/bin/wake_clients_for_setup.py`
+
+Ein beispielhafter Aufruf wäre folgender:
+
+[source,prompt]
+----
+wake_clients_for_setup.py --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-0
+----
+
+Hierbei werden die Clients der Hostgruppe `nightly-cron-gruppe-0` ausgewählt und für diese die Produkte der Produktgruppe `nightly-cron-produkte` auf `setup` gestellt. Anschließend werden die gewählten Clients per `wake-on-lan` geweckt und nach einer kurzen Wartezeit ihnen der Befehl gesendet, das Event `gui_startup` auszuführen.
+
+[source,prompt]
+----
+# For more information see the manual pages of crontab(5) and cron(8)
+# 
+# m h  dom mon dow   command
+
+# cronjobs zum wecken und installieren der PCs
+5 0 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-0 --wol-timeout=120 --event-timeout=120
+30 0 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-030 --wol-timeout=120 --event-timeout=120
+59 0 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-1 --wol-timeout=120 --event-timeout=120
+30 1 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-130 --wol-timeout=120 --event-timeout=120
+5 2 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-2 --wol-timeout=120 --event-timeout=120
+30 2 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-230 --wol-timeout=120 --event-timeout=120
+5 3 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-3 --wol-timeout=120 --event-timeout=120
+30 3 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-330 --wol-timeout=120 --event-timeout=120
+5 4 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-4 --wol-timeout=120 --event-timeout=120
+30 4 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-430 --wol-timeout=120 --event-timeout=120
+5 5 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-500 --wol-timeout=120 --event-timeout=120
+35 5 * * * /usr/local/bin/wake_clients_for_setup.py --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-jpr-gruppe-530 --wol-timeout=120 --event-timeout=120
+----
+
+
+<<opsi-manual-clientagent-working-window>>
