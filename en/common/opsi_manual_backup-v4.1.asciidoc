@@ -112,80 +112,74 @@ If you do not know which backend you are using, you are probably using the file 
 This part is secured with `opsi-backup`.
 
 [[opsi-manual-backup_depotfiles-parts]]
-===== opsi depot share
+===== Opsi depot share
 
-At the 'opsi depot share' you will find the installation files of the software to be installed on the clients by opsi. The directories which contain these files (Local boot products and netboot products) are located at `/var/lib/opsi/depot`.
+The depot files are interesting because they contain the actual files of the software to be distributed. The localboot products as well as the netboot products each have their files stored under `/var/lib/opsi/depot`. In previous versions of opsi they were located in the directory `/opt/pcbin/install`.
 
-Older versions of opsi used the directory `/opt/pcbin/install` for this. If it's still present it may be symlinked towards the new location.
+Depending on how much software is kept on the opsi-server, and how many operating system installations including drivers are stored, this data volume can take on enormous proportions.
 
-Depending on how many operating systems, drivers, software, etc is located here, this part may have a huge extent.
+There are different approaches to back up these files. The simplest alternative is 'rsnapshot'. However, there are more elegant solutions, such as storing this data in a redundant file system on a SAN, etc.
 
-This part will *not* be backed up by `opsi-backup`.
-
-So if you like to backup this part, you may use 'rsnapshot' or other backup utilities.
+This part is *not* backed up by `opsi-backup`.
 
 [[opsi-manual-backup_workbench-parts]]
-===== opsi work bench
+===== Opsi workbench
 
-The 'opsi work bench' is the location which is used to create own packages. It is usually located at `/var/lib/opsi/workbench` and exported as the samba share 'opsi_workbench'. Because this directory holds your own work, it should be backed up.
+The opsi workbench area, which is also used as a Samba-share of the same name ('opsi_workbench'), contains the state of your own software packaging. By default, the directory is `/var/lib/opsi/workbench`. If this share is used to store your created packages in different revisions, this directory should also be saved.
 
-This part will *not* be backed up by `opsi-backup`.
+The 'rsnapshot' tool is also suitable here.
 
-To backup this part you may use 'rsnapshot' or other backup tools.
+This part is *not* backed up by `opsi-backup`.
 
-NOTE: Since opsi 4.1 this directory can be configured on a per depot basis. Different paths can be possible.
+NOTE: Since opsi 4.1, this directory can be configured individually for each depot server, so that different paths are possible.
 
-NOTE: Before opsi 4.1O on non-SLES systems this path was to be found at `/home/opsiproducts`.
+NOTE: Before opsi 4.1, this directory was on non-SLES systems located at `/home/opsiproducts`.
 
 [[opsi-manual-backup_repository-parts]]
-===== opsi repository
+===== Opsi repository
 
-The directory `/var/lib/opsi/repository` is used to store opsi packages, which are downloaded by the `opsi-package-updater` or which are installed by the `opsi-package-manager` when using the `-d` option.
+The directory `/var/lib/opsi/repository` is used to store opsi packages. Unlike the opsi workbench, it is not used to create opsi packages, but the opsi packages that are stored there should not be removed, in order to simplify a possible synchronization with other servers or the synchronization using `opsi-package-updater`.
 
-This part will *not* be backed up by `opsi-backup`.
+These files are not absolutely necessary for a complete recovery, but can also be saved with the 'rsnapshot' tool.
 
-So if you like to backup this part, you may use 'rsnapshot' or other backup utilities.
+This part is *not* backed up by `opsi-backup`.
 
 [[opsi-manual-backup_tftp]]
 ===== TFTP directory
 
 The TFTP directory contains configuration files for booting via PXE.
-This directory can be found under `/tftpboot/` on most systems. On openSUSE and SLES this is `/var/lib/tftpboot/opsi/`.
-Files that may have been changed are i.e. `linux/pxelinux.cfg/default.menu` or `linux/pxelinux.cfg/default.nomenu`.
-During the installation of opsi-linux-bootimage these files are filled with default values. They are not required in case of a disaster recovery.
+This directory is located under `/tftpboot/` on most systems. On SLES this directory is `/var/lib/tftpboot/opsi/`.
 
-This part will *not* be backed up by `opsi-backup`.
+Possibly modified files are e.g. `linux/pxelinux.cfg/default.menu` or `linux/pxelinux.cfg/default.nomenu`.
+These files are created with default values when installing opsi-linux-bootimage. These are not absolutely necessary for disaster recovery.
+
+This part is *not* backed up by `opsi-backup`.
 
 [[opsi-manual-backup-cli]]
-==== The program `opsi-backup`
+==== The `opsi-backup` program
 
-`opsi-backup` is a command line program which makes it easy to create and restore opsi data backups.
+The command line program `opsi-backup` is a tool that makes it easy to create and restore backups.
 
-The basic commands are +create+, +restore+ and +verify+. +
-The option +--help+ displays information about the accepted command line options. Use also +<command> --help+ (e.g. `opsi-backup create --help`) to get information about command options.
+To do this, `opsi-backup` can be controlled with three basic commands: +create+, +restore+ and +verify+. +
+The +--help+ option gives a detailed overview of all options of `opsi-backup`. +
+A backup created with `opsi-backup` is a raw backup, which means that no files are backed up at the logical level, but backups of the files stored in the backends are made in the corresponding structures. +
+*Such a backup can therefore only be restored for an identical backend configuration*.
+
+A backup created with `opsi-backup` is always a full backup (`opsi-backup` does not support incremental or differential backups).
+
+It should be noted that `opsi-backup` does not back up <<opsi-manual-backup_depotfiles-parts,depot files>>, <<opsi-manual-backup_workbench-parts,workbench files>> and <<opsi-manual-backup_repository-parts,repository files>>. These files should therefore be backed up in a different way.
+
+The backup file created with `opsi-backup` is a compressed tar file, the content of which can be viewed accordingly.
 
 [source, prompt]
 ----
 opsi-backup --help
 ----
 
-The `opsi-backup` utility stores the configuration and backend data in nearly the same format as they were found at the server. *So you may not restore these data to a server which uses other backends, has other opsi versions or is in any other way different regarding the opsi data structures.*
-
-`opsi-backup` creates always a full backup. There is no support for incremental or differencial backups.
-
-
-CAUTION: Please notice that `opsi-backup` creates *no* backup of: +
-* <<opsi-manual-backup_depotfiles-parts,'opsi depot share'>>
-* <<opsi-manual-backup_workbench-parts,'opsi work bench'>> *
-<<opsi-manual-backup_repository-parts, 'opsi repository'>>
-
-
-`opsi-backup` creates a backup file, which is a compressed tar file. So you may access the data using other standard tools.
-
-CAUTION: A backup file created by `opsi-backup` may contain passwords, hot-keys and other security-related data. So be sure to store the backup files at a secure place.
+CAUTION: A backup created with `opsi-backup` may contain passwords and PC-keys, among other things, and should therefore be stored securely.
 
 [[opsi-manual-backup-create]]
-===== Create a backup
+===== Creating a backup
 
 To create a backup call `opsi-backup create`. +
 This command (without any additional options) will create a backup of all configuration data and all used backends. The backup file will be stored at the current directory with an automatically generated name. +
