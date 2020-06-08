@@ -25,89 +25,88 @@ include::../common/opsi_terms.asciidoc[]
 
 
 [[opsi-manual-samba4]]
-=== Remarks to Samba 4
+=== Notes on switching to Samba 4
 
-With the stable state of Samba{nbsp}4, the development and maintenance for the Samba{nbsp}3 branch has been discontinued. Therefore most of the common Linux distributions (client and server) now contain Samba{nbsp}4 instead of Samba{nbsp}3. Samba shares are a basic component for the opsi system and there are some opsi relevant differences between Samba{nbsp}3 and Samba{nbsp}4, that are discussed in this chapter.
+When Samba{nbsp}4 had reached stable, the development and maintenance work for the Samba{nbsp}3 branch was discontinued. As a result, almost all common Linux distributions (client and server versions) come with Samba{nbsp}4 instead of Samba{nbsp}3. This results in some changes that will be documented in this chapter.
 
-At first it has to be distinguished, in which operational mode Samba is executed. A special feature of Samba{nbsp}4 is the ability to run a fully-fledged Active Directory compatible domain controller. In this operational mode (which will be called `PDC mode` in the following chapters) there are some restrictions, that had to be adopted from Active Directory for compatibility reasons. Most of the current distributions are equipped with Samba{nbsp}4 in the common share mode, that does not provide the operation of a fully-fledged Active Directory domain. With the exception of the Univention Corporate Server, that has PDC-Mode integrated into their standard packages.
+Samba shares are an essential component for the functionality of opsi. Due to the "general" update to Samba{nbsp}4, there are a few things to consider that will be briefly explained in the following chapters.
+
+A distinction must be made in which operating mode Samba is executed. A special feature of Samba{nbsp}4 is the ability to run as a fully-fledged Active Directory-compatible domain controller. In this operating mode (which is called PDC mode in the following chapters for reasons of simplification), there are restrictions that had to be adopted from Active Directory for reasons of compatibility. Most distributions are usually equipped with Samba{nbsp}4, but only in the normal shares operating mode. Operating a full-fledged Active Directory domain is generally not possible with the standard packages from the distributions. An exception here is the Univention Corporate Server, in which the PDC mode is also integrated in the standard packages.
 
 
 [[opsi-manual-samba4-opsifileadmins]]
-==== The /etc/opsi/opsi.conf: pcpatch and opsifileadmins
+==== /etc/opsi/opsi.conf: pcpatch and opsifileadmins
 
-TIP: the restrictions discussed in this chapter concern the PDC mode of Samba{nbsp}4 only.
+TIP: The restrictions described in this chapter only affect the PDC mode of Samba{nbsp}4.
 
-The classic installation, with the user: 'pcpatch' in the group: 'pcpatch', does not work with Samba 4.
-Samba 4 has defined fundamental restrictions for the Active Directory, such as groups with the same name as a user (which is common in Unix/Linux) are no longer allowed.
-For this reason, a new configuration file has been introduced: `/etc/opsi/opsi.conf`, that configures the groups for Samba access.
-To be more specific, for Samba 4 installations the group name 'pcpatch' is renamed as 'opsifileadmins'.
-So the user 'pcpatch', who was member of the group 'pcpatch' under Samba 3, must now be a member of the group 'opsifileadmins'.
-So, to have access rights for opsi-packages under Samba 3, a user cannot be a member of the group 'pcpatch' anymore, but must be a member of the group 'opsifileadmins'.
+The classic installation variant with the user: `pcpatch` with the primary group: `pcpatch` cannot be followed for installations with Samba{nbsp}4. Since Samba{nbsp}4 is subject to the basic restrictions of Active Directory, groups with the same name as users (as is usual in Unix/Linux) are no longer allowed. For this reason, a new configuration file has been introduced for Samba{nbsp}4 installations: `/etc/opsi/opsi.conf`, which controls how the group is determined for Samba access to the shares. In the case of Samba{nbsp}4 installations, the group name `pcpatch` is now renamed via this file and is now called `opsifileadmins`. This means that the users which must have access rights to the shares of opsi (opsi-packagers) under Samba{nbsp}4 cannot become a member of the `pcpatch` group, but must be a member of the `opsifileadmins` group.
 
-Furthermore, the user 'pcpatch' has to be created as a fully-fledged domain user and not as a system user anymore.
+Furthermore, in this case the user `pcpatch` must now be created as a fully-fledged domain user and no longer as a system user, since otherwise he cannot access the domain shares.
 
-These migration steps are performed automatically during opsi installation on a Univention Corporate Server, if the installation process detects Samba{nbsp}4 running in PDC mode.
+These steps are carried out automatically when installing opsi on a Univention Corporate Server, if the installation process detects that Samba{nbsp}4 is running in PDC mode.
 
 Besides the UCS installations, currently there are no other default Active Directory configurations. So these steps have to be done manually for any other Samba{nbsp}4 Active Directory domain contoller installation.
-During future updates, the opsi system checks for the required user configuration and does not try to create users, that do already exist.
+During future updates, the opsi system checks for the required user configuration and does not try to create users, that already exist.
 
-For any questions please contact opsi support. In case you do not have an opsi support contract, please contact info(at)uib.de.
-
+For any questions please contact opsi support. In case you do not have an opsi support contract, please contact info@uib.de.
 
 [[opsi-manual-samba4-share-configuration]]
-==== Share Configuration
+==== Shares Configuration
 
-TIP: The changes discussed in this chapter ar relevant for all operational modes of Samba{nbsp}4.
+TIP: The changes described in this chapter are relevant for all operating modes of Samba{nbsp}4.
 
-With Samba 3 the default setting was, that every file or directory was executable on the share for the Samba clients. This behaviour changed with Samba 4. Now all files, that shall be executable from the share, must also have the executable bit set on the Unix side.
+In Samba{nbsp}3 the default setting was, that every file or directory was executable by the clients. This behavior has been completely changed in Samba{nbsp}4. Now all files, that should be executable from the share, must also have the executable bit set on the Unix side.
 
-This results in a basic problem with running opsi. It is not possible to handle this behaviour from the opsi rights management, for it would require fundamental changes of the rights management of opsi, that can't be done with opsi{nbsp}4.
+This is a problem for the operation of opsi. It is not possible to circumvent this behavior via the opsi rights management, as this would require a complete revision of the opsi rights system. This is not possible in opsi 4.
 
-So for handling this problem with opsi{nbsp}4.0 there are two ways:
+There are two ways to work around the problem with opsi 4.0:
 
-**Option 1:** for the affected shares this behaviour can be supressed by elevating the share privileges of each member of the pcpatch group from the share configuration by setting the following option:
-[source,configfile]
-----
-admin users = @pcpatch
-----
-
-This fix elevates the privileges of the Samba processes and has already been used by opsi for some time for UCS{nbsp}>={nbsp}3 with Samba{nbsp}4.
-
-opsi installs per default for Samba{nbsp}4 distributions with `opsi-setup --auto-configure-samba` this option for the 'opsi_depot' share. This share is mounted read only, so the safety and security risk can be estimated as low.
-
-CAUTION: For all other shares, that are mounted as read/write, it has to be considered, that with this fix the samba process runs with elevated rights. This can be a potential risk. Although there are currently no known exploits for this vulnerability, there might be some in the future.
-
-CAUTION: The Linux smb daemon has a bug. On an existing 'opsi_depot' share it is configured with oplocks. These options have to be removed in the share configuration within the smb.conf. On a new opsi installation and therefore share creation these options are not present anymore.
-
-**Option 2:** the following global option can be set in the smb.conf: +
+**Option 1 (recommended):** You can set the following option in smb.conf:
 [source,configfile]
 ----
 acl allow execute always = true
 ----
 
-With this option all shares behave like Samba{nbsp}3 shares.
+This option restores the behavior of Samba{nbsp}3 for the relevant shares.
 
-To restore the old Samba{nbsp}3 behaviour for all shares, the setting of this option can be done for every share manually, or alternalively the option can be set globally in the smb.conf. This changes the behaviour for all shares, not only for the opsi shares.
+This option can be set for individual shares as well as globally.
+We recommend that you do not set this globally but individually for all opsi shares (unless this has already been set automatically).
 
-The global setting does not work with Univention Corporate Server, for its Samba{nbsp}4 installation is configured in a very special way.
+This variant may not work with Univention Corporate Server, since a highly modified Samba{nbsp}4 variant is used here. In this case, use option two.
+
+**Option 2:** this behavior can be overridden on the affected shares via the individual share configuration using the following option for each member of the pcpatch group (share users):
+[source,configfile]
+----
+admin users = @pcpatch
+----
+
+Opsi has been using this fix for a while with UCS >= 3 and Samba{nbsp}4. With this fix, the Samba process of the user is executed with elevated rights.
+
+Opsi automatically sets this option for the 'opsi_depot' share for Samba{nbsp}4 distributions via `opsi-setup --auto-configure-samba`. Since this share is only mounted read-only, the security risk is relatively low.
+
+CAUTION: For all other shares, that are mounted as read/write, it should be borne in mind that with this fix the Samba process runs with elevated rights. This can be a potential risk. No exploits are currently known for this vulnerability, but of course this is no guarantee that such an exploit does not exist.
+
+CAUTION: The Linux smb daemon has a bug. This is in combination with the 'opsi_depot' share definition in smb.conf. The oplock parameters must be removed on existing installations. New opsi installations and, accordingly, new shares are created without oplocks.
+
+
 
 
 [[opsi-manual-samba4-clientconfig-depot-user]]
-==== Access to the shares: clientconfig.depot.user
+==== Access to shares: clientconfig.depot.user
 
-When using Samba{nbsp}4 it might be necessary to configure the specific domain and user combination to be used for mounting the depot share. +
-The default configuration is just the user `pcpatch` and nothing as domain. If this fails because the mount defaults to the wrong domain, you should configure the correct domain (in most cases: the hostname of the opsi-server).
+TIP: This restriction affects all operating modes of Samba{nbsp}4.
 
-The config parameter is named: `clientconfig.depot.user`.
-The value of this config has the syntax: `<domain name>\<user name>`
+When using Samba{nbsp}4, it may be necessary to explicitly specify the domain/user combination with which to mount the depot share. There is also the new setting: `clientconfig.depot.user`. If there is no such setting, the user `pcpatch` is used.
+The value of this setting has the syntax: `<domain name>\<user name>`
 
-An example config `clientconfig.depot.user = opsiserver\pcpatch` specifies that the opsi depot share is mounted as domain `opsiserver` and user `pcpatch`.
-You may create such a configuration using the opsi-configed:
-Server configuration / clientconfig / right mouse button: add standard configuration entry. +
-You may also use the command line to create this configuration (replace 'pcpatch' by the string you need e.g. 'opsiserver\pcpatch':
+For example, the setting: `clientconfig.depot.user = opsiserver\pcpatch` indicates that when mounting the depot share the authentication will be done as domain `opsiserver` and as user `pcpatch`.
+
+Such a setting can be created via opsi-configed:
+Server configuration / clientconfig / right mouse button: Add standard configuration entry. +
+
+Such a setting can also be created on the command line (whereby 'pcpatch' must be replaced by the desired value e.g. 'opsiserver\pcpatch'):
 [source,prompt]
 ----
 opsi-admin -d method config_createUnicode clientconfig.depot.user "clientconfig.depot.user" pcpatch
 ----
-
-This system wide configuration may be changed client specific (e.g with the opsi-configed)
+This system-wide setting can be customized per client (e.g. in configed in the Host parameters tab).
