@@ -26,17 +26,14 @@ include::../common/opsi_terms.asciidoc[]
 
 
 [[opsi-manual-userprofile-preconditions]]
-==== Preconditions for the extension
+==== Preconditions for the opsi extension 'User Profile Management'
 
-This extension was a cofunding project but is released as free since 29 Apr 2015. +
-see also <<opsi-manual-modules>> +
-and +
-link:https://uib.de/en/opsi-cofunding/cofunding/[opsi cofunding projects] +
-link:https://uib.de/en/opsi-cofunding/prices/[opsi cofunding contribution]
+This module was a link:https://www.uib.de/en/opsi-cofunding/cofunding[co-funded opsi extension] and is released as a free module since 29 Apr 2015. +
+Further details can be found in <<opsi-manual-modules>>.
 
 Technical preconditions are opsi 4.0.1 with the following package and product versions:
 
-.Needed product and package versions
+.Required product and package versions
 [options="header"]
 |==========================
 |opsi product|Version
@@ -45,7 +42,7 @@ Technical preconditions are opsi 4.0.1 with the following package and product ve
 |python-opsi|>=4.0.1.31-1
 |==========================
 
-.Needed product and package versions to run it without activation file
+.Required product and package versions for usage without activation
 [options="header"]
 |==========================
 |opsi product|Version
@@ -53,95 +50,92 @@ Technical preconditions are opsi 4.0.1 with the following package and product ve
 |'opsi-script'|>=4.11.4.17-1
 |==========================
 
-CAUTION: This extension does not work together with the WAN extension. On WAN clients we recommend to not use the login event.
+
+CAUTION: This extension does not work in combination with the WAN extension! Please do not activate the login event on WAN clients.
 
 [[opsi-manual-userprofile-introduction]]
 ==== Introduction
 
-The 'opsi-script' has some special commands to manipulate profiles. These commands act at the local stored profiles. If you are using 'Roaming Profiles' this feature of the 'opsi-script' does not help you because all modifications at the profiles will be overwritten by the server stored profile while login.
-
-The opsi extension for 'User Profile Management' gives you the possibility to do the needed profile manipulation after the login of the user, at the correct profile. This is done by starting the 'opsi-script' after the user login again and run some special 'userLoginScripts'.
-
+The 'opsi-script' has a number of special commands for making modifications in profiles. However, this works only on local profiles and is largely useless when using 'Roaming Profiles'.
+With the opsi extension 'User Profile Management' it is now possible to make changes to these profiles.
+This is done by starting the 'opsi-script' when the user logs in, in order to execute special 'userLoginScripts'.
 
 [[opsi-manual-userprofile-concept]]
 ==== Concept
 
-If you can't do the profile manipulation while installing the software on the machine, you have to separate the 'machine part' of the software installation from the 'profile part'. This can be done inside of a script and also by putting the 'profile part' into a separate script. Many admins still use the second idea by integrating 'profile parts' into a domain login script.
+If the profiles cannot be patched while installing software on the machine, a clear distinction must be made between the 'machine part' and the 'profile part' of the installation. This can be done both within a script or by storing the 'profile part' in a separate script. In many installations this is already done by executing the 'profile parts' as part of a domain login script.
 
-According to the method you use the 'profile part' of your opsi products are part of the opsi installation scripts for installation and deinstallation or they are separated for example as part of the domain login scripts. +
-The goal of this opsi extension is to provide the possibility to integrate both variants of scripts easily.
+Depending on the practice, the 'profile parts' of opsi products are available as part of the opsi scripts for installation and deinstallation, as well as part of a domain login script. The aim of this extension is to be able to integrate both variants as simple as possible in the new mechanism.
 
 The core concepts of this opsi extension are:
 
-* Executing special 'userLoginScripts' scripts at the user login +
-At the user login the opsiclientd uses the 'event_user_login' to startup the 'opsi-script' in a special login script mode. In this special mode the 'opsi-script' executes only the 'userLoginScripts' which are assigned to the opsi products.
+* Executing special userLoginScripts when the user logs in +
+As part of the user login, the 'opsi-script' is started but executed in a special mode in which only 'userLoginScripts' stored in the products are executed.
 
-* Executing these scripts with administrative privileges inside the context of the logged in user +
-Domain login scripts may be used to execute 'profile parts'. But they run only with user privileges. opsi 'userLoginScripts' run with administrative privileges. They run with these high privileges in the user context, so that is easy to manipulate file and registry parts of the profile using the same commands you may use in a domain login script.
+* Executing these scripts with administrative rights but in the context of the logged in user +
+Domain login scripts are executed by the user with user rights. The opsi 'userLoginScripts' are executed by the 'opsi-script', which runs with administrative rights. At the same time, the 'opsi-script' moves into the context of the user who has logged in, so that the profile can be manipulated with the same commands as in a domain login script.
 
-*  Executing these scripts inside of the opsi service context +
-The opsi 'userLoginScripts' run inside the opsi service context, so that they know all details about at which opsi product name, version and package version they are just working. They have the complete access to product properties and other information that can be requested by opsi service calls.
+* Execution of these scripts within the opsi-service context +
+The opsi 'userLoginScripts' run within the opsi-service context and thus have information via script constants about the product name, version and package version currently being processed. Furthermore, the values ​​of the product properties are available as well as any other information which may be queried via opsiservicalls.
 
-Restrictions:
+Limitations:
 
-* The opsi 'userLoginScripts' will be always executed online and not from a local cache. Even if your client runs with the opsi WAN extension.
-
+* Even when using the opsi-WAN-extension, the 'userLoginScripts' are not loaded from the local cache, but are retrieved from the server.
 
 [[opsi-manual-userprofile-winst]]
-==== New and extended 'opsi-script' functions
+==== New and changed 'opsi-script' functions
 
-* Command line parameter `/allloginscripts` +
-If you are calling 'opsi-script' in the opsi service context with the additional parameter '/allloginscripts' or `/loginscripts` this will lead to the following actions:
+* Call parameter `/allloginscripts` or `/loginscripts` +
+Executing 'opsi-script' in the opsi-service context with the additional parameter `/allloginscripts` or `/loginscripts` essentially has the following effects:
 
-** All products which have a 'userLoginScript' will be detected. +
-With `/allloginscripts` for all these products will be the 'userLoginScripts' executed. +
-With `/loginscripts` only the 'userLoginScripts' of the the products that are well known by the client will be excuted. In detail this means: The product has either the installation state `installed` or it was successfully uninstalled. +
-see also: <<opsi-manual-userprofile-configuration>>
+** The products that have a 'userLoginScript' are determined. +
+With `/allloginscripts` the 'userLoginScripts' are executed for all of these products. +
+With `/loginscripts`, only the loginscripts are executed on a client for which the client knows the corresponding product, i.e. the product is installed or was installed. +
+See also: <<opsi-manual-userprofile-configuration>>
 
-** The logged in user will be identified. All global constants to user specific directories like +%CurrentAppdataDir%+ will be directed to the directories of the logged-in user. Also the registry operations  (`Registry` sections and `GetRegistryString`) which going to +HKCU+ will be executed in a way that they read or write to the current_user hive of the logged-in user.
+** The logged in user will be identified, and constants for the current user, e.g. +%CurrentAppdataDir%+ will be directed to the corresponding directories of the logged in user. Likewise, registry operations (`Registry` sections and `GetRegistryString`) which refer to +HKCU+ are carried out in such a way that the data comes from the registry branch of the user.
 
-* Command line parameter `/silent` +
-The command line parameter `/silent` switches off the 'opsi-script' standard window in order to not disturb the user.
+* Call parameter `/silent` +
+The call parameter `/silent` ensures that the window of 'opsi-script' is not displayed during script processing.
 
 * Function `GetScriptMode` +
-In order to detect if a script runs as 'userLoginScript' or for example as installation script, the function `GetScriptMode` gives you two possible values:
+In order to distinguish in a script in which mode the script is currently being executed, the function `GetScriptMode` returns two possible values:
 ** 'Machine' +
-The script is  *not* executed as 'userLoginScript' (but e.g. as setup or uninstall script).
+The script is *not* executed as 'userLoginScript' (but e.g. as setup or uninstall script).
 ** 'Login' +
 The script is executed as 'userLoginScript'.
 
 * New primary section +ProfileActions+ +
-This section may be used to the place for calling user profile manipulations. Here a syntax may be used, which make it possible to use this section as a part of a installation script and as a 'userLoginScript' as well. Therefore this primary section will be interpreted in different ways according to the fact if it is called at 'Machine' mode or at 'Login' mode (as 'userLoginScript'):
+This new section can be used to bundle actions for user profiles. Here a syntax can be used which enables this section to be used both as part of a normal login script and as a 'userLoginScript'. This primary section is evaluated in different ways, depending on whether the script is running in machine mode or login mode (i.e. as userLoginScript).
 ** 'Login' +
-If a script is running as 'userLoginScript' and there is a section  +ProfileActions+ in the script, the script interpretation will start at the +ProfleActions+ section (and not at the +Actions+ section, which will be ignored).
+If a script runs as 'userLoginScript' and contains a section +ProfileActions+, script processing is started in this section (and not in +Actions+).
 ** 'Machine' +
-If a script is running as normal istallation script, you may call the section +ProfileActions+ as a sub section. But in difference to a normal sub section it has some special rules: For every called 'Registry' section the modifier '/AllNtUserDats' is implicit set. gesetzt. For every called 'Files' section the modifier '/AllNtUserProfiles' is implicit set. +
-Since Version 4.11.3.2 : For every called 'Patches' section the modifier '/AllNtUserProfiles' is implicit set.
+If a script runs as a normal installation script, section +ProfileActions+ can be called as a sub-section, similar to a 'sub'-section. The following applies to the processing of this section: '/AllNtUserDats' is implicitly set for all 'registry'-section calls. '/AllNtUserProfiles' is implicitly set for all 'Files'-section calls. +
+Since version 4.11.3.2 the following also applies: '/AllNtUserProfiles' is implicitly set for all 'Patches'-section calls.
 
 * Registry sections +
-** Registry sections which should work on the 'HKCU' or 'HKEY_CURRENT_USER' hive in the `openkey` command, will be executed in login script mode ('Login') in a way, that all changes will be made in the registry hive of the logged-in user. The same applies to the functions `GetRegistryStringValue*`.
-** Registry sections which are called at the normal mode ('Machine') with the modifier '/AllNtUserDats', may now contain 'HKCU' resp.. 'HKEY_CURRENT_USER' at the `openkey` command. This gives you the possibility to use the same registry sections in both modes.
+** Registry sections that work on 'HKCU' or 'HKEY_CURRENT_USER' are executed in login script mode so that the changes end up in the branch of the logged-in user. The same applies to the functions `GetRegistryStringValue*`.
+** Registry sections which are called in normal mode ('Machine') with the modifier '/AllNtUserDats' can now contain the root 'HKCU' or 'HKEY_CURRENT_USER' in the `openkey` command. This makes it possible to run the same registry section in different modes.
 
 * Winbatch sections with `/RunAsLoggedOnUser` +
-Even if the `opsi-winst` is started by the Login event, it is running in the SYSTEM context and not in the context of the user that just made the login. In order to start a process in the context of the user you should use a winbatch section with the option `/RunAsLoggedOnUser`.
+Even if opsi-winst is started via the login event, it runs in the SYSTEM context and not in the context of the user who has just logged in. A winbatch section with the option `/RunAsLoggedOnUser` can be used to start a process in the context of this user.
 
 * Avoid unnecessary script execution: +
-With the new script command `saveVersionToProfile` you save product name, version and package version to the logged-in users profile. These information can be retrieved by the new string function `readVersionFromProfile`, so that you may see if this script was executed at this profile before. To make the handling easier there is also a new Boolean function `scriptWasExecutedBefore`. This function checks if there is a version stamp in the profile (like you may do with the `readVersionFromProfile` command) and set a new stamp to the profile (like you may do with the `saveVersionToProfile` command). So you may just use this single command in a +if+ statement. +
-The new string list function `getProductMap` gives you a hash with all information about the installation states and report to the actual product. So you may see if this product is installed or was uninstalled.
+The command `saveVersionToProfile` can be used to stored in the current profile that the userLoginscript for this product has been executed in this version. The string function `readVersionFromProfile` or the boolean function `scriptWasExecutedBefore` can be used to check whether the userLoginScript for this product has already run in this version and whether it needs to be executed again. For this purpose, this function first reads in a possibly existing version stamp from the profile (as is possible with `readVersionFromProfile`) and compares it with the currently running version. The return value (true/false) results from the comparison. Then the current values ​​are written back to the profile (as is possible with `saveVersionToProfile`). So you only need this `scriptWasExecutedBefore` function in an `if`-statement to check whether the script has already run. +
+Furthermore, the string list function `getProductMap` provides an info map from which you can see whether the current product is installed or uninstalled etc.
 
 * Any kind of `ExitWindows` command will be ignored.
 
 * Logging +
-The logs of the 'userLoginScripts' are written to +
-`c:\opsi.org\log\<login user name>_login.log` +
-This log file will be transmitted to the server. At the server they will be stored at +/var/log/opsi/userlogin/<clientid>.log+. +
-This log file is handled in append mode. This means new logs will appended to a existing log file of this client. To avoid to large log files, the size of the log files are limited by the server to a maximal size of 5 MB. +
-You may display these log files at the opsi management interface (opsi-configed) at the tab 'Log files' in the sub tab 'userlogin'.
+The logs of userLoginScripts are written to: +
+`c:\opsi.org\log\<user login name>_login.log` +
+These log files are also transferred to the opsi server. A new log file is appended to an existing one. The opsi-server ensures that these files are limited in size (max. 5 MB). On the opsi server, these logs are stored as +/var/log/opsi/userlogin/<clientid>.log+ +
+In the opsi management interface (opsi-configed), these logs are displayed in an additional sub-tab 'userlogin' in the 'Log files' tab.
 
 [[opsi-manual-userprofile-scripts]]
 ==== Examples of userLoginScripts
 
-We are starting with examples that are build in a way that they also may used in a domain login script.
+First, two examples that are structured as they could also be used in domain login scripts.
 
 A very simple generic example:
 
@@ -153,7 +147,7 @@ Message "Example Profile Patch ...."
 
 Files_profile_copy
 Registry_currentuser_set
-Patches_profile_ini "%userprofiledir%\opsi-script-test.ini"
+Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 
 [Files_profile_copy]
 copy "%Scriptpath%\profiles\*.*" "%CurrentAppdataDir%\ACME"
@@ -166,11 +160,12 @@ set "show_greeting_window" = "no"
 add [secdummy] dummy1=add1
 ----
 
-A example for firefox configuration:
+An example for Firefox configuration:
 
 [source,winst]
 ----
 [Actions]
+requiredWinstVersion >= "4.11.3.2"
 Message "Firefox Profile Patch ...."
 
 DefVar $akt_profile_ini$
@@ -188,7 +183,7 @@ else
 endif
 ----
 
-At the next example (which simply extends the first example) we show how you may delete things from the profile in the case that this product has been uninstalled. According to what we get from the function `getProductMap` different parts of the script will be executed.
+Next we show an example, which extends the first one, that shows how to also delete items from the profile. Depending on whether the product is installed or was uninstalled on the computer, a different part of the script is executed:
 
 [source,winst]
 ----
@@ -200,7 +195,7 @@ if getValue("installationstate", getProductMap) = "installed"
 	comment "Product is installed"
 	Files_profile_copy
 	Registry_currentuser_set
-	Patches_profile_ini "%userprofiledir%\opsi-script-test.ini"
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 if getValue("lastactionrequest", getProductMap) = "uninstall"
@@ -218,7 +213,7 @@ set "show_greeting_window" = "no"
 
 [Files_profile_del]
 del -s -f "%CurrentAppdataDir%\ACME"
-del "%userprofiledir%\opsi-script-test.ini"
+del "%userprofiledir%\opsi-winst-test.ini"
 
 [Patches_profile_ini]
 add [secdummy] dummy1=add1
@@ -227,7 +222,7 @@ add [secdummy] dummy1=add1
 deletekey [HKCU\Software\ACME]
 ----
 
-Now a example which shows how standard installation scripts (setup32.ins and delsub32.ins) may used also as 'userLoginScripts' to avoid unneeded code doubling.
+Now an example that uses the setup script (setup32.ins and delsub32.ins) to avoid unnecessary duplication of the code:
 
 setup32.ins:
 [source,winst]
@@ -263,14 +258,14 @@ if GetScriptMode = "Machine"
 	comment "Patch the local Profiles ..."
 	Registry_currentuser_set /AllNtUserDats
 	Files_profile_copy /AllNtUserProfiles
-	Patches_profile_ini "%userprofiledir%\opsi-script-test.ini" /AllNtUserProfiles
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini" /AllNtUserProfiles
 endif
 
 if GetScriptMode = "Login"
 	comment "login part"
 	Files_profile_copy
 	Registry_currentuser_set
-	Patches_profile_ini "%userprofiledir%\opsi-script-test.ini"
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 
@@ -316,13 +311,13 @@ endif
 
 [Files_profile_del]
 del -s -f "%CurrentAppdataDir%\ACME"
-del "%userprofiledir%\opsi-script-test.ini"
+del "%userprofiledir%\opsi-winst-test.ini"
 
 [Registry_currentuser_del]
 deletekey [HKCU\Software\ACME]
 ----
 
-Now a variant which is variant of the example before. It makes use of the new primary section +ProfileAction+. This makes the script shorter and it may be still used as installation script and as 'userLoginScript' as well.
+Now an example which is a variant of the previous example. The code is simplified by using the new primary section +ProfileActions+ and the script can be used both as an installation script and as a 'userLoginScript'.
 
 [source,winst]
 ----
@@ -350,7 +345,7 @@ ProfileActions
 comment "login part"
 Files_profile_copy
 Registry_currentuser_set
-Patches_profile_ini "%userprofiledir%\opsi-script-test.ini"
+Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 
 [Winbatch_install]
 "%ScriptPath%\setup.exe" /sp- /silent /norestart
@@ -366,7 +361,8 @@ set "show_greeting_window" = "no"
 add [secdummy] dummy1=add1
 ----
 
-Most of the time, we want to run opsi login-scripts once. Thus, we need to store information on product, version and package version per User. We achieve this by using the following code, which will save opsi product and its versions to a file in the Appdata\opsi.org folder.
+Now a variant, which notes in the profile whether the script for this product has already been executed in this version and for this user.
+A line with the product information is written to the file `%AppData%\.opsi.org\userLoginScripts.ini`.
 
 [source,winst]
 ----
@@ -379,7 +375,7 @@ if not (scriptWasExecutedBefore)
 	comment "loginscript was not run yet "
 	Files_profile_copy
 	Registry_currentuser_set
-	Patches_profile_ini "%userprofiledir%\opsi-script-test.ini"
+	Patches_profile_ini "%userprofiledir%\opsi-winst-test.ini"
 endif
 
 [Files_profile_copy]
@@ -399,39 +395,36 @@ add [secdummy] dummy1=add1
 [[opsi-manual-userprofile-configuration]]
 ==== Configuration
 
-In order to use the opsi 'User Profile Management' extension, you have to activate the 'event_user_login' at the opsiclientd configuration.
+In order to use the 'User Profile Management' extension, the login event must be activated in the configuration of opsiclientd. For this event (if the current opsi-client-agent is installed on the client) 'opsi-script' will be started with the additional parameter '/allloginscripts' or '/loginscripts'.
 
-If the opsi-client-agent at the client is up to date, the ('opsi-script') should be started with the additional parameter '/allloginscripts' or '/loginscripts'.
-
-* `/allloginscripts` means that at the login event *all* loginscripts that are known by the opsi-server will be executed - no matter if the according product is well known to the client (installed or formally installed) or not. +
+* `/allloginscripts` means that when you log in *all* loginscripts that are known to the server are executed, regardless of whether the corresponding product is known to the client (i.e. the product is installed or was installed) or not. +
 This is the default.
 
-
-* `/loginscripts` means that at the login event only those loginscripts will be executed, where the product is well known by the client. In detail this means: The product has either the installation state `installed` or it was successfully uninstalled. (Technically: there exists a productOnClient object for this product and client with: +
+* `/loginscripts` means that when you log in, only those loginscripts are run on a client for which the client knows the corresponding product, i.e. the product is installed or was installed. (Technically: where there a productOnClient object for this client exists with: +
 (`installationStatus`= `installed`) +
 or ((`actionResult` = `successful`) and (`lastAction` = `uninstall`))). +
-Loginscript from products that were never installed on this client will not be executed.
+Login scripts for products that were never installed on this client will not be executed.
 
-You may activate the 'event_user_login' at the command line with the following command (we set the server-side value to 'false', so that we can test on single clients first. Activate via Client - Hostparameter - opsiclientd.event_user_login.active > true . Later you might want to activate this feature server-wide):
+You can activate the login event on the command line as follows: (usually you only want to activate individual clients for testing, therefore the value is 'false' on the server side)
 
 [source, prompt]
 ----
 opsi-admin -d method config_createBool opsiclientd.event_user_login.active "user_login active" false
 ----
 
-As additional action_processor ('opsi-script') parameter you may use '/silent', which suppress the display of the 'opsi-script' window.
+The parameter '/silent' can also be used as an additional 'opsi-script' parameter, which prevents the 'opsi-script' window from being displayed.
 
 [source, prompt]
 ----
 opsi-admin -d method config_createUnicode opsiclientd.event_user_login.action_processor_command "user_login action_processor" "%action_processor.command% /sessionid %service_session% /loginscripts /silent" "%action_processor.command% /sessionid %service_session% /loginscripts /silent"
 ----
 
-These configurations you will also see (and modify) at the opsi management interface (opsi-configed) at the tab 'Host parameters' at the client or server configuration-
+Settings configured this way can be modified in the opsi management interface in the 'Host parameters' tab, server or client-specific.
 
 [[opsi-manual-userprofile-notification]]
 ==== Notification
 
-If you have activated the 'event_user_login' (as described above), you will see after every login the user_login_notifier:
+If you have activated the login event (as described above), you will see the user_login_notifier after each login:
 
 .User Login Notifier
 image::login-action-notifier.png["User Login Notifier", width=100]
