@@ -1,4 +1,4 @@
-////
+﻿////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
@@ -33,22 +33,21 @@ Das Programm 'opsi-setup' ist das "Schweizer Taschenmesser" zur Einrichtung von 
 
 So greifen zum Beispiel die Pakete zur Installation von opsi auf dem Server auf dieses Skript zurück, um opsi korrekt einzurichten. Da dieses Skript nun auch extern aufrufbar ist, lassen sich damit diverse Wartungsarbeiten und Korrekturen durchführen:
 
-
 * Registrierung eines opsi-servers als Depotserver
 * Verzeichnisrechte korrigieren
 * die Backends initialisieren
 * Backends upgraden (von 3.4 nach 4.0)
-* '{MySQL-Backend}' erstmalig konfigurieren
+* '{MySQL-Backend}' konfigurieren
 * Default-Konfigurationen anpassen
 * Backends bereinigen
 * Samba-Konfiguration anpassen
 * DHCP-Konfiguration anpassen
 
-Hier die Hilfe-Anzeige von `opsi-setup`
+Der Befehl `opsi-setup --help` zeigt die Programmoptionen:
 
 [source,prompt]
 ----
-opsi-setup --help
+# opsi-setup --help
 
 Usage: opsi-setup [options]
 
@@ -56,18 +55,22 @@ Options:
    -h, --help  show this help
    -l          log-level 0..9
 
-   --log-file <path>          path to log file
-   --ip-address <ip>          force to this ip address (do not lookup by name)
-   --register-depot           register depot at config server
-   --set-rights [path]        set default rights on opsi files (in [path] only)
-   --init-current-config      init current backend configuration
-   --update-mysql             update mysql backend
-   --update-file              update file backend
-   --configure-mysql          configure mysql backend
-   --edit-config-defaults     edit global config defaults
-   --cleanup-backend          cleanup backend
-   --auto-configure-samba     patch smb.conf
-   --auto-configure-dhcpd     patch dhcpd.conf
+   --log-file <path>             path to log file
+   --backend-config <json hash>  overwrite backend config hash values
+   --ip-address <ip>             force to this ip address (do not lookup by name)
+   --register-depot              register depot at config server
+   --set-rights [path]           set default rights on opsi files (in [path] only)
+   --init-current-config         init current backend configuration
+   --update-from=<version>       update from opsi version <version>
+   --update-mysql                update mysql backend
+   --update-file                 update file backend
+   --configure-mysql             configure mysql backend
+   --edit-config-defaults        edit global config defaults
+   --cleanup-backend             cleanup backend
+   --auto-configure-samba        patch smb.conf
+   --auto-configure-dhcpd        patch dhcpd.conf
+   --renew-opsiconfd-cert        renew opsiconfd-cert
+   --patch-sudoers-file          patching sudoers file for tasks in opsiadmin context.
 ----
 
 Die Funktionen und Parameter im Einzelnen:
@@ -78,7 +81,6 @@ Diese Option dient dazu, eine IP-Addresse für den '{opsi-server}' vorzugeben un
 * `--register-depot` +
 Diese Option dient dazu, einen '{opsi-server}' an einem anderen '{opsi-server}'
 ('{opsi-configserver}') als Depotserver anzumelden. Details hierzu vgl. <<opsi-manual-multidepot-installation>>.
-
 
 * `--set-rights [path]` +
 Setzt bzw. korrigiert die Dateizugriffsrechte in den wesentlichen opsi-Verzeichnissen:
@@ -91,8 +93,7 @@ Setzt bzw. korrigiert die Dateizugriffsrechte in den wesentlichen opsi-Verzeichn
 ** `/etc/opsi`
 +
 Als Parameter kann auch ein Verzeichnis übergeben werden.
-Dann werden unterhalb dieses Verzeichnisses die Rechte aller opsi-relevanten
-Verzeichnisse und Dateien gesetzt, +
+Dann werden unterhalb dieses Verzeichnisses die Rechte aller opsi-relevanten Verzeichnisse und Dateien gesetzt, +
 z.B.: +
 `opsi-setup --set-rights /var/lib/opsi/depot/winxppro/drivers`
 
@@ -106,7 +107,6 @@ aufgerufen werden.
 `--update-file` +
 dienen zum Upgrade des jeweiligen Backends (z.B. von opsi 3.4 auf opsi 4). +
 Details siehe 'releasenotes-upgrade-Handbuch'.
-
 
 * `--configure-mysql` +
 Dient zur erstmaligen Initialisierung des '{MySQL-Backend}'. +
@@ -254,11 +254,11 @@ Options:
   --log-file         <log-file>           path to debug log file
   --log-file-level   <log-file-level>     log file level (default 4)
   -d, --depots       <depots>             comma separated list of depot ids to process
-                     all = all known depots
+                                             all = all known depots
   -p, --properties   <mode>               mode for default product property values
-                                 ask     = display dialog
-                                 package = use defaults from package
-                                 keep    = keep depot defaults (default)
+                                             ask     = display dialog
+                                             package = use defaults from package
+                                             keep    = keep depot defaults (default)
   --purge-client-properties               remove product property states of the installed product(s)
   -f, --force                             force install/uninstall (use with extreme caution)
   -U, --update                            set action "update" on hosts where installation status is "installed"
@@ -274,6 +274,8 @@ Options:
                                              0 = unlimited (default)
   --new-product-id   <product-id>         Set a new product id when extracting opsi package or
                                           set a specific product ID during installation.
+  --suppress-pcf-generation               Suppress the generation of a package content file during package
+                                          installation. Do not use with WAN extension!
 ----
 
 [[opsi-manual-configuration-tools-opsi-package-updater]]
@@ -298,10 +300,12 @@ Mittels `--help` kann die Hilfe angezeigt werden.
 [source, prompt]
 ----
 # opsi-package-updater --help
+
 usage: opsi-package-updater [-h] [--version] [--config CONFIGFILE]
                             [--verbose | --log-level {0,1,2,3,4,5,6,7,8,9}]
                             [--force-checksum-calculation]
                             [--repo repository_name]
+                            [--use-inactive-repository]
                             {install,update,download,list} ...
 
 Updater for local opsi products.
@@ -311,28 +315,37 @@ optional arguments:
   --version, -V         show program's version number and exit
   --config CONFIGFILE, -c CONFIGFILE
                         Location of config file
-  --verbose, -v         increase verbosity (can be used multiple times)
+  --verbose, -v         Increase verbosity on console (can be used multiple
+                        times)
   --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
-                        Set the desired loglevel.
+                        Set the desired loglevel for the console.
   --force-checksum-calculation
                         Force calculation of a checksum (MD5) for every
                         package. Default is to use existing checksums from the
                         .md5-file of a package if possible.
   --repo repository_name
                         Limit the actions the given repository.
+  --use-inactive-repository
+                        Force the activation of an otherwise disabled
+                        repository. The repository must be given through
+                        --repo.
 
 Mode:
   {install,update,download,list}
-    install             Install all downloadable packages from configured
-                        repositories (ignores excludes)
-    update              Update existing packages from repositories.
+    install             Install all (or a given list of) downloadable packages
+                        from configured repositories (ignores excludes)
+    update              Update already installed packages from repositories.
     download            Download packages from repositories. This will not
                         install packages.
     list                Listing information
 
 Modes have their own options that can be viewed with MODE -h.
+----
 
+[source, prompt]
+----
 # opsi-package-updater download --help
+
 usage: opsi-package-updater download [-h] [--force]
                                      [productID [productID ...]]
 
@@ -343,8 +356,12 @@ optional arguments:
   -h, --help  show this help message and exit
   --force     Force the download of a product even though it would otherwise
               not be required.
+----
 
+[source, prompt]
+----
 # opsi-package-updater list --help
+
 usage: opsi-package-updater list [-h]
                                  [--repos | --active-repos | --packages | --packages-and-installationstatus | --package-differences | --updatable-packages | --search-package text]
 
@@ -365,7 +382,6 @@ optional arguments:
                         repositories.
   --search-package text, --search-product text
                         Search for a package with the given name.
-
 ----
 
 Es gibt eine Reihe von allgemeinen Optionen.
@@ -528,7 +544,7 @@ Dabei bietet 'opsi-admin' einen interaktiven und einen nicht-interaktiven Modus,
 Der Aufruf von `opsi-admin --help` zeigt eine Hilfe zu den Optionen:
 [source,prompt]
 ----
-$ opsi-admin --help
+# opsi-admin --help
 
 Verwendung: opsi-admin [options] [command] [args...]
 Optionen:
