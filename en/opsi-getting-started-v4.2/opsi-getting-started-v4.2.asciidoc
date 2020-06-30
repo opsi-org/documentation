@@ -401,6 +401,14 @@ opsi needs samba, which can be installed as:
 apt install samba samba-common smbclient cifs-utils
 ----
 
+The {opsi-server} needs access to a Redis-Server (>=5) with RedisTimeSeries module installed (https://github.com/RedisTimeSeries/RedisTimeSeries).
+You can use a existing Redis-Server or install an instance on the {opsi-server}:
+
+[source,prompt]
+----
+apt install redis-server redis-timeseries
+----
+
 The MySQL-Server which is used for inventory- and license management can be installed as follows:
 
 [source,prompt]
@@ -422,57 +430,44 @@ If the result looks different than the above example (contains eg. '127.0.0.1' o
 
 To start with the installation of opsi add the repository to apt:
 
+*Ubuntu 20.04 LTS _Focal Fossa_:*
+[source,prompt]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/xUbuntu_20.04/ /" > /etc/apt/sources.list.d/opsi.list
+----
+
 *Ubuntu 18.04 LTS _Bionic Beaver_:*
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/xUbuntu_18.04/ /" > /etc/apt/sources.list.d/opsi.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/xUbuntu_18.04/ /" > /etc/apt/sources.list.d/opsi.list
 ----
 
-*Ubuntu 16.04 LTS _Xenial Xerus_:*
+*Debian 10 _Buster_:*
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/xUbuntu_16.04/ /" > /etc/apt/sources.list.d/opsi.list
-----
-
-*Debian 9 _Stretch_:*
-[source,prompt]
-----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Debian_9.0/ /" > /etc/apt/sources.list.d/opsi.list
-----
-
-*Debian 8 _Jessie_:*
-[source,prompt]
-----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Debian_8.0/ /" > /etc/apt/sources.list.d/opsi.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_10.0/ /" > /etc/apt/sources.list.d/opsi.list
 ----
 
 Execute the following command in order to import the signature key of the repository:
 
+*Ubuntu 20.04 LTS _Focal Fossa_:*
+[source,prompt]
+----
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/xUbuntu_20.04/Release.key -O Release.key
+apt-key add - < Release.key
+----
+
 *Ubuntu 18.04 LTS _Bionic Beaver_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_18.04/Release.key -O Release.key
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/xUbuntu_18.04/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
-*Ubuntu 16.04 LTS _Xenial Xerus_:*
+*Debian 10 _Buster_:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/xUbuntu_16.04/Release.key -O Release.key
-sudo apt-key add - < Release.key
-----
-
-*Debian 9 _Stretch_:*
-[source,prompt]
-----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_9.0/Release.key -O Release.key
-apt-key add - < Release.key
-----
-
-*Debian 8 _Jessie_:*
-[source,prompt]
-----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Debian_8.0/Release.key -O Release.key
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/Debian_10.0/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
@@ -483,8 +478,9 @@ Check for key import success:
 apt-key list
 ----
 should contain the output: +
-`pub   2048R/D8361F81 2017-09-30 [verfällt: 2019-12-09]
-uid                  home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>`
+`pub   rsa2048 2017-09-30 [SC] [verfällt: 2021-11-30]
+      2E98F7B5A5B2C8FE7F609705D1F933E6D8361F81
+uid           home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>`
 
 Execute the following commands in order to install opsi at your server:
 
@@ -500,37 +496,9 @@ apt install opsi-windows-support
 ----
 
 If you are asked for the tftp directory during the tftpd-installation answer with `/tftpboot`.
-`
-During the installation of the opsiconfd, you will be asked for information for the creation of a local SSL certificate.
 
 During the {opsi-server} installation, you have to allow the patching of the file `smb.conf`. Answer the question with 'yes'. Also, you will be asked for a password for the user 'pcpatch'. Set a new password, and please remember this password when continuing with the following sections.
 ``
-
-.Debian 8 (Jessie) specialities: +
-
-The bootimage has issues to mount the `opsi_depot`-Share over mount.cifs.
-To avoid these problems you can either configure ID mapping in Samba or disable `winbind`.
-If you do not rely on `winbind` we recommend to disable the daemon.
-
-Disable starting of winbindd:
-[source,prompt]
-----
-systemctl disable winbind
-----
-or
-[source,prompt]
-----
-insserv -r winbind
-----
-
-For a sane ID mapping configuration specify a configuration with limited
-mapping range in `smb.conf` and then restart Samba.
-
-To configure ID mapping you can insert the following into the `[global]` section of `smb.conf`.
-[source,prompt]
-----
-idmap config * : range = 1000-1999999
-----
 
 Assuming all of the above steps completed successfully, we can assume that the network is properly configured. Next continue on with <<opsi-getting-started-installation-config-backend>>
 
@@ -658,13 +626,13 @@ For more information about this new configuration file please refer the opsi-man
 *UCS 4.4:*
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Univention_4.4/ /" > /etc/apt/sources.list.d/opsi.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Univention_4.4/ /" > /etc/apt/sources.list.d/opsi.list
 ----
 
 *UCS 4.3:*
 [source,prompt]
 ----
-echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/Univention_4.3/ /" > /etc/apt/sources.list.d/opsi.list
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Univention_4.3/ /" > /etc/apt/sources.list.d/opsi.list
 ----
 
 
@@ -673,14 +641,14 @@ Now import the key to the repository system with the following command:
 *UCS 4.4:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Univention_4.4/Release.key -O Release.key
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/Univention_4.4/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
 *UCS 4.3:*
 [source,prompt]
 ----
-wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/Univention_4.3/Release.key -O Release.key
+wget -nv https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/Univention_4.3/Release.key -O Release.key
 apt-key add - < Release.key
 ----
 
@@ -819,7 +787,7 @@ You can use zypper to add the opsi-SUSE-Repository:
 *openSUSE Leap 42.3:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/openSUSE_Leap_42.3/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/openSUSE_Leap_42.3/home:uibmz:opsi:4.2:stable.repo
 ----
 
 After adding the repository, you may start the opsi installation:
@@ -886,31 +854,31 @@ You can use zypper to add the opsi-SLES-Repository:
 *SLES 12SP4:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP4/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/SLE_12_SP4/home:uibmz:opsi:4.2:stable.repo
 ----
 
 *SLES 12SP3:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP3/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/SLE_12_SP3/home:uibmz:opsi:4.2:stable.repo
 ----
 
 *SLES 12SP2:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP2/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/SLE_12_SP2/home:uibmz:opsi:4.2:stable.repo
 ----
 
 *SLES 12SP1:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12_SP1/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/SLE_12_SP1/home:uibmz:opsi:4.2:stable.repo
 ----
 
 *SLES 12:*
 [source,prompt]
 ----
-zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/SLE_12/home:uibmz:opsi:4.1:stable.repo
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/SLE_12/home:uibmz:opsi:4.2:stable.repo
 ----
 
 After adding the repository, you may start the opsi installation:
@@ -994,11 +962,11 @@ rhn_register
 
 Add the opsi RHEL Repository:
 
-*RHEL 7:*
+*RHEL 8:*
 [source,prompt]
 ----
 cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/RHEL_7/home:uibmz:opsi:4.1:stable.repo
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/RHEL_8/home:uibmz:opsi:4.2:stable.repo
 yum makecache
 ----
 
@@ -1083,11 +1051,11 @@ mysql_secure_installation
 
 Add the opsi CentOS Repository:
 
-*CentOS 7:*
+*CentOS 8:*
 [source,prompt]
 ----
 cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.1:stable/CentOS_7/home:uibmz:opsi:4.1:stable.repo
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/CentOS_8/home:uibmz:opsi:4.2:stable.repo
 yum makecache
 ----
 
@@ -1103,7 +1071,7 @@ It could happened that the following dialog window prompt you if you want to imp
 
 [source,prompt]
 ----
-   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi40/CentOS_CentOS-5/repodata/repomd.xml.key
+   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/opsi4.2/CentOS_CentOS-8/repodata/repomd.xml.key
    Is this ok [y/N]: y
 ----
 Please answer with 'y'.
