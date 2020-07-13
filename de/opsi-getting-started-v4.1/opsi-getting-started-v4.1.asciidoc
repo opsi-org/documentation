@@ -24,6 +24,7 @@ include::../common/opsi_terms.asciidoc[]
 
 = opsi Getting Started opsi-Version 4.1
 
+// Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
 
 
@@ -92,8 +93,55 @@ Bei der Verwendung der virtuellen Maschine muss ein angemessener Wirtsrechner ge
 Für eine Teststellung kann problemlos eine weitere virtuellen Maschine im selben Wirtsrechner als Client dienen.
 
 
-[[opsi-getting-started-requirements-software]]
-=== Konfigurationsvoraussetzungen
+[[opsi-getting-started-introduction-hardware-requirements-hints]]
+==== Hinweise zur Ermittlung von Hardware-Anforderungen
+
+Die Anforderungen an die Hardware hängen stark von der Verwendung ab.
+Daher hier ein paar Hinweise damit Sie das passende für sich kalkulieren können.
+
+
+[[opsi-getting-started-introduction-hardware-requirements-ram]]
+===== Arbeitsspeicher
+
+Jede aktive Samba Connection macht einen eigenen Samba Prozess auf.
+Für diesen sind je nach Quelle zwischen 800 kB und 4 MB zu kalkulieren.
+Wieviele opsi-clients gleichzeitig auf einen opsi Server zugreifen, hängt stark von den Tagesabläufen in Ihrer Umgebung ab.
+
+Für link:https://www.samba.org/samba/docs/man/Samba3-ByExample/secure.html[Samba 3] wurden folgende Werte empfohlen:
+
+|==========================
+| Prozess | 1 User | 130 User | 500 User
+| smbd    | 4 MB   | 520 MB   | 2000 MB
+|==========================
+
+Da uns keine Werte für aktuelle Samba-Versionen vorliegen, können die vorgenannten Zahlen lediglich als grobe Schätzung angesehen werden und sollten mit einem Sicherheitszuschlag von 50% versehen werden.
+
+Der Speicherverbrauch des opsiconfd hängt stark (aber nicht nur) von der Anzahl der Clients ab.
+Aus bestehenden Installationen kann der folgende Minimalverbrauch abgeleitet werden.
+Bei den angegebenen Userzahlen handelt es sich hierbei nicht um gleichzeitig aktive User, sondern um die Gesamtzahl.
+
+|==========================
+| Prozess   | 100 User | 2000 User | 4000 User
+| opsiconfd | 500 MB   | 1000 MB   | 2000 MB
+|==========================
+
+Auch hier sollten Sie einen Sicherheitszuschlag haben.
+
+
+[[opsi-getting-started-introduction-hardware-requirements-hints-cpu]]
+===== CPU
+
+Der opsiconfd nutzt derzeit nur einen Kern.
+Dieser eine Kern wird auch nur dann ausgelastet, wenn viele opsi-clients (>100) exakt gleichzeitig auf den Server zugreifen.
+Aber das Betriebsystem, Samba, die Datenbank usw. benötigen ebenfalls Rechenzeit.
+
+D.h. bei 500 Clients sollten zwei CPU-Kerne hinreichend sein, bei 1000 Clients sollten sie vier CPU-Kerne zur Verfügung stellen.
+
+Beachten Sie auch, dass opsi-Depots Last auf den opsi-Configserver bringen, die zudem deutlich größer ist, als die eines einzelnen Clients.
+
+
+[[opsi-getting-started-introduction-software-and-configuration-preconditions]]
+=== Software und Konfigurationsvoraussetzungen
 
 Folgende Voraussetzungen müssen erfüllt sein, damit Sie opsi installieren bzw. einsetzen können:
 
@@ -129,9 +177,7 @@ hostname -f
 
 Sieht das Ergebnis nicht so aus (enthält z.B. '127.0.0.1' oder 'localhost') dann müssen Sie Ihre '/etc/hosts' oder Namensauflösung zunächst korrigieren.
 
-
 Siehe auch:
-
 * https://de.wikipedia.org/wiki/Hostname#Richtlinien
 
 
@@ -144,7 +190,6 @@ Prüfen Sie den Eintrag für den {opsi-Server} in der Datei '/etc/hosts', oder a
 ----
 getent hosts $(hostname -f)
 ----
-
 
 Das Ergebnis sollte beispielsweise so aussehen: +
 '192.168.1.1 server.domain.tld server'
@@ -169,7 +214,6 @@ Zur vereinfachten Prüfung kann folgender Befehl verwendet werden:
 ----
 test -e /etc/default/locale && echo "ok" || (echo "Check locales:" && locale)
 ----
-
 
 Wird _ok_ ausgegeben, so sind locales gesetzt.
 Wird _check locales:_ ausgegeben, so prüfen Sie bitte, dass in der nachfolgend
@@ -2050,11 +2094,7 @@ Dokumente zur Unattend.xml finden sich nach Installation des WAIK in
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-drivers]]
 ==== Treiber-Integration
 
-Die Treiber-Integration verläuft analog {client-os}: Die Treiber werden unter `/var/lib/opsi/depot/<product-id>/drivers/drivers` abgelegt.
-Danach wird im Ordner `/var/lib/opsi/depot/<product-id>/` das Script `./create_driver_links.py` aufgerufen.
-
-Zu beachten ist, dass nur signierte Treiber verwendet werden können.
-Bei der Verwendung von Treiber-Paketen wie z.B. von driverpacks.net ist darauf zu achten, dass Sie die Pakete für {client-os} verwenden.
+Die Treiber-Integration verläuft wie hier: <<opsi-getting-started-firststeps-osinstall-driverintegration>> beschrieben.
 
 [[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-installfiles]]
 ==== Bereitstellung der Installationsmedien
@@ -2344,9 +2384,13 @@ Nach jedem Hinzufügen eines Treibers oder jeden anderen Änderung im `./drivers
 opsi-set-rights ./drivers
 ----
 
-Danach rufen Sie das Script `./create_driver_links.py` auf. Dieses durchsucht die Verzeichnisse unterhalb von './drivers/drivers' und erzeugt eine Reihe von Links anhand deren die Zuordnung der Treiber zu bestimmter Hardware (PCI-IDs, USB-IDs, HD-Audio-IDs) zu erkennen ist. Die Treiber aus dem preferred Verzeichnis werden von dem Script bevorzugt verwendet.
+Wenn Sie Treiber in die Verzeichnisse `./drivers/drivers` oder `./drivers/drivers/preferred` abgelegt haben, dann
+ rufen Sie das Script `./create_driver_links.py` auf. Dieses durchsucht die Verzeichnisse und erzeugt eine Reihe von Links anhand deren die Zuordnung der Treiber zu bestimmter Hardware (PCI-IDs, USB-IDs, HD-Audio-IDs) zu erkennen ist. Die Treiber aus dem preferred Verzeichnis werden von dem Script bevorzugt verwendet.
 
-Das `setup.py` Script des Bootimages untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese werden dann auf die Festplatte kopiert und die unattend.xml entsprechend gepatcht. Das Script `create_driver_links.py` durchsucht auch bei NT5 Produkten einmalig den 'i386' Baum und extrahiert die Inf-Dateien der von Windows mitgelieferten Treiber nach 'windows_builtin'. Sollten Sie am i386-Baum eine Änderung vornehmen (z.B. durch das Einspielen eines Servicepacks) so löschen Sie dieses Verzeichnis und führen `create_driver_links.py` erneut aus. Bei NT6 Produkten werden die Treiber welche sich im WinPE finden als 'windows_builtin' erkannt.
+Das `setup.py` Script des Bootimages untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese werden dann auf die Festplatte kopiert und die unattend.xml entsprechend gepatcht. 
+////
+Das Script `create_driver_links.py` durchsucht auch bei NT5 Produkten einmalig den 'i386' Baum und extrahiert die Inf-Dateien der von Windows mitgelieferten Treiber nach 'windows_builtin'. Sollten Sie am i386-Baum eine Änderung vornehmen (z.B. durch das Einspielen eines Servicepacks) so löschen Sie dieses Verzeichnis und führen `create_driver_links.py` erneut aus. Bei NT6 Produkten werden die Treiber welche sich im WinPE finden als 'windows_builtin' erkannt.
+////
 
 Liegt zu einem Client eine Hardware-Inventarisierung vor, so kann über den Befehl:
 [source,prompt]
@@ -2357,7 +2401,7 @@ ausgegeben werden, welche Treiber das Bootimage via PCI-IDs, USB-IDs, HD-Audio-I
 
 Kontrollieren Sie die Ausgabe von `show_drivers.py` um zu prüfen ob die gewünschten Treiber eingebunden werden.
 
-Es kann vorkommen, das Treiberverzeichnisse von Herstellern Treiber für unterschiedliche Betriebssystemversionen ( z.B. {client-os}) oder Konfigurationen (SATA / SATA-Raid) enthalten. Das `create_driver_links.py` script kann das nicht unterscheiden. Wenn Sie die Vermutung haben, das ein verlinkter Treiber falsch ist, so verschieben Sie diesen Treiber in das Verzeichnis `drivers/exclude` und führen `create_driver_links.py` erneut aus. Treiber die in
+Es kann vorkommen, das Treiberverzeichnisse von Herstellern Treiber für unterschiedliche Betriebssystemversionen ( z.B. {client-os}) oder Konfigurationen (SATA / SATA-Raid) enthalten. Das kann nicht automatisch unterschieden werden. Wenn Sie die Vermutung haben, das ein erkannter Treiber falsch ist, so verschieben Sie diesen Treiber in das Verzeichnis `drivers/exclude` und führen `create_driver_links.py` bzw. `show_drivers.py <clientname>` erneut aus. Treiber die in
 `drivers/exclude` liegen werden bei der Treiberintegration nicht berücksichtigt.
 
 Beispiel einer `show_drivers.py` Ausgabe für einen Client:
