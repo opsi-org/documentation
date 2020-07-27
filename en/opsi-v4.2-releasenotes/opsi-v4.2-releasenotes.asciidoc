@@ -31,9 +31,14 @@ include::../common/opsi_manual_copyright.asciidoc[]
 
 *Main aspects of this release are:*
 
-* opsi Server
-** Switch to Python 3
-** New services
+* Switch to Python 3
+* All python application are deployed as excutables
+* opsi server
+** Full rewrite of opsiconfd focusing on performance and scalability
+** opsiconfd can now be run in a docker container
+** Dependency to Redis Server >= 5 including RedisTimeSeries module
+** Use of Grafana for performance data presentation
+** python-opsi interpreter for custom scripts
 
 
 [[opsi-4.2-releasenotes-important]]
@@ -51,7 +56,7 @@ It is also recommended that 'opsi-winst', 'opsi-client-agent' or 'opsi-linux-cli
 [[opsi-4.2-releasenotes-installation]]
 == Installation notice
 
-For your own safety, we strongly suggest to create a backup of your backends with {opsi-backup} before updating:
+We strongly suggest to create a backup of your backends with {opsi-backup} before updating:
 [source,prompt]
 ----
 opsi-backup create
@@ -101,9 +106,13 @@ First the opsi 4.2 package repositories have to be added to the systems package 
 
 The following commands will add the repositories and add the new repository key if required.
 These commands require 'root' rights.
-
-
-Will be filled in later - TBD
+----
+sudo apt-get install -y apt-transport-https software-properties-common wget
+wget -q -O - https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/Debian_10.0/Release.key | sudo apt-key add -
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_10.0/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
+echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list
+----
 
 
 [[opsi-4.2-releasenotes-installation-migration-migrate]]
@@ -117,6 +126,7 @@ Debian and Ubuntu are updated to opsi 4.2 with the following steps:
 [source,prompt]
 ----
 apt update
+apt install redis-server redis-timeseries grafana
 apt dist-upgrade
 ----
 
@@ -124,6 +134,7 @@ RedHat and CentOS systems need these steps to upgrade to opsi 4.2:
 [source,prompt]
 ----
 yum makecache
+yum install redis-server redis-timeseries grafana
 yum upgrade
 ----
 
@@ -131,6 +142,7 @@ To migrate SLES and OpenSUSE please perform the following:
 [source,prompt]
 ----
 zypper refresh
+zypper install redis-server redis-timeseries grafana
 zypper dup --from home_uibmz_opsi_4.2_stable
 ----
 
@@ -140,6 +152,11 @@ On UCS you can update with the following command:
 univention-upgrade
 ----
 
+[[opsi-4.2-releasenotes-installation-update-custom-python-scripts]]
+==== Updating custom Python scripts
+If you are using custom Python scripts which need access to the python-opsi library,
+please use the `opsi-python` interpreter with your script.
+`#!/usr/bin/opsi-python`
 
 [[opsi-4.2-releasenotes-installation-migration-opsi-packages]]
 ==== Updating opsi packages
@@ -226,12 +243,11 @@ This is important if in an already existing environment new opsi servers are to 
 
 
 [[opsi-releasenotes-4.2-changes-python]]
-== Switch to Python 3
+== Switch to Python 3 and PyInstaller
 
 This version is now based on Python 3.
-The minimum required version is Python 3.6.
-Older versions are not supported anymore. This does include any version of Python 2.
-
+All opsi Python applications (opsiconfd, opsipxeconfd, opsiclientd, opsi-utils, ...) are now distributed as binaries build with PyInstaller.
+Please use the `opsi-python` interpreter for your own scripts which need access to the python-opsi library.
 
 [[opsi-releasenotes-4.2-changes-mysql-config]]
 == MySQL backend: Limiting connection lifetime
