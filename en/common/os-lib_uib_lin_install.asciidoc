@@ -1,0 +1,310 @@
+﻿////                                                            
+; Copyright (c) uib gmbh (www.uib.de)                           
+; This documentation is owned by uib                            
+; and published under the german creative commons by-sa license 
+; see:                                                          
+; http://creativecommons.org/licenses/by-sa/3.0/de/             
+; http://creativecommons.org/licenses/by-sa/3.0/de/legalcode    
+; english:                                                      
+; http://creativecommons.org/licenses/by-sa/3.0/                
+; http://creativecommons.org/licenses/by-sa/3.0/legalcode       
+;                                                               
+;                          
+////                                                            
+                                                                
+:Revision:                                                 
+:doctype: book                                               
+:Author:    detlef oertel
+:Email:    d.oertel@uib.de
+:toc:
+   
+   
+   
+
+[[Doc_fileuib_lin_install.opsiscript]]
+= Documentation of opsi library: `uib_lin_install.opsiscript`
+
+
+
+* Email:     d.oertel@uib.de
+* Version:  1.0
+* Copyright:  AGPLv3
+
+
+
+
+
+anchor:cleanupPackageSystem[]
+
+[[Doc_func_cleanupPackageSystem]]
+== Documentation of local function `cleanupPackageSystem`
+
+
+Definition::
+`cleanupPackageSystem() : void`
+
+Description::
+reads repo list und try to repair well known problems
+should be called after modifying the repo list or after failed installs
+
+* Returns:     nothing
+* OnError:     error counter increased ; Error messages in the log
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+[Actions]
+importlib "uib_lin_install"
+
+DefStringlist $packages$
+DefVar $installresult$
+DefStringlist $errorList$
+DefVar $fatal_error$
+DefVar $result_string$
+
+comment "update and clean package system"
+cleanupPackageSystem()
+comment "install pending updates"
+set $result_string$ = installupdates()
+comment "install new needed packages"
+set $packages$ = CreateStringlist("lsb-release","cifs-utils","xterm", "dnsutils","lsof","openssl","pkg-config","desktop-file-utils","libnotify-bin","libgtk2.0-0")
+comment "if we are on debian / ubuntu we can use debinstall()"
+set $installresult$ = debinstall($packages$)
+if not(stringtobool($installresult$))
+	if waitForPackageLock("300", "false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+	endif
+	cleanupPackageSystem()
+	set $installresult$ = debinstall($packages$)
+	if not(stringtobool($installresult$))
+		LogError "failed dependent packages"
+		Message "failed dependent packages"
+		;isFatalError "failed dependent packages"
+		set $fatal_error$ = "true"
+		setloglevel = 6
+		set $errorList$ = addtolist($errorList$, " failed dependent_packages")
+	endif
+endif
+----
+
+
+
+anchor:installupdates[]
+
+[[Doc_func_installupdates]]
+== Documentation of local function `installupdates`
+
+
+Definition::
+`installupdates() : string`
+
+Description::
+try to install pending updates from the known repsitories
+should be called after modifying the repo list or after failed installs
+
+* Returns:     nothing
+* OnError:     Returns string "false"; error counter increased ; Error messages in the log
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see: cleanupPackageSystem()
+----
+
+
+
+anchor:runCommandWithList[]
+
+[[Doc_func_runCommandWithList]]
+== Documentation of local function `runCommandWithList`
+
+
+Definition::
+`runCommandWithList($command$ : string, $list$ : stringlist) : string`
+
+Description::
+
+
+* Parameter: `$command$`
+** Type: `String`  -  Calltype: `CallByValue`
+
+* Parameter: `$list$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+
+* Author:     detlef oertel
+* Date:     19.8.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+
+anchor:debinstall[]
+
+[[Doc_func_debinstall]]
+== Documentation of local function `debinstall`
+
+
+Definition::
+`debinstall($packagelist$ : stringlist) : string`
+
+Description::
+try to install the packages given by $packagelist$
+
+* Parameter: `$packagelist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+** Parameter `$packagelist$` Description: +
+stringlist with packages to install
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"; error counter increased ; Error messages in the log
+* References:     <<cleanupPackageSystem>> 
+<<installupdates>> 
+<<redinstall>> 
+<<suseinstall>> 
+<<ucsinstall>> 
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see: cleanupPackageSystem()
+----
+
+
+
+anchor:redinstall[]
+
+[[Doc_func_redinstall]]
+== Documentation of local function `redinstall`
+
+
+Definition::
+`redinstall($packagelist$ : stringlist) : string`
+
+Description::
+try to install the packages given by $packagelist$
+
+* Parameter: `$packagelist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+** Parameter `$packagelist$` Description: +
+stringlist with packages to install
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"; error counter increased ; Error messages in the log
+* References:     <<cleanupPackageSystem>> 
+<<installupdates>> 
+<<debinstall>> 
+<<suseinstall>> 
+<<ucsinstall>> 
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see: cleanupPackageSystem()
+----
+
+
+
+anchor:suseinstall[]
+
+[[Doc_func_suseinstall]]
+== Documentation of local function `suseinstall`
+
+
+Definition::
+`suseinstall($packagelist$ : stringlist) : string`
+
+Description::
+try to install the packages given by $packagelist$
+
+* Parameter: `$packagelist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+** Parameter `$packagelist$` Description: +
+stringlist with packages to install
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"; error counter increased ; Error messages in the log
+* References:     <<cleanupPackageSystem>> 
+<<installupdates>> 
+<<debinstall>> 
+<<redinstall>> 
+<<ucsinstall>> 
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see: cleanupPackageSystem()
+----
+
+
+
+anchor:ucsinstall[]
+
+[[Doc_func_ucsinstall]]
+== Documentation of local function `ucsinstall`
+
+
+Definition::
+`ucsinstall($packagelist$ : stringlist) : string`
+
+Description::
+try to install the packages given by $packagelist$
+
+* Parameter: `$packagelist$`
+** Type: `Stringlist`  -  Calltype: `CallByValue`
+** Parameter `$packagelist$` Description: +
+stringlist with packages to install
+
+* Returns:     Returns string "true" if all is ok
+* OnError:     Returns string "false"; error counter increased ; Error messages in the log
+* References:     <<cleanupPackageSystem>> 
+<<installupdates>> 
+<<debinstall>> 
+<<redinstall>> 
+<<suseinstall>> 
+* Author:     detlef oertel
+* Date:     19.08.2020
+* Email:     d.oertel@uib.de
+* Version:     1.0
+* Copyright:     AGPLv3
+
+
+Example:
+[source,winst]
+----
+see: cleanupPackageSystem()
+----
+
+

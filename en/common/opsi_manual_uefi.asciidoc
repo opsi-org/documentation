@@ -55,20 +55,20 @@ If that is not the case, create a recent winpe as explained in our opsi-getting-
 Provided your winpe is already capable of booting UEFI and MBR modes, you could simply place a softlink `winpe_uefi` > `winpe`.
 
 * you have to configure your external DHCP server with the bootfile +
-`linux/pxelinux.cfg/elilo.efi`
+`linux/pxelinux.cfg/shimx64.efi.signed`
 
-* Activate in the {opsi-configed} the checkbox "Uefi-Boot" for uefi-clients (since version 4.0.5.8.1) or set hostparameter +clientconfig.dhcpd.filename=linux/pxelinux.cfg/elilo.efi+
+* Activate in the {opsi-configed} the checkbox "Uefi-Boot" for uefi-clients (since version 4.0.5.8.1) or set hostparameter +clientconfig.dhcpd.filename=linux/pxelinux.cfg/shimx64.efi.signed+
 This setting can also be made via the following command line call:
 +
 [source,prompt]
 ----
-opsi-admin -d method configState_create "clientconfig.dhcpd.filename" "hier.host.id" "linux/pxelinux.cfg/elilo.efi"
+opsi-admin -d method configState_create "clientconfig.dhcpd.filename" "hier.host.id" "linux/pxelinux.cfg/shimx64.efi.signed"
 ----
 
 * BIOS settings: +
 Since the BIOS menus are very different and use different terminology, you need to consider here what is the best fit for your BIOS.
 
-** Secureboot disabled +
+** Secure Boot disabled +
 This entry is usually in the 'Boot' or 'Startup' but it can also be found in the 'Security' area.
 Information about using secureboot can be found in a <<opsi-manual-secureboot,different chapter>>.
 
@@ -162,8 +162,6 @@ In contrary to the old BIOS the boot sequence not only can be defined for device
 
 Unfortunately early UEFI implementations do not support netboot at all, but netboot support is increasing.
 
-Meanwhile there are a lot of UEFI bootloader (like grub2 or elilo), but mostly without netboot support.
-
 With the UEFI support extension module uib gmbh has developed a succesfull UEFI netboot support for integrating UEFI clients into opsi. Because the UEFI standard is still under development and changing, in future the opsi UEFI module will continue to adapt to the technical changes, which might require structural redesigns of the module.
 
 [[opsi-manual-uefi-opsiuefinetboot]]
@@ -171,15 +169,15 @@ With the UEFI support extension module uib gmbh has developed a succesfull UEFI 
 
 The opsi support for UEFI is based on several components:
 
-* adaption of the netboot UEFI bootloader ELILO to the opsi / client-management requirements.
+* adaption of the netboot UEFI bootloader GRUB2 to the opsi / client-management requirements.
 
-* new opsipxeconfd, which also supports config files for the opsi-ELILO (in addition to the PXE config).
+* new opsipxeconfd, which also supports config files for the opsi-GRUB2 (in addition to the PXE config).
 
 * new (64 bit) opsi-linux-bootimage with the tools for UEFI- and GPT management
 
 * redesigned netboot products for OS installation (Windows/Linux) with additional support of UEFI/GPT (of course only for OS that support UEFI).
 
-* client setting on the opsi-server whether to be treated as UEFI client or not.  (clientconfig.dhcpd.filename=linux/pxelinux.cfg/elilo.efi)
+* client setting on the opsi-server whether to be treated as UEFI client or not.  (clientconfig.dhcpd.filename=linux/pxelinux.cfg/shimx64.efi.signed)
 
 * support of a software-controlled switch to UEFI netboot. +
 The label of the UEFI netboot entry of the firmware can be saved on the opsi-server (`clientconfig.uefinetbootlabel`), as far as the firmware supports it (there is an activatable netboot entry in the EFI). This allows opsi-products to use netboot for the next reboot. This technique is implemented in several opsi products. An important example is the product `opsi-uefi-netboot`: +
@@ -211,7 +209,7 @@ else if substring (option vendor-class-identifier , 19,1 ) = "6" {
 }
 else if substring (option vendor-class-identifier , 19,1 ) = "7" {
         log (info, "efi64 client");
-        filename "linux/pxelinux.cfg/elilo.efi";
+        filename "linux/pxelinux.cfg/shimx64.efi.signed";
 }
 else {
         log (info, concat ( "Unhandled vendor class Arch: ", substring (option
@@ -227,7 +225,7 @@ See also: link:http://docs.fedoraproject.org/en-US/Fedora/17/html/Installation_G
 
 * As standard for this variant the PXE boot file for x64 Uefi installations is entered as default. DHCP options 66 and 67 are adjusted as it follows: +
 066 Host name of the start server: <IP of the opsi server> +
-067 Name of the start file: linux/pxelinux.cfg/elilo.efi
+067 Name of the start file: linux/pxelinux.cfg/shimx64.efi.signed
 
 * To distinguish the Bios clients, a manufacturer class identifier (PXEClient:Arch:00000:UNDI:002001) must be defined on the DHCP server: +
 
@@ -271,7 +269,7 @@ See also: link:http://docs.fedoraproject.org/en-US/Fedora/17/html/Installation_G
 ----
 * In the range options, there are two entries for the start file, which is linked to a policy in case a bios client is detected:
 ----
-067 Name of the Start file: linux/pxelinux.cfg/elilo.efi	Policy: None
+067 Name of the Start file: linux/pxelinux.cfg/shimx64.efi.signed	Policy: None
 067 Name of the Start file: linux/pxelinux.0	   Policy: PXE BootFile Legacy BIOS
 ----
 
@@ -291,20 +289,6 @@ Since opsipxeconfd 4.0.7.7 it is possible to configure the path of the files use
 
 This is possible through the options `uefi netboot config template x86`
 and `uefi netboot config template x64`.
-
-
-[[opsi-manual-uefi-netboot-timeout]]
-==== Alternative elilo.efi
-
-The `elilo.efi` distributed by default is configured to wait indefinite time for information to perform a netboot.
-In most scenarios this is not a problem because after an succesful installation the boot order will be automatically changed to boot from harddisk.
-However the UEFI of some devices is unable to follow the UEFI specification in this regard and this is impossible.
-
-There is an alternative `elilo.efi` that only waits a short time before attempting to boot from a local disk.
-Unfortunately this does not work with all devices, especially when using NVME disks, and therefore is not the default.
-
-If you want to use this alternative you can find this altarnative `elilo.efi` at https://download.uib.de/opsi4.1/misc/uefi/elilo_with_timeout/ and then can place it at your tftpboot directory (usually `/tftpboot/linux/pxelinux.cfg/elilo.efi`) replacing the original.
-
 
 [[opsi-manual-uefi-goodbios]]
 ==== Criteria for a 'good' BIOS
