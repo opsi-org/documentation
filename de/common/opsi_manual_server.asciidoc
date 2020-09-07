@@ -37,6 +37,17 @@ Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Ins
 
 Die aus diesen Diensten entstehenden Hardwareanforderungen sind in der Regel gering, so das ein Betrieb eines opsi-servers in einer Virtualisierungsumgebung kein Problem darstellt.
 
+Seit Version 4.2 wird der In-Memory Speicher Redis eingesetzt (https://redis.io/). Der '{opsi-server}' speichert folgende Daten in Redis: 
+
+* Logausgaben werden in einen Redis-Stream geschrieben. Dieser Stream wird dann zB. vom Logviewer gelesen. 
+
+* Session Daten werden in Redis als MessagePack abgelegt (https://msgpack.org/).
+
+* Statistiken wie zB. CPU Auslastung werden als Time Series in Reids gespeichert. Hierzu wird das Modul RedisTimeSeries verwendet (https://github.com/RedisTimeSeries/RedisTimeSeries).
+
+Die Statistiken werden von Grafana (https://grafana.com/) ausgelesen und angezeigt. Das Grafana Dashboard ist über die URL https://grafana:3000 erreichbar.
+
+image::grafana_dashboard.png["Grafana Dashboard", width="120mm"]
 
 [[opsi-manual-server-installation]]
 ==== Installation und Inbetriebnahme
@@ -58,15 +69,15 @@ Nach einer Änderung der Samba-Konfigurationsdateien ist ein Neustart der Samba-
 Der 'opsiconfd' ist der zentrale Konfigurations-Daemon von opsi.
 Alle Client-Komponenten ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) verbinden sich mit diesem Service um auf die Konfigurationen in den Backends zuzugreifen.
 Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf` konfiguriert.
-Die einzelnen Konfigurations-Optionen sind in dieser Datei dokumentiert.
+Die einzelnen Konfigurations-Optionen können über den Befehl `opsiconfd --help` abgefragt werden. Um Optionen bei jedem Start des 'opsiconfds' zu verwenden, können die Option aus dem Hilfetext ohne das `--` in die Konfigurationsdatei eingetragen werden.
 An dieser Stelle finden sich weitere Ergänzungen.
 
-* +[global] admin networks+: +
+* +admin-networks+: +
 Über diese Option kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
 Es können mehrere Netzwerkadressen durch Kommas getrennt angegeben werden. +
 Nicht-administrative Client-Verbindungen können auch aus anderen Netzwerken erfolgen.
 
-* +[global] max log size+: +
+* +max-log-size+: +
 Über diese Option kann die Größe der Logdateien beschränkt werden. +
 Aus historischen Gründen ist dies auf 5MB pro Logdatei beschränkt. +
 Seit opsi 4.0.6 ist es möglichen diesen Wert an eigene Bedürfnisse anzupassen. +
@@ -82,8 +93,8 @@ berechnen wieviel Speicherplatz die anfallenden Logs benötigen werden.
 Es gibt fünf verschiedene, Client-bezogene Log-Arten die vom opsiconfd
 geschrieben werden: 'bootimage', 'clientconnect', 'instlog', 'opsiconfd' und +
 'userlogin'.
-Es gibt außerdem einige Client-unabhängige Logs: 'opsiconfd.log', 'opsipxeconfd.log', +
-'opsi-backup.log', 'opsi-package-updater.log' und 'package.log'.
+Es gibt außerdem einige Client-unabhängige Logs: +
+'opsi-backup.log' und 'opsi-package-updater.log'.
 
 Wenn wir von einer mit opsiconfd und logrotate realisierten Konfiguration +
 ausgehen, bei der alle Logdateien auf 5MB limitiert sind, abgesehen von +
@@ -98,6 +109,7 @@ Berechnung:
 Bei 100 Clients sollten wir bis zu 2530MB für Logs von opsi reservieren.
 Weil Logrotate überlicherweise zu einer bestimmten Uhrzeit aktiv wird, empfehlen wir diese Zahl aufzurunden.
 
+Ab Version 4.2 ist im 'opsiconfd' und 'opsipxeconfd' ein eigenes Logrotate eingebaut, welche über die Optionen 'max-log-size' und 'keep-rotated-logs' gesteuert wird.
 
 [[opsi-manual-server-accounts]]
 ==== Notwendige System-User und Gruppen
