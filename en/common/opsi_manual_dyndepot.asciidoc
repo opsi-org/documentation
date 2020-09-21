@@ -172,79 +172,74 @@ Whether the 'networkAddress' is actually evaluated to determine the depot depend
 
 
 [[opsi-manual-dyndepot-depot-sync]]
-==== Synchronizing the depots
-The opsi tools for synchronizing the depots are:
+==== Synchronization of depots
+To keep the depots in sync, opsi provides several tools:
 
 * `opsi-package-manager`
 * `opsi-package-updater`
 
-The `opsi-package-manager`, when installing an opsi package, can be configured by the parameter `-d ALL` to install the package not only on the current server, but also on all known depots. Example:
+When installing an opsi package, the `opsi-package-manager` can be instructed to install the package not only on the current server but on all known depots by using the parameter `-d ALL`. Example:
 
 [source,prompt]
 ----
 opsi-package-manager -i opsi-template_1.0-20.opsi -d ALL
 ----
-By using the parameter -D the `opsi-package-manager` can be instructed to list the differences between depots. In this case the option `-d` must specify a list of depots or refer to all known depots by `-d ALL`. Example:
+
+By using the parameter `-D`, `opsi-package-manager` can be instructed to list the differences between depots. A list of depots must be specified with the `-d` option or all known depots must be selected with `-d ALL`. Example:
 
 [source,prompt]
 ----
 opsi-package-manager -D -d ALL
 ----
 
-The `opsi-package-manager` also is the tool for a 'push' synchronization.
-Whereas the tool `opsi-package-updater` is meant for 'pull' synchronization.
+`opsi-package-manager` is also the tool used for a 'push' synchronization.
+On the other hand, the tool `opsi-package-updater` is intended to synchronize depots using the 'pull' method.
 
-The `opsi-package-updater` is designed to be run as a cronjob.
-This allows some easy automation.
-Please refer to <<opsi-manual-configuration-tools-opsi-package-updater>> for more information on the configuration.
+`opsi-package-updater` can run on the depots as a cronjob.
+This enables easy automation.
+Please refer to the chapter <<opsi-manual-configuration-tools-opsi-package-updater>> for further information on the configuration.
 
-CAUTION: When a package is installed on an opsi server with the command `opsi-package-manager -i`, the package is not installed to the repository directory.
-To get the package to the repository directory, the name of the depot can be specified by the -d option. Alternatively the upload of the package to the repository directory can be done by `opsi-package-manager -u <package name>`.
+CAUTION: If a package is installed on a opsi-server with `opsi-package-manager -i` (without `-d`), it does not end up in the repository directory. In order for it to be copied there, you can either specify the name of the depot during installation with `-d` or explicitly instruct the upload to the repository directory with `opsi-package-manager -u <name of the package>`.
 
-Please refer to the documentation of the tools `opsi-package-manager` and `opsi-package-updater` in the opsi manual.
+Please also note the description of the two tools in the corresponding chapters of the opsi manual.
 
 
 [[opsi-manual-dyndepot-sequence]]
 ==== Processing
 
-If the dynamic depot assignment is activated for a client by the host parameter 'clientconfig.depot.dynamic', the client retrieves the script via web service and executes it.
+If the dynamic depot assignment is activated for a client via the host parameter 'clientconfig.depot.dynamic', the client retrieves the script via the web service and executes it.
 
-The script to be used for dynamic assignment is: +
+The script that the client uses to select the depot is stored on the server as the file: +
 `/etc/opsi/backendManager/extend.d/70_dynamic_depot.conf`
 
-Following parameters are passed to the function `selectDepot`, which is defined in the script:
+The following parameters are transferred to the 'selectDepot' function defined in this script:
 
 * clientConfig +
-Information about the current client configuration (hash). +
+Information of the current client configuration (hash). +
 The clientConfig hash keys are currently:
 ** "clientId": opsi host ID of the client (FQDN)
-** "ipAddress": IP address of the network interface to the '{opsi-configserver}'
-** "netmask" : netmask of the network interface
+** "ipAddress": IP address of the network interface used to connect to the configserver
+** "netmask": network mask of the network interface
 ** "defaultGateway": default gateway
 
 * masterDepot +
-Information regarding the master depot ('{opsi-depotserver}'-object). The master depot is the depot which the client is assigned to from the management interface.
-The attributes of the passed '{opsi-depotserver}'-object match the attributes as given by `host_getObjects` (see <<opsi-manual-dyndepot-edit-depot-settings>>).
+Information about the master depot ('{opsi-depotserver}'-object). The master depot is the depot to which the client is assigned in the management interface. The attributes of the transferred '{opsi-depotserver}'-object correspond to the attributes as given by `host_getObjects` (see <<opsi-manual-dyndepot-edit-depot-settings>>).
 
 * alternativeDepots +
-Information about the alternative depots (list of '{opsi-depotserver}'-objects).
-The list of alternative depots lists the depots, which are, regarding the required software packages, identical to the master depot.
+Information about the alternative depots (list of '{opsi-depotserver}'-objects). The list of alternative depots is determined from the depots which are synchronised to the master depot, in regard to the software packages currently required.
 
-Based on this information, the assignment algorithm can pick a depot from the provided depot list and return the '{opsi-depotserver}'-object of the chosen depot as the result of the function.
-If the assignment algorithm does not find a suitable depot from the list (or if the provided list is empty), the return result should be the master depot object.
+Based on this information, the algorithm can now select a depot from the list. The '{opsi-depotserver}'-object of the depot to be used must be returned by the function. If the algorithm does not find a suitable depot from the list of alternative depots or if this is empty, the master depot should be returned.
+
 
 [[opsi-manual-dyndepot-selection-template]]
-==== Template of the assignment script
+==== Selection script template
 
-The template script checks the network addresses of the given depots and picks the depot which is in the same network as the client.
-
-The template script offers example functions for depot detection. +
-The function +depotSelectionAlgorithmByNetworkAddress+ checks the network addresses of the depots and selects the depot which is in the same network as the client. +
-The function +depotSelectionAlgorithmByLatency+ sends ICMP „echo-request“-packages (ping) to the depots and selects the depot with the lowest latency. +
-The function +depotSelectionAlgorithmByMasterDepotAndLatency+ aims for the use in environments with more than one master depots that can have zero-to-many slave depots themselves. It will determine the depot with the lowest latency based on the same check as +depotSelectionAlgorithmByLatency+ from a list containing the master depot of the current client and its slave depots.
-The function +getDepotSelectionAlgorithm+ is called by the client and returns the algorithm for depot selection.
-
-The template script uses as default the function +depotSelectionAlgorithmByNetworkAddress+.
+Three functions for selecting a depot are already implemented in the template script. +
+The function +depotSelectionAlgorithmByNetworkAddress+ checks the network addresses of the depots and selects the depot where the current IP address is in the network of the depot. +
+The function +depotSelectionAlgorithmByLatency+ sends ICMP echo request packets (ping) to depots and selects the depot with the lowest latency. +
+The function +depotSelectionAlgorithmByMasterDepotAndLatency+ is intended for environments with several master depots, which can have slave depots assigned. From the set of master depots of the client and the associated slave depots, the depot that has the lowest latency is selected. +
+The function +getDepotSelectionAlgorithm+ is called by the client and returns the algorithm to be used for the selection of the depot.
+Without changes to the template script, the function +depotSelectionAlgorithmByNetworkAddress+ will be returned.
 
 [source,prompt]
 ----
@@ -409,18 +404,18 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 	return masterDepot
 '''
 
+
 def getDepotSelectionAlgorithm(self):
 	#return depotSelectionAlgorithmByMasterDepotAndLatency
 	#return depotSelectionAlgorithmByLatency
 	return depotSelectionAlgorithmByNetworkAddress
 ----
 
+
 [[opsi-manual-dyndepot-logging]]
 ====  Logging
 
-If the dynamic depot assignment is activated, there are some logs from the depot assignment in `opsiclientd.log`.
-In this shortened example log, the server +bonifax.uib.local+ is config server and master depot for the client +pctrydetlef.uib.local+. As a master server  the server has the network address +192.168.1.0/255.255.255.0+. As an alternative depot  the server +stb-40-srv-001.uib.local+ is available with the network address +192.168.2.0/255.255.255.0+.
-The client +pctry4detlef.uib.local+ has the IP address +192.168.2.109+, which is in the network of the alternative depot.
+If the dynamic depot assignment is activated, the corresponding entries from the depot selection can be found in `opsiclientd.log`. Here is the shortened log of an example session. In this example the server +bonifax.uib.local+ is the configserver and master depot for the client +pctrydetlef.uib.local+. The master server +bonifax.uib.local+ has the network address +192.168.1.0/255.255.255.0+. Available as an alternative depot is +stb-40-srv-001.uib.local+ with the network address +192.168.2.0/255.255.255.0+. The client +pctry4detlef.uib.local+ has the IP address +192.168.2.109+, and is therefore in the network of the alternative depot.
 
 [source,prompt]
 ----
