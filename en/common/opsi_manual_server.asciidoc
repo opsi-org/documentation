@@ -1,4 +1,4 @@
-////
+﻿////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; Until we found a better license:
@@ -8,8 +8,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      26.01.2011
-:Revision:  4.0
+:Date:      19.10.2017
+:Revision:  4.1
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -18,199 +18,136 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-server-overview]]
 ===  Overview
 
-The functionality of a '{opsi-server}' may be installed on many different kind of linux distributions.
+The functionality of an '{opsi-server}' can be installed on many standard Linux distributions.
 
-There are two different roles which a opsi-server can play:
+There are two different major roles, which can be combined on one server:
 
 * '{opsi-configserver}' +
-The '{opsi-configserver}' has the central data storage and provides the access to this data via the 'opsi web service'. A '{opsi-configserver}' normally has additiona the role '{opsi-depotserver}'.
+The functionality of the configserver includes the storage and processing of the configuration data in different backends and provisioning this via a web service and on the command line.
 
 * '{opsi-depotserver}' +
-The '{opsi-depotserver}' has no configuration data storage. The '{opsi-depotserver}' hold the installation files at a share and provides the PXE/tftpboot services for the netboot products.
+The functionality of the depotserver includes storing the actual installation files of the software to be distributed, operating systems, boot images and making them available to the client via smb/cifs, https, tftp.
 
-The hardware requirements are low. The opsi-server can also run as a virtual instance, e.g. link:https://www.vmware.com[vmware®].
-
+The hardware requirements for these services are generally low, so operating an opsi-server in a virtualization environment is not a problem.
 
 [[opsi-manual-server-installation]]
 ====  Installation and initial operation
-
-Installation and start-up of the {opsi-server} is described in the opsi 'getting started' manual.
+The installation and starting of a '{opsi-server}' is explained in detail in the separate 'opsi-getting-started' manual.
 
 [[opsi-manual-server-samba]]
 ====  Samba Configuration
-
-The opsi depot server provides network shares holding the configuration information and the software packets. These shares can be mounted by the clients. For Windows Clients the shares are provided by SAMBA (version 3.x).
-
+In order to give the client computers access to the software packages, the opsi-server provides shares that can be mounted by the clients as network drives. For Windows Clients the shares are provided by Samba.
 To configure your samba according to the needs of opsi (or to repair) call:
 [source,prompt]
 ----
 opsi-setup --auto-configure-samba
 ----
 
-After every change of the samba configuration, you have to reload your samba  (`service samba reload`).
+After changing the Samba configuration it is necessary to restart the Samba service (`systemctl restart smbd.service`).
 
 [[opsi-manual-server-opsiconfd]]
-====  The daemon opsiconfd
-The 'opsiconfd' is the central opsi daemon (service). It provides an interface for clients to create, manipulate and read data in the backends.
+====  The opsiconfd daemon
+'Opsiconfd' is the central configuration daemon of opsi.
+All client components ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) connect to this service to access the configurations in the backends.
+The 'opsiconfd' is configured via the file `/etc/opsi/opsiconfd.conf`.
+The individual configuration options are documented in this file.
+Here are some additional notes.
 
-The configuration of 'opsiconfd' is done in `/etc/opsi/opsiconfd.conf`. The options are commented in the file.
-You will find some additional notes here.
+* +[global] admin networks +: +
+With this option the administrative access to the 'opsiconfd' can be restricted to connections from certain network addresses. +
+Multiple network addresses can be specified separated by commas. +
+Non-administrative client connections can also be made from other networks.
 
-* +[global] max log size+: +
-This option limits the size of logfiles created through the 'opsiconfd'. +
-Due to an historic reasons this is limited to 5MB per logfile. +
-Since opsi 4.0.6 the size can be configured. +
-To disable any size limits the value can be set to 0.
+* +[global] max log size +: +
+This option can be used to limit the size of the log files. +
+For historical reasons, this is limited to 5MB per log file. +
+Since opsi 4.0.6 it is possible to change this value to your own needs. +
+To disable the size limit, the value can be set to 0.
 
-In addition you can use the tool 'logrotate' to rotate and compress logfiles. +
-Please refer to the corresponding manual for configuration possibilities.
+In addition to this setting option, it is possible to use the 'logrotate' +
+tool to automatically compress and rotate the log files on a server. +
+Please refer to the associated manual for configuration options.
 
-With the knowledge that a logfile for a client does not grow beyond a given
-size it is possible to calculate how much space opsi logs will require.
-There are five different client-specific logtypes that opsiconfd writes: +
-'bootimage', 'clientconnect', 'instlog', 'opsiconfd' and 'userlogin'.
+If the maximum size of the log files is known, you can calculate how much +
+storage space the logs will need. There are five different, client-related log +
+types that are written by opsiconfd: 'bootimage', 'clientconnect', 'instlog', +
+'opsiconfd' and 'userlogin'.
 There are also some client-independent logs: 'opsiconfd.log', 'opsipxeconfd.log', +
-'opsi-backup.log', 'opsi-product-updater.log' and 'package.log'.
+'opsi-backup.log', 'opsi-package-updater.log' and 'package.log'.
 
-If we now assume a configuration of opsiconfd and logrotate that limits those +
-files to 5MB except for package.log that is allowed 10MB we end up with
-the following calculation:
+If we assume a configuration implemented with opsiconfd and logrotate, in which +
+all log files are limited to 5MB, apart from 'package.log', which can be 10MB, +
+then we end up with the following calculation:
 
 [source,prompt]
 ----
 (number of clients * 5 * 5MB) + 5MB + 5MB + 5MB + 5MB + 10MB
 ----
 
-For 100 Clients we then should reserve 2530MB for the logs of opsi.
-Because 'logrotate' will usually only shorten logs on a specified schedule
-we recommend to rounding this number up. It would also give you some space
-for adding new clients.
+For 100 clients we should thus reserve 2530MB for the opsi logfiles.
+Because Logrotate is usually only active at a certain time, we recommend rounding up this number.
+
 
 [[opsi-manual-server-accounts]]
-====  Required administrative user accounts and groups
+====  Required system user accounts and groups
 
 * User 'opsiconfd' +
-The daemon 'opsiconfd' runs as this user.
+This is the user under which the opsiconfd deamon runs.
 
 * User 'pcpatch' +
-This user is be used by the '{opsi-client-agent}' to mount the 'depotshare'.
-You may set the password for this user by +
-`opsi-admin -d task setPcpatchPassword`.
+This is the user the '{opsi-client-agent}' uses to mount and read from the 'depotshare'.
+By default this user has the home directory `/var/lib/opsi`. You may set the password for this user by `opsi-admin -d task setPcpatchPassword`.
 
 * Group 'pcpatch' +
-The group 'pcpatch' has write permission on many files and youll need to be in this group in order to build and install 'opsi products'.
+In addition to the user pcpatch, there is also the group pcpatch. Most files are fully accessible for both the user and the group. The system administrators of the opsi-server should therefore be members of the pcpatch group.
 
 * Group 'opsiadmin' +
-Members of the group 'opsiadmin' are permitted to connect the opsi-webservice and can use for instance the 'opsi-configed' configuration editor. Therefor all opsi administrators should be members of the group 'pcpatch'.
-+
-A user can join group 'opsiadmin' by: 'addgroup <user> opsiadmin'.
+The members of this group can authenticate themselves to the opsi-webservice and thus e.g. work with opsi-configed. Therefore, all opsi administrators should be a member of this group.
 
 [[opsi-manual-server-shares]]
-====  needed shares
+====  Required shares
 
-* 'Depotshare' with installation files ('opsi_depot') +
-The depot share provides all the software-packets which are installable by the client task 'opsi-winst'. The default directory for the software packets is the directory `/var/lib/opsi/depot`. In this directory each software packet has its own sub directory named as the software packet. These sub directories contain the packet-specific installation scripts and files.
+* 'Depotshare' with software packages ('opsi_depot') +
+The software packages prepared for installation by the opsi-winst program are located on the depot share. +
+By default, this directory is located on the opsi server as `/var/lib/opsi/depot`. +
+Below this directory there is a directory for each software package with the name of the software package. +
+The installation scripts and files are then below these directories.
 +
-NOTE: In older versions that share was located at `/opt/pcbin` and was named 'opt_pcbin'.
-
-* The directory to build pacages ('opsi_workbench') +
-At `/home/opsiproducts` you will find the area to create new packages and from where you should install packages with the opsi-package-manager.
+This directory is shared read-only as 'opsi_depot'.
 +
-CAUTION: On distributions from the SUSE family the directory is located at `/var/lib/opsi/workbench`.
+NOTE: In older versions of opsi the corresponding directory was `/opt/pcbin` and the share was called 'opt_pcbin'.
 
-* Share with the configuration files of the file backend (opsi_config) +
-At `/var/lib/opsi/config` you will find the file backend configuration files.
+* Working directory to build packages ('opsi_workbench') +
+At `/var/lib/opsi/workbench` you will find the area to create new packages and from where you should install packages with the opsi-package-manager.
+This directory is shared as 'opsi_workbench'.
++
+NOTE: Since opsi 4.1 the path can be configured per depot through the attribute `workbenchLocalUrl`.
+
+* Configuration files of the file-backend ('opsi_config') +
+The configuration files of the file backend are located under `/var/lib/opsi/config`.
+This directory is shared as 'opsi_config'.
++
+CAUTION: If you work on the files via this share, do not use editors that change the file encoding (Unix/DOS), and remove backup files such as * .bak.
 
 [[opsi-manual-server-opsi-pam-authentification]]
 ==== opsi PAM Authentication
 
-opsi uses some `PAM`-modules to authenticate the user. With this new release, opsi uses different modules for certain distributions. The following list will give you a small overview about which modules are used:
+opsi uses various `PAM`-modules for user authentication. So far, different PAM modules have been used for different distributions. The PAM modules used are listed in the following list:
 
 Default: `common-auth` +
 openSUSE / SLES: `sshd` +
 CentOS and RedHat: `system-auth` +
 RedHat 6: `password-auth`
 
-You can see in the list above, which different `PAM`-modules are used.  However, it could be the case that a different `PAM`-module is required, depending on the local configuration.  The source code can be modified to account for these changes. To provide more flexibility without changing the sourcecode, it is possible with this release to create a file named: `opsi-auth` in the directory `/etc/pam.d/`. If this file exists, opsi will use this configuration automatically instead of the modules listed above.
+As you can see from the list, various `PAM` configurations were used, but these can change again depending on the local `PAM` configuration. Since these adjustments always required an intervention in the sourcecode, you can now create the `opsi-auth` file under: `/etc/pam.d/` and save your own `PAM` configuration for opsi. If this file exists, opsi automatically uses this configuration.
 
-The following example will show you the new feature: If you run a debian/ubuntu-System and you get a `PAM`-authentication-error, even though you can connect with the same credentials over ssh on the server, then you can create the file: `/etc/pam.d/opsi-auth` with following content:
+The following simple example should clarify the behavior: If you run a Debian/Ubuntu system and receive a `PAM` error message when logging on to '{opsi-configed}', although an SSH connection to the server can be opened with the same user data, you can create the file `/etc/pam.d/opsi-auth` with the following content:
 
 [source,configfile]
 ----
 @include sshd
 ----
 
-After restarting opsiconfd, opsi will use automatically the `sshd`-`PAM`-module for authentication of users.
+After restarting `opsiconfd`, opsi will automatically use the `sshd`-`PAM` module for authentication.
 
-NOTE: Please be aware that for application of ACL a case-sensitive interface is used but authentication through PAM can be case-insensitive. This can lead to the case where ACL are denying access despite an successful authentication.
-
-
-[[opsi-manual-server-problem_management]]
-====  problem management
-
-If you have incidents by using opsi, you should check the following list or rather execute the following commands. Experience has shown that the combination of the commands in this chapter fix the most incidents.
-
-* Check accessibility and load of 'opsi-webservice': +
-Call URL: https://<server-ip>:4447/info with your browser. If you can not connect, continue with next step. If you can connect: check the load of 'opsi-webservice' and check the freespace on disk (scroll down in the info-page). +
-For the generation of load images you need 'rrdtool' with Python-bindings. Please install them if needed. +
-
-* Check that the daemons are running and restart them:
-+
-[source,prompt]
-----
-ps -ef | grep opsiconfd
-ps -ef | grep opsipxeconfd
-service opsiconfd restart
-service opsipxeconfd restart
-----
-
-* Initialize the configuration
-+
-[source,prompt]
-----
-opsi-setup --init-current-config
-----
-
-* Set the rights for opsi-relevant files and directories:
-+
-[source,prompt]
-----
-opsi-setup --set-rights
-----
-
-* Cleanup backend
-+
-[source,prompt]
-----
-opsi-setup --cleanup-backend
-----
-
-* Check that samba is running:
-+
-[source,prompt]
-----
-ps -ef | grep mbd
-----
-+
-At least one `nmbd` and one `smbd` process should be running. +
-To restart samba:
-+
-[source,prompt]
-----
-service samba restart
-----
-+
-or
-+
-[source,prompt]
-----
-service nmbd restart
-service smbd restart
-----
-
-* Set the pcpatch-password:
-+
-[source,prompt]
-----
-opsi-admin -d task setPcpatchPassword
-----
+NOTE: Please note that the application of the ACL uses case-sensitive interfaces, whereas authentication via PAM can be case-insensitive. This can result in the fact that despite successful authentication, it is not possible to work with the service because the ACL prevents this.

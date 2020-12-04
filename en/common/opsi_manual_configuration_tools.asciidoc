@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      20.1.2015
-:Revision:  4.0.6
+:Date:      28.02.2019
+:Revision:  4.1
 :toclevels: 6
 
 
@@ -27,28 +27,27 @@ include::../common/opsi_terms.asciidoc[]
 
 
 [[opsi-manual-configuration-tools-opsi-setup]]
-==== Tool: opsi-setup
+==== Tool: 'opsi-setup'
 
-This program is something like the 'swiss army knife' of the opsi configuration. It is used by the opsi installation scripts and can be also called separately for maintenance and repair purposes.
+The 'opsi-setup' program is the "Swiss army knife" for setting up opsi.
 
-The tasks of opsi-setup are:
+For example, the packages for installing opsi on the server use this script to set up opsi correctly. Since this script can also be called up externally, various maintenance work and corrections can be carried out:
 
-* register a opsi-server as depot server
-* correct file access rights
-* initialize data storage backends
-* upgrade backend (from 3.4 to 4.0)
-* setup of the MySQL-backend
-* edit the default configurations
-* cleanup the current backend(s)
-* configure the essential samba shares
-* configure the essential dhcp entries
-
+* Registration of an opsi server as a depot server
+* Correct file access rights
+* Initialize backends
+* Upgrade backends (from 3.4 to 4.0)
+* Configure the '{MySQL backend}'
+* Set the default configuration
+* Clean up backends
+* Set the Samba configuration
+* Set the DHCP configuration
 
 The command `opsi-setup --help` shows the program options:
 
 [source,prompt]
 ----
-opsi-setup --help
+# opsi-setup --help
 
 Usage: opsi-setup [options]
 
@@ -56,65 +55,64 @@ Options:
    -h, --help  show this help
    -l          log-level 0..9
 
-   --log-file <path>          path to log file
-   --ip-address <ip>          force to this ip address (do not lookup by name)
-   --register-depot           register depot at config server
-   --set-rights [path]        set default rights on opsi files (in [path] only)
-   --init-current-config      init current backend configuration
-   --update-mysql             update mysql backend
-   --update-ldap              update ldap backend
-   --update-file              update file backend
-   --configure-mysql          configure mysql backend
-   --edit-config-defaults     edit global config defaults
-   --cleanup-backend          cleanup backend
-   --auto-configure-samba     patch smb.conf
-   --auto-configure-dhcpd     patch dhcpd.conf
+   --log-file <path>             path to log file
+   --backend-config <json hash>  overwrite backend config hash values
+   --ip-address <ip>             force to this ip address (do not lookup by name)
+   --register-depot              register depot at config server
+   --set-rights [path]           set default rights on opsi files (in [path] only)
+   --init-current-config         init current backend configuration
+   --update-from=<version>       update from opsi version <version>
+   --update-mysql                update mysql backend
+   --update-file                 update file backend
+   --configure-mysql             configure mysql backend
+   --edit-config-defaults        edit global config defaults
+   --cleanup-backend             cleanup backend
+   --auto-configure-samba        patch smb.conf
+   --auto-configure-dhcpd        patch dhcpd.conf
+   --renew-opsiconfd-cert        renew opsiconfd-cert
+   --patch-sudoers-file          patching sudoers file for tasks in opsiadmin context.
 ----
 
-The functions and options in detail:
+The functions and parameters in detail:
 
 * `--ip-address <ip>` +
-Sets the ip-address for '{opsi-server}' and do not resolve by name.
+This option is used to specify an IP address for the '{opsi-server}' and to bypass the name resolution.
 
 * `--register-depot` +
-This option is used to register a '{opsi-server}' as depot server to a other '{opsi-server}' ('{opsi-configserver}'). For details see
-////
-<<opsi-manual-multidepot-installation>>.
-////
+This option is used to register an '{opsi-server}' at another '{opsi-server}'
+('{opsi-configserver}') as a depot server. For details, see <<opsi-manual-multidepot-installation>>.
 
 * `--set-rights [path]` +
-Sets the file access rights in all opsi directories:
+Sets or corrects the file access rights in the main opsi directories:
 +
 ** `/tftpboot/linux`
-** `/home/opsiproducts`
 ** `/var/log/opsi`
 ** `/var/lib/opsi`
 ** `/var/lib/opsi/depot`
+** `/var/lib/opsi/workbench` (or a differently configured workbench location on the depot)
 ** `/etc/opsi`
 +
-You may give a directory name as argument to set only the access rights below this directory. +
-e.g. +
+A directory can also be specified as a parameter.
+Then the rights of all opsi-relevant directories and files below this directory are set, +
+e.g.: +
 `opsi-setup --set-rights /var/lib/opsi/depot/winxppro/drivers`
 
 * `--init-current-config` +
-initialize the configured backend. Should always be invoked after changing the file +
-`/etc/opsi/backendManager/dispatch.conf`
+Initializes the backend configuration. This should be executed after every change to +
+`/etc/opsi/backendManager/dispatch.conf`.
 
 * The commands: +
 `--update-mysql` +
 `--update-file` +
- are used to upgrade the backends from one opsi release to the next one. +
-For details see the 'releasenotes-upgrade-manual'.
+are used to upgrade the respective backends (e.g. from opsi 3.4 to opsi 4). +
+See the 'releasenotes-upgrade-manual' for details.
 
 * `--configure-mysql` +
-does the first time database setup. +
-////
-See <<opsi-manual-backends-mysql-initializing>>.
-////
+Used to initialize the '{MySQL backend}' for the first time. +
+For details, see <<opsi-manual-backends-mysql-initializing>>.
 
 * `--edit-config-defaults` +
-To edit the default values of some configuration data like in the 'server
-configuration' of the '{opsi-configed}'.
+To edit the default values of the configuration as shown in server configuration in '{opsi-configed}'.
 +
 .Dialog: `opsi-setup --edit-config-defaults`
 image::opsi-setup_editconfigdefaults.png["Dialog: opsi-setup --edit-config-defaults", width=400]
@@ -139,17 +137,17 @@ NOTE: It is common good practice to create a backup through 'opsi-backup' before
 Creates the opsi share entries in the `/etc/samba/smb.conf` configuration file
 
 * `--auto-configure-dhcpd` +
-Creates the by opsi needed entries in the `/etc/dhcp3/dhcpd.conf`. +
+Creates the by opsi needed entries in the configuration file of the DHCP daemon. +
 Don't use this if you not plan to use the dhcpd on the opsi server. +
 More details in the 'opsi-getting-started' manual
 
 
 [[opsi-manual-configuration-tools-opsi-package-manager]]
-==== Tool: opsi-package-manager: (de-)installs opsi-packages
+==== Tool: 'opsi-package-manager' - (de-)install opsi-packages
 
 The `opsi-package-manager` is used for (de-)installing {opsi-product-packages} on an opsi-server.
 
-In order to install a {opsi-product-package}, this {opsi-product-package} must be readable for the opsi system user opsiconfd. Therefore it is strongly recommended to install those packages from the directory /home/opsiproducts (or a sub directory).
+In order to install a {opsi-product-package}, this {opsi-product-package} must be readable for the opsi system user opsiconfd. Therefore it is strongly recommended to install those packages from the directory `/var/lib/opsi/workbench` (or a sub directory).
 
 The log file of the 'opsi-package-managers' you will find at '/var/log/opsi/package.log'.
 
@@ -172,6 +170,20 @@ Install a package (and switch required action to setup where installed):
 [source, prompt]
 ----
 opsi-package-manager -S -i softprod_1.0-5.opsi
+----
+
+Install a package (and switch required action to setup with dependencies where installed):
+
+[source, prompt]
+----
+opsi-package-manager -s -i softprod_1.0-5.opsi
+----
+
+Or:
+
+[source, prompt]
+----
+opsi-package-manager --setup-with-dependencies --install softprod_1.0-5.opsi
 ----
 
 Uninstall a package (asking no questions):
@@ -197,7 +209,7 @@ package and that package was updated in the meantime.
 opsi-package-manager --install win7-x64_1.2.3.opsi --new-product-id win7-x64-custom
 ----
 
-NOTE: Please note that products installed that way will not be automatically updated by `opsi-product-updater`.
+NOTE: Please note that products installed that way will not be automatically updated by `opsi-package-updater`.
 
 
 Calling `opsi-package-manager` with option `--help` gives a listing of possible options.
@@ -240,15 +252,16 @@ Options:
   --log-file         <log-file>           path to debug log file
   --log-file-level   <log-file-level>     log file level (default 4)
   -d, --depots       <depots>             comma separated list of depot ids to process
-                     all = all known depots
+                                             all = all known depots
   -p, --properties   <mode>               mode for default product property values
-                                 ask     = display dialog
-                                 package = use defaults from package
-                                 keep    = keep depot defaults (default)
+                                             ask     = display dialog
+                                             package = use defaults from package
+                                             keep    = keep depot defaults (default)
   --purge-client-properties               remove product property states of the installed product(s)
   -f, --force                             force install/uninstall (use with extreme caution)
   -U, --update                            set action "update" on hosts where installation status is "installed"
   -S, --setup                             set action "setup" on hosts where installation status is "installed"
+  -s, --setup-with-dependencies           set action "setup" on hosts where installation status is "installed" with dependencies
   -o, --overwrite                         overwrite existing package on upload even if size matches
   -n, --no-delta                          full package transfers on uploads (do not use librsync)
   -k, --keep-files                        do not delete client data dir on uninstall
@@ -259,63 +272,222 @@ Options:
                                              0 = unlimited (default)
   --new-product-id   <product-id>         Set a new product id when extracting opsi package or
                                           set a specific product ID during installation.
+  --suppress-pcf-generation               Suppress the generation of a package content file during package
+                                          installation. Do not use with WAN extension!
 ----
 
-[[opsi-manual-configuration-tools-opsi-productupdater]]
-==== Tool: `opsi-product-updater`
-The command line utility `opsi-product-updater` is designed to download and install comfortable opsi packages from a repository or a other opsi server. Using the opsi-product-updater make it easy to keep the opsi server up to date. It may be also used in a cronjob to keep depot server in sync with the config server.
+
+[[opsi-manual-configuration-tools-opsi-package-updater]]
+==== Tool: 'opsi-package-updater'
+
+The command line utility `opsi-package-updater` is designed to download and install comfortable opsi packages from one or more repositories or another opsi server.
+Using opsi-package-updater makes it easy to keep the products on an opsi server up to date. It may be also used in a cronjob to keep depot server in sync with the primary server.
+
+Repositories are the sources which will be used by the opsi-product-update to fetch new opsi packages.
+
+Each repository can be configured in terms of access information and behaviour.
+
+General configuration will be done at the configuration file `/etc/opsi/opsi-package-updater.conf`.
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-usage]]
+===== Usage
+
+`--help` shows a small help.
+`opsi-package-updater` works with different modes. Each brings it's own help with them.
 
 [source, prompt]
 ----
-# opsi-product-updater --help
+# opsi-package-updater --help
 
-Usage: opsi-product-updater [options]
-Options:
-    -h    Show this help text
-    -v    Increase verbosity (can be used multiple times)
-    -V    Show version information and exit
-    -c    Location of config file
-    -i    Install all downloadable packages from configured repositories (ignores excludes)
-    -p    List of productIds that will be processed: opsi-winst,opsi-client-agent
+usage: opsi-package-updater [-h] [--version] [--config CONFIGFILE]
+                            [--verbose | --log-level {0,1,2,3,4,5,6,7,8,9}]
+                            [--force-checksum-calculation]
+                            [--repo repository_name]
+                            [--use-inactive-repository]
+                            {install,update,download,list} ...
+
+Updater for local opsi products.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --config CONFIGFILE, -c CONFIGFILE
+                        Location of config file
+  --verbose, -v         Increase verbosity on console (can be used multiple
+                        times)
+  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                        Set the desired loglevel for the console.
+  --force-checksum-calculation
+                        Force calculation of a checksum (MD5) for every
+                        package. Default is to use existing checksums from the
+                        .md5-file of a package if possible.
+  --repo repository_name
+                        Limit the actions the given repository.
+  --use-inactive-repository
+                        Force the activation of an otherwise disabled
+                        repository. The repository must be given through
+                        --repo.
+
+Mode:
+  {install,update,download,list}
+    install             Install all (or a given list of) downloadable packages
+                        from configured repositories (ignores excludes)
+    update              Update already installed packages from repositories.
+    download            Download packages from repositories. This will not
+                        install packages.
+    list                Listing information
+
+Modes have their own options that can be viewed with MODE -h.
 ----
 
-The main features are:
+[source, prompt]
+----
+# opsi-package-updater download --help
 
-* configurable repositories
-* configurable actions
+usage: opsi-package-updater download [-h] [--force]
+                                     [productID [productID ...]]
 
-All configuration will be done at the configuration file `/etc/opsi/opsi-product-updater.conf`.
+positional arguments:
+  productID   Limit downloads to products with the given IDs.
 
-[[opsi-manual-configuration-tools-opsi-productupdater-repositories]]
-===== configurable repositories
+optional arguments:
+  -h, --help  show this help message and exit
+  --force     Force the download of a product even though it would otherwise
+              not be required.
+----
 
-Repositories are the sources which will be used by the opsi-product-update to fetch new opsi packages
+[source, prompt]
+----
+# opsi-package-updater list --help
 
-There are two kinds of repositories:
+usage: opsi-package-updater list [-h]
+                                 [--repos | --active-repos | --packages | --packages-and-installationstatus | --package-differences | --updatable-packages | --search-package text]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --repos               Lists all repositories
+  --active-repos        Lists all active repositories
+  --packages, --products
+                        Lists the repositories and the packages they provide.
+  --packages-and-installationstatus, --products-and-installationstatus
+                        Lists the repositories with their provided packages
+                        and information about the local installation status.
+  --package-differences, --product-differences
+                        Lists packages where local and remote version are
+                        different.
+  --updatable-packages, --updatable-products
+                        Lists packages that have updates in the remote
+                        repositories.
+  --search-package text, --search-product text
+                        Search for a package with the given name.
+----
+
+
+There are some common options.
+
+- `--verbose` increases the amount of shown messages. This can be given multiple times to increase verbosity. A specific log level can be given through `--log-level`. Both options only affect the output in the terminal.
+- `--repo <name of a repository>` limits the actions to the given repository. Available repositories can be shown with `list --active-repos`.
+
+The different modes result in different behaviour.
+The modes `install`, `update` and `download` load packages from a repository, whereas `list` is used to show information.
+
+The mode `install` installs new packages.
+The mode `update` updates already installed packages.
+Both modes require no further parameters.
+
+Example: Installing all available packages from all repositories:
+
+[source,prompt]
+----
+opsi-package-updater install
+----
+
+The modes `install` and `update` allow to limit the actions to specific products by handing over their ID.
+
+Example: Updating the packages for the products 'firefox' and 'javavm':
+
+[source,prompt]
+----
+opsi-package-updater -vv update firefox javavm
+----
+
+In combination with the `--repo` switch the package source can be limited.
+
+Example: Installing the package for 'ubuntu' from the repository 'uib_linux':
+
+[source,prompt]
+----
+opsi-package-updater -vv --repo uib_linux install ubuntu
+----
+
+The mode `download` allows to download packages without installing them afterwards.
+The switch `--force` forces the download of a package even though this version is already installed on the server.
+
+Through `list --active-repos` the active repositories are shown.
+The information consists of name, address and if applicable the description of the repository.
+
+Through `list --products` the available products per repository are shown.
+
+To show the possible updates use `list --updatable-products`.
+This only considers already installed products.
+After that the update can be started through `update`.
+
+[source,prompt]
+----
+opsi-package-updater list --updatable-packages
+opsi-package-updater -v update
+----
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-repositories]]
+===== Repository Configuration: Access
+
+Repository configurations are to be found in `/etc/opsi/package-updater.repos.d/`.
+You will find a commented template with all possible configuration options in there as `example.repo.template`.
+
+There are two kinds of repositories - 'internet repositories' and 'opsi-server'.
 
 *Internet Repositories*
 
 Example: download.uib.de +
 This are repositories which are configured by:
 
-- baseURL (z.B. http://download.uib.de)
-- dirs ( A list of directories e.g.. opsi4.0/produkte/essential)
-- and if needed username and password for password protected repositories (e.g. for the opsi patch management subscriptions)
+- 'baseURL' (z.B. http://download.uib.de)
+- 'dirs' (a list of directories e.g. opsi4.0/produkte/essential)
+- and for password protected repositories 'username' and 'password'
+- as an alternative to password protected repositories, you can use certifcate authentification if the repository has this possibility. For that you need to configure 'authcertfile' and 'authkeyfile' with the full path to the clientcertificate file and its keyfile.
 
-You may also configure a proxy here.
+Access through a proxy can be configured if required.
+To use a common proxy for all repositories configure it in `opsi-package-updater.conf`.
+This requires at least opsi-utils 4.1.1.33.
+All repositories without a separate proxy configuration will make use of it.
+
+
+[source,configfile]
+----
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/localboot
+username =
+password =
+proxy =
+----
 
 *opsi-server*
 
-This is (using a '{opsi-depotserver}') the central '{opsi-configserver}' will be used to fetch the opsi-packages.
+A repository is of kind 'opsi-server' if the repository configuration has the ID of another opsi-server set at 'opsiDepotId'.
 
-The central configuration item is here:
+[source,configfile]
+----
+opsiDepotId = mainserver.my.lan
+----
 
-- 'opsiDepotId'
+On a '{opsi-depotserver}' there is usually the central '{configserver}' set.
+This results in `opsi-package-updater` fetching the packages from the directory `/var/lib/opsi/repository` of the given server.
 
-This is in most cases on a '{opsi-depotserver}' the central '{opsi-configserver}'. So on any call of the 'opsi-product-updater' the '{opsi-product-packages}' will be fetched from the '{opsi-configserver}'. This can be done for example by a cronjob.
 
-[[opsi-manual-configuration-tools-opsi-productupdater-actions]]
-===== configurable actions
+[[opsi-manual-configuration-tools-opsi-package-updater-actions]]
+===== Repository Configuration: Behaviour
 
 For each repository you have to configure which actions to run:
 
@@ -335,55 +507,113 @@ In addition it is possible to send all these clients a Wake-On-LAN signal to ins
 * Automatic WakeOnLan with shutdown: If there is new software Clients could be waked up and shutdown after installation automatically
 
 
-
-[[opsi-manual-configuration-tools-opsi-admin]]
-==== Tools: opsi-admin / 'opsi config interface'
-
-
 [[opsi-manual-configuration-tools-opsi-admin-overview]]
-===== Overview
+==== Tools for opsi API access: opsi-admin & opsi interface page
 
-opsi V3 introduced an opsi owned python library which provides an API for opsi configuration. The 'opsiconfd' provides this API as a web service, whereas 'opsi-admin' is the command line interface for this API.
+opsi 3.0 introduced a python library which provides an API for opsi configuration.
+The 'opsiconfd' provides this API as a web service that can be accessed in multiple ways.
 
-Calling https://<opsi-server>:4447/interface in your browser gives you graphical interface to the '{opsi-webservice}'. You have to login as a member of the unix group 'opsiadmin'.
+
+[[opsi-manual-configuration-tools-opsi-interface-page]]
+===== In the browser: opsi interface page
+
+Calling 'https://<opsi-server>:4447/interface' in your browser gives you graphical interface to the '{opsi-webservice}'.
+You have to login as a member of the group 'opsiadmin'.
 
 .opsi config interface: Access to the web service via browser
 image::opsi-webinterface2.png["opsi config interface: Access to the web service via browser", width=400]
 
-At the command line 'opsi-admin' provides an interface to the opsi-API. There is a interactive mode and a non interactive mode for batch processing from within scripts.
+
+[[opsi-manual-configuration-tools-opsi-admin]]
+===== On the commandline: opsi-admin
+
+At the command line 'opsi-admin' provides an interface to the opsi API.
+There is a interactive mode and a non interactive mode for batch processing from within scripts.
 
 The help option `opsi-admin --help` shows a list of available command line options:
-
 [source,prompt]
 ----
 # opsi-admin --help
 
-Application: opsi-admin [options] [command] [args...]
+Usage: opsi-admin [options] [command] [args...]
 Options:
-  -h, --help           Show this help text
-  -V, --version        Show version number and exit
-  -u, --username       Username (standard: temporary User)
-  -p, --password       Password (standard: Password interactive prompt)
-  -a, --address        URL from the opsconfd (standard: https://localhost:4447/rpc)
-  -d, --direct         opsiconfd avoid
-      --no-depot       Don't use a Depotserver-Backend
-  -l, --loglevel       Log-Level (standard: 3)
-                       0=nothing, 1=essential, 2=critic, 3=Errors, 4=Warnings
-                       5=Tips, 6=Informations, 7=debug, 8=debug2, 9=confidential
-  -f, --log-file       Path to Log-file
-  -i, --interactive    Start in interactive modus
+  -h, --help           Display this text
+  -V, --version        Show version and exit
+  -u, --username       Username (default: current user)
+  -p, --password       Password (default: prompt for password)
+  -a, --address        URL of opsiconfd (default: https://localhost:4447/rpc)
+      --opsirc         Path to the opsirc file to use (default: ~/.opsi.org/opsirc)
+                       An opsirc file contains login credentials to the web API.
+  -d, --direct         Do not use opsiconfd
+      --no-depot       Do not use depotserver backend
+  -l, --log-level      Set log level (default: 3)
+                       0=nothing, 1=essential, 2=critical, 3=error, 4=warning
+                       5=notice, 6=info, 7=debug, 8=debug2, 9=confidential
+  -f, --log-file       Path to log file
+  -i, --interactive    Start in interactive mode
   -c, --colorize       Colorize output
-  -S, --simple-output  Simple output (only for scalar and listen)
-  -s, --shell-output   Shell-output
-  -r, --raw-output     Raw-output
+  -S, --simple-output  Simple output (only for scalars, lists)
+  -s, --shell-output   Shell output
+  -r, --raw-output     Raw output
+  --exit-zero          Always exit with exit code 0.
 ----
-'opsi-admin' can use the opsi web service or directly operate on the data backend. To work with the web service you have to provide the URL and also an 'username' and 'password'. Due to security reasons you probably wouldn't like to do this from within a script. In that case you'd prefer direct access to the data base using the `-d` option: `opsi-admin -d`.
 
-In interactive mode (start with `opsi-admin -d` or `opsi-admin -d -i -c` or short `opsi-admin -dic`) you get input support with the TAB-key. After some input, with the TAB-button you get a list or details of the data type of the next expected input.
+´opsi-admin´ can use the opsi web service or directly operate on the data backend.
+To work with the web service you have to provide the URL and also an 'username' and 'password'.
+The name of the currently used user is used by default.
+A different username can be supplied with `--username`.
+
+For the use in scripts you don't want to passing the password as this might be
+seen from different users via the process list.
+In such cases it is a good idea to make use of an <<opsi-manual-configuration-tools-opsi-admin-opsirc,opsirc file>>.
+Another alternative can be direct data access through the `-d` option.
+
+`opsi-admin` has an interactive mode that can be started with `-i`.
+This will usually be used with `-i` for colorised display and maybe with `-d`
+for direct data access - the command to use is `opsi-admin -i -c -d` or short `opsi-admin -idc`.
+In interactive mode you have input support with the TAB key.
+After some input the TAB key you get a list or details of the data type of the next expected input.
 
 The option `-s` or `-S` generates an output format which can be easily parsed by scripts.
 
 There are some methods which are directly based on API-requests, and there are some 'tasks', which are a collection of function calls to do a more complex special job.
+
+
+[[opsi-manual-configuration-tools-opsi-admin-opsirc]]
+===== Usage of a connectionsettings file - opsirc
+
+Since version 4.1.1.30 `opsi-admin` offers the possibility to save the
+configuration for a connection to the webservice in a file.
+This allows using the webservice without the need to hand over the
+credentials on the commandline.
+
+By default the search is expected to be at `~/.opsi.org/opsirc`.
+With the option `--opsirc` the path to the used file can be changed.
+This allows preparing multiple differentially configured files.
+
+An 'opsirc' file has the following contents:
+[source,ini]
+----
+address = https://seeing.the.ramp:4447/rpc
+username = tony
+password file = ~/.opsi.org/tonys_secret
+----
+
+Everything in an opsirc file is optional.
+If the file is empty or does not exist default values will be used.
+
+In the previous example the password is saved in the file `~/.opsi.org/tonys_secret`
+and will be read from there.
+This file contains only the password.
+
+It is possible to state the password inside the opsirc file aswell:
+[source,ini]
+----
+address = https://seeing.the.ramp:4447/rpc
+username = tony
+password = first900
+----
+
 
 [[opsi-manual-configuration-tools-opsi-admin-typical-usage]]
 ===== Typical use cases
@@ -519,18 +749,29 @@ image::opsiconfd-info-hour.png["opsiconfd info: opsiconfd values from the last h
 image::opsiconfd-info-day.png["opsiconfd info: opsiconfd values from the last day", width="120mm"]
 
 [[opsi-manual-configuration-tools-serverprocess-tftpd]]
-==== Server process: opsi-atftpd
+==== Server process: opsi-tftpd-hpa
 
-The opsi-atftpd is based on the standard atftpd with the additional feature to handle 'named pipes'.
+The opsi-tftpd-hpa bases on the standard tftpd-hpa with the additional feature to handle 'named pipes'.
 
-By default the opsi-atftd is configured to not run as daemon but to be started by t the `inetd` process.
+By default the opsi-tftpd-hpa is configured to run with an own systemd service file.
 
-To change this configuration in order to run the opsi-atftpd as daemon, the following changes must be done:
+As the packages is sinstalled by the installer, the package features a simple level of verbosity. To change this level and get additional information one has to do the following:
 
-* In the file `/etc/inetd.conf` the line for the 'tftp' protocol has to be removed or commented out. After you changed this configuration file, you have to reload the `inetd` process. The command to do this differs by the used Linux Distribution:
+[source,prompt]
+----
+# systemctl edit --full opsi-tftpd-hpa.service
+----
+The parameter '-v' has to be replaced by '--verbosity 7'. Afterwards the service needs a restart.
+[source,prompt]
+----
+# service opsi-tftpd-hpa restart
+----
 
-** Ubuntu / Debian: `service openbsd-inetd reload`
-
-** openSUSE / SLES / RedHat / CentOS: `service xinetd reload`
-
-* In the file `/etc/default/atfpd` the line `USE_INETD=true` has to be changed to `USE_INETD=false`. Then you have to restart the opsi-atftpd as daemon with the command: `service opsi-atftpd restart`
+CAUTION: on Debian 8 the edit operation is not available. However there is a workaround:
+[source,prompt]
+----
+# cp /lib/systemd/system/opsi-tftpd-hpa.service /etc/systemd/system/opsi-tftpd-hpa.service
+# vi /etc/systemd/system/opsi-tftpd-hpa.service
+# systemctl daemon-reload
+# service opsi-tftpd-hpa restart
+----

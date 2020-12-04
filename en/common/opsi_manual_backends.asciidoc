@@ -27,36 +27,41 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-backends-file]]
 ==== file backend
 
-With the backend type '{file backend}' the configuration information is kept in text files (ini file syntax) on the server.
+When using the '{file-Backend}' the configuration information is stored in ini-files on the server.
 
-Important details of the backend 'file' :
+Main features of the backend 'file':
 
-* It is the default backend
-* You will find the files of this backend at `/var/lib/opsi`.
-* Is implemented with the assumption that the FQDN of the server running this backend is the FQDN of the :configserver: in opsi.
+* Current default backend
+* The files of this backend are located in `/var/lib/opsi/config`.
+* Is implemented on the assumption that the FQDN of the server on which the backend is used corresponds to the FQDN of the {configserver}.
 
-More details on the files and their structure can be found at <<opsi-manual-important-files-filebackend>>.
+The content and structure of these files is explained in more detail in the <<opsi-manual-important-files-filebackend>> chapter.
 
 [[opsi-manual-backends-mysql]]
 ==== mysql backend
 
 [[opsi-manual-backends-mysql-inventory]]
-===== mysql backend for inventory data
+===== mysql backend for inventory data (overview and data structure)
 
-Inventory data at the '{file-Backend}' is stored in structured text files by default. This type of storage is not very useful if you wish to form free queries on these data. In order to allow free queries and reports, a mysql based backend for the inventory data has been introduced.
+The hardware and software inventory data are by default stored in text files via the opsi '{file-Backend}'. This form of data storage is less suitable for queries and reports. For this, the data can be stored in a SQL database.
 
-The main features of this backend are:
-* only for inventory data free (for other data it's part of a co funding project until now)
-* optional (not the default backend)
-* a very fine granulated data structure with an additional table to make queries easier.
-* a history function which tracks changes in the inventory.
+Main features of the backend 'mysql':
 
-Regarding the very different structure of the components in the inventory the resulting data structure is complex.
+* Optional (not the default backend)
+* For inventory data free of charge, for use with other data you need a paid activation.
+* Finely granulated data structure for data storage and additionally a simplified data model for queries.
+* A history function, which logs changes to the inventory data.
 
-The table 'hosts' comprises all known hosts. For every device type we use two tables: The 'HARDWARE_DEVICE_' .table describes the model without individual aspects like the serial number. The 'HARDWARE_CONFIG' table stores these individual and configuration data.
+Due to the very different nature of the hardware components to be inventoried, the data structure is roughly structured as follows:
 
-These both tables are connected via the field hardware_id. This is the resulting list of tables:
+* A table 'host' describes all known clients and provides a unique 'host_id'.
+* There are two tables for each device type:
+** 'HARDWARE_DEVICE_ ....' describes the device e.g. Network card type with PCI-identifier
+** 'HARDWARE_CONFIG ...' describes configuration of the specific network card e.g. MAC address. The two tables are linked to each other via the 'hardware_id' field.
 
+The situation is similar for the software inventory. Again, the 'Software' table describes the total software found, while the 'Software_Config' table stores the client-specific configuration.
+
+This results in the following list of tables:
 [source,ini]
 ----
 HARDWARE_CONFIG_1394_CONTROLLER
@@ -120,7 +125,7 @@ SOFTWARE
 SOFTWARE_CONFIG
 ----
 
-Which field name in the database is corresponding to which reported and localized name in the opsi management interface is defined in a configuration file. Example (`/etc/opsi/hwaudit/locales/en_US`):
+The assignment of the column names to individual device classes results from the following list (`/etc/opsi/hwaudit/locales/en_US`):
 
 [source,ini]
 ----
@@ -136,8 +141,10 @@ HARDWARE_DEVICE.vendor = Vendor
 HARDWARE_DEVICE.model = Model
 HARDWARE_DEVICE.serialNumber = Serial number
 COMPUTER_SYSTEM = Computer
+COMPUTER_SYSTEM.sku = Stock Keeping Unit
 COMPUTER_SYSTEM.systemType = Type
 COMPUTER_SYSTEM.totalPhysicalMemory = Physical Memory
+COMPUTER_SYSTEM.dellexpresscode = Dell Expresscode
 CHASSIS = Chassis
 CHASSIS.name = Name
 CHASSIS.chassisType = Chassis type
@@ -167,6 +174,8 @@ PROCESSOR.processorId = Processor-ID
 PROCESSOR.addressWidth = Address width
 PROCESSOR.socketDesignation = Socket designation
 PROCESSOR.voltage = Voltage
+PROCESSOR.NumberOfCores = Number Of Cores
+PROCESSOR.NumberOfLogicalCores = Number Of Logical Cores
 MEMORY_BANK = Memory bank
 MEMORY_BANK.location = Location
 MEMORY_BANK.maxCapacity = Maximum capacity
@@ -248,19 +257,19 @@ PRINTER.driverName = Driver name
 PRINTER.port = Port
 ----
 
-Examples for queries:
-Listing of all hard drives:
+Examples queries:
+List of all hard drives:
 [source,prompt]
 ----
 SELECT * FROM HARDWARE_DEVICE_HARDDISK_DRIVE D
 LEFT OUTER JOIN HARDWARE_CONFIG_HARDDISK_DRIVE H ON D.hardware_id=H.hardware_id ;
 ----
 
-The software inventory uses as primary keys the following entries:
+The software inventory uses as primary key the following entries:
 
 * Name +
-This is the  'windowsDisplayName' or, if this entry isn't found at the registry, it is the 'windowsSoftwareId'. Both values come from the registry: +
-'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall' +
+This is the 'windowsDisplayName' or, if this is not available, the 'windowsSoftwareId'. Both values are obtained from the registry: +
+'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall' respectively +
 'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\<id> DisplayName'
 
 * Version +
@@ -270,71 +279,64 @@ This is the  'windowsDisplayName' or, if this entry isn't found at the registry,
 * Language
 * Architecture (32 Bit / 64 Bit)
 
-At the table 'Software_config' these primary keys are integrated to one key:  'config_id'.
+In the table 'Software_config' these fields are combined to the field 'config_id'.
 
-.data base schema: software inventory
-image::mysql-schema-inventory-software.png["data base schema: software inventory",width=400]
+.database schema: software inventory
+image::mysql-schema-inventory-software.png["database schema: software inventory",width=400]
 
 
 [[opsi-manual-backends-mysql-configdata-overview]]
-===== mysql backend for configuration data
+===== mysql backend for configuration data (overview)
 
-The '{mysql-Backend}' for configuration data is available since opsi 4.0.
+The '{mysql-Backend}' for configuration data has been available since opsi 4.0.
 
-This opsi extension is currently in the cofunding process and not free.
-For more details see <<opsi-manual-modules>>.
+This module is currently a co-financed opsi extension. This means it is not free to use. +
+Further details can be found in <<opsi-manual-modules>>.
 
-The '{mysql-Backend}' has a high performance which is important for large installations.
+The '{mysql backend}' has the advantage of a higher performance, especially with large installations.
 
+Here is an overview of the data structure:
 
+.database schema: configuration data
+image::mysql-schema-configdata.png["database schema: configuration data",width=400]
 
-Here a data structure overview:
-
-.data base schema: configuration data
-image::mysql-schema-configdata.png["data base schema: configuration data",width=400]
 
 [[opsi-manual-backends-mysql-initializing]]
 ===== Initializing the MySQL-Backend
 
-First, the mysql-server has to be installed (if not done yet):
+If the mysql server is not yet installed, this must first be done by:
 [source,prompt]
 ----
 apt-get install mysql-server
 ----
-In the next step the administrative password for the mysql-server has to been set:
+
+Then a password must be set for the root access of mysql:
 [source,prompt]
 ----
 mysqladmin --user=root password linux123
 ----
 
-CAUTION: Since MySQL server version 5.7 the 'strict mode' is enabled by default. This mode prevents the command _opsi-setup_ _--configure-mysql_ to finish properly, with the correct configurations. To disable the strict mode please edit the file `/etc/mysql/mysql.conf.d/mysqld.cnf`. +
-In the `[mysqld]` section add the following line underneath the section name: +
-`sql_mode=NO_ENGINE_SUBSTITUTION` +
- +
-Now the service `mysql` has to be restarted: `service mysql restart` +
+CAUTION: Since MySQL-Server version 5.7 the previously optional 'strict mode' is enabled by default. This causes the `opsi-setup --configure-mysql` command to fail. Accordingly, the file `/etc/mysql/mysql.conf.d/mysqld.cnf` should be edited before the command is executed. +
+The following line must be inserted in the `[mysqld]` section: +
+`sql_mode = NO_ENGINE_SUBSTITUTION` +
+  +
+Then the service `mysql` has to be restarted:` systemctl restart mysql.service` +
+It is now possible to continue.
 
-The command
-[source,prompt]
-----
-opsi-setup --configure-mysql
-----
-will now initialize the mysql backend.
+The database can now be set up with the command `opsi-setup --configure-mysql`.
 
-A example session:
+An example session:
 
-.Dialog: opsi-setup --configure-mysql
+.opsi-setup --configure-mysql: Input dialog
 image::mysql-config-input-mask.png["Dialog: opsi-setup --configure-mysql",width=400]
 
-.Output: opsi-setup --configure-mysql
+.opsi-setup --configure-mysql: Output
 image::mysql-config-output.png["Output: opsi-setup --configure-mysql",width=400]
 
-All the queries(except the password) can be taken by default by pressing 'ENTER'.
+In the input dialog, all entries can be confirmed with Enter except for the password.
 
-As next step you have to configure how (which methods) opsi should use with the backend. Therefore please edit the file '/etc/opsi/backendManager/dispatch.conf'.
-
-You can find a detailed description for this configuration at the 'getting started' manual. The configuration file also contains a lot of examples of typical configurations.
-
-A configuration for the use of the '{mysql-Backend}' (without internal dhcpd) looks like this:
+Next you have to specify in `/etc/opsi/backendManager/dispatch.conf` that the '{mysql-Backend}' should also be used. A detailed description of this configuration can be found in the 'Backend configuration' chapter of the 'getting-started manual'. The file itself contains a number of examples of typical configurations.
+A configuration for the '{mysql-Backend}' (without internal dhcpd) looks like this:
 [source,opsifiles]
 ----
 backend_.*         : mysql, opsipxeconfd
@@ -344,127 +346,148 @@ configState_.*     : mysql, opsipxeconfd
 .*                 : mysql
 ----
 
-Finally you have to activate the changed configuration with the following commands:
+After completing the configuration, you must execute the following commands to use the now configured and converted backend:
 [source,prompt]
 ----
 opsi-setup --init-current-config
 opsi-setup --set-rights
-service opsiconfd restart
-service opsipxeconfd restart
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
 ----
 
-CAUTION: The service 'opsiconfd' does not have a dependency to MySQL as default.
-This is due to the fact that opsi can be run without using MySQL, and because not every init-system does support requirements between services.
+CAUTION: The 'opsiconfd' service has no hard dependency on MySQL by default, since opsi can be used without a MySQL-backend, and the service can also run on another server.
 Please refer to the documentation of your operating system on how to configure this.
 
+
+[[opsi-manual-backends-mysql-configuration]]
+===== Manual configuration
+
+Manual configuration can be done via the backend configuration file.
+By default this is `/etc/opsi/backends/mysql.conf`.
+
+Since python-opsi 4.1.1.76 it has been possible to force the creation of new connections after a certain time in order to avoid problems with timeouts.
+One indication of such timeouts can be the message 'mysql server has gone away'.
+
+You can set a timeout by specifying 'connectionPoolRecycling' after how many seconds a new connection should be created.
+The default value is `-1`, which means no forced reconnection.
+If this value is set, it should generally be lower than the value for connection timeouts configured on the server (link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_wait_timeout[wait_timeout]).
+
+
 [[opsi-manual-backends-mysql-access-config]]
-===== Configure the mysql database for access from outside the server
+===== Configuration of the MySQL database for external access
 
-The used database must be configured in a way that allow external access.
-This usually means that connection from other sources as 'localhost' must be
-accepted.
+The existing database must be configured so that external access is possible, i.e. not only connections from 'localhost' are accepted.
 
-Please refer to the manual of your used database for further information.
+Please refer to the manual of your database for the necessary steps.
 
 [[opsi-manual-backends-hostcontrol]]
 ==== HostControl backend
 
-The HostControl backend does not store any information. It is a special backend to control the opsi clients.
+The HostControl backend does not store any configuration data, but is used to control the opsi clients.
+This includes, for example, starting clients via Wake-On-LAN or sending control commands to the opsi-client-agent.
 
-Typical tasks are to send Wake-On-Lan signals and send control signals to the '{opsi-client-agent}'.
-
-The HostControl backend is configured by the configuration file `/etc/opsi/backends/hostcontrol.conf`. Configuration options are here:
+The configuration of the HostControl backend is done in the configuration file `/etc/opsi/backends/hostcontrol.conf`. Configuration options are:
 
 * +opsiclientdPort+: +
-Network port to contact the {opsi-client-agent}.
+Network port for connecting to an {opsi-client-agent}.
 
 * +hostRpcTimeout+: +
-Timeout (in seconds) connecting a {opsi-client-agent}.
+Timeout (in seconds) when connecting to an {opsi-client-agent}.
 
 * +resolveHostAddress+: +
-This option controls whether the name resolution of a opsi-client address is primary done by the opsi database or by the name resolution of the operating system of the '{opsi-server}'.
-If this option is +True+, the '{opsi-server}' tries at first to get the IP-Address of a '{opsi-client}' by the name resolution of the operating system (DNS, /etc/hosts) and if this fails the opsi database is used.
-To use the opsi database, first you have to set this option to +False+.
+If this option is set to +True+, when connecting from {opsi-server} to an {opsi-client}, the IP address of the client is firstly determined via name resolution.
+To give preference to the IP address stored in the opsi backend, the option must be set to +False+.
 
 * +maxConnections+: +
-Maximal number of concurrent connections to '{opsi-client-agent}s'.
+Maximum number of simultaneous connections to an {opsi-client-agent}.
 
 * +broadcastAddresses+: +
-List of broadcast addresses used to send Wake-On-Lan broadcasts.
+Assignment of broadcast addresses and ports to be used for sending Wake-on-LAN broadcasts.
+Ports can be configured for each broadcast address independently.
+
 
 [[opsi-manual-backends-hostcontrolsafe]]
 ==== HostControlSafe-Backend
 
-The default behavior of opsi4.0 methods called without any parameter is, that it matches all existing objects. For instance the command "host_getObjects" without any parameters results in returning all existing host objects. This could be dangerous when using the HostControl-Backend. Especially with commands like: `hostControl_shutdown` and `hostControl_reboot`. In these cases calling the method without any parameter would shutdown or reboot all the clients.
+A peculiarity of opsi 4.0 methods called without parameters is that it matches all existing objects. For example, the command "host_getObjects" without any parameters returns all host objects. This behavior is somewhat problematic in the HostControl backend. Especially with the two commands: `hostControl_shutdown` and `hostControl_reboot`. In these cases, calling these methods without parameters would shutdown or restart all clients.
 
-Therefore with service release opsi 4.0.3 two changes were introduced:
+Therefore with opsi release 4.0.3 two changes were introduced:
 
-* The methods `hostControl_shutdown` and `hostControl_reboot` don't have the standard behavior anymore and result in an error message when they are called without any parameter.
-* A new backend is introduced (*HostControlSafe* backend), that results in an error message for all of the methods, if they are called without any client parameter. To explicitly address all of the clients by a HostControlSafe-Backend method, the wildcard `*` can be used:
+* The methods `hostControl_shutdown` and `hostControl_reboot` are different from the standard opsi 4.0 behavior since this release. These two methods now return an error message when they are called without any parameters.
+* A new backend has been introduced (*HostControlSafe*-Backend), which results in error message for all methods, if they are called without any correct client parameter. To explicity address all clients with a HostControlSafe-Backend method, you can use the `*` character:
 +
 [source,prompt]
 ----
 opsi-admin -d method hostControlSafe_shutdown *
 ----
 
-So for the reasons mentioned above, we recommend to use the hostControlSafe methods at the console or especially with little experience in using the service methods.
-
+For the reasons mentioned above, we recommend using hostControlSafe methods on the console or if you are new to using the service methods.
 
 [[opsi-manual-backends-convert]]
 ==== Conversion between different backends
-
-The command `opsi-convert` converts the opsi configuration files from one backend to another. The target or the source can be assigned in different ways:
-
+The `opsi-convert` command is used to convert the opsi configuration data between different backends. The destination or source can be assigned in different ways:
 
 * backend name: +
-A backend on the current server can be addressed with just the backend name.  The command `opsi-convert file mysql` converts the data base of the current server from '{file-Backend}' to the '{mysql-Backend}'.
+By specifying the name, a corresponding backend is specified on the current server. The command `opsi-convert file mysql` converts the data on the current server from the '{file-Backend}' to the '{mysql-Backend}'.
 
 * Service address +
-Providing a fully qualified service address allows access to a remote servers data base (after passing the users password). The service address looks like `https://<username>@<ipadresse>:4447/rpc`.
+By specifying service addresses, a server can can also be addressed remotely. The service address has the form `https://<username>@<ipadresse>:4447/rpc`.
 You will be asked for the passwords. +
-The conversion command looks like that: +
+Example: +
 [source,prompt]
 ----
-opsi-convert -s -l /tmp/log https://uib@192.168.2.162:4447/rpc   https://opsi@192.168.2.42:4447/rpc
+opsi-convert -s -l /tmp/log https://uib@192.168.2.162:4447/rpc https://opsi@192.168.2.42:4447/rpc
 ----
 
 * Configuration directories +
-With the declaration of a configuration directory for the specified backend manager configuration source or target can be described in detail.
+By specifying a configuration directory for the corresponding backend manager configuration, the source or target can be described in great detail.
 +
 [source,prompt]
 ----
-opsi-convert --help
+usage: opsi-convert [-h] [--version] [--quiet] [--verbose]
+                    [--log-level {0,1,2,3,4,5,6,7,8,9}] [--clean-destination]
+                    [--with-audit-data] [-s OLD SERVER ID]
+                    [--log-file LOGFILE]
+                    source destination
 
-Usage: opsi-convert [options] <from> <to>
 Convert an opsi database into an other.
-Options:
-    -h        show this help text
-    -V        show version information
-    -q        do not show progress
-    -v        increase verbosity (can be used multiple times)
-    -c        clean destination database before writing
-    -s        use destination host as new server
-    -l <file> log to this file
 
-<from> and <to> can be:
-     - the name of a backend as defined in /etc/opsi/backends (file, ldap, ...)
-     - the url of a opsi configuration service
-       http(s)://<user>@<host>:<port>/rpc
+positional arguments:
+  source                Backend to read data from.
+  destination           Backend to write data to.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --quiet, -q           do not show progress
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --log-level {0,1,2,3,4,5,6,7,8,9}
+                        Set log-level (0..9)
+  --clean-destination, -c
+                        clean destination database before writing
+  --with-audit-data, -a
+                        including software/hardware inventory
+  -s OLD SERVER ID      use destination host as new server
+  --log-file LOGFILE, -l LOGFILE
+                        Log to this file. The loglevel will be DEBUG.
+
+The backends can either be the name of a backend as defined in
+/etc/opsi/backends (file, mysql, ...) or the the url of an opsi configuration
+service in the form of http(s)://<user>@<host>:<port>/rpc
 ----
 
 [[opsi-manual-backends-bootfiles]]
 ==== Boot files
 
-`/tftpboot/linux` contains the boot files needed for the system start with the PXE boot proms.
+`/tftpboot/linux` contains the boot files that are required in conjunction with the PXE network boot.
 
 [[opsi-manual-backends-securing-shares]]
 ==== Securing the shares with encrypted passwords
 
-The '{opsi-client-agent}' accesses the shares provided by the '{opsi-server}' to get the software which have to be installed at the client.
+The '{opsi-client-agent}' accesses the shares made available by the '{opsi-server}' in order to be able to install the software on the client.
 
-The mount of these shares is done by using the user 'pcpatch'. That these shares are not public and have to be mounted using a password is important for:
-* general system security and data integrity
-* meet the license agreements of special software packets
+The system user 'pcpatch' is used for this. Securing these shares and the authentication data of the pcpatch user are important for:
+* General system security and data integrity
+* Protection of licensed software packages against misuse
 
-To give the client task '{opsi-client-agent}' access to authentication data, the server creates a specific key ('{opsi-host-key}') when creating a client. This key is stored (at the '{file-Backend}') in the file   `/etc/opsi/pckeys` and is passed to the PC with the (re)installation request. The '{opsi-client-agent}' will store this key in the local file  `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf`
-during system installation (access rights limited to the administrators). Also, on the server, the file `/etc/pckeys` is only accessible by the user 'root' and members of the group 'opsiadmin'. This way every PC has got an unique key only known to the client itself and the '{opsi-server}', not accessible by client standard users. The key is used to encrypt the password of the user 'pcpatch'. The encrypted password will be transferred to the client at boot time via web service. Hence the servers 'pcpatch' password can be changed any time. The new encrypted password will be sent to every client at the next reboot.
+In order to provide the '{opsi-client-agent}' access to the authentication data, a specific key ('{opsi-host-key}') is generated for each client when it is created in opsi. This key is stored (in the '{file-Backend}') in the file `/etc/opsi/pckeys` and is transferred to the PC during reinstallation. The transferred key is stored during the installation of the '{opsi-client-agent}' in the file `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` in such a way that only Administrators have access. Likewise, on the '{opsi-server}' only root and members of the 'opsiadmin' group have access to the file `/etc/opsi/pckeys`. This way, each PC has a key that is only known to the PC and the '{opsi-server}' and which is protected against access by normal users. With this key the current password of the system user 'pcpatch' is encrypted on the '{opsi-server}' and stored in the backend. This encrypted password is read by the client each time the '{opsi-client-agent}' is activated, so that the 'pcpatch' password can be changed at any time and the client is notified of the changed password in an encrypted way.

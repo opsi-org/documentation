@@ -15,8 +15,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      20.01.2015
-:Revision:  4.0.6
+:Date:      19.10.2017
+:Revision:  4.1
 :toc:
 :numbered:
 :website: http://opsi.org
@@ -34,7 +34,7 @@ include::../common/opsi_terms.asciidoc[]
 Wie jedes andere System auch, sollte das opsi-System auch einem Backup unterzogen werden. Da opsi ein zentrales Werkzeug für das Windows-Client- wie auch das Windows-Server-Management darstellt, sollte der opsi-server gesichert werden.
 Dieses Handbuch soll einen Einblick in die Backup-Strategie von opsi geben und auch auf Themen, wie das zurückschreiben und das "DisasterRecovery" von opsi.
 
-[[opsi-manual-backup_prerequisits]]
+[[opsi-manual-backup_prerequisites]]
 ==== Vorbedingungen für ein Backup
 
 Um ein Backup des opsi-Systems anzulegen, gibt es nicht wirklich eine Vorbedingung. Wenn man die zentralen Dateien und Backends des opsi-Systems lokalisiert hat, kann man diese auf diversen Methoden sichern. Die folgende Anleitung soll nicht nur die Frage: "Was soll gesichert werden?" beantworten, sondern auch einen Weg dokumentieren, wie eine Backupstrategie für das opsi-System aussehen könnte.
@@ -47,24 +47,33 @@ Das Backupskript sollte als root ausgeführt werden, entweder manuell oder einen
 ==== Quick Start
 
 Backup erzeugen:
-
 [source, prompt]
 ----
 opsi-backup create opsi_backup.tar.bz2
 ----
 Erzeugt ein Backup der aktuell genutzten Backends sowie der Konfigurationsdateien im aktuellen Verzeichnis mit dem Namen `opsi_backup.tar.bz2`.
 
-Backup zurück spielen:
+
+Backend-Daten (ohne Konfigurationsdateien) zurückspielen:
+[source, prompt]
+----
+opsi-backup restore opsi_backup.tar.bz2
+----
+Stellt die Daten aus dem Backupfile `opsi_backup.tar.bz2` aus dem aktuellen Verzeichnis wieder her.
+
+
+Komplettes Backup inklusive Konfigurationsdateien zurück spielen:
 [source, prompt]
 ----
 opsi-backup restore --backends=all --configuration opsi_backup.tar.bz2
 ----
-Stellt die Daten aus dem Backupfile `opsi_backup.tar.bz2` aus dem aktuellen Verzeichnis wieder her.
+
 
 [[opsi-manual-backup_parts-of-opsi]]
 ==== Elementare Teile von opsi
 
 Opsi kann man grob in fünf Teile gliedern. Die folgenden fünf Teile sind opsi spezifisch und können von System zu System, je nach Konfiguration variieren.
+
 
 [[opsi-manual-backup_config-part]]
 ===== Opsi Konfiguration
@@ -72,7 +81,7 @@ Opsi kann man grob in fünf Teile gliedern. Die folgenden fünf Teile sind opsi 
 Der mit Abstand wichtigste Teil von opsi, ist die Konfiguration. Getreu nach LSB (Linux Standard Base) befindet sich die Konfiguration von opsi unter `/etc/opsi`.
 
 Dieses Verzeichnis beinhaltet hauptsächlich die Backend-Konfiguration, die Webservice-Konfiguration und das SSL-Zertifikat für den Webservice.
-Weiterhin ist sind hier Backend-Erweiterungen untergebracht, die Konfigurationen des 'opsipxeconfd', des 'opsi-product-updater' mit seinen Repositories und auch die modules-Datei, die Ihnen Ihre kofinanzierten Module freischaltet.
+Weiterhin sind hier Backend-Erweiterungen untergebracht, die Konfigurationen des 'opsipxeconfd', des 'opsi-package-updater' mit seinen Repositories und auch die modules-Datei, die Ihnen Ihre kofinanzierten Module freischaltet.
 
 Um später eine volle Wiederherstellung nach einem Unglück zu verwirklichen, muss das Verzeichnis `/etc/opsi` gesichert werden.
 
@@ -94,7 +103,7 @@ Opsi bietet folgende Datenbackends:
 |==========================
 |Backend|Beschreibung
 |file-Backend|Backend auf Dateibasis, momentan der default bei opsi
-|mysql-Backend|Volle mysql-Backend Unterstützung seit opsi 4.0
+|mysql-Backend|MySQL-basiertes Backend (seit opsi 4.0)
 |dhcp|spezial Backend bei Verwendung von des dhcpd auf dem opsi-server
 |==========================
 
@@ -116,16 +125,20 @@ Dieser Bereich wird mit `opsi-backup` *nicht* gesichert.
 [[opsi-manual-backup_workbench-parts]]
 ===== Opsi Workbench
 
-Der Bereich opsi Workbench, welcher auch als gleichnamige Samba-Freigabe ('opsi_workbench') in opsi eingesetzt wird, beinhaltet die Stände der eigenen Software-Paketierung. Das Verzeichnis ist standardmäßig unter `/home/opsiproducts`, unter openSUSE und SLES ist dieses Verzeichnis unter `/var/lib/opsi/workbench`. Wenn dieser Share, wie vorgesehen dafür verwendet wird, um eigene Pakete in verschiedenen Revisionen dort vor zu halten, sollte dieses Verzeichnis auch gesichert werden.
+Der Bereich opsi Workbench, welcher auch als gleichnamige Samba-Freigabe ('opsi_workbench') in opsi eingesetzt wird, beinhaltet die Stände der eigenen Software-Paketierung. Das Verzeichnis ist standardmäßig unter `/var/lib/opsi/workbench`. Wenn dieser Share, wie vorgesehen dafür verwendet wird, um eigene Pakete in verschiedenen Revisionen dort vor zu halten, sollte dieses Verzeichnis auch gesichert werden.
 
 Auch hier bietet sich das Tool 'rsnapshot' an.
 
 Dieser Bereich wird mit `opsi-backup` *nicht* gesichert.
 
+NOTE: Seit opsi 4.1 kann dieses Verzeichnis für jeden Depotserver einzeln konfiguriert werden, so dass abweichende Pfade möglich sind.
+
+NOTE: Vor opsi 4.1 war dieses Verzeichnis auf non-SLES-Systemen unter `/home/opsiproducts` zu finden.
+
 [[opsi-manual-backup_repository-parts]]
 ===== Opsi Repository
 
-Das Verzeichnis unter `/var/lib/opsi/repository` wird dazu verwendet, um opsi-Pakete zu puffern. Anders als die opsi Workbench, dient es aber nicht dem Paketieren von opsi Paketen, sondern die opsi Pakete welche dort abgelegt werden, sollen vorgehalten werden, um eventuell das Synchronisieren auf anderen Servern, oder das Synchronisieren mit dem `opsi-product-updater` zu vereinfachen.
+Das Verzeichnis unter `/var/lib/opsi/repository` wird dazu verwendet, um opsi-Pakete zu puffern. Anders als die opsi Workbench, dient es aber nicht dem Paketieren von opsi Paketen, sondern die opsi Pakete welche dort abgelegt werden, sollen vorgehalten werden, um eventuell das Synchronisieren auf anderen Servern, oder das Synchronisieren mit dem `opsi-package-updater` zu vereinfachen.
 
 Diese Dateien sind für ein vollständige Wiederherstellung nicht unbedingt nötig, können aber auch mit dem Tool 'rsnapshot' gesichert werden.
 
@@ -135,7 +148,7 @@ Dieser Bereich wird mit `opsi-backup` *nicht* gesichert.
 ===== TFTP-Verzeichnis
 
 Das TFTP-Verzeichnis beinhaltet Konfigurationsdateien für den Bootvorgang per PXE.
-Diese Verzeichnis befindet sich unter `/tftpboot/` auf den meisten Systemen. Auf openSUSE und SLES ist dieses Verzeichnis `/var/lib/tftpboot/opsi/`.
+Diese Verzeichnis befindet sich unter `/tftpboot/` auf den meisten Systemen. Auf SLES ist dieses Verzeichnis `/var/lib/tftpboot/opsi/`.
 
 Möglicherweise angepasste Dateien sind bspw. `linux/pxelinux.cfg/default.menu` bzw. `linux/pxelinux.cfg/default.nomenu`.
 Diese Dateien werden bei der Installation von opsi-linux-bootimage mit Defaultwerten angelegt. Für ein Disaster Recovery sind diese nicht zwingend nötig.
@@ -145,7 +158,7 @@ Dieser Bereich wird mit `opsi-backup` *nicht* gesichert.
 [[opsi-manual-backup-cli]]
 ==== Das `opsi-backup` Programm
 
-Mit dem Kommandozeilenprogramm `opsi-backup` existiert ein Werkzeug, dass die Erstellung und das Wiederherstellen einfacher Backups kompfortabel erledigt.
+Mit dem Kommandozeilenprogramm `opsi-backup` existiert ein Werkzeug, dass die Erstellung und das Wiederherstellen einfacher Backups komfortabel erledigt.
 
 Dazu lässt sich `opsi-backup` mit drei grundlegenden Befehlen steuern: +create+, +restore+ und +verify+. +
 Die Option +--help+ gibt einen detaillierten Überblick über alle Optionen, die `opsi-backup` akzeptiert. +
@@ -179,6 +192,7 @@ opsi-backup create --help
 
 Es ist auch möglich, den Dateinamen oder das Zielverzeichnis des neuen Backups vorzugeben. Dazu wird einfach ein Dateiname oder ein Zielverzeichnis einfach an den entsprechenden Befehl angehängt. Wird ein Verzeichnis übergeben, generiert `opsi-backup` automatisch einen Dateinamen in diesem Verzeichnis.
 Ein durch `opsi-backup` generierter Dateiname hat die Form +<hostname>_<opsi-version>_<datum>_<uhrzeit>+ und ist daher gut zur Archivierung meherere Backups geeignet. Wird ein Dateiname fest forgegeben, so wird ein älteres Backup mit dem selben Namen durch `opsi-backup` überschrieben.
+
 [source, prompt]
 ----
 opsi-backup create /mnt/backup/opsi_backup.tar.bz2
@@ -253,17 +267,31 @@ opsi-backup verify --help
 
 TIP: Wird der Befehl `opsi-backup verify` explizit auf der Konsole aufgerufen ist es häufig sinnvoll, die `opsi-backup` Standardausgabe zu aktivieren: `opsi-backup -v verify opsi_backup.tar.bz2`
 
+
+[[opsi-manual-backup-list]]
+===== Inhalt eines Backups anzeigen
+
+Mit dem Befehl `opsi-backup list` wird angezeigt welche Daten ein Backup enthält.
+Aufgelistet wird ob Konfigurationsdaten vorhanden sind und Daten aus welchen Backends.
+
+*Beispiel*
+[source, prompt]
+----
+opsi-backup list opsi_backup.tar.bz2
+----
+
+
 [[opsi-manual-backup-restore]]
 ===== Ein Backup wiederherstellen
 Das Wiederherstellen des Archivs erfolgt mit dem Befehl `opsi-backup restore`. Dabei werden (per default) die Backends anhand der aktuellen Konfiguration eingespielt. Es kann also kein reines Backend Backup wiederhergestellt werden, ohne dass eine opsi Konfiguration vorhanden ist.
 Der Befehl `opsi-backup restore` braucht als Parameter das Backup Archiv, aus dem Daten wiederhergestellt werden.
-Für den Befehl `opsi-backup restore` sind zusätzliche Programmhilfen verfügbar, welche über die Option `--help` ausgegeben werden.
+Für den Befehl `opsi-backup restore` sind zusätzliche Programmhilfen verfügbar, welche über die Option +--help+ ausgegeben werden.
 
 `opsi-backup restore` akzeptiert folgende Optionen:
 
 * +--backends {file,mysql,dhcp,auto,all}+ +
 Stellt das spezifizierte Backend wieder her. Diese Option kann mehrfach angegeben werden, um mehrere Backends anzugeben. Die Option `--backends=all` steht für alle Backends. +
-Als Voreinstellung (default) wird die Option `--backends=auto` verwendet, was dazu führt, dass `opsi-backup` versucht, anhand der Konfigurationsdatei _/etc/opsi/backendManager/dispatch.conf_ festzustellen, welche Backends wiederherzustellen sind.
+Als Voreinstellung (default) wird die Option `--backends=auto` verwendet, was dazu führt, dass `opsi-backup` versucht, anhand der Konfigurationsdatei `/etc/opsi/backendManager/dispatch.conf` festzustellen, welche Backends wiederherzustellen sind.
 +
 [source, prompt]
 ----
@@ -294,4 +322,14 @@ opsi-backup restore -f opsi_backup.tar.bz2
 [source, prompt]
 ----
 opsi-backup restore --configuration --backends=all opsi_backup.tar.bz2
+----
+
+
+Wird ein Backup auf einen Server zurückgespielt und es existiert kein Backup des Depot-Ordners, so gibt es die Möglichkeit mit `opsi-package-updater` und `opsi-package-manager` alle Pakete aus dem Repository erneut herunterzuladen und einzuspielen.
+Eventuell vorgenommene Änderungen im Depot müssen anschließend allerdings wieder durchgeführt werden.
+
+[source, prompt]
+----
+opsi-package-updater download --force
+opsi-package-manager --install /var/lib/opsi/repository/*.opsi
 ----
