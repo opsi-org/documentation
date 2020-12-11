@@ -73,12 +73,12 @@ Der Client authentifiziert sich beim Server mit seinem FQDN sowie dem opsi-host-
 Client-seitig liegt dieser Key in der Datei `%programfiles%\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` und ist nur mit administrativen Rechten lesbar.
 Serverseitig liegen die opsi-host-keys im jeweiligen Backend (z.B. unter `/etc/opsi/pckeys`).
 
-Zusätzlich zu dieser Authentifizierung kann der opsiconfd angewiesen werden, zu überprüfen ob die IP-Nummer unter der sich der Client meldet auch zu dem angegebenen Clientnamen passt.
+Zusätzlich zu dieser Authentifizierung kann der opsiconfd angewiesen werden, zu überprüfen ob die IP-Adresse unter der sich der Client meldet auch zu dem angegebenen Clientnamen passt.
 Um dieses Verhalten zu aktivieren setzen sie in der `/etc/opsi/opsiconfd.conf` folgenden Parameter:
 
 [source,configfile]
 ----
-verify ip = yes
+verify-ip = true
 ----
 
 und starten 'opsiconfd' neu:
@@ -166,29 +166,53 @@ Der '{opsiclientd}' besitzt eine Webservice-Schnittstelle die es erlaubt dem ops
 Für den Zugriff auf den Webservice wird eine Authentifizierung benötigt.
 Dies geschieht entweder mittels des lokalen Administrator-Accounts (ein leeres Passwort ist unzulässig) oder mittels leerem Benutzernamen und dem '{opsi-host-key}s' als Passwort.
 
-[[opsi-manual-security-adminnetwork]]
-=== Konfiguration eines Admin-Networks
+[[opsi-manual-security-clientcontrolserver-kiosk-api]]
+==== Die Kiosk API des opsi-client-agents
+Die Kiosk-API des opsiclientd erlaubt den Zugriff von localhost ohne jegliche Authentifizierung. Wird die Software-On-Demand-Funktion (+opsi-client-kiosk+) nicht verwendet, kann diese API komplett deaktiviert werden.
+Dafür muss in der `opsiclientd.conf` in der Sektion '[control_server]' folgender Parameter gesetzt werden:
+[source,configfile]
+----
+kiosk_api_active = false
+----
 
-Die Idee eines Admin-Networks ist es, administrative Zugriffe auf Server nicht aus dem allgemeinen Produktiv-Netz zu erlauben, sondern nur von einem speziellen und abgesicherten Netzbereich.
+
+[[opsi-manual-security-network]]
+=== Konfiguration erlaubter Netzwerke
+Standardmäßig akzeptiert der opsi-Service Verbindungen von jeder beliebigen IP-Adresse.
+Um die Sicherheit zu erhöhen, kann man eine Liste von IP-Netzwerken angeben, die sich imit dem service verbinden dürfen.
+Hierfür existiert die Option +networks+ des opsiconfd.
+
+Eine Konfiguration wie z.B.
+[source,configfile]
+----
+networks = [192.168.1.0/24, 10.1.0.0/16]
+----
+würde die Zugriffe auf die Netzwerke '192.168.1.0/24' und '10.1.0.0/16' begrenzen.
+
+
+[[opsi-manual-security-adminnetwork]]
+=== Konfiguration erlaubter Admin-Netzwerke
+
+Die Idee eines Admin-Netzwerks ist es, administrative Zugriffe auf Server nicht aus dem allgemeinen Produktiv-Netz zu erlauben, sondern nur von einem speziellen und abgesicherten Netzbereich.
 
 Zwar müssen alle 'opsi-clients' Zugang zum opsi-webservice haben, diese dürfen aber nur eingeschränkt Daten abrufen und ändern.
 Ein administrativer Zugang zum Webservice setzt die Mitgliedschaft in der Gruppe 'opsiadmin' voraus.
 
-Über die Option +[global] admin networks+ in der `/etc/opsi/opsiconfd.conf` kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
-Es können mehrere Netzwerkadressen durch Kommas getrennt angegeben werden. +
+Über die Option +admin-networks+ in der `/etc/opsi/opsiconfd.conf` kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
+Es können mehrere Netzwerkadressen angegeben werden. +
 Nicht-administrative Client-Verbindungen können auch aus anderen Netzwerken erfolgen.
 
 Der default ist:
 [source,configfile]
 ----
-admin networks = 0.0.0.0/0
+admin-networks = [0.0.0.0/0, ::/0]
 ----
 und erlaubt Zugriff von allen Netzen.
 
 Eine Konfiguration wie z.B.
 [source,configfile]
 ----
-admin networks = 127.0.0.1/32, 10.1.1.0/24
+admin networks = [127.0.0.1/32, 10.1.1.0/24]
 ----
 würde administrative Zugriffe nur vom Server selbst und aus dem Netz '10.1.1.0/24' erlauben.
 
