@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      28.08.2015
-:Revision:  4.0.6
+:Date:      08.01.2019
+:Revision:  4.1
 :toclevels: 6
 
 
@@ -59,29 +59,19 @@ Beispielsweise können Sie nach der Installation das Produkt `l-opsi-server` auf
 
 Für eine dauerhafte Pflege des installierten Linuxrechners über diese 15 Freistarts hinaus benötigen Sie aber eine Freischaltung dieses Features.
 
+
 [[opsi-manual-linux-getit]]
-==== Einspielen der Produkte
+==== Installieren der Pakete
 
-Die Linux bezogenen Localboot und Netbootproukte können über den opsi-product-updater geladen werden. +
-Dazu muss sichergestellt sein, dass in der `/etc/opsi/opsi-product-updater.conf` auch die entsprechenden Verzeichnisse eingetragen sind. Am einfachsten ist es, wenn sich folgende Sektion in der Konfigurationsdatei findet: +
-[source,ini]
-----
-[repository_uib_linux]
-active = true
-baseUrl = http://download.uib.de
-dirs = opsi4.0/products/opsi-linux
-autoInstall = false
-autoUpdate = true
-autoSetup = false
-; Set Proxy handler like: http://10.10.10.1:8080
-proxy =
-----
+Die Linux-bezogenen Pakete können über den `opsi-package-updater` geladen werden.
+Im Auslieferungszustand hat dieser bereits das Repository für die Linux-Produkte aktiviert.
 
-Dann können Sie mit dem folgenden Aufruf die opsi-linux Produkte einspielen:
+Sie können mit dem folgenden Aufruf die opsi-linux Produkte einspielen:
 [source,prompt]
 ----
-opsi-product-updater -i -vv
+opsi-package-updater -v --repo uib_linux install
 ----
+
 
 [[opsi-manual-linux-introduction]]
 ==== Einführung
@@ -169,7 +159,7 @@ Auf Debian-artigen Betriebssystemen kann das durch den folgenden Befehl erreicht
 
 [source,prompt]
 ----
-apt-get install opsi-linux-support
+apt install opsi-linux-support
 ----
 
 Beim Einsatz einer Firewall auf Ihrem Server muss diese noch so konfiguriert
@@ -178,9 +168,9 @@ Bitte konsultieren Sie hierzu das entsprechende Handbuch.
 
 Was dieses Paket macht ist (als händige Anleitung) im folgenden Beschrieben:
 
-* Auf dem opsi-server muß das entsprechende NFS-Server-Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: `nfs-kernel-server`. Auf Centos, Redhat ist es das Paket `nfs-utils`.
+* Auf dem opsi-server muss das entsprechende NFS-Server-Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: `nfs-kernel-server`. Auf Centos, Redhat ist es das Paket `nfs-utils`.
 
-* Der Export `opsi_nfs_share` muß angelegt und exportiert werden:
+* Der Export `opsi_nfs_share` muss angelegt und exportiert werden:
 
 ** Verzeichnis erzeugen: +
 `mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
@@ -202,7 +192,7 @@ Die Ausgabe sollte sein: +
 `opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
 zum Beispiel: +
 `opsi_nfs_share/opensuse13-2/64/openSUSE-13.2-DVD-x86_64.iso` +
-Die Installationsdatei muß als Dateiendung `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert welche verwendet wird.
+Die Installationsdatei muss als Dateiendung `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert welche verwendet wird.
 
 * Kopieren Sie die Installations-DVD an den entsprechenden Platz im `opsi_nfs_share` und führen Sie aus: +
 `opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
@@ -230,13 +220,13 @@ clnt_create: RPC: Program not registered
 
 Bitte stellen Sie sicher, dass nach der Installation des NFS-Servers ein
 Neustart stattgefunden hat.
-Anschließend müssen die Dienste 'rpcbind' und 'nfsserver' in genau dieser Reihenfolge gestartet werden.
+Anschließend müssen die Dienste 'rpcbind' und 'nfs-server' in genau dieser Reihenfolge gestartet werden.
 
 Ein Neustart der Dienste kann wie folgt durchgeführt werden:
 [source,prompt]
 ----
-# service rpcbind restart
-# service nfsserver restart
+# systemctl restart rpcbind.service
+# systemctl restart nfs-server.service
 ----
 
 Anschließend liefert showmount das gewünschte Ergebnis:
@@ -474,8 +464,7 @@ tar xzf ${FILE}
 opsi-set-rights .
 ----
 
-Bitte beachten Sie die Datei: +
-http://download.uib.de/opsi4.0/products/opsi-linux/univention-repository/opsi-ucs-repository-readme.txt
+Beachten Sie die link:http://download.uib.de/opsi4.0/products/opsi-linux/univention-repository/opsi-ucs-repository-readme.txt[Readme]!
 
 Aufwendiger: +
 Sie können das Repository auch selbst erstellen:
@@ -828,7 +817,10 @@ Voraussetzung auf dem {opsi-server}:
 
 Voraussetzung hierfür sind bei den Clients:
 
-* ssh Zugang als root oder als user der sudo ohne Passwort-Eingabe ausführen darf
+* ssh Zugang als root oder als user, welcher `sudo` ausführen darf.
+
+NOTE: Bei `opsi-deploy-client-agent` 4.1.0.1 oder älter muss für die Verwendung eines Benutzers anders als root die Möglichkeit der nicht-interaktiven `sudo`-Ausführung für diesen Benutzer bestehen.
+
 
 Das Skript erzeugt serverseitig den Client, kopiert die Installations-Dateien und Konfigurationsinformationen, wie bspw. den pckey, auf den Client und startet dort die Installation.
 
@@ -1012,7 +1004,7 @@ Wichtig ist, dass alle Installations- und Konfigurationsarbeiten zentral vom ops
 Im folgenden finden Sie Beispiele für folgende Aufgaben in einem beispielhaften Script für den opsi-linux-client-agent:
 
 * Beenden wenn es nicht unter Linux läuft
-* Feststellen des Distributionstyps zur Entscheidung zwischen `apt-get`, `zypper` und `yum`
+* Feststellen des Distributionstyps zur Entscheidung zwischen `apt`, `zypper` und `yum`
 * Feststellen der genauen Linux Version
 * Installation eines Paketes
 * Hinzufügen eines Repositories
@@ -1071,9 +1063,8 @@ endif
 [ShellInAnIcon_Upgrade_deb]
 set -x
 export DEBIAN_FRONTEND=noninteractive
-apt-get --yes install aptitude
-apt-get update
-apt-get --yes dist-upgrade
+apt update
+apt --yes dist-upgrade
 exit $?
 ----
 
@@ -1189,11 +1180,11 @@ endif; ubuntu
 set -x
 export DEBIAN_FRONTEND=noninteractive
 # we need to get the add-apt-repository command
-apt-get --yes --force-yes install python-software-properties
+apt --yes --force-yes install python-software-properties
 # the cinnamon repository
 add-apt-repository ppa:gwendal-lebihan-dev/cinnamon-stable
-apt-get update
-apt-get --yes install ubuntu-desktop
+apt update
+apt --yes install ubuntu-desktop
 exit $?
 ----
 
@@ -1360,7 +1351,7 @@ Softwareinventarisierung auf Basis des Paketmanagers
 ===== l-hwaudit
 
 Hardwareinventarisierung. +
-Die Hardwareinventarisierung basiert zur Zeit auf der in Python implementierten Methode wie sie auch vom bootimage verwendet wird. Dazu muß das Paket `python-opsi` aus dem opsi-Repository der Distribution installiert werden. Ist für die Distribution kein opsi-Repository verfügbar, so scheitert auch die Hardwareinventarisierung.
+Die Hardwareinventarisierung basiert zur Zeit auf der in Python implementierten Methode wie sie auch vom bootimage verwendet wird. Dazu muss das Paket `python-opsi` aus dem opsi-Repository der Distribution installiert werden. Ist für die Distribution kein opsi-Repository verfügbar, so scheitert auch die Hardwareinventarisierung.
 
 [[opsi-manual-linux-localboot-l-jedit]]
 ===== l-jedit

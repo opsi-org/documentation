@@ -29,11 +29,11 @@ include::../common/opsi_terms.asciidoc[]
 
 Bei Verwendung des '{file-Backend}s' liegen die Konfigurationsinformationen in Ini-Dateien auf dem Server.
 
-Wesentliche Merkmale des Backends 'file' :
+Wesentliche Merkmale des Backends 'file':
 
 * Aktuelles Defaultbackend von opsi
-* Die Dateien dieses Backends liegen unter `/var/lib/opsi`.
-* Ist implementiert in der Annahme, dass der FQDN des Servers auf welchem das Backend verwendet wird dem FQDN des :configserver: in opsi entspricht.
+* Die Dateien dieses Backends liegen unter `/var/lib/opsi/config`.
+* Ist implementiert in der Annahme, dass der FQDN des Servers auf welchem das Backend verwendet wird dem FQDN des {configserver} in opsi entspricht.
 
 Inhalt und Aufbau dieser Dateien ist im Kapitel <<opsi-manual-important-files-filebackend>> näher erläutert.
 
@@ -45,11 +45,10 @@ Inhalt und Aufbau dieser Dateien ist im Kapitel <<opsi-manual-important-files-fi
 
 Die Daten der Hardware- und Softwareinventarisierung werden per default über das opsi '{file-Backend}' in Textdateien abgelegt. Diese Form der Ablage ist für freie Abfragen und Reports weniger geeignet. Hierfür bietet sich die Ablage der Daten in einer SQL-Datenbank an.
 
-Wesentliche Merkmale des Backends 'mysql' :
+Wesentliche Merkmale des Backends 'mysql':
 
 * Optional (nicht das default Backend)
 * Für Inventarisierungsdaten kostenfrei, für die Nutzung für sonstige Daten benötigen Sie eine kostenpflichtige Freischaltung.
-
 * Fein granulierte Datenstruktur zur Datenhaltung und zusätzlich vereinfachtes Datenmodell für Abfragen.
 * Eine Historyfunktion, welche Änderungen an den Inventarisierungsdaten protokolliert.
 
@@ -140,10 +139,17 @@ BASIC_INFO.name = Name
 BASIC_INFO.description = Beschreibung
 HARDWARE_DEVICE.vendor = Hersteller
 HARDWARE_DEVICE.model = Modell
-HARDWARE_DEVICE.serialNumber = Seriennummmer
+HARDWARE_DEVICE.serialNumber = Seriennummer
 COMPUTER_SYSTEM = Computer
+COMPUTER_SYSTEM.sku = Artikelnummer
 COMPUTER_SYSTEM.systemType = Typ
 COMPUTER_SYSTEM.totalPhysicalMemory = Arbeitsspeicher
+COMPUTER_SYSTEM.dellexpresscode = Dell Expresscode
+CHASSIS = Chassis
+CHASSIS.name = Name
+CHASSIS.chassisType = Chassis-Typ
+CHASSIS.installDate = Installations-Datum
+CHASSIS.serialNumber = Seriennummer
 BASE_BOARD = Hauptplatine
 BASE_BOARD.product = Produkt
 BIOS = BIOS
@@ -168,6 +174,8 @@ PROCESSOR.processorId = Prozessor-ID
 PROCESSOR.addressWidth = Adress-Bits
 PROCESSOR.socketDesignation = Zugehöriger Sockel
 PROCESSOR.voltage = Spannung
+PROCESSOR.NumberOfCores = Anzahl Kerne
+PROCESSOR.NumberOfLogicalCores = Anzahl logischer Kerne
 MEMORY_BANK = Speicher-Bank
 MEMORY_BANK.location = Position
 MEMORY_BANK.maxCapacity = Maximale Kapazität
@@ -193,7 +201,11 @@ NETWORK_CONTROLLER.maxSpeed = Maximale Geschwindigkeit
 NETWORK_CONTROLLER.macAddress = MAC-Adresse
 NETWORK_CONTROLLER.netConnectionStatus = Verbindungsstatus
 NETWORK_CONTROLLER.autoSense = auto-sense
+NETWORK_CONTROLLER.ipEnabled = IP-Protokoll aktiviert
+NETWORK_CONTROLLER.ipAddress = IP-Adresse
 AUDIO_CONTROLLER = Audiokarte
+HDAUDIO_DEVICE = HD-Audio Gerät
+HDAUDIO_DEVICE.address = Adresse
 IDE_CONTROLLER = IDE-Controller
 SCSI_CONTROLLER = SCSI-Controller
 FLOPPY_CONTROLLER = Floppy-Controller
@@ -220,6 +232,15 @@ DISK_PARTITION.freeSpace = Freier Speicher
 DISK_PARTITION.driveLetter = Laufwerksbuchstabe
 OPTICAL_DRIVE = Optisches Laufwerk
 OPTICAL_DRIVE.driveLetter = Laufwerksbuchstabe
+USB_DEVICE = USB-Gerät
+USB_DEVICE.vendorId = Hersteller-ID
+USB_DEVICE.deviceId = Geräte-ID
+USB_DEVICE.usbRelease = USB-Version
+USB_DEVICE.maxPower = Maximale Stromaufnahme
+USB_DEVICE.interfaceClass = Schnittstellen-Klasse
+USB_DEVICE.interfaceSubClass = Schnittstellen-Unterklasse
+USB_DEVICE.interfaceProtocol = Schnittstellen-Protokoll
+USB_DEVICE.status = Status
 MONITOR = Monitor
 MONITOR.screenHeight = Vertikale Auflösung
 MONITOR.screenWidth = Horizontale Auflösung
@@ -279,14 +300,16 @@ Hier eine Übersicht über die Datenstruktur:
 .Datenbankschema: Konfigurationsdaten
 image::mysql-schema-configdata.png["Datenbankschema: Konfigurationsdaten",width=400]
 
+
 [[opsi-manual-backends-mysql-initializing]]
 ===== Initialisierung des mysql-Backends
 
 Wenn der mysql-server noch nicht installiert ist, muss dies zunächst erfolgen mit:
 [source,prompt]
 ----
-apt-get install mysql-server
+apt install mysql-server
 ----
+
 Danach muss für der root Zugang von mysql ein Passwort gesetzt werden:
 [source,prompt]
 ----
@@ -297,7 +320,7 @@ CAUTION: MySQL-Server verwendet seit Version 5.7 den vorher optionalen 'strict m
 In der `[mysqld]` Sektion muss nun folgende Zeile eingefügt werden: +
 `sql_mode=NO_ENGINE_SUBSTITUTION` +
  +
-Danach muss der Dienst `mysql` neu gestartet werden: `service mysql restart` +
+Danach muss der Dienst `mysql` neu gestartet werden: `systemctl restart mysql.service` +
 Es ist nun möglich fort zu fahren.
 
 Mit dem Befehl `opsi-setup --configure-mysql` kann nun die Datenbank aufgebaut werden.
@@ -314,7 +337,7 @@ image::mysql-config-output.png["opsi-setup --configure-mysql: Ausgabe",width=400
 Bei den Abfragen können außer beim Passwort alle Vorgaben mit Enter bestätigt werden.
 
 Als nächstes muss in der `/etc/opsi/backendManager/dispatch.conf` eingetragen werden, das das '{mysql-Backend}' auch verwendet werden soll. Eine genaue Beschreibung zu dieser Konfiguration finden Sie im Kapitel 'Backend-Konfiguration' des 'getting-started Handbuchs'. Die Datei selbst enthält eine Reihe von Beispielen typischer Konfigurationen.
-Eine Konfiguration für '{mysql-Backend}' (ohne internen DHCPD) sieht so aus:
+Eine Konfiguration für das '{mysql-Backend}' (ohne internen dhcpd) sieht so aus:
 [source,opsifiles]
 ----
 backend_.*         : mysql, opsipxeconfd
@@ -329,22 +352,40 @@ Nach Abschluss dieser Konfigurationsarbeit müssen Sie den folgenden Befehlen di
 ----
 opsi-setup --init-current-config
 opsi-setup --set-rights
-service opsiconfd restart
-service opsipxeconfd restart
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
 ----
 
-CAUTION: Der Dienst 'opsiconfd' hat per Default keine Abhängigkeit zu MySQL, da opsi einerseits ohne MySQL-Backend verwendet, andererseits der Dienst auch auf einem anderen Server starten kann. Außerdem unterstützt nicht jedes Init-System die Formulierung von Abhängigkeiten.
+CAUTION: Der Dienst 'opsiconfd' hat per Default keine feste Abhängigkeit zu MySQL,
+da opsi einerseits ohne MySQL-Backend verwendet,
+andererseits der Dienst auch auf einem anderen Server starten kann.
 Bitte entnehmen Sie der Dokumentation Ihres Betriebssystems wie eine solche Konfiguration gemacht wird.
+
+
+[[opsi-manual-backends-mysql-configuration]]
+===== Manualle Konfiguration
+
+Manuelle Konfiguration kann über die Backend-Konfigurations-Datei erfolgen.
+Diese ist standardmäßig `/etc/opsi/backends/mysql.conf`.
+
+Seit python-opsi 4.1.1.76 ist es möglich die Erstellung neuer Verbindungen nach einer bestimmten Zeit zu forcieren, um Probleme mit Timeouts zu vermeiden.
+Ein Indikator für solche Timeouts kann die Meldung 'mysql server has gone away' sein.
+
+Sie können einen Timeout setzen, indem Sie für 'connectionPoolRecycling' angeben nach wievielen Sekunden eine neue Verbindung erstellt werden soll.
+Der Standardwert ist `-1`, welcher keine erzwungene Neu-Erstellung von Verbindungen bedeutet.
+Wird diesert Wert gesetzt, sollte er in der Regel niedriger als der auf dem Server konfigurierte Wert für Verbindungs-Timeouts (link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_wait_timeout[wait_timeout]) sein.
+
 
 [[opsi-manual-backends-mysql-access-config]]
 ===== Konfigurieren der MySQL-Datenbank zum Zugriff von außen
 
-Die vorliegende Datenbank muss so konfiguriert werden, dass ein Zugriff +
-von außen möglich ist, also nicht nur Verbindungen von 'localhost' akzeptiert +
+Die vorliegende Datenbank muss so konfiguriert werden, dass ein Zugriff
+von außen möglich ist, also nicht nur Verbindungen von 'localhost' akzeptiert
 werden.
 
-Bitte informieren Sie sich um Handbuch der von Ihnen verwendeten Datenbank +
+Bitte informieren Sie sich um Handbuch der von Ihnen verwendeten Datenbank
 über die nötigen Schritte.
+
 
 [[opsi-manual-backends-hostcontrol]]
 ==== HostControl-Backend
@@ -368,12 +409,14 @@ Um die im Backend von opsi hinterlegte IP-Adresse zu bevorzugen ist die Option a
 Maximale Anzahl simultaner Verbindungen zu {opsi-client-agent}s.
 
 * +broadcastAddresses+: +
-Liste von Broadcast-Adressen für das Versenden von Wake-On-LAN-Broadcasts.
+Zuordnung von Broadcast-Adressen und zu verwendende Ports für das Versenden von Wake-On-LAN-Broadcasts.
+Für jede Broadcast-Adresse können unterschiedliche Ports konfiguriert werden.
+
 
 [[opsi-manual-backends-hostcontrolsafe]]
 ==== HostControlSafe-Backend
 
-Eine Besonderheit beim Standardverhalten von opsi4.0 Methoden ist, dass bei einer Abfrage ohne Angaben von Parametern, alle Objekte abgerufen werden. Beispielsweise gibt der Befehl "host_getObjects" ohne Parameter aufgerufen, alle Host-Objekte zurück. Dieses Verhalten ist im HostControl-Backend etwas problematisch. Besonders bei den beiden Befehlen: `hostControl_shutdown` und `hostControl_reboot`. In diesen Fällen würde ein Aufruf dieser Methoden ohne Parameter alle Clients hunterfahren bzw. neustarten.
+Eine Besonderheit beim Standardverhalten von opsi 4.0 Methoden ist, dass bei einer Abfrage ohne Angaben von Parametern, alle Objekte abgerufen werden. Beispielsweise gibt der Befehl "host_getObjects" ohne Parameter aufgerufen, alle Host-Objekte zurück. Dieses Verhalten ist im HostControl-Backend etwas problematisch. Besonders bei den beiden Befehlen: `hostControl_shutdown` und `hostControl_reboot`. In diesen Fällen würde ein Aufruf dieser Methoden ohne Parameter alle Clients hunterfahren bzw. neustarten.
 
 Deshalb gibt es mit Service Release opsi 4.0.3 an dieser Stelle zwei Änderungen:
 
@@ -392,7 +435,7 @@ Aus den oben genannten Gründen, empfehlen wir hostControlSafe-Methoden zu verwe
 Der Befehl `opsi-convert` dient zum Konvertieren der opsi-Konfigurationsdaten zwischen verschiedenen Backends. Das Ziel oder Quelle kann auf verschieden Arten bestimmt werden:
 
 * Backendnamen: +
-Durch Angabe des Namen wird ein entsprechendes Backend auf dem aktuellen Server angegeben. So konvertiert  `opsi-convert file mysql` auf dem aktuellen Server vom '{file-Backend}' zum '{mysql-Backend}'.
+Durch Angabe des Namen wird ein entsprechendes Backend auf dem aktuellen Server angegeben. So konvertiert `opsi-convert file mysql` auf dem aktuellen Server vom '{file-Backend}' zum '{mysql-Backend}'.
 
 * Service-Adresse +
 Durch Angaben von Serviceadressen kann ein Server z.B. auch Remote angesprochen werden. Die Service Adresse hat die Form `https://<username>@<ipadresse>:4447/rpc`.
@@ -400,37 +443,49 @@ Nach den Passwörtern wird gefragt. +
 Beispiel: +
 [source,prompt]
 ----
-opsi-convert -s -l /tmp/log https://uib@192.168.2.162:4447/rpc \   https://opsi@192.168.2.42:4447/rpc
+opsi-convert -s -l /tmp/log https://uib@192.168.2.162:4447/rpc https://opsi@192.168.2.42:4447/rpc
 ----
 
-* Konfigurationsverzeichnis +
-Durch Angabe von Konfigurationsverzeichnissen für die entsprechende Backendmanagerkonfiguration können Quelle bzw. Ziel sehr detailliert beschrieben werden.
-+
+Kommandozeilenargumente von `opsi-convert`:
+
 [source,prompt]
 ----
-opsi-convert --help
+usage: opsi-convert [-h] [--version] [--quiet] [--verbose]
+                    [--log-level {0,1,2,3,4,5,6,7,8,9}] [--clean-destination]
+                    [--with-audit-data] [-s OLD SERVER ID]
+                    [--log-file LOGFILE]
+                    source destination
 
-Usage: opsi-convert [options] <from> <to>
 Convert an opsi database into an other.
-Options:
-    -h        show this help text
-    -V        show version information
-    -q        do not show progress
-    -v        increase verbosity (can be used multiple times)
-    -c        clean destination database before writing
-    -s        use destination host as new server
-    -l <file> log to this file
 
-<from> and <to> can be:
-     - the name of a backend as defined in /etc/opsi/backends (file, ldap, ...)
-     - the url of a opsi configuration service
-       http(s)://<user>@<host>:<port>/rpc
+positional arguments:
+  source                Backend to read data from.
+  destination           Backend to write data to.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --quiet, -q           do not show progress
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --log-level {0,1,2,3,4,5,6,7,8,9}
+                        Set log-level (0..9)
+  --clean-destination, -c
+                        clean destination database before writing
+  --with-audit-data, -a
+                        including software/hardware inventory
+  -s OLD SERVER ID      use destination host as new server
+  --log-file LOGFILE, -l LOGFILE
+                        Log to this file. The loglevel will be DEBUG.
+
+The backends can either be the name of a backend as defined in
+/etc/opsi/backends (file, mysql, ...) or the the url of an opsi configuration
+service in the form of http(s)://<user>@<host>:<port>/rpc
 ----
 
 [[opsi-manual-backends-bootfiles]]
 ==== Bootdateien
 
-Unter `/tftpboot/linux` finden sich die Bootdateien, die im Zusammenspiel mit den PXE-Bootproms benötigt werden.
+Unter `/tftpboot/linux` finden sich die Bootdateien, die im Zusammenspiel mit den PXE-Boot benötigt werden.
 
 [[opsi-manual-backends-securing-shares]]
 ==== Absicherung der Shares über verschlüsselte Passwörter
@@ -442,5 +497,3 @@ Hierzu wird der System-User 'pcpatch' verwendet. Die Absicherung dieser Shares u
 * Absicherung der potenziell lizenzpflichtigen Softwarepakete gegen missbräuchliche Nutzung
 
 Um dem '{opsi-client-agent}' ein Zugriff auf die Authentifizierungsdaten zu ermöglichen, wird für jeden Client bei seiner Erzeugung in opsi ein spezifischer Schlüssel ('{opsi-host-key}') erzeugt. Dieser Schlüssel wird zum einen (beim '{file-Backend}') in der Datei `/etc/opsi/pckeys` abgelegt und zum anderen dem PC bei der Reinstallation übergeben. Der übergebene Schlüssel wird im Rahmen der der Installation des '{opsi-client-agent}' in der Datei `c:\program files\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` so abgelegt, dass nur Administratoren Zugriff darauf haben. Ebenso hat auf dem '{opsi-server}' nur root und Mitglieder der Gruppe 'opsiadmin' Zugriff auf die Datei `/etc/opsi/pckeys`. Auf diese Weise verfügt jeder PC über einen Schlüssel, der nur dem PC und dem '{opsi-server}' bekannt ist und der gegenüber dem Zugriff durch normale Anwender geschützt ist. Mit diesem Schlüssel wird das aktuelle Passwort des system users 'pcpatch' auf dem '{opsi-server}' verschlüsselt und im Backend abgelegt. Dieses verschlüsselte Passwort wird vom Client bei jeder Aktivierung des '{opsi-client-agent}' neu gelesen, so dass eine Änderung des 'pcpatch' Passwortes jederzeit möglich ist und der Client auf verschlüsseltem Wege das veränderte Passwort erfährt.
-
-
