@@ -31,21 +31,56 @@ There are some preconditions for using the extension.
 The product-groups are needed, available with opsi 4.0.
 Furthermore the opsi-client-agent and the opsi-configed at version 4.0.1 are needed.
 
+Ab opsi-client-agent Version 4.1.1.6-5 steht der Kiosk als eigenständiges Paket (opsi-client-kiosk) zur Verfügung. Es wird aber bei der Installation des opsi-client-agent gegenenfalls mit installiert falls es noch nicht vorhanden ist. 
+
 .Required Packages
 [options="header"]
 |==========================
 |opsi-Package|Version
-|opsi-client-agent|>=4.0.1-3
+|opsi-client-agent|>=4.0.1-3,  >=4.1.1.6-5**
 |opsi-winst|>=4.10.8.12
 |python-opsi|>=4.0.1-7
 |opsi-server|>=4.0.1-2
 |opsi-configed|>=4.0.1.6-1
+|opsi-client-kiosk**|>=4.1.1.7-6
 |==========================
 
-The Software-on-Demand module is tested and declared as stable for the following browsers:
+**ab opsi-client-agent Version >=4.1.1.6-5 wird der Kiosk als eigenständiges Paket (opsi-client-kiosk) geführt. Er wird aber bei der Installation des opsi-client-agents automatisch mit installiert falls er nicht vorhanden ist. Für mehr Details siehe nächstes Kapitel.
 
-* Internet Explorer 8
-* Mozilla Firefox 3.6.15
+CAUTION: Wenn Sie viel Mühe in die individuelle Gestaltung des Kiosk gesteckt haben wird empfohlen das custom Verzeichnis zu sichern bevor Sie einen neuen Kiosk/client-agent auf dem Depot einspielen: +
+Kiosk als eigenständiges Paket (opsi-client-kiosk): `/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom`
+Kiosk noch im opsi-client-agent Paket integriert: 
+`/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/app/ock_custom` oder `/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/ock_custom` +
+In seltenen Fällen auch `/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/files_to_copy/ock_custom`
+
+
+[[software-on-demand_kiosk_migration]]
+===== Automatische Migration des Kiosks aus dem opsi-client-agent (>=4.1.1.6.5)
+
+Damit möglichst wenig Änderungen manuell durchgeführt werden müssen wird versucht die Einstellungen des Kiosk automatisch aus dem opsi-client-agent in das opsi-client-kiosk Paket zu migrieren und dieses gegebenenfalls mit auf dem Depot bzw. den entsprechenden Clients zu installieren. In der Regel geschieht das weitestgehend automatisch und Sie müssen nichts weiter tun. 
+
+Zum Besseren Verständnis ist der Ablauf hier aber etwas genauer beschrieben. Es ist dabei wichtig zu Unterscheiden was bei der Installation des opsi-client-agents auf einem Depot und was bei der Installation auf einem Client passiert.
+
+[underline]#Installation opsi-client-agent Version (>=4.1.1.6-5) auf einem Depot#
+
+Es wird bei der Installation des opsi-client-agents auf dem Depot das opsi-client-kiosk Paket unter bestimmten Voraussetzungen mit auf dem Depot installiert. Dabei wird versucht die Kioskeinstellungen aus dem opsi-client-agent Paket in das opsi-client-kiosk Paket zu migrieren. Beides passiert nur wenn folgende Bedingungen erfüllt sind:
+
+* das opsi-client-kiosk Paket ist NICHT auf dem Depot installiert
+* der opsi-client-agent (>=4.1.1.6-5) wird über einen alten opsi-client-agent installiert der den alten Kiosk noch enthält (d.h. enthält das Verzeichnis opsiclientkiosk, bzw. \<=4.1.0.0)
+
+[underline]#Installation opsi-client-agent Version (>=4.1.1.18-1) auf einem Client#
+
+Bei der Installation des opsi-client-agent (>=4.1.1.18-1) auf einem Client wird der opsi-client-kiosk unter bestimmten Voraussetzungen auf setup gestellt. Dies passiert wenn folgende Bedingungen erfüllt sind:
+
+* der opsi-client-kiosk ist NICHT auf dem Client installiert
+* der config/Host-Patrameter software-on-demand.active steht auf true für diesen Client
+
+Somit wird der opsi-client-kiosk auf dem entsprechenden Client in den meisten Fällen automatisch im Anschluss der opsi-client-agent Installation mit installiert, da der Client-PC in der Regel rebooted wird und das opsi-clientd Event gui_startup eintritt welches meist konfiguriert sein sollte.
+
+Sollte es passieren dass der Kiosk auf manchen Clients, trotz versuchter automatischer Migration/Installation, nicht vorhanden ist so kontrollieren Sie bitte:
+
+a. ob ein opsi-client-kiosk Paket auf dem Depot installiert ist an dem der Client angebunden ist, wenn nicht installlieren Sie dieses bzw. den aktuellen opsi-client-agent +
+b. ob der opsi-client-kiosk auf dem Client installiert ist, wenn nicht setzten Sie ihn auf setup
 
 
 [[software-on-demand_configuration-parameter]]
@@ -93,9 +128,9 @@ The module can be configured, as mentioned above, with the config-variables desc
 [options="header"]
 |==========================
 |Configuration|Description|Values
-|software-on-demand.active|activates or deactivates the modul.|true/false
+|software-on-demand.active|activates or deactivates the modul, bzw. wird als Flag für die Migration verwendet (<<software-on-demand_kiosk_migration, Automatische Migration des Kiosks aus dem opsi-client-agent (>=4.1.1.6.5)>>). Hat für den opsi-client-kiosk ab Version >=4.1.1.6-5 keine Relevanz mehr.|true/false
 |software-on-demand.product-group-ids|Product-groups with software-products, that can be used for Software-on-Demand.|List of produkt-groups
-|software-on-demand.show-details|Show further information to the user.|true/false
+
 |==========================
 
 There are two ways to use these configuration objects.
@@ -139,6 +174,7 @@ image::opsi-configed-hostparameters.png[width=300]
 
 This editing overrides the system wide defaults.
 
+////
 [[software-on-demand_event-configuration]]
 ===== opsiclientd event-configuration
 
@@ -149,16 +185,20 @@ There are two ways for the users to start the software-installation:
 
 If the user chooses "with the next system start", the product state will be set to "setup."
 If the choice is "immediately", the '{opsiclientd}' creates an event `software on demand`. This event can be configured in the file `opsiclientd.conf` as any other event.
+////
 
+[[software-on-demand_clientagent-kiosk]]
+==== New opsi-client-kiosk application
 
-[[opsi-407-releasenotes-clientagent-kiosk]]
-==== New opsiclientkiosk application
+Mit der opsi-client-agent Version (>=4.1.1.6-5) steht der Kiosk als eigenständiges Produkt zu Verfügung und wird als solches bei der Installation des opsi-client-agents mit installiert (opsi-client-kiosk). Dabei wird versucht die vorhandene Kiosk Einstellungen zu migrieren. +
 
-With opsi 4.0.7 is the prior Web-based solution of the client kiosk is replaced by an application.
-Background for this change is:
+Hintergrund dieses Wechsels sind:
 
-* Elimination of the problem that means to have a self-signed certificate.
-* Greater functionality of the new client.
+* einfachere Pflege des opsi-client-agent Pakets
+* Änderungen am Kiosk können unabhängig vom opsi-client-agent Paket veröffentlicht werden 
+* Ermöglicht neue Einstellungen des Kiosk für die Clients zu übernehmen ohne dass der opsi-client-agent neu installiert werden muss
+
+NOTE: Bei der Installation des opsi-client-agent (>=4.1.1.6-5) auf dem Depot wird das opsi-client-kiosk Paket gegebenenfalls mit installiert. Für Clients wird das opsi-client-kiosk Produkt bei der Installation des opsi-client-agents (>=4.1.1.18-1) auf dem Client gegebenenfalls auf setup gesetzt. Für Details siehe <<software-on-demand_kiosk_migration, Automatische Migration des Kiosks aus dem opsi-client-agent (>=4.1.1.6.5)>>
 
 CAUTION: The old (Web based) Kiosk client no longer works with the new opsi-client-agent/opsiclientd.
 
@@ -167,23 +207,31 @@ CAUTION: The old (Web based) Kiosk client no longer works with the new opsi-clie
 
 If the opsi-client-agent during the installation notes that, the configuration (Host Parameter): _software-on-demand.active_ is set to _true_, it will automatically create a Start menu item during the installation on the Client, on which the Kiosk application can be run directly. It can be found under: _Start -> Programs -> opsi.org -> software-on-demand_.
 
-The installation may be controlled by the following 'opsi-client-agent' product properties:
+The installation may be controlled by the following 'opsi-client-kiosk' product properties:
 
-* `kiosk_startmenue_entry` +
+* `startmenue_entry` +
 The Start Menu entry for the Client Kiosk (software on demand). +
 Default=`software on demand`; editable
 
-* `kiosk_desktop_icon` +
+* `startmenue_folder` +
+The Start Menu folder for the Client Kiosk (opsi.org) +
+Default=`opsi.org`; editable
+
+* `desktop_icon` +
 Create a desktop icon for client kiosk ? +
 Default=`false`
 
+* `install_icon_collection` +
+Für adminsitrative Zwecke kann eine Icon-Collection mit installiert werden. Nur empfehlenswert wenn auf dem Client über den Kiosk-Adminmodus Produkticons gesetzt werden sollen und man welche aus der Icon-Collection auswählen möchte. +
+Default=`false`
+
 The used icon for the start menu / Desktop may be modified by storing a `kiosk.ico` file at
-`/var/lib/opsi/depot/opsi-client-agent/files/opsi/custom/opsiclientkioskskin/`.
+`/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin/` (since opsi-client-kiosk version 4.1.1.7-2).
 
 
 
 [[software-on-demand_usage]]
-===== Clientkiosk: Usage
+===== Client kiosk: Usage
 
 
 *Standard mode*
@@ -462,4 +510,29 @@ The following apply to the software-on-demand module:
 [[software-on-demand_CI]]
 ===== Client kiosk: Customizable to Corporate Identity
 
-This Chapter you will find as a part of the Chapter Corporate Identity of the opsi-client-agent: <<opsi-manual-clientagent-ci-opsiclientd>>
+Die Headerleiste des Hauptfensters (1) ist kundenspezifisch anpassbar. Dabei spielen drei Dateien im ock_custom Verzeichnis  (`/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin`) eine Rolle:
+
+* `header.png`
+* `logo.png`
+* `opsiclientkiosk.ini`
+
+Die `header.png` enthält das Bild welches links vom Logo in diesen Bereich geladen wird, `logo.png` das Logo. +
+
+Die `opsiclientkiosk.ini` definiert den Text und dessen Darstellung die in diesem Bereich angezeigt wird (ab opsi-client-kiosk Version 4.1.1.7-2).
+
+Beispiel:
+
+----
+[TitleLabel]
+Text= Softwarekorb
+FontName = Arial
+FontSize = 20
+FontColor = $00ffffff
+FontBold = true
+FontItalic = false
+FontUnderline = false
+----
+
+
+Das verwendete Desktop/Startmenü-Icon kann durch Ablegen einer `kiosk.ico` Datei im ock_custom/skin Verzeichnis verändert werden (ab opsi-client-kiosk Version 4.1.1.7-2).
+
