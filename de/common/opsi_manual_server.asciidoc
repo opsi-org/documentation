@@ -1,4 +1,4 @@
-////
+﻿////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
@@ -25,7 +25,7 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-server-overview]]
 ===  Überblick
 
-Die Funktionalitäten eines '{opsi-server}s' lassen sich auf vielen Business gängigen Linuxdistributionen installieren:
+Die Funktionalitäten eines '{opsi-server}s' lassen sich auf vielen Business gängigen Linuxdistributionen installieren.
 
 Grob lassen sich zwei wichtige Funktionalitäten unterscheiden, die auf einem Server vereint sein können:
 
@@ -33,10 +33,21 @@ Grob lassen sich zwei wichtige Funktionalitäten unterscheiden, die auf einem Se
 Die Funktionalität des configserver umfasst die Speicherung und Verarbeitung der Konfigurationsdaten in unterschiedlichen Backends und deren Bereitstellung über einen Webservice und auf Kommandozeile.
 
 * '{opsi-depotserver}' +
-Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Installationsdateien der zu verteilenden Software, Betriebssysteme, Bootimages und deren Bereitstellung für den Client per smb, cifs/https, tftp.
+Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Installationsdateien der zu verteilenden Software, Betriebssysteme, Bootimages und deren Bereitstellung für den Client per smb/cifs, https, tftp.
 
 Die aus diesen Diensten entstehenden Hardwareanforderungen sind in der Regel gering, so das ein Betrieb eines opsi-servers in einer Virtualisierungsumgebung kein Problem darstellt.
 
+Seit Version 4.2 wird der In-Memory Speicher Redis eingesetzt (https://redis.io/). Der '{opsi-server}' speichert folgende Daten in Redis: 
+
+* Log-Ausgaben werden in einen Redis-Stream geschrieben. Dieser Stream wird dann zB. vom Logviewer gelesen. 
+
+* Session Daten werden in Redis als MessagePack abgelegt (https://msgpack.org/).
+
+* Statistiken wie zB. CPU Auslastung werden als Time Series in Reids gespeichert. Hierzu wird das Modul RedisTimeSeries verwendet (https://github.com/RedisTimeSeries/RedisTimeSeries).
+
+Die Statistiken werden von Grafana (https://grafana.com/) ausgelesen und angezeigt. Das Grafana Dashboard ist über die Adminseite https://<opsi-server>:4447/admin erreichbar.
+
+image::grafana_dashboard.png["Grafana Dashboard", width="120mm"]
 
 [[opsi-manual-server-installation]]
 ==== Installation und Inbetriebnahme
@@ -44,7 +55,7 @@ Die Installation und Inbetriebnahme eines '{opsi-server}s' ist in dem gesonderte
 
 [[opsi-manual-server-samba]]
 ==== Samba Konfiguration
-Um den Client-PCs Zugriff auf die Softwarepakete zu ermöglichen, stellt der opsi-server Shares bereit, die von den Clients als Netzlaufwerke gemountet werden können. Für die Windows-Clients wird dazu die Software SAMBA eingesetzt.
+Um den Client-PCs Zugriff auf die Softwarepakete zu ermöglichen, stellt der opsi-server Shares bereit, die von den Clients als Netzlaufwerke gemountet werden können. Für die Windows-Clients wird dazu die Software Samba eingesetzt.
 Die Korrekte Sambakonfiguration können Sie erstellen bzw. reparieren durch den Aufruf von:
 [source,prompt]
 ----
@@ -58,15 +69,15 @@ Nach einer Änderung der Samba-Konfigurationsdateien ist ein Neustart der Samba-
 Der 'opsiconfd' ist der zentrale Konfigurations-Daemon von opsi.
 Alle Client-Komponenten ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) verbinden sich mit diesem Service um auf die Konfigurationen in den Backends zuzugreifen.
 Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf` konfiguriert.
-Die einzelnen Konfigurations-Optionen sind in dieser Datei dokumentiert.
+Die einzelnen Konfigurations-Optionen können über den Befehl `opsiconfd --help` abgefragt werden. Um Optionen bei jedem Start des 'opsiconfds' zu verwenden, können die Option aus dem Hilfetext ohne das `--` in die Konfigurationsdatei eingetragen werden.
 An dieser Stelle finden sich weitere Ergänzungen.
 
-* +[global] admin networks+: +
+* +admin-networks+: +
 Über diese Option kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
 Es können mehrere Netzwerkadressen durch Kommas getrennt angegeben werden. +
 Nicht-administrative Client-Verbindungen können auch aus anderen Netzwerken erfolgen.
 
-* +[global] max log size+: +
+* +max-log-size+: +
 Über diese Option kann die Größe der Logdateien beschränkt werden. +
 Aus historischen Gründen ist dies auf 5MB pro Logdatei beschränkt. +
 Seit opsi 4.0.6 ist es möglichen diesen Wert an eigene Bedürfnisse anzupassen. +
@@ -82,8 +93,8 @@ berechnen wieviel Speicherplatz die anfallenden Logs benötigen werden.
 Es gibt fünf verschiedene, Client-bezogene Log-Arten die vom opsiconfd
 geschrieben werden: 'bootimage', 'clientconnect', 'instlog', 'opsiconfd' und +
 'userlogin'.
-Es gibt außerdem einige Client-unabhängige Logs: 'opsiconfd.log', 'opsipxeconfd.log', +
-'opsi-backup.log', 'opsi-package-updater.log' und 'package.log'.
+Es gibt außerdem einige Client-unabhängige Logs: +
+'opsi-backup.log' und 'opsi-package-updater.log'.
 
 Wenn wir von einer mit opsiconfd und logrotate realisierten Konfiguration +
 ausgehen, bei der alle Logdateien auf 5MB limitiert sind, abgesehen von +
@@ -98,6 +109,7 @@ Berechnung:
 Bei 100 Clients sollten wir bis zu 2530MB für Logs von opsi reservieren.
 Weil Logrotate überlicherweise zu einer bestimmten Uhrzeit aktiv wird, empfehlen wir diese Zahl aufzurunden.
 
+Ab Version 4.2 ist im 'opsiconfd' und 'opsipxeconfd' ein eigenes Logrotate eingebaut, welche über die Optionen 'max-log-size' und 'keep-rotated-logs' gesteuert wird.
 
 [[opsi-manual-server-accounts]]
 ==== Notwendige System-User und Gruppen
@@ -121,7 +133,7 @@ Die Mitglieder dieser Gruppe können sich gegenüber dem opsi-webservice Authent
 * Bereich: 'Depotshare' mit Softwarepaketen ('opsi_depot') +
 Auf dem depot-Share liegen die für die Installation durch das Programm opsi Winst vorbereiteten Softwarepakete. +
 In der Voreinstellung liegt dieses Verzeichniss auf dem opsi-server unter `/var/lib/opsi/depot`. +
-Unterhalb von diesem Verzeichnis findet sich das Verzeichnis `install` und in diesem für jedes Softwarepaket ein Verzeichnis mit dem Namen des Softwarepakets. +
+Unterhalb von diesem Verzeichnis findet sich für jedes Softwarepaket ein Verzeichnis mit dem Namen des Softwarepakets. +
 Wiederum unterhalb dieses Verzeichnisses liegen dann die Installationsskripte und -dateien.
 +
 Das Verzeichnis wird mit dem Freigabe-Namen 'opsi_depot' per Samba read-only exportiert.
@@ -135,7 +147,7 @@ Dieses Verzeichnis ist als share 'opsi_workbench' freigegeben.
 NOTE: Seit opsi 4.1 kann der Pfad Depot-spezifisch über das Attribut `workbenchLocalUrl` konfiguriert werden.
 
 * Bereich: Konfigurationsdateien File-Backend ('opsi_config') +
-Unter `/var/lib/opsi` liegen die Konfigurationsdateien des file Backends.
+Unter `/var/lib/opsi/config` liegen die Konfigurationsdateien des file Backends.
 Dieses Verzeichnis ist als share 'opsi_config' freigegeben.
 +
 CAUTION: Wenn Sie über diesen Share auf den Dateien arbeiten, verwenden Sie keine Editoren die das Dateiformat (Unix/DOS) verändern und entfernen Sie Sicherungsdateien wie z.B. *.bak.
