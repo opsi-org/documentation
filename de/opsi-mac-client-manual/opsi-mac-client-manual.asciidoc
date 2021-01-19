@@ -28,29 +28,25 @@ include::../common/opsi_manual_copyright.asciidoc[]
 
 
 [[opsi-macclient-introduction]]
-== Einführung
+== Einführung Mac Clients in opsi
 
-Diese Anleitung beschreibt detailliert die Installation und Inbetriebnahme eines {opsi-Server}s, ausgehend von den zur Verfügung gestellten Installationspaketen bis zur Testinstallation eines Clients.
+Diese Anleitung beschreibt den Betrieb von MacOS Clients in opsi.
 
-Die Installation und Inbetriebnahme eines {opsi-Server}s erfolgt in mehreren Schritten:
+Es wird voraus gesetzt, das die Installation und Inbetriebnahme eines {opsi-Server}s bereits erfolgt ist.
 
-. Grundinstallation des Servers
-. Konfiguration des Servers (Anpassung an Netzwerkgegebenheiten, Einrichtung von Benutzern und Kennwörtern, Installation zu verteilender Produkte)
-. Aufnahme und Einbindung von Rechnern in opsi
-. Verteilung von Windows auf Clients
-. Paketierung und Verteilung eigener Software
+Wesentliche Themen dieser Anleitung:
 
-Danach kann auf einem Client automatisiert ein Betriebssystem mitsamt Software installiert und eine Hard- und Software-Inventur gemacht werden.
-
-Weitere Features sind im opsi-Handbuch beschrieben.
-Dort finden sich auch Erläuterungen und Erklärungen zu den kofinanzierten Erweiterungen und deren Einrichtung.
-
-Die dargestellte Netzwerkkonfiguration ist exemplarisch und bezieht sich auf ein Netz u.a. ohne konkurrierende DHCP-Server (z.B. ein isoliertes Testnetz, in das der {opsi-Server} und seine Clients für die ersten Versuche gestellt werden können).
-
-Wir empfehlen Ihnen dringend, erste Versuche mit opsi in einem Testnetz zu machen, das getrennt von anderen DHCP-Servern ist, welches Sie aber zeitweise an Ihr Hauptnetz ankoppeln können, um z.B. Aktualisierungen und Pakete aus dem Internet laden zu können
-
-Für die Einbindung in bestehende Netze können Sie ggf. auf link:https://uib.de/de/support-schulung/support/[Beratungsleistungen durch uib] zurückgreifen.
-
+. Aufnahme und Einbindung von Mac-Rechnern in opsi
+(Installation des opsi-mac-client-agent)
+. Bereitstellung von opsi Standarsoftware für Mac auf dem opsi-server
+. Installation von Standard Software auf den Mac-Clients
+. opsi-Standardsoftware für Mac unter opsi
+. Paketierung eigener Software 
+. Erstellung von opsi-Paketen
+. Hinweise zu Mac Clients
+.. Spezielle Befehle für MacOS
+.. Directories die Sie verwenden dürfen
+.. Der pseudo user opsi-setup-admin
 
 [[opsi-macclient-convention]]
 == Konventionen dieses Dokuments
@@ -68,11 +64,28 @@ Im Rahmen der Installation und Konfiguration können Sie die Befehle aus diesen 
 [[opsi-macclient-requirements]]
 == Voraussetzungen
 
-Nachfolgend werden die Voraussetzungen für die Installation von opsi auf einem Server beschrieben.
+Nachfolgend werden die Voraussetzungen für das Management von MacOS Clients unter opsi beschrieben.
 
-// Add the support matrix
-include::../common/opsi_manual_supportmatrix.asciidoc[]
+Der opsi-mac-client-agent ist eine
+http://uib.de/de/opsi-erweiterungen/erweiterungen/[kofinanzierte opsi Erweiterung]. +
+Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+Weitere Details hierzu finden Sie in +
+https://download.uib.de/opsi_stable/doc/html/opsi-manual/opsi-manual.html#opsi-manual-modules
 
+Technische Voraussetzungen ist ein opsi-server mit opsi 4.1.
+
+Als Mac-Clients werden unterstützt:
+
+* MacOS Versionen von 10.13 bis 11.0 +
+(`High Sierra` bis `Big Sur`) in der intel x64 Architektur
+
+* Bei Verwendung der arm64 Architectur (Apple Silicium, M1) ist derzeit die Installation des opsi-client-agent der 'Dynamic Binary Translators' namens `rosetta2` notwendig. Diesen können Sie Installieren mit: +
+`softwareupdate --install-rosetta --agree-to-license`
+Die erfolgreiche Installation können Sie Überprüfen mit: +
+`pkgutil --pkgs | grep Rosetta` +
+`com.apple.pkg.RosettaUpdateAuto`.
+
+Die native Unterstützung der arm64 Architectur (Apple Silicium) ist in Planung. Hierzu sind die notwendigen Referenz Geräte bestellt. Aussagen wann die Bereistellung für diese Platform erfolgt können im Moment (Januar 2021) noch nicht getroffen werden.
 
 
 [[opsi-macclient-installation-config-get-essential-products]]
@@ -87,12 +100,70 @@ Der automatisierte Weg wird empfohlen.
 [[opsi-macclient-installation-config-get-essential-products-automatic]]
 ==== Automatisches Einspielen der minimalen opsi-Produkte
 
-Zur automatischen Installation der opsi-Produkte gibt es das Werkzeug `opsi-package-updater`, welches wie in '/etc/opsi/opsi-package-updater.conf' konfiguriert, automatisch die aktuellen Pakete vom opsi Repository holt und auf dem Server installiert.
+Zur automatischen Installation der opsi-Produkte gibt es das Werkzeug `opsi-package-updater`, welches wie in '/etc/opsi/opsi-package-updater.conf' bzw. `/etc/opsi/package-updater.repos.d/` konfiguriert, automatisch die aktuellen Pakete vom opsi Repository holt und auf dem Server installiert.
+
+Die Konfiguration der opsi Repositories für Mac-Clients findet sich im Verzeichnis `/etc/opsi/package-updater.repos.d/` in den Dateien `uib-mac-testing.repo` und `uib-mac.repo`.
+
+Sollten diese Dateien bei Ihnen noch nicht installiert sein,
+so finden Sie diese unter: +
+####################
+
+Aktivieren Sie die gewünschten repos in dem Sie in der gewünschten *.repo Datei den Eintrag `active = true` setzen.
+
+. `/etc/opsi/package-updater.repos.d/uib-mac-testing.repo`
+
+[source,configfile]
+----
+; This repository provides testing opsi products for managing MacOS
+; clients with opsi.
+
+[repository_uib_macos_testing]
+description = opsi macos packages in testing
+active = true
+baseUrl = http://download.uib.de
+dirs = opsi4.1/testing/packages/macos/localboot/
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+
+. `/etc/opsi/package-updater.repos.d/uib-mac.repo`
+
+[source,configfile]
+----
+; This repository provides table opsi roducts for managing MacOS
+; clients with opsi.
+
+[repository_uib_macos_stable]
+description = opsi macos packages in stable
+active = true
+baseUrl = http://download.uib.de
+dirs = opsi4.1/stable/packages/macos/localboot/
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+Installieren Sie die Pakete auf dem Serverrch die Ausführung des Befehls als root:
 
 [source,prompt]
 ----
-opsi-package-updater -v install
+opsi-package-updater -v --repo uib_macos_stable install
 ----
+
+bzw.
+
+[source,prompt]
+----
+opsi-package-updater -v --repo uib_macos_testing install
+----
+
+Nach erfolgreicher Installation müssen Sie beim `opsi-configed` ein erneutes laden aller Daten ausführen, damit die neuen Produkte dort sichtbar werden.
 
 Muss für den Zugriff auf das Internet die Verbindung über einen Proxy geleitet werden, so muss dieser in den `.repo`-Konfigurationsdateien unter `/etc/opsi/package-updater.repos.d/` als Wert für `proxy` eingetragen werden.
 Ab Version 4.1.1.33 von opsi-utils kann ein globaler Proxy in `/etc/opsi/opsi-package-updater.conf` konfiguriert werden.
@@ -112,7 +183,6 @@ opsi-package-updater -v update
 
 Weitere Informationen zum `opsi-package-updater` können im Handbuch gefunden werden.
 
-NOTE: Bitte beachten Sie, dass OS-Installationsprodukte wie z.B. {opsi-client-os}, nach der Installation nicht sofort einsatzbereit sind. Die Installation muss noch durch die Installationsdateien des entsprechenden Installationsmediums ergänzt werden (siehe: <<opsi-getting-started-firststeps-osinstall-fill-base-packages>>).
 
 
 [[opsi-macclient-installation-config-get-essential-products-manually]]
@@ -121,17 +191,12 @@ NOTE: Bitte beachten Sie, dass OS-Installationsprodukte wie z.B. {opsi-client-os
 Es gibt außerdem die Möglichkeit manuell die Pakete herunter zu laden und zu installieren.
 
 Holen Sie sich die aktuellen opsi-Pakete im `.opsi`-Paketformat.
-Die Pakete finden Sie unter https://download.uib.de/opsi4.1/stable/packages/windows/ in den Verzeichnissen `netboot/`, `localboot/`, für Linux-Clients zusätzlich unter `https://download.uib.de/opsi4.1/stable/packages/linux/`.
+Die Pakete finden Sie unter https://download.uib.de/opsi4.1/stable/packages/macos/localboot bzw. unter `https://download.uib.de/opsi4.1/testing/packages/macos/localboot`.
 
 Wir empfehlen die .opsi-Dateien unter `/var/lib/opsi/repository` zu speichern.
 Zum Sicherstellen, dass opsiconfd auf die Dateien zugreifen kann, sollte `opsi-set-rights /var/lib/opsi/repository` ausgeführt werden.
 
 Nach dem Download müssen Sie die Pakete auf dem Server mit dem Befehl `opsi-package-manager -i <paketname>.opsi` installieren.
-Sind die Pakete unter `/var/lib/opsi/repository` abgelegt, so kann für die initiale Installation der folgende Befehl verwendet werden:
-[source,prompt]
-----
-opsi-package-manager --install /var/lib/opsi/repository/*.opsi
-----
 
 
 [[opsi-macclient-adding-clients]]
@@ -141,99 +206,6 @@ Damit Rechner mit opsi verwaltet werden können, müssen Sie dem System bekannt 
 Außerdem muss auf diesen Rechnern ein Agent laufen, damit eine Kommunikation zwischen Server und Client möglich ist.
 Ohne diesen Agent ist keine Verwaltung möglich.
 
-Je nachdem in welcher Umgebung opsi eingesetzt werden soll, gibt es unterschiedliche Vorgehensweisen.
-Existieren in der Umgebung bereits Clients mit installiertem Betriebssystem, die ab sofort mit opsi verwaltet werden sollen, so können diese auf unterschiedlichen Wegen <<opsi-getting-started-firststeps-software-deployment-client-integration,integriert>> werden.
-
-Die Alternative hierzu ist, dass die zu verwalteten Rechner von opsi aus mit einem neuen Betriebssystem ausgestattet werden.
-Im Rahmen dieser Betriebssysteminstallation wird von opsi der benötigte Agent gleich mitinstalliert, allerdings wird dabei alle eventuell vorher vorhandene Software (inkl. Betriebssystem) entfernt.
-Bei diesem Vorgehen fügen Sie zuerst einen <<opsi-getting-started-firststeps-osinstall-create-client,Client zu opsi hinzu>> und führen anschließend eine <<opsi-getting-started-firststeps-osinstall,Betriebssysteminstallation>> durch.
-
-
-[[opsi-macclient-firststeps-osinstall-create-client]]
-=== Anlegen eines neuen opsi-Clients
-
-Zur Verwaltung von Rechnern müssen diese dem {opsi-Server} bekannt sein.
-Dieses Kapitel beschreibt unterschiedliche Möglichkeiten einen Client in opsi für eine spätere Verwaltung anzulegen.
-Dies ist besonders dann hilfreich, wenn anschließend auf dem Rechner mittels opsi ein <<opsi-getting-started-firststeps-osinstall,Betriebssystem installiert>> werden soll.
-
-Für die Aufnahme von Clients mit bereits installiertem Betriebssystem lesen Sie bitte <<opsi-getting-started-firststeps-software-deployment-client-integration,das Kapitel zur Integration vorhandener Clients>>.
-
-
-[[opsi-macclient-firststeps-osinstall-create-client-configed]]
-==== Anlegen eines neuen opsi-Clients über die grafische Management-Oberfläche
-
-Den Client können Sie mit der grafischen Oberfläche {opsi-configed} zum {opsi-Server} hinzufügen.
-
-Wählen Sie den Menü-Punkt 'OpsiClient / Neuen opsi-Client erstellen' und geben Sie ein:
-
-* Client-Name
-* DNS Domäne (falls abweichend von der Vorgabe)
-* Beschreibung
-* IP-Adresse (wird benötigt, falls kein DNS zur Namensauflösung für diesen Client verwendet werden kann)
-* MAC-Adresse (wird benötigt, falls der {opsi-Server} DHCP-Server ist oder PXE boot mit dem Client durchgeführt werden soll).
-
-Nach Eingabeabschluss wird der Client dem {opsi-Server} bekanntgemacht und gleichzeitig, falls der {opsi-Server} DHCP Server ist, in der DHCP-Konfiguration als PXE-Client angelegt.
-
-Die Liste der eingerichteten opsi-Clients kann jederzeit im {opsi-configed} Modus „Client-Konfiguration“ unter dem Reiter Client-Auswahl eingesehen werden.
-
-
-[[opsi-macclient-firststeps-osinstall-create-client-commandline]]
-==== Anlegen eines neuen opsi-Clients über die Kommandozeile
-
-Ein Client kann auf der Kommandozeile per `opsi-admin` erzeugt werden.
-
-Die Syntax ist die folgende:
-[source,prompt]
-----
-opsi-admin -d method host_createOpsiClient <client-id> [opsiHostKey] [description] [notes] [hardwareAddress] [ipAddress] [inventoryNumber] [oneTimePassword] [created] [lastSeen]
-----
-
-Fehlende Werte verwenden in der Regel einen Standardwert - die meisten Felder sind dann leer.
-
-
-Der folgende Befehl wird den Client `testclient.domain.local` mit einem zufälligen Host Schlüssel,
-der Beschreibung `Testclient`, keinen Notizen, der MAC-Addresse `00:0c:29:12:34:56` und der IP-Adresse `192.0.2.1` anlegen:
-
-[source,prompt]
-----
-opsi-admin -d method host_createOpsiClient testclient.domain.local "null" "Testclient" "" 00:0c:29:12:34:56 192.0.2.1
-----
-
-////
-[[opsi-macclient-firststeps-osinstall-create-client-bootcd]]
-==== Anlegen eines neuen opsi-Clients mit Hilfe der opsi-client-bootcd
-
-Auf der Downloadseite von uib finden Sie unter link:https://download.uib.de/opsi4.1/boot-cd/[] verschiedene ISO-Abbilder der 'opsi-client-boot-cd'.
-Laden Sie sich das Neueste herunter und brennen es auf eine CD.
-
-Starten Sie den Rechner von der CD.
-Sie sollten dann folgendes Bild sehen:
-
-.Startbild opsi-client-boot-cd
-image::opsi-client-boot-cd.png["Screenshot: Startbild opsi-client-boot-cd",width=400]
-
-Wählen Sie 'Opsi starten'. Nach einer Weile wird folgender Bildschirm erscheinen. Wenn Ihr DHCP-Server IP-Adressen an unbekannte Rechner vergibt ist die Maske schon weitgehend ausgefüllt. Ansonsten müssen Sie es von Hand tun. In der Regel müssen Sie mindestens den Hostnamen vergeben.
-
-.bootimage/boot-cd Konfigurationsmakse
-image::boot-cd-config.png["Screenshot: bootimage/boot-cd Konfigurationsmaske",width=400]
-
-Wählen Sie dann 'ok'.
-
-.bootimage/boot-cd Auswahl Erstellungsmethode
-image::boot-cd-select.png["Screenshot: bootimage/boot-cd Auswahl Erstellungsmethode",width=200]
-
-Wählen Sie dann 'Admin account'. Sie erklären damit, dass der Client sich selbst beim {opsi-server} anmelden und erstellen soll. Dieser Vorgang muss natürlich autorisiert werden.
-
-.bootimage/boot-cd Authentifizierungsmaske
-image::boot-cd-authent.png["Screenshot: bootimage/boot-cd Authentifizierungsmaske",width=400]
-
-Sie erhalten daher eine Loginmaske, bei der Sie sich als ein Mitglied der Gruppe {opsi-admin-group} authentifizieren müssen. Wenn dies Erfolgreich war, so teilt der Client dem Server seine Daten mit und der Client wird auf der Serverseite automatisch erstellt. Als nächstes fragt der Client die Liste der verfügbaren netboot Produkte ab und stellt Sie Ihnen zur Auswahl zur Verfügung.
-
-.bootimage/boot-cd netboot Produktauswahl
-image::boot-cd-product.png["Screenshot: bootimage/boot-cd netboot Produktauswahl",width=200]
-
-Sie können jetzt direkt das zu installierende Betriebssystem (oder z.B. <<opsi-getting-started-firststeps-osinstall-tests-hwinvent,hwinvent>>) auswählen.
-////
 
 [[opsi-macclient-firststeps-software-deployment-client-integration]]
 === Integration vorhandener Mac-Clients in opsi
@@ -242,37 +214,26 @@ Um vorhandene Mac-Clients in opsi aufzunehmen, muss auf diesen der {opsi-client-
 Dies kann auf mehrere Arten durchgeführt werden.
 Nachdem Sie, wie im Folgenden beschrieben, den {opsi-client-agent} installiert haben, erscheint der Client auch in der Client-Liste des {opsi-configed}, sofern Sie ihn dort noch nicht hinzugefügt hatten.
 
-sudo su
-cd /Users/uib
-mkdir mnt
-mount_smbfs -N //adminuser:linux123@sepia/opsi_depot /Users/uib/mnt
-cd /Users/uib/mnt/opsi-mac-client-agent
-./service_setup.sh
-cd
-umount /Users/uib/mnt
 
-sudo su
-mount_smbfs -N //adminuser:linux123@sepia/opsi_depot /var/opsisetupadmin/opsi_depot
-cd /var/opsisetupadmin/opsi_depot/opsi-mac-client-agent/
-./service_setup.sh 
-cd
-umount /var/opsisetupadmin/opsi_depot
+Grundsätzlich gibt es die Möglichkeit die Installation des Agents <<opsi-macclient-firststeps-software-deployment-client-integration-service-setup,auf dem Client auszuführen>> oder <<opsi-macclient-firststeps-software-deployment-client-integration-opsi-deploy,vom Server aus>> die Installation anzustoßen.
+
+Das Ausführen der Installation direkt auf dem Client eignet sich für einzelne Rechner.
+Für einen Massen-Rollout des Agents eignet sich grundsätzlich der <<opsi-macclient-firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>
+besser, wenn die dazu nötigen Freischaltungen auf den Mac-Clients vorhanden sind.
+
+Falls bereits eine andere Möglichkeit existiert Software zu verteilen, so ist es ebenfalls möglich darüber den opsi-client-agent zu verteilen und das im Paket mitgelieferte Script `silent_setup.cmd` auszuführen.
+
+Sobald der Agent installiert ist, können vorhandene opsi-Produkte auf diesen Clients <<opsi-macclient-firststeps-software-deployment-product-tests,installiert>> werden.
 
 
 
 
 [[opsi-macclient-firststeps-software-deployment-client-integration-service-setup]]
-Grundsätzlich gibt es die Möglichkeit die Installation des Agents <<opsi-getting-started-firststeps-software-deployment-client-integration-service-setup,auf dem Client auszuführen>> oder <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,vom Server aus>> die Installation anzustoßen.
-
-Das Ausführen der Installation direkt auf dem Client eignet sich für einzelne Rechner.
-Für einen Massen-Rollout des Agents eignet sich <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>.
-Falls bereits eine andere Möglichkeit existiert Software zu verteilen, so ist es ebenfalls möglich darüber den opsi-client-agent zu verteilen und das im Paket mitgelieferte Script `silent_setup.cmd` auszuführen.
-
-Sobald der Agent installiert ist, können vorhandene opsi-Produkte auf diesen Clients <<opsi-getting-started-firststeps-software-deployment-product-tests,installiert>> werden.
+==== Verwendung von service_setup.sh auf macOS
 
 
 [[opsi-macclient-firststeps-software-deployment-client-integration-service-setup1]]
-==== Verwendung von service_setup.sh auf macOS (Erstinstallation)
+===== Verwendung von service_setup.sh auf macOS (Erstinstallation)
 
 Aufgrund der Sicherheitsrestriktionen von macOS ist die Möglichkeit Scripte von gemounteten shares auszuführen eingeschränkt. Der Versuch den im folgenden beschriebenen Vorgang mit über den `Finder` nach `/Volumes` (oder so) gemounteten share zu machen wird daher (je nach macOS Version) scheitern.
 
@@ -282,8 +243,22 @@ Aufgrund der Sicherheitsrestriktionen von macOS ist die Möglichkeit Scripte von
 **  `<username>` mit Ihrem login Namen
 ** `<mnt>` durch ein Verzeichnisnamen der noch nicht existiert z.B. 'mnt'
 ** `<serviceuser>` durch einen Usernamen der auf dem opsi-server bekannt ist.
-** `<servicepass>` durch das Passwort des <serviceuser>. Sie können `:<servicepass>` auch weglassen, dann werden Sie nach dem Passwort gefragt
+** `<servicepass>` durch das Passwort des <serviceuser>. Sie können `:<servicepass>` zusammen mit der mount-Option `-N` auch weglassen, dann werden Sie nach dem Passwort gefragt
 ** `<opsi-server>` durch den Namen oder die IP-Nummer des opsi-servers
+
+[source,prompt]
+----
+sudo su
+cd /Users/<username>
+mkdir <mnt>
+mount_smbfs //<serviceuser>@<opsi-server>/opsi_depot /Users/<username>/<mnt>
+cd /Users/<username>/<mnt>/opsi-mac-client-agent
+./service_setup.sh
+cd
+umount /Users/<username>/<mnt>
+----
+
+bzw. ohne Passwortabfrage
 
 [source,prompt]
 ----
@@ -304,7 +279,7 @@ Beispiel:
 sudo su
 cd /Users/uib
 mkdir mnt
-mount_smbfs -N //adminuser:linux123@sepia/opsi_depot /Users/uib/mnt
+mount_smbfs  //adminuser@sepia/opsi_depot /Users/uib/mnt
 cd /Users/uib/mnt/opsi-mac-client-agent
 ./service_setup.sh
 cd
@@ -312,7 +287,7 @@ umount /Users/uib/mnt
 ----
 
 
-. Starten Sie das Script `opsi-mac-client-agent\service_setup.sh` +
+. Starten Sie von dem gemounteten share das Script `opsi-mac-client-agent\service_setup.sh` +
 Bestätigen Sie mit 2 x Enter
 . Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script. 
 . Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login-Fenster mit Service-URL ({opsi-configserver}), Benutzername und Passwort. Hier wird ein Benutzer benötigt, der Mitglied der Gruppe 'opsiadmin' ist. Möglich ist auch ein Benutzer, welcher nur die Methode `host_createOpsiClient` ausführen darf.
@@ -320,7 +295,7 @@ Bestätigen Sie mit 2 x Enter
 CAUTION: Der Client rebootet nach der Installation.
 
 [[opsi-macclient-firststeps-software-deployment-client-integration-service-setup2]]
-==== Verwendung von service_setup.sh auf macOS (Reperaturinstallation)
+===== Verwendung von service_setup.sh auf macOS (Reperaturinstallation)
 
 * Loggen Sie sich auf dem Client ein.
 * Starten Sie das Terminal-Programm
@@ -365,12 +340,14 @@ Der Reboot wird *nicht* automatisch ausgelöst.
 [[opsi-macclient-firststeps-software-deployment-client-integration-opsi-deploy]]
 ==== Verwendung von opsi-deploy-client-agent
 
-Das `opsi-deploy-client-agent` Skript verteilt den {opsi-client-agent} direkt vom {opsi-server} auf die Clients.
-Es ist hiermit einfach möglich eine große Menge an Clients vom Server aus in eine opsi-Umgebung zu integrieren.
+Dieses Kapitel und ebenso die Funktionalität des Befehls `opsi-deploy-client-agent` sind derzeit (Januar 2021) für macos noch nicht fertiggestellt.
 
 This chapter has to written for macos ##############
 
 ////
+
+Das `opsi-deploy-client-agent` Skript verteilt den {opsi-client-agent} direkt vom {opsi-server} auf die Clients.
+Es ist hiermit einfach möglich eine große Menge an Clients vom Server aus in eine opsi-Umgebung zu integrieren.
 Voraussetzung hierfür sind bei den Clients:
 
 * ein offener c$ share
@@ -471,10 +448,10 @@ optional arguments:
 == Rollout existierender Produkte
 
 Für den Rollout von Software auf Clients muss auf diesen der 'opsi-client-agent' installiert sein.
-Dieser kann auf <<opsi-getting-started-firststeps-software-deployment-client-integration,bestehende Rechner>> ausgerollt werden.
+Dieser kann auf <<opsi-macclient-firststeps-software-deployment-client-integration,bestehende Rechner>> ausgerollt werden.
 
 
-Nachfolgend wird die Management-Oberfläche <<opsi-getting-started-firststeps-software-deployment-configed,{opsi-configed}>> verwendet, um Software auf Clients zu verteilen.
+Nachfolgend wird die Management-Oberfläche <<opsi-macclient-firststeps-software-deployment-product-tests-configed,{opsi-configed}>> verwendet, um Software auf Clients zu verteilen.
 
 
 [[opsi-macclient-firststeps-software-deployment-product-tests-configed]]
@@ -493,7 +470,7 @@ Der Haken in der Icon-Menüleiste sollte seine Farbe auf Rot wechseln. Wenn Sie 
 
 Starten Sie dann den Client (neu).
 Er sollte jetzt den +opsi-client-agent+ starten und das Produkt +opsi-configed+ installieren.
-Nach Abschluß der Installation sollten Sie im `Startmenü` den Punkt `opsi-configed` finden.
+Nach Abschluß der Installation sollten Sie unter `Applications` den Punkt `opsi-configed` finden.
 
 
 [[opsi-macclient-firststeps-software-deployment-product-tests-inventory]]
@@ -546,7 +523,7 @@ https://forum.opsi.org/wiki
 siehe https://forum.opsi.org
 
 [[opsi-macclient-softwintegration-tutorial-general]]
-==== Methoden der nicht interaktiven Softwareinstallation
+==== Methoden der nicht interaktiven Softwareinstallation bei macos
 
 Prinzipiell gibt es drei Verfahren der Einbindung eines Softwarepakets in die automatische Softwareverteilung für Windows-Betriebssysteme, zuzüglich einer Variante, die sich auf die Pakete für den Microsoft Installer Service bezieht.
 
@@ -785,6 +762,11 @@ IsFatalError:: Bricht die Ausführung des laufenden Skriptes ab und meldet die I
 
 requiredWinstVersion:: gibt die (mindestens) benötigte opsi-winst Version an.
 
+[[opsi-macclient-softwintegration-tutorial-library]]
+==== Befehle aus der opsi-script library: uib_macosinstalllib
+
+include::uib_macosinstalllib.asciidoc[]
+
 [[opsi-macclient-softwintegration-tutorial-template]]
 ==== Drittes Beispiel: Standard-Template 'opsi-template'
 
@@ -807,6 +789,28 @@ oder entpacken (+-x+), um an die enthaltenen Skripte zu gelangen.
 [source,winst]
 ----
 ----
+
+[[opsi-macclient-softwintegration-create-opsi-package]]
+=== Erstellen eines opsi-Produkt-Pakets
+
+[[opsi-macclient-softwintegration-create-opsi-package-setup-detector]]
+==== Installation von opsi-setup-detector und opsi-package-builder
+
+This chapter has to written for macos ##############
+
+[[opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
+==== Das Programm opsi-setup-detector zum Erstellen eines Scriptes
+
+
+This chapter has to written for macos ##############
+
+
+[[opsi-macclient-softwintegration-tutorial-modify-with-opsi-packagebuilder]]
+==== Das Programm opsi-packagebuilder zum modifizieren eines Scriptes
+
+
+This chapter has to written for macos ##############
+
 
 [[opsi-macclient-softwintegration-tutorial-create-and-test-script]]
 ==== Interaktives Erstellen und Testen eines {opsi-winst} Skriptes
@@ -855,69 +859,6 @@ können Sie nach und nach Ihre Skripte so anpassen, dass sie das tun, was Sie w�
 Hinweise zur Lösung von Detail-Problemen finden Sie im nächsten Kapitel.
 Im übernächsten Kapitel wird erklärt, wie Sie aus den so erstellten Skripten ein opsi-Produkt erstellen, das Sie auf dem {opsi-server} installieren können.
 
-
-////
-[[opsi-macclient-softwintegration-tutorial-template-details]]
-==== Hinweise zu den Teilaufgaben im opsi-template
-
-[[opsi-macclient-softwintegration-tutorial-find-switches]]
-===== Silent oder Unattended Schalter finden
-
-Beim „unattended“ oder „silent setup“  wird das Original-Setup-Programm über Kommandozeilen-Argumente in einen nicht interaktiven Modus gestellt.
-
-Das Problem dieser Installationsmethode ist es die geeigneten Kommandozeilenargumente zu finden.
-
-.Suche in Schaltersammlungen im Internet:
-Bevor man sich in Forschungen stürzt, ist dringend zu empfehlen bei opsi.org zu schauen, ob jemand das Problem bereits gelöst hat:
-
-Fertige opsi-winst-Skripte aus der Community gibt es im link:https://forum.opsi.org/wiki/[opsi community Wiki].
-
-Eine Sammlung von Weblinks zu Schaltersammlungen im Internet findet sich im link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi Wiki: Software integration web-links].
-
-.Ermitteln des Herstellers des Setup-Programms:
-Die meisten Setupprogramme sind auf Basis von Frameworks wie 'Inno', 'NSIS', 'Installshield' oder 'Wise' gebaut. Jedes dieser Frameworks hat eigene typische Setupschalter. Um das Framework zu ermitteln kann unter anderem folgende Methode verwendet werden: Mit dem Kommandozeilen Programm `strings` werden die Strings aus der `setup.exe` extrahiert und danach mit `grep` bzw. `findstr` nach den Namen der Frameworks gesucht.
-
-Unter Linux sieht der dazu nötige Befehl wie folgt aus (setzen Sie für <mysetup.exe> den Namen Ihrer setup.exe ein):
-
-[source,prompt]
-----
-strings <mysetup.exe> | grep -i -E "(inno|nsis|installshield|wise)"
-----
-
-Unter Windows muss der Befehl `strings.exe` erst installiert werden. Einen entsprechenden Download findet man hier: http://technet.microsoft.com/en-us/sysinternals/bb897439
-
-Unter Verwendung dieses Programms, sieht der Befehl unter Windows dann wie folgt aus (setzen Sie für <mysetup.exe> den Namen Ihrer setup.exe ein):
-[source,prompt]
-----
-strings.exe <mysetup.exe> | findstr /i /r "inno installshield nsis wise"
-----
-
-Die selbe Methode verwendet der `opsi-setup-detector`.
-
-.opsi setup detector
-image::opsi-setup-detector.png[width="100mm"]
-
-Dieses grafisch-interaktive Programm lässt sich zudem in das Kontextmenü des Explorers Einbinden.
-
-.opsi setup detector im Kontextmenü des Explorers
-image::opsi-setup-detector-context-small-de.png[width="75mm"]
-
-Der 'opsi setup detector' ist Bestandteil der opsi-Repositories für Windows und kann über diese bezogen werden.
-
-.Suche beim Hersteller des Setup-Programms:
-Setup-Programme werden in der Regel von den Herstellern der diversen Softwareprodukte nicht selbst geschrieben.
-In den meisten Fällen bedienen sich vielmehr die Produkthersteller selbst spezieller Softwareprodukte,
-mit denen Setup-Programme relativ einfach erstellt werden können.
-Die verwendbaren Kommandozeilenargumente sind daher zumeist typisch für das verwendete Produkt zur Erstellung von Setup-Programmen.
-
-Im link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi Wiki: Software integration web-links] finden weitere Weblinks zu Seiten, die erläutern, wie man Setupprogramme erkennt und wie Ihre typischen Schalter sind.
-
-Auf der Homepage des Herstellers des Setupprogramms wird man zumeist mit der Suche nach Stichworten wie "silent", "silent Install" oder "unattended" fündig.
-
-.Suche beim Hersteller des Programms:
-Da die Anforderung einer automatischen Installation inzwischen vielen Herstellern bewusst ist,
-finden sich häufig in der Produkt-Dokumentation oder auf der Homepage des Herstellers Anleitungen oder Hinweise hierzu.
-
 [[opsi-macclient-softwintegration-tutorial-winst-commands]]
 ===== Weitere wichtige {opsi-winst} Funktionen
 
@@ -959,427 +900,8 @@ if GetProductProperty("example-property", "no") = "yes"
 endif
 ----
 
-[[opsi-macclient-softwintegration-tutorial-opsiadmin]]
-===== Installation mit angemeldetem Benutzer
 
-Vereinzelt taucht das Problem auf, dass sich Installationen nur bei angemeldetem Benutzer durchführen lassen.
-Ein Hinweis auf diese Problematik ist es, wenn ein opsi-winst-Skript das eine unattended Installation enthält,
-beim manuellen Aufruf durch einen administrativen Benutzer funktioniert, im Rahmen der automatischen Installation über opsi jedoch scheitert.
 
-Eine mögliche Ursache ist dann, dass dieses Setupprogramm einen angemeldetem Benutzer bzw. den Zugriff auf ein Benutzer-Profil benötigt.
-Handelt es sich um eine MSI-Installation, hilft eventuell die Option +ALLUSERS=1+.
-
-.Beispiel:
-[source,winst]
-----
-[Actions]
-DefVar $MsiLogFile$
-Set $MsiLogFile$ = %opsiLogDir% + "\myproduct.log"
-winbatch_install_myproduct
-
-[winbatch_install_myproduct]
-msiexec /qb-! /l* $MsiLogFile$ /i "%ScriptPath%\files\myproduct.msi" ALLUSERS=1
-----
-
-Eine weitere Möglichkeit ist, dass sich das Installationsprogramm zu früh beendet, z.B. weil ein ein Sub-Prozess gestartet wird.
-In diesem Fall können die Parameter +/WaitSeconds <Anzahl Sekunden>+ oder
-+/WaitForProcessEnding "program.exe" /TimeOutSeconds "<Anzahl Sekunden>"+ für den WinBatch-Aufruf helfen.
-
-Eine andere, wenn auch aufwendigere, Möglichkeit dieses Problem zu lösen ist, einen administrativen Benutzer temporär anzulegen
-und diesen zur Installation der Software zu verwenden. Dies können Sie auf Basis des Templates 'opsi-template-with-admin' durchführen.
-
-[[opsi-macclient-softwintegration-tutorial-msi]]
-===== Arbeiten mit MSI-Paketen
-
-Microsoft hat mit Windows 2000 ein eigenes Installationskonzept vorgestellt, das auf dem Microsoft Installer Service, kurz „MSI“ beruht. Inzwischen sind viele Setup-Programme MSI-konform.
-
-MSI-Konformität bedeutet, dass die eigentliche Installation darin besteht, dass an den MSI ein Paket von Installations-Anweisungen übergeben wird (im Prinzip eine Datei mit einen Namen der Form „produkt.msi“) und der MSI dieses Paket dann ausführt.
-
-In der Praxis sieht dies meist so aus, dass die zu einem Produkt gehörige „setup.exe“ eine Datei „produkt.msi“ und ein zusätzliches Steuerprogramm für die Installation enthält. Das Steuerprogramm packt „produkt.msi“ aus und fragt, ob eine Installation starten soll. Wird dies bestätigt, prüft das Steuerprogramm, ob der MSI schon eingerichtet ist und übergibt bei positivem Ergebnis der Prüfung diesem die „produkt.msi“. Ist der MSI nicht eingerichtet und wird insbesondere das Programm „msiexec.exe“ nicht gefunden, so startet das Steuerprogramm zuerst eine Installationsprogramm für den MSI.
-
-Klickt man bei der Frage, ob die Installation starten soll, nicht auf „weiter“, sondern ruft den Explorer auf, so findet sich das ausgepackte MSI-Paket meist in einem temporären Verzeichnis.
-
-Dieses Paket kann nun dazu verwendet werden, eine Installation „unattended“ - also „unbewacht“,  d.h. ohne dass ein Benutzereingriff erforderlich ist - auszuführen. Dazu ist bei vorhandener `msiexec.exe` aufzurufen:
-[source,winst]
-----
-msiexec /i "%ScriptPath%\Product.msi" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
-----
-
-[[opsi-macclient-softwintegration-tutorial-customizing]]
-===== Customizing nach einer silent/unattended Installation
-
-Häufig will man nach einer erfolgreichen Silent-Installation Anpassungen an der Installation vornehmen.
-Hierzu bietet der {opsi-winst} ein mächtiges Werkzeug.
-Doch bevor dies eingesetzt werden kann muss oft ermittelt werden, welche in der graphischen Oberfläche getätigten Änderungen zu
-welchen Veränderungen in Dateien und der Registry führen.
-
-Hierzu können die unter <<opsi-getting-started-softwintegration-tutorial-analyse-and-repackage>> vorgestellten Werkzeuge eingesetzt werden.
-Häufig führen aber auch kleinere Werkzeuge schneller zum Erfolg.
-
-Einige beliebte Werkzeuge sind:
-
-* link:http://www.sysinternals.com/[sysinternals]
-* link:https://sourceforge.net/projects/regshot/[regshort]
-
-[[opsi-macclient-softwintegration-tutorial-autoit]]
-===== Einbindung mittels interaktiven Setup-Programms und automatisierten Antworten
-
-Eine weitere schnelle Möglichkeit zur Einbindung in die automatische Softwareverteilung ist das 'Setup mit automatisierten Antworten'.
-Hierzu wird eine Steuerungs-Software verwendet, die über ein Skript die Interaktion eines Anwenders mit den erscheinenden Dialog-Fenstern automatisiert. +
-Wir empfehlen hierfür den Einsatz der Software link:https://autohotkey.com[AutoHotkey] oder link:http://www.autoitscript.com[AutoIt].
-
-'AutoIt' bietet eine ganze Reihe zusätzlicher Möglichkeiten, den Setup-Prozess zu steuern.
-Auch eventuelle Fehlerzustände können (so vorher bekannt) mit dem Einsatz von +[ADLIB]+-Sektionen im Skript abgefangen werden.
-
-Ein prinzipielles Problem bleibt bestehen: Nicht vorhergesehene (und im Skript berücksichtigte) Fenster können das Skript zum Stoppen bringen.
-
-Außerdem kann der Anwender mittels Maus und Tastatur (wenn diese nicht gesperrt sind) in den automatisierten Prozess eingreifen und den Ablauf damit verändern.
-Ein Unattended- oder Silent-Setup ist daher immer die bessere Lösung.
-
-Sehr gut kann auch eine Kombination aus beiden Ansätzen funktionieren:
-Das Silent-Setup übernimmt die eigentliche Installation und ein AutoIt-Skript fängt bekannte Sonderbedingungen ab.
-
-Wenn das Ausführen von Installationen in der opsi-client-agent Konfiguration auf einen anderen Desktop verlegt wird oder der Desktop gesperrt wird, haben verschiedene autoit Funktionen Probleme.
-
-Daher sollten in '{opsi-winst}' Skripten die folgenden Funktionen gemieden werden:
-
-* winwait()
-
-* winactivate()
-
-* Send()
-
-Das sind leider genau die 3 am meisten verwendeten.
-
-*winwait()* +
-kann ersetzt werden durch die Funktion +
-`opsiwinwait($title, $text, $maxseconds, $logname)` +
-welche in der folgenden Weise definiert wird:
-[source,configfile]
-----
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-Dabei ist:
-
-* `$title` der Titel des Fensters
-
-* `$text` ein Teil des sichtbaren Textes im Fenster
-
-* `$maxseconds` der timeout in Sekunden
-
-* `$logname` der Name der Logdatei
-
-
-*Send()* +
-kann ersetzt werden durch die Funktion +
-`opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
-bzw. durch +
-`opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
-welche in der folgenden Weise definiert werden:
-[source,configfile]
-----
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title , $text,$id)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-Dabei ist:
-
-* `$title` der Titel des Fensters
-
-* `$text` ein Teil des sichtbaren Textes im Fenster
-
-* `$id` die numerische ControlId des Buttons oder Editierfeldes
-
-* `$sendtext` der Text welcher eingfügt werden soll
-
-* `$maxseconds` der timeout in Sekunden
-
-* `$logname` der Name der Logdatei
-
-Dabei muss mit der `Au3info.exe` die 'ControlId' ermittelt werden. Bitte die numerische 'ControlId' verwenden, andere Varianten scheinen Probleme zu machen:
-
-Hier ein Auszug aus einem script. +
-In diesem wird dann noch eine Logdatei angelegt, die mit folgenden Befehlen in die Logdatei des '{opsi-winst}' integriert wird:
-[source,winst]
-----
-includelog "c:\tmp\au3.log" "500"
-----
-
-Das Beispiel:
-[source,configfile]
-----
-[ExecWith_autoit_confirm]
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title , $text,$id)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-; exact title match
-Opt("WinTitleMatchMode", 3)
-$mylog = FileOpen("%opsiLogDir%\au3.log", 2)
-FileWriteLine($mylog,"auto-it started - waiting for the window")
-FileClose($mylog)
-
-opsiwinwait("InstallShield Wizard" , "Wollen Sie wirklich", 200, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Wollen Sie wirklich", 6, 5, "%opsiLogDir%\au3.log")
-opsiwinwait("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 400, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 1, 5, "%opsiLogDir%\au3.log")
-
-Sleep(500)
-;and good bye
-Exit
-----
-
-siehe auch: +
-http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
-http://www.autoitscript.com/autoit3/docs/ +
-http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
-http://www.autoitscript.com/autoit3/docs/functions.htm
-
-
-
-
-[[opsi-macclient-softwintegration-tutorial-analyse-and-repackage]]
-===== Analyse und Neu-Paketieren
-
-Wenn der Entwickler einer Anwendung ein Paket zur Auslieferung der Anwendung schnürt, kennt er die benötigten Komponenten.
-Im Nachhinein, wenn schon ein Paket existiert, das mittels eines Setup-Programm zu installieren ist,
-kann die Kenntnis, welche Komponenten installiert werden müssen, damit eine Anwendung wie gewünscht auf einem Arbeitsplatzrechner lauffähig ist,
-aus der Studie der Effekte bei der Ausführung des vorhandenen Setup-Programms gewonnen werden.
-
-Eine Reihe von Werkzeuge zum Analysieren von Setup-Programmen kommen hierbei in Frage. So z.B.:
-
-* link:http://download.fyxm.net/download-now-InstallWatch-Pro-OS-OS-Info-83813.html[InstallWatch Pro]
-
-* link:http://www.itninja.com/media/downloads/appdeploy-repackager.msi[appdeploy-repackager]
-
-[[opsi-macclient-softwintegration-tutorial-deinstall]]
-===== Verfahren zur Deinstallation von Produkten
-
-Um eine installierte Software von einem Rechner zu entfernen, kann ein Deinstallations-Skript erstellt werden.
-Grundsätzlich besteht bei einer Deinstallation die Schwierigkeit, dass nicht immer klar ist,
-wie das Produkt auf dem Rechner vorliegt und was alles entfernt werden muss.
-Auch nach der Installation können neue Dateien oder Registry-Einträge, die die Software betreffen, hinzugekommen sein.
-Weiterhin muss darauf geachtet werden nicht zu viel zu entfernen, um die Systemstabilität nicht zu gefährden.
-Meist weiß nur der Hersteller genau, wie mit seinem Produkt bei der Deinstallation umzugehen ist.
-Ähnlich wie bei der Installation, existieren zu diesem Zweck Deinstallations-Routinen, die dem Produkt beiliegen.
-Wenn es die Möglichkeit gibt, diese ohne Benutzer-Interaktion auszuführen, kann dies schon ein entscheidender Schritt sein.
-Ist eine solche Routine nicht vorhanden oder muss diese erweitert werden, so existieren viele opsi-winst-Befehle, die zur Deinstallation nützlich sein können.
-Im Folgenden soll nun ein Überblick über Möglichkeiten zur Deinstallation gegeben werden, die durch Beispiele verdeutlicht werden.
-
-.Verwenden einer Deinstallations-Routine
-
-Liefert der Hersteller des Produkts ein Programm (oder ein MSI-Paket) zur Deinstallation, so muss zunächst geprüft werden,
-ob dies auch ohne Benutzer-Interaktion ausgeführt werden kann (silent-mode).
-Sollte dies nicht von Hause aus möglich sein, kann der Einsatz eines AutoIt-Skriptes in Verbindung mit der Deinstallations-Routine hilfreich sein.
-Der Aufruf der ausführbaren Datei kann im opsi-winst-Skript in einer Winbatch-Sektion geschehen, z.B.:
-
-[source,winst]
-----
-[WinBatch_start_ThunderbirdUninstall]
-"%SystemRoot%\UninstallThunderbird.exe" /ma
-----
-
-Trotz dieser Unterstützung des Herstellers sollte man sich jedoch nicht auf die korrekte Beseitigung des Produkts verlassen
-und auf einem Testsystem zusätzlich prüfen, ob das System nach der Deinstallation weiter stabil läuft und ob Dateien oder
-Registry-Einträge zurückgeblieben sind.
-
-Falls das Produkt als MSI-Paket bereitgestellt und mittels 'msiexec' installiert wurde,
-ist es in der Regel auch eine Deinstallation mittels 'msiexec' möglich.
-Dazu ruft man den `msiexec.exe` mit dem Parameter +/x+ auf und übergibt zusätzlich den MSI-Paket oder dessen 'GUID' an.
-Um die Benutzer-Interaktion zu deaktivieren, kann zusätzlich der Parameter +/qb-!+ übergeben werden. +
-Dies ergibt nun den folgenden Aufruf:
-
-[source,winst]
-----
-msiexec.exe /x some.msi /qb-! REBOOT=ReallySuppress
-----
-
-Statt das MSI-Paket zu übergeben, gibt es auch die Möglichkeit die 'GUID' an `msiexec.exe` zu übergeben.
-Diese ID ist eindeutig, Produkt-spezifisch und auf allen Systemen, auf denen das MSI-Paket installiert ist, gleich.
-Sie findet sich zum Beispiel im Zweig
-+HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall+ der Registry. +
-Ein Beispiel einer Deinstallation mittels dieser GUID sieht folgendermaßen aus:
-
-[source,winst]
-----
-msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
-----
-
-Sollten diese Methoden nicht oder nicht vollständig funktionieren, so muss mit einem opsi-winst-Skript nachgeholfen werden,
-wie es im nächsten Abschnitt beschrieben ist.
-
-.Nützliche opsi-winst-Befehle zur Deinstallation
-
-Wurde ein Produkt mit den opsi-winst-Funktionen installiert oder gibt es keine Deinstallation vom Hersteller,
-so muss ein eigenes opsi-winst-Skript zu Deinstallation geschrieben werden.
-Um den Programmierer bei dieser Arbeit zu unterstützen stellt der '{opsi-winst}' einige Funktionen bereit,
-die speziell bei der Deinstallation notwendig oder hilfreich sind.
-Es soll an dieser Stelle nur ein kurzer Überblick gegeben werden,
-eine genaue Beschreibung der Befehle und deren Parameter findet sich im {opsi-winst}-Handbuch.
-
-Der einfachste Fall ist das Löschen einer oder mehrerer Dateien vom System. Dies geschieht in einer Files-Sektion mittels des Befehls
-
-[source,winst]
-----
-delete -f Dateiname
-----
-
-oder für ein Verzeichnis mit Unterverzeichnissen
-
-[source,winst]
-----
-delete -sf Verzeichnisname\
-----
-
-Der Parameter +f+ steht dabei für force, um die Datei wirklich zu löschen, auch wenn diese schreibgeschützt ist,
-der Parameter +s+ für subdirectories (mit Unterverzeichnissen/rekursiv).
-Soll eine Datei oder ein Verzeichnis aus allen Benutzer-Profilen gelöscht werden,
-so kann diese Files-Sektion mit dem Parameter +/AllNTUserProfiles+ aufgerufen werden. (siehe {opsi-winst}-Handbuch)
-
-Möchte man einen Verzeichnisbaum löschen, in dem sich auch Dateien mit dem Attribut „versteckt“ oder „systemdatei“ befinden,
-muss momentan ein Umweg über den Befehl `rmdir` gegangen werden, der über eine 'DosInAnIcon'-Sektion aufgerufen werden kann.
-
-[source,winst]
-----
-[DosInAnIcon_deleteDir]
-rmdir /S /Q "<Verzeichnis>"
-----
-
-Muss vor dem Löschen evtl. ein laufender Prozess beendet werden, so kann dies mit dem Namen des Prozesses (zu sehen im Task-Manager)
-und dem opsi-winst-Befehl +KillTask+ geschehen:
-
-[source,winst]
-----
-KillTask "thunderbird.exe"
-----
-
-Sollte das Produkt – oder Teile davon – als Service laufen, so muss dieser vor der Deinstallation beendet werden.
-Man kann dazu den Service in der Registry auf “inaktiv“ schalten und den Rechner neu starten oder aber man benutzt den System-Befehl
-`net` mit dem Parameter +stop+, um den Service sofort zu stoppen und anschließend – ohne Neustart – die zugehörigen Dateien zu löschen.
-
-[source,winst]
-----
-net stop <servicename>
-----
-
-Besondere Vorsicht ist beim Löschen von .dll-Dateien geboten, die noch von anderen Produkten verwendet werden könnten.
-Sie müssen individuell behandelt werden, weshalb hier leider kein allgemein gültiges Rezept gegeben werden kann.
-
-Um einzelne Einträge aus der Registry mittels {opsi-winst} zu löschen, kommt der Befehl +DeleteVar+ zum Einsatz,
-der innerhalb einer 'Registry'-Sektion eines {opsi-winst}-Skripts verwendet werden kann.
-Er löscht Einträge aus dem momentan geöffneten Key:
-
-[source,winst]
-----
-DeleteVar <VarName>
-----
-
-Möchte man einen Registry-Key samt seiner Unterschlüssel und Registry-Variablen löschen, so geschieht dies mittels des {opsi-winst}-Befehls +DeleteKey+, z.B.:
-
-[source,winst]
-----
-DeleteKey [HKLM\Software\Macromedia]
-----
-
-[[opsi-macclient-softwintegration-tutorial-64bit]]
-===== Bekannte Besonderheiten der 64 Bit-Unterstützung
-
-Der {opsi-winst} ist ein 32-Bit Programm.
-Skripte zur Installation von 32-Bit Programmen funktionieren in der Regel auch auf 64-Bit Systemen korrekt.
-Einige Konstanten, wie +%ProgramFilesDir%+, liefern Werte, die für die Verwendung mit 64-Bit-Programmen nicht richtig sind.
-Neuere {opsi-winst}-Versionen kennen spezielle Befehle und Konstanten für 64-Bit-Systeme.
-Beachten Sie beim Arbeiten auf 64-Bit-Systemen das entsprechende Kapitel im {opsi-winst}-Handbuch.
-////
-
-
-[[opsi-macclient-softwintegration-create-opsi-package]]
-=== Erstellen eines opsi-Produkt-Pakets
-
-[[opsi-macclient-softwintegration-create-opsi-package-setup-detector]]
-=== Verwendung des opsi-setup-detectors
-
-This chapter has to written for macos ##############
-
-[[opsi-macclient-softwintegration-create-opsi-package-package-builder]]
-=== Verwendung des opsi-package-builder
-
-This chapter has to written for macos ##############
 
 ////
 
