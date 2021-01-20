@@ -15,8 +15,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      19.10.2017
-:Revision:  4.1
+:Date:      20.01.2021
+:Revision:  4.2
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -37,9 +37,9 @@ Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Ins
 
 Die aus diesen Diensten entstehenden Hardwareanforderungen sind in der Regel gering, so das ein Betrieb eines opsi-servers in einer Virtualisierungsumgebung kein Problem darstellt.
 
-Seit Version 4.2 wird der In-Memory Speicher Redis eingesetzt (https://redis.io/). Der '{opsi-server}' speichert folgende Daten in Redis: 
+Seit Version 4.2 wird der In-Memory Speicher Redis eingesetzt (https://redis.io/). Der '{opsi-server}' speichert folgende Daten in Redis:
 
-* Log-Ausgaben werden in einen Redis-Stream geschrieben. Dieser Stream wird dann zB. vom Logviewer gelesen. 
+* Log-Ausgaben werden in einen Redis-Stream geschrieben. Dieser Stream wird dann zB. vom Logviewer gelesen.
 
 * Session Daten werden in Redis als MessagePack abgelegt (https://msgpack.org/).
 
@@ -68,71 +68,43 @@ Nach einer Änderung der Samba-Konfigurationsdateien ist ein Neustart der Samba-
 ==== Der Daemon opsiconfd
 Der 'opsiconfd' ist der zentrale Konfigurations-Daemon von opsi.
 Alle Client-Komponenten ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) verbinden sich mit diesem Service um auf die Konfigurationen in den Backends zuzugreifen.
-Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf` konfiguriert.
-Die einzelnen Konfigurations-Optionen können über den Befehl `opsiconfd --help` abgefragt werden. Um Optionen bei jedem Start des 'opsiconfds' zu verwenden, können die Option aus dem Hilfetext ohne das `--` in die Konfigurationsdatei eingetragen werden.
-An dieser Stelle finden sich weitere Ergänzungen.
+Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf`, über Umgebungsvariablen oder über Kommandozeilen-Parameter konfiguriert.
 
-* +admin-networks+: +
-Über diese Option kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
-Es können mehrere Netzwerkadressen durch Kommas getrennt angegeben werden. +
-Nicht-administrative Client-Verbindungen können auch aus anderen Netzwerken erfolgen.
+Die einzelnen Konfigurations-Optionen können über den Befehl `opsiconfd --help` abgefragt werden. Um Optionen bei jedem Start des 'opsiconfd' zu verwenden, können die Option aus dem Hilfetext ohne das `--` in die Konfigurationsdatei eingetragen werden.
 
-* +max-log-size+: +
-Über diese Option kann die Größe der Logdateien beschränkt werden. +
-Aus historischen Gründen ist dies auf 5MB pro Logdatei beschränkt. +
-Seit opsi 4.0.6 ist es möglichen diesen Wert an eigene Bedürfnisse anzupassen. +
-Um die Größenbeschränkung zu deaktivieren, kann der Wert auf 0 gesetzt werden.
+Außerdem ist es möglich, die Umgebungsvariablen wie im Hilfetext gezeigt zu verwenden.
 
-Ergänzend zu dieser Einstellmöglichkeit ist es möglich durch das Werkzeug +
-'logrotate' die Logdateien auf einem Server automatisch zu komprimieren und +
-rotieren zu lassen. +
-Bitte entnehmen Sie dem zugehörigen Handbuch die Konfigurationsmöglichkeiten.
+Werden die einzelnen Ansätze miteinander kombiniert, gilt die folgende Reihenfolge:
+Umgebungsvariablen überschreiben Einträge in der Konfigurationsdatei, Kommandozeilen-Parameter überschreiben Umgebungsvariablen.
 
-Ist die maximale Größe der Logdateien bekannt, lässt sich
-berechnen wieviel Speicherplatz die anfallenden Logs benötigen werden.
-Es gibt fünf verschiedene, Client-bezogene Log-Arten die vom opsiconfd
-geschrieben werden: 'bootimage', 'clientconnect', 'instlog', 'opsiconfd' und +
-'userlogin'.
-Es gibt außerdem einige Client-unabhängige Logs: +
-'opsi-backup.log' und 'opsi-package-updater.log'.
-
-Wenn wir von einer mit opsiconfd und logrotate realisierten Konfiguration +
-ausgehen, bei der alle Logdateien auf 5MB limitiert sind, abgesehen von +
-'package.log', welche 10MB groß werden darf, dann kommen wir auf folgende +
-Berechnung:
-
-[source,prompt]
-----
-(Anzahl der clients * 5 * 5MB) + 5MB + 5MB + 5MB + 5MB + 10MB
-----
-
-Bei 100 Clients sollten wir bis zu 2530MB für Logs von opsi reservieren.
-Weil Logrotate überlicherweise zu einer bestimmten Uhrzeit aktiv wird, empfehlen wir diese Zahl aufzurunden.
-
-Ab Version 4.2 ist im 'opsiconfd' und 'opsipxeconfd' ein eigenes Logrotate eingebaut, welche über die Optionen 'max-log-size' und 'keep-rotated-logs' gesteuert wird.
 
 [[opsi-manual-server-accounts]]
 ==== Notwendige System-User und Gruppen
 
 * User 'opsiconfd' +
-Dies ist der user unter dem der opsiconfd Deamon läuft.
+Dies ist der user unter dem der opsiconfd Daemon läuft.
 
 * User 'pcpatch' +
 Dies ist der user, den der '{opsi-client-agent}' verwendet um den 'depotshare' zu mounten und von diesem zu lesen.
-Dieser User hat per Voreinstellung das Heimatverzeichnis `/var/lib/opsi`.Setzen und Ändern Sie das Passwort mit `opsi-admin -d task setPcpatchPassword`.
+Dieser User hat per Voreinstellung das Heimatverzeichnis `/var/lib/opsi`.
+Das Passwort des Benutzers kann mittels `opsi-admin -d task setPcpatchPassword` gesetzt werden.
 
-* Gruppe 'pcpatch' +
-Neben dem User pcpatch gibt es noch die Gruppe pcpatch. Die meisten Dateien sind sowohl für den User als auch für die Gruppe im Vollzugriff. Die Systemadministratoren des opsi-servers sollten daher Mitglieder der Gruppe pcpatch sein.
+* Gruppe 'opsifileadmins' +
+Mitglieder dieser Gruppe haben Zugriff auf eine opsi-Paket-Daten, wie Depot, Repository und Workbench. Die Systemadministratoren des opsi-Servers sollten daher Mitglieder dieser Gruppe sein.
+
+Ehemals hieß diese Gruppe 'pcpatch', seit opsi 4.2 wird standardmäßig 'opsifileadmins' als Gruppenname verwendet. Wird eine bestehende opsi-Umgebung auf opsi 4.2 aktualisiert wird der verwendete Gruppenname jedoch beibehalten.
+
+Bei Anbindung des opsi-Servers an ein Active Directory muss in jedem Fall der Gruppenname 'opsifileadmins' verwendet werden.
 
 * Gruppe 'opsiadmin' +
-Die Mitglieder dieser Gruppe können sich gegenüber dem opsi-webservice Authentifizieren und damit z.B. mit dem opsi-configed arbeiten. Daher sollten alle Mitarbeiter die mit opsi arbeiten, Mitglied dieser Gruppe sein.
+Die Mitglieder dieser Gruppe können sich gegenüber dem opsi-webservice authentifizieren und damit z.B. mit dem opsi-configed arbeiten. Daher sollten alle Mitarbeiter die mit opsi arbeiten, Mitglied dieser Gruppe sein.
 
 [[opsi-manual-server-shares]]
 ==== Notwendige Shares
 
 * Bereich: 'Depotshare' mit Softwarepaketen ('opsi_depot') +
 Auf dem depot-Share liegen die für die Installation durch das Programm opsi Winst vorbereiteten Softwarepakete. +
-In der Voreinstellung liegt dieses Verzeichniss auf dem opsi-server unter `/var/lib/opsi/depot`. +
+In der Voreinstellung liegt dieses Verzeichnis auf dem opsi-server unter `/var/lib/opsi/depot`. +
 Unterhalb von diesem Verzeichnis findet sich für jedes Softwarepaket ein Verzeichnis mit dem Namen des Softwarepakets. +
 Wiederum unterhalb dieses Verzeichnisses liegen dann die Installationsskripte und -dateien.
 +

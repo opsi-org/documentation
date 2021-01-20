@@ -6,10 +6,11 @@
 ; credits: http://www.opsi.org/credits/
 ////
 
+
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      19.10.2017
-:Revision:  4.1
+:Date:      20.01.2021
+:Revision:  4.2
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -32,13 +33,13 @@ The hardware requirements for these services are generally low, so operating an 
 
 Since version 4.2 the opsi-server is using the in-memory storage redis (https://redis.io/). The following data is saved in redis:
 
-* Log outputs are written into a redis stream. This stream is then read by the Logviewer, for example. 
+* Log outputs are written into a redis stream. This stream is then read by the Logviewer, for example.
 
 * Session data is stored as MessagePack strings in redis (https://msgpack.org/)
 
 * Statistics such as CPU usage are stored as Time Series in Redis. For this purpose the module RedisTimeSeries is used (https://github.com/RedisTimeSeries/RedisTimeSeries).
 
-The Statistics are read and displayed by Grafana (https://grafana.com/). The grafana dashboard can be reached at the following URL https://<opsi-server>:4447/admin. 
+The Statistics are read and displayed by Grafana (https://grafana.com/). The grafana dashboard can be reached at the following URL https://<opsi-server>:4447/admin.
 
 image::grafana_dashboard.png["Grafana Dashboard", width="120mm"]
 
@@ -61,57 +62,33 @@ After changing the Samba configuration it is necessary to restart the Samba serv
 ====  The opsiconfd daemon
 'Opsiconfd' is the central configuration daemon of opsi.
 All client components ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) connect to this service to access the configurations in the backends.
-The 'opsiconfd' is configured via the file `/etc/opsi/opsiconfd.conf`.
-The individual configuration options are documented in this file.
-Here are some additional notes.
+The 'opsiconfd' is configured via the file `/etc/opsi/opsiconfd.conf`, environment variables or command line parameters.
 
-* +admin networks+ : +
-With this option the administrative access to the 'opsiconfd' can be restricted to connections from certain network addresses. +
-Multiple network addresses can be specified separated by commas. +
-Non-administrative client connections can also be made from other networks.
+The individual configuration options can be queried using the `opsiconfd --help` command. To use options every time the `opsiconfd` is started, the option from the help text can be entered into the configuration file without the `--`.
 
-* +max log size+ : +
-This option can be used to limit the size of the log files. +
-For historical reasons, this is limited to 5MB per log file. +
-Since opsi 4.0.6 it is possible to change this value to your own needs. +
-To disable the size limit, the value can be set to 0.
+Furthermore it is possible to use the environment variables as shown in the helptext.
 
-In addition to this setting option, it is possible to use the 'logrotate' +
-tool to automatically compress and rotate the log files on a server. +
-Please refer to the associated manual for configuration options.
-
-If the maximum size of the log files is known, you can calculate how much +
-storage space the logs will need. There are five different, client-related log +
-types that are written by opsiconfd: 'bootimage', 'clientconnect', 'instlog', +
-'opsiconfd' and 'userlogin'.
-There are also some client-independent logs: 'opsiconfd.log', 'opsipxeconfd.log', +
-'opsi-backup.log', 'opsi-package-updater.log' and 'package.log'.
-
-If we assume a configuration implemented with opsiconfd and logrotate, in which +
-all log files are limited to 5MB, apart from 'package.log', which can be 10MB, +
-then we end up with the following calculation:
-
-[source,prompt]
-----
-(number of clients * 5 * 5MB) + 5MB + 5MB + 5MB + 5MB + 10MB
-----
-
-For 100 clients we should thus reserve 2530MB for the opsi logfiles.
-Because Logrotate is usually only active at a certain time, we recommend rounding up this number.
+If the individual approaches are combined, the following sequence applies:
+Environment variables overwrite entries in the configuration file, command line parameters overwrite environment variables.
 
 
 [[opsi-manual-server-accounts]]
 ====  Required system user accounts and groups
 
 * User 'opsiconfd' +
-This is the user under which the opsiconfd deamon runs.
+This is the user under which the opsiconfd daemon runs.
 
 * User 'pcpatch' +
 This is the user the '{opsi-client-agent}' uses to mount and read from the 'depotshare'.
-By default this user has the home directory `/var/lib/opsi`. You may set the password for this user by `opsi-admin -d task setPcpatchPassword`.
+By default this user has the home directory `/var/lib/opsi`.
+The password of the user can be set by `opsi-admin -d task setPcpatchPassword`.
 
-* Group 'pcpatch' +
-In addition to the user pcpatch, there is also the group pcpatch. Most files are fully accessible for both the user and the group. The system administrators of the opsi-server should therefore be members of the pcpatch group.
+* Group 'opsifileadmins' +
+Members of this group have access to opsi package data, such as depot, repository and workbench. The system administrators of the opsi server should therefore be members of this group.
+
+Formerly this group was called 'pcpatch', since opsi 4.2 'opsifileadmins' is used as group name by default. If an existing opsi environment is updated to opsi 4.2 the used group name will be kept.
+
+When connecting the opsi server to an Active Directory the group name 'opsifileadmins' must be used in any case.
 
 * Group 'opsiadmin' +
 The members of this group can authenticate themselves to the opsi-webservice and thus e.g. work with opsi-configed. Therefore, all opsi administrators should be a member of this group.
