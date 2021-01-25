@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      26.10.2017
-:Revision:  4.0.7
+:Date:      20.01.2021
+:Revision:  4.2
 :toclevels: 6
 
 
@@ -27,7 +27,7 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-manual-clientagent-overview]]
 ==== Overview
 
-In order that the distribution of software does not become unmanagable, a client PC has to notice independently that new software packages or updates are available and install them.
+In order that the distribution of software does not become unmanageable, a client has to notice that new software packages or updates are available and install them.
 Any form of user interaction is to be avoided during the installation, so that this can take place unattended and the necessary installations are not interrupted by uncertain users.
 
 With opsi, these requirements are met by an agent on the client:
@@ -35,14 +35,14 @@ With opsi, these requirements are met by an agent on the client:
 The so-called '{opsi-client-agent}' is installed on the client.
 This usually checks at the start of the client and before the user logs in, based on configuration information on the '{opsi-configserver}', whether an update should be installed for this client.
 
-If software is to be installed, the script-controlled installation program '{opsi-winst}' is started.
+If software is to be installed, the script-controlled installation program '{opsi-script}' is started.
 The necessary scripts and software packages are available on a file share, the so-called '{opsi-depot}'.
 During this time, there is no need and no possibility for the user to intervene in the installation process.
 
 To prevent a user from logging on to the system before completing the installation and thus disrupting the installation process,
 the so-called '{opsi-login-blocker}' is also installed, which only allows logon after the installation has been completed.
 
-In order for software packages to be installed without interaction with the program '{opsi-winst}', they have to be prepared for this.
+In order for software packages to be installed without interaction with the program '{opsi-script}', they have to be prepared for this.
 See the chapter 'Integrating new software packages in the software distribution of opsi' in the 'opsi-getting-started' manual.
 
 [[opsi-manual-clientagent-directories]]
@@ -50,16 +50,13 @@ See the chapter 'Integrating new software packages in the software distribution 
 
 The '{opsi-client-agent}' is installed in `%ProgramFiles%\opsi.org\opsi-client-agent`.
 
-This directory contains all programs of the '{opsi-client-agent}' such as '{opsiclientd}', '{opsiclientd-notifier}', '{opsi-winst}' and some libraries. The configuration files and graphical templates of the mentioned programs can also be found here. +
+This directory contains all components of the '{opsi-client-agent}' such as '{opsiclientd}', '{opsi-notifier}', '{opsi-script}' and some libraries. The configuration files and graphical templates of the mentioned programs can also be found here. +
 The directory `%ProgramFiles%\opsi.org\opsi-client-agent` is protected against changes by users without administrative privileges. +
 The directory `%ProgramFiles%\opsi.org\opsi-client-agent\opsiclientd` contains the configuration file of '{opsiclientd}' and can only be accessed with administrative rights.
 
-Furthermore, there is the directory `c:\opsi.org`.
-
-This directory is currently used for caching installation files and data (see WAN extension). This directory will have additional functions in the future. +
-The directory `c:\opsi.org` can only be accessed with administrative rights.
-
-Log files of the '{opsi-client-agent}' are located in `c:\opsi.org\log\`.
+Furthermore there exists the directory `c:\opsi.org`.
+In this directory a number of variable data are stored, like log files (subdirectory `log`), packet cache (WAN extension), certificates and some more.
+The directory `c:\opsi.org` can be read only with administrator rights.
 
 
 [[opsi-manual-clientagent-service]]
@@ -82,7 +79,7 @@ The '{opsi-client-agent}' consists of several components:
 
 * '{opsiclientd}': The central service of the '{opsi-client-agent}'.
 
-* '{opsiclientd-notifier}': Window for information / communication with the user
+* '{opsi-notifier}': Window for information / communication with the user
 
 * '{opsi-login-blocker}': Blocks the login until the installations are completed.
 
@@ -98,9 +95,9 @@ For installation afterwards or for repair purposes, see chapter <<opsi-manual-cl
 [[opsi-manual-clientagent-opsiclientd]]
 ===== opsiclientd
 
-Core component of the '{opsi-client-agent}' is the service '{opsiclientd}'. This service starts at the boot time.
+Core component of the '{opsi-client-agent}' is the service '{opsiclientd}'. This service starts on boot.
 
-The '{opsiclientd}' has the following tasks:
+It performs the following tasks:
 
 * while the system is booting and the '{opsiclientd}' is waiting for the GUI to come up, the 'block_login_notifier' is started and shows a padlock at the right upper corner of the screen.
 
@@ -109,16 +106,16 @@ The default event is 'gui_startup' which will fire at boot time before user logi
 
 * Creates a named pipe which is used by the '{opsi-login-blocker}' to ask via {json-rpc} the '{opsiclientd}' when to unblock the login.
 
-* Starting the '{opsiclientd-notifier}' as a thread for information and interaction with the user.
+* Starting the '{opsi-notifier}' for information and interaction with the user.
 
-* If needed, it connects to the '{opsi-depot}' to update the local installation of the '{opsi-winst}' and then starts it to process the '{action-requests}' (software packet installations).
+* If needed, it connects to the '{opsi-depot}' to update the local installation of '{opsi-script}' and then starts it to process the '{action-requests}' (software installation).
 
-[[opsi-manual-clientagent-opsiclientd-notifier]]
-===== opsiclientd notifier
+[[opsi-manual-clientagent-opsi-notifier]]
+===== opsi notifier
 
-The '{opsiclientd-notifier}' implements the interaction with the user. It displays status messages and may give the possibility to interact with the process.
+The '{opsi-notifier}' implements the interaction with the user. It displays status messages and may give the possibility to interact with the process.
 
-There are different situations where the '{opsiclientd-notifier}' will become active in different ways:
+There are different situations where the '{opsi-notifier}' will become active in different ways:
 
 blocking notifier::
 Indicates that the '{opsi-login-blocker}' is blocking
@@ -156,7 +153,7 @@ The opsi 4.0.1 action notifier has almost the same functionality as the opsi 4.0
 The '{opsi-login-blocker}' for NT5 (Win2K/WinXP) is implemented as a 'GINA'  ('opsigina.dll').
 This 'GINA' waits until the opsiclientd reports, that all '{product-actions}' are finished or, if the opsiclientd is not reachable, until the connection timeout to the opsiclientd is reached (normally 120 seconds). Then the complete control is forwarded to the next 'GINA', which is normally the `msgina.dll`.
 
-The '{opsi-login-blocker}' for NT6 (Vista/Win7) is implemented as a 'credential provider filter' ('OpsiLoginBlocker.dll').
+The '{opsi-login-blocker}' for NT6 (Vista/Win7/Win10) is implemented as a 'credential provider filter' ('OpsiLoginBlocker.dll').
 This 'credential provider filter' blocks all 'credential providers' until the opsiclientd reports, that all '{product-actions}' are finished or, if the opsiclientd is not reachable, until the connection timeout to the opsiclientd is reached (normally 120 seconds).
 
 [[opsi-manual-clientagent-event-flow]]
@@ -173,16 +170,16 @@ TIP: If there is an error while connecting to the '{opsi-configserver}', the log
 
 . If an event fires, the +event_notifier_command+ will be started. +
 Now the opsiclientd tries to reach the '{opsi-configserver}' using the url address. +
-If after +user_cancelable_after+ seconds there is still no connection established, so the '{opsiclientd-notifier}' will enable an 'Abort' button. If no connection could be established in +connection_timeout+ seconds, the 'opsiclientd' connection process will be aborted and the event ends with an error message. To avoid a user from aborting, set +user_cancelable_after+ = +connection_timeout+ .
+If after +user_cancelable_after+ seconds there is still no connection established, so the '{opsi-notifier}' will enable an 'Abort' button. If no connection could be established in +connection_timeout+ seconds, the 'opsiclientd' connection process will be aborted and the event ends with an error message. To avoid a user from aborting, set +user_cancelable_after+ = +connection_timeout+ .
 
 . After a successful connection to the '{opsi-configserver}', the 'opsiclientd' checks if there are 'action requests' for this client. If there are 'action requests' and the +action_warning_time+ > 0, the +action_notifier_command+ will be executed. +
-This is normally the '{opsiclientd-notifier}', which shows now the list of 'action requests' for this client for +action_warning_time+ seconds. +
+This is normally the '{opsi-notifier}', which shows now the list of 'action requests' for this client for +action_warning_time+ seconds. +
 Is the +action_warning_time+ = 0 (default) the +action_notifier_command+ will not be executed. +
 You may allow the user to suspend the process at this time by setting +action_user_cancelable+ >= 0. The user may suspend the actions up to +action_user_cancelable+ times. After +action_user_cancelable+ aborts in sequence or if +action_user_cancelable+ = 0 the user gets no possibility to suspend the actions. +
-In every case there will be a button which allows the user to start the installations immediately without waiting for the count down of +action_warning_time+ seconds. The messages displayed by the '{opsiclientd-notifier}' may be configured with the options +action_message+ or +action_message[lang]+ . This messages may contain the placeholders +%action_user_cancelable%+ (total number of allowed suspensions) and +%action_cancel_counter%+ (number of suspensions already used by the user). +
-If the actions are not suspended by the user, the +action_cancel_counter+ will reset and the '{opsi-winst}' will be executed to process the 'action requests'.
+In every case there will be a button which allows the user to start the installations immediately without waiting for the count down of +action_warning_time+ seconds. The messages displayed by the '{opsi-notifier}' may be configured with the options +action_message+ or +action_message[lang]+ . This messages may contain the placeholders +%action_user_cancelable%+ (total number of allowed suspensions) and +%action_cancel_counter%+ (number of suspensions already used by the user). +
+If the actions are not suspended by the user, the +action_cancel_counter+ will reset and the '{opsi-script}' will be executed to process the 'action requests'.
 
-. If the '{opsi-winst}' terminates with a reboot or shutdown request, the +shutdown_notifier_command+ will be executed if +shutdown_warning_time+ > 0. +
+. If the '{opsi-script}' terminates with a reboot or shutdown request, the +shutdown_notifier_command+ will be executed if +shutdown_warning_time+ > 0. +
 The now starting +shutdown_notifier_command+ shows for +shutdown_warning_time+ seconds a message saying that the client will be rebooted. If +shutdown_user_cancelable+ > 0 the user may suspend the reboot up to +shutdown_user_cancelable+ times in sequence. If the user suspends the reboot, the +shutdown_notifier_command+ will be restarted after +shutdown_warning_repetition_time+. The +shutdown_notifier_command+ shows a message which may be configured by +shutdown_warning_message+ or +shutdown_warning_message[lang]+. This message may contain the placeholders  +%shutdown_user_cancelable%+ (maximum number of allowed suspensions) and +%shutdown_cancel_counter%+ number of suspensions already done by the user). +
 If the client is rebooted (by the user or the 'opsi-client-agent') the +%shutdown_cancel_counter%+ will be reset.
 
@@ -193,7 +190,7 @@ TIP: The sequence of event processing and user actions is visualized as a timeli
 [[opsi-manual-clientagent-configuration]]
 ===== Configuration
 
-The following chapters shows how to configure the opsi-client-agent.
+The following chapters show how to configure the opsi-client-agent.
 
 [[opsi-manual-clientagent-configuration-events]]
 ===== Configuration of different events
@@ -292,18 +289,15 @@ If the starttime is higher than the endtime the 'working_window' will be valid o
 Example during the day (starttime < endtime): working_window=07:00-19:00 +
 Example during the night (starttime > endtime): working_window=20:00-07:00 +
 
-For an examplary "working_window=20:00-07:00" the opsiclientd log would look like this:
+For the example "working_window=20:00-07:00" the opsiclientd log would look like this:
 
 [source,ini]
-[5] [<timestamp>] [ event processing gui_startup] We have now: 2019-11-05 01:02:13.993000   (EventProcessing.pyo|1121)
-[5] [<timestamp>] [ event processing gui_startup] Working Window configuration starttime: 2019-11-04 20:00:00 endtime:
-2019-11-05 07:00:00 systemtime now: 2019-11-05 01:02:13.993000   (EventProcessing.pyo|1138)
-[5] [<timestamp>] [ event processing gui_startup] We are in the configured working window   (EventProcessing.pyo|1139)
+[5] [<timestamp>] [ event processing gui_startup] Current time 01:02:13.993000 is within the configured working window (20:00-07:00)
 
 [[opsi-407-releasenotes-clientagent-configuration-proxysupport]]
 ===== Proxysupport-Configuration
 
-In the global section of opsiclientd.conf you have the option to define a proxyserver that will be used by the opsi-client-agent.
+In the "global" section of opsiclientd.conf you have the option to define a proxyserver that will be used by the opsi-client-agent.
 If a proxyserver is defined in config, all HTTP- and HTTPS-Connection of the opsiclientd will be redirected to this proxyserver.
 
 [source,ini]
@@ -520,8 +514,8 @@ command = %global.base_dir%\\opsiclientd_rpc.exe "%global.host_id%" "%global.ops
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [action_processor]
 # Locations of action processor
-local_dir = %global.base_dir%\\opsi-winst
-remote_dir = opsi-winst\\files\\opsi-winst
+local_dir = %global.base_dir%\\opsi-script
+remote_dir = opsi-script\\files\\opsi-script
 filename = winst32.exe
 
 # Action processor command
@@ -882,9 +876,9 @@ The '{opsi-login-blocker}' logging to the log file: `C:\opsi.org\log\opsi_loginb
 [[opsi-manual-clientagent-infopage]]
 ===== {opsiclientd} infopage
 
-According to the fact that there are a lot of subcomponents of the '{opsiclientd}' which work and log at the same time, the log file of the '{opsiclientd}' becomes complex.
+According to the fact that there are a lot of components of the '{opsiclientd}' which work and log at the same time, the log file of the '{opsiclientd}' becomes complex.
 
-In order to make it easier to understand how the different subcomponents work together, the '{opsiclientd}' has an own 'info page' which visualizes the running tasks on a timeline. +
+In order to make it easier to understand how the different components work together, the '{opsiclientd}' has an own 'info page' which visualizes the running tasks on a timeline. +
 You may view this 'info page' at the browser calling the url: +
 https://<address-of-the-client>:4441/info.html
 
@@ -896,7 +890,7 @@ image::opsiclientd_infopage_event_on_demand.png["Info page of the {opsiclientd} 
 
 Clients with activated Bitlocker encryption, with manual password entry at boot, prevent the unattended installation of software and patches.
 
-Just like with '{opsi-winst}', it is now also possible for reboots triggered by events of {opsiclientd} to suppress the password input when booting.
+Just like with '{opsi-script}', it is now also possible for reboots triggered by events of {opsiclientd} to suppress the password input when booting.
 
 CAUTION: This feature is inevitably associated with a security issue. During this process, the password is written to the hard disk as plain text and is therefore a potential weak point.
 
@@ -931,14 +925,15 @@ The '{opsiclientd}' has its own web service interface which can be used to trans
 This can be done on the command line using the tool '{opsi-admin}' by calling one of the +hostControlSafe_*+ methods. Calling one of these methods takes the parameter +*hostid+ which:
 
 * can be `["*"]` to send the command to all clients
-* can be the name of a client (e.g.. "pcbon4.uib.local")
-* can be a list of client names according to the pattern [ <client1>, <client2>] +
-e.g.. ["pcbon1.uib.local", "pcbon2.uib.local"]
+* can be the name of a client (e.g. "myclient.uib.local")
+* can be a list of client names according to the pattern ["<client1>", "<client2>"] +
+e.g. ["client1.uib.local", "client2.uib.local"]
+
 * may contain wildcards like +*+
 +
-e.g.. "pcbon4.\*" or "pcbon*"
+e.g. "client.\*" oder "\*.uib.*"
 
-If a client isn't reachable (e.g. powerd off) you will get a message.
+If a client isn't reachable (e.g. powered off) you will receive an error message.
 
 [[opsi-manual-clientagent-control-messages]]
 ===== Sending popup messages
@@ -1021,12 +1016,12 @@ There may also be a difference between the operating system platforms (e.g betwe
 There is a helper program set allows you simply to check if a given bitmap file will be displayed correct or not: link:http://download.uib.de/opsi4.1/misc/helper/opsi_bitmap_viewer.exe[opsi bitmap viewer].
 
 
-[[opsi-manual-clientagent-ci-winst]]
-===== Elements to be patched: opsi-winst
-The files to be configured for opsi-winst are to be found in the directory `/var/lib/opsi/depot/opsi-client-agent/files/opsi/opsi-winst/winstskin`:
+[[opsi-manual-clientagent-ci-opsi-script]]
+===== Elements to be patched: opsi-script
+The files to be configured for opsi-script are to be found in the directory `/var/lib/opsi/depot/opsi-client-agent/files/opsi/opsi-winst/winstskin`:
 
 * `bg.png` +
-This is the '{opsi-winst}' background image, where during installation text messages and product logos are shown.
+This is the '{opsi-script}' background image, where during installation text messages and product logos are shown.
 
 * `skin.ini` +
 This is the configuration file to specify the position, font and color of text messages during installation.
@@ -1034,8 +1029,9 @@ This is the configuration file to specify the position, font and color of text m
 [[opsi-manual-clientagent-ci-opsiclientd]]
 ===== Elements to be configured: opsiclientd
 In the directory
-`/var/lib/opsi/depot/opsi-client-agent/files/opsi/dist/notifier`
-are the files to configure the look of the notifiers. Each notifier has an image and a configuration file:
+`/var/lib/opsi/depot/opsi-client-agent/files/opsi/opsi-notifier/notifier.d`
+are the files to configure the look of the notifiers.
+Each notifier has an background image and a configuration file:
 
 * `block_login.bmp` +
 background image of the login blocker notifier.
@@ -1111,12 +1107,10 @@ Uninstall_color = clRed
 Setup_color = clGreen
 ----
 
-You will find templates for these files under `/var/lib/opsi/depot/opsi-client-agent /files/opsi/opsiclientkiosk/opsiclientkioskskin`
-or `C:\Program Files(x86)\opsi.org\opsi-client-agent\opsiclientkiosk\opsiclientkioskskin`
+You will find templates for these files under `/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin`
+or `C:\Program Files(x86)\opsi.org\opsi-client-agent\opsiclientkiosk\ock_custom\skin`
 
-
-
-
+The icon used in each case can be changed by placing a `kiosk.ico` file under `/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin`.
 
 
 [[opsi-manual-clientagent-ci-custom]]
@@ -1130,7 +1124,7 @@ The custom directory can be used to protect your configuration changes during op
 Values from this config file override values from the default `cfg/config.ini`. Except of the values for `pckey` and `bootmode`, which never are picked from that file. Add to your custom config file *only* those values, that are different from the default settings.
 
 * `custom/winstskin/*.*` +
-All the files from this directory will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\custom\winstskin` directory during installation of the opsi-client-agent on the client. This `winstskin` directory, if it exists, since opsi-winst Version 4.11.3.4. is the preferred one. It must contain all required winstskin files and configurations, for the content of the default directory is ignored.
+All the files from this directory will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\custom\winstskin` directory during installation of the opsi-client-agent on the client. This `winstskin` directory, if it exists, since opsi-script Version 4.11.3.4. is the preferred one. It must contain all required winstskin files and configurations, for the content of the default directory is ignored.
 
 * `custom/notifier/*.*` +
 All the files from this directory will be copied to the clients `C:\Program Files (x86)\opsi.org\opsi-client-agent\notifier` directory during installation of the opsi-client-agent and overwrite the files from the server side `files/opsi/dist/notifier/` directory.
@@ -1141,11 +1135,7 @@ If it exists, the `custom/opsiclientd.conf` will be copied to the clients `C:\Pr
 Using a custom `opsiclientd.conf` is not recommended. To customize your client configuration, use the host parameter configuration for single features as described in the opsi-client-agent chapter. Using a custom `opsiclientd.conf` is applicable for very complex configurations only. By using a custom `opsiclientd.conf`, after each update of opsi-client-agent it is required to check the server default file  `files/opsi/dist/opsiclientd/opsiclientd.conf` for changes to be patched to your custom `opsiclientd.conf`. +
  *So: hands off this feature, unless you really know what you are doing!*
 
-* `custom/opsiclientkioskskin/*.*` +
-All the files in these directory will be copied, by the installation of an opsi-client-agent to C:\Program Files(x86)\opsi.org\opsi-client-agent\custom\opsiclientkioskskin. If available, this directory (opsiclientkioskskin) will have the preference over others.
-
-
-To avoid errors by the change of rights, the following helps:
+A subsequent cleanup of the file access rights helps to avoid errors:
 
 [source, prompt]
 ----
@@ -1155,7 +1145,12 @@ opsi-setup --set-rights /var/lib/opsi/depot/opsi-client-agent
 [[opsi-manual-clientagent-loginblock]]
 ==== Blocking the user login with the opsi-Loginblocker
 
-To prevent a user login before all installations are completed, opsi provides the optional '{opsi-login-blocker}'.
+To prevent a user from logging into the system before the installation is complete, the {opsi-login-blocker} can be installed.
+This will not allow access to the login until the installation process is complete.
+
+Whether the {opsi-login-blocker} is installed or activated during the {opsi-client-agent} installation,
+can be configured via the '{product-property}' +loginblockerstart+.
+
 
 
 
@@ -1170,7 +1165,7 @@ Whether the '{opsi-login-blocker}' is installed or not is configured by the swit
 
 
 [[opsi-manual-clientagent-loginblock-nt6]]
-===== opsi loginblocker at NT 6 (Win 7 & Co)
+===== opsi loginblocker at NT 6 (Vista/Win7/Win10)
 The '{opsi-login-blocker}' at Vista is implemented as a 'credential provider filter'. It blocks all 'credential providers' until the release by the '{opsiclientd}' or timeout.
 
 [[opsi-manual-clientagent-subsequent-installation]]
@@ -1190,7 +1185,7 @@ To do this use the following steps:
 * Edit there the file `files\opsi\cfg\config.ini` :
 ** In section `[installation]` set for `service_user=` the login name of a user that is member of the opsiadmin group..
 ** NOT RECOMMENDED: In section  `[installation]` set for `service_password=` the uncoded password of this user. Better:
-** In section `[installation]` set for `service_hidden_password=` the base64 encoded password of this user. For encoding of the pawword you may use the opsi-winst function `base64EncodeStr(<string>)` or a online service like  http://www.base64encode.org/ +
+** In section `[installation]` set for `service_hidden_password=` the base64 encoded password of this user. For encoding of the pawword you may use the opsi-script function `base64EncodeStr(<string>)` or a online service like  http://www.base64encode.org/ +
 If `service_hidden_password=` has any value the key `service_password=` will be ignored.
 ** In section `[opsiclientd]` set for `config_service.url =` the web service address of your opsi-config-server (e.g. `https://192.168.1.10:4447/rpc`)
 
@@ -1206,9 +1201,7 @@ If you like you may pack the temporary directory to a self extracting exe with f
 The systray program of the 'opsi-client-agent' focuses on the following targets:
 
 * Notifying the user in regular (and configurable) Intervals on pending Installations. (Optional)
-
 * Notifying the user on pending Installations on demand by using the context menu.
-
 * Possibility for the user to start the installations.
 
 .Message window of the opsi-systray program
