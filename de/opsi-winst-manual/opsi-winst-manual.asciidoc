@@ -3754,7 +3754,7 @@ Nachdem die Klasse ausgewählt ist werden ihre Eigenschaften in dem Feld 'Availa
 image::opsi-wmitestgui-2.png["opsi-wmitestgui-2"]
 
 Verfügbare Eigenschaften können ausgewählt und dann mittels
-drag & drop oder der Schaltfläche 
+drag & drop oder der Schaltfläche
 
 image:opsi-wmitestgui-button-pfeil-rechts.png["opsi-wmitestgui-button-pfeil-rechts",width=15]
 
@@ -5088,7 +5088,7 @@ Angeboten werden 6 Flags :
 * x, eXtended syntax
 * r, Russian ranges
 
-Sie können durch anklicken der entsprechenden Checkboxen diese Flags aktivieren. 
+Sie können durch anklicken der entsprechenden Checkboxen diese Flags aktivieren.
 Die Flags werden dann am Anfang der Regular Expression hinzugefügt. +
 Die Flags müssen vor dem Abschnitt stehen für den sie gelten sollen.
 
@@ -10772,11 +10772,13 @@ net start
 ----
 
 [[opsi-winst-cookbook-local-admin]]
-=== Skript für Installationen im Kontext eines lokalen Administrators
+=== Installationen im Kontext eines lokalen Benutzers
 
-In manchen Situationen kann es sinnvoll oder notwendig sein, ein '{opsi-winst}/opsi-script' Skript als lokal eingeloggter Benutzer auszuführen anstatt wie üblich im Kontext eines Systemdienstes. Beispielsweise kann es sein, dass Softwareinstallationen, die vom '{opsi-winst}/opsi-script' aus aufgerufen werden, zwingend einen Benutzerkontext benötigen oder dass bestimmte Dienste, die für den Installationsvorgang wichtig sind, erst nach dem Login zur Verfügung stehen.
+In manchen Situationen kann es sinnvoll oder notwendig sein, ein '{opsi-winst}/opsi-script' Skript als lokal eingeloggter Benutzer auszuführen, anstatt wie üblich im Kontext eines Systemdienstes. Beispielsweise kann es sein, dass Softwareinstallationen, die vom '{opsi-winst}/opsi-script' aus aufgerufen werden, zwingend einen Benutzerkontext benötigen oder dass bestimmte Dienste, die für den Installationsvorgang wichtig sind, erst nach dem Login eines Benutzers zur Verfügung stehen.
 
-MSI-Installationen, die eine lokalen User benötigen lassen, sich häufig durch die Option 'ALLUSERS=1' dazu "überreden" auch ohne aus zukommen. Beispiel:
+MSI-Installationen, die einen lokalen User benötigen, lassen sich häufig (aber leider nicht immer) durch die Option 'ALLUSERS=1' dazu "überreden" auch ohne auszukommen.
+Beispiel:
+
 [source,winst]
 ----
 [Actions]
@@ -10785,358 +10787,296 @@ Set $LOG_LOCATION$ = %opsiLogDir% + "\myproduct.log"
 winbatch_install_myproduct
 
 [winbatch_install_myproduct]
-msiexec /qb ALLUSERS=1 /l* $LOG_LOCATION$ /i %SCRIPTPATH%\files\myproduct.msi
+msiexec "%SCRIPTPATH%\files\myproduct.msi" /qb ALLUSERS=1 /l* $LOG_LOCATION$ /i
 ----
 
-Eine andere aufwendigere Möglichkeit dieses Problem zu lösen, ist einen administrativen User temporär anzulegen und diesen zur Installation des Programms zu verwenden.
+==== opsi-template-with-userlogin
+Eine andere, aufwendigere Möglichkeit dieses Problem zu lösen, ist temporär einen lokalen Benutzer anzulegen und diesen zur Installation des Programms zu verwenden.
+Dazu bieten wir als Vorlage das Produkt `opsi-template-with-userlogin` an. Dieses löst das bisher verwendete Produkt `opsi-template-with-admin` ab.
 
-Dazu gehen Sie wie folgt vor:
+IMPORTANT: Verwenden Sie immer die aktuellste Version von `opsi-template-with-userlogin`!
 
-Erzeugen Sie ein neues Produkt auf Basis des Produkts 'opsi-template-with-admin'.
-Legen im Verzeichnis 'install\productid' ein Verzeichnis 'localsetup' an.
-Verschieben Sie die gesamten Installationsdateien Ihres Produktes in das Unterverzeichnis 'localsetup' des erzeugten Produktes.
+===== Erzeugen eines angepassten Produkts
+Um das Template an Ihre Bedürfnisse anzupassen empfiehlt sich das Erzeugen eines neuen Produktes auf Basis von `opsi-template-with-userlogin`:
 
+`opsi-package-manager -i --new-product-id myproduct opsi-template-with-userlogin_4.x.x.x-x.opsi`
 
-Sorgen Sie dafür, dass Ihr setup-script  einen *Reboot* auslöst. Dazu fügen Sie am besten direkt unter `[Actions]` die Zeile `ExitWindows /Reboot` ein:
+===== Ablauf
+Das Produkt durchläuft die folgenden Schritte während der Installation:
+
+* Sicherung der folgenden Werte:
+** Bisherige Auto Logon Einstellungen.
+** Zuletzt eingeloggter Benutzer.
+** User Account Control Einstellungen.
+** Hostparameter opsiclientd.event_software_on_demand.shutdown_warning_time.
+* Temporäres Setzen des Hostparameters opsiclientd.event_software_on_demand.shutdown_warning_time auf den Wert "0", um unnötige Wartezeit zu vermeiden.
+* Generieren eines nach konfigurierbaren Kriterien zufälligen Passwortes für den opsiSetupUser.
+* Anlegen des lokalen Benutzers opsiSetupUser.
+* Einrichten der Auto Logon Funktion für den Benutzer opsiSetupUser.
+* Erstellen eines Scheduled Tasks für die Installation in der Aufgabenplanung.
+* Je nach Einstellung der Product Property `execution_method` kopieren der Installationsdateien auf den Client.
+* Neustart des Clients damit die Einstellungen für den Auto Logon in Kraft treten.
+* Automatisches Einloggen des opsiSetupUsers.
+* Ausführen der Installation über den angelegten Scheduled Task. Der Task startet mit einer Minute Verzögerung nach dem Login, damit alle Dienste genügend Zeit haben um zu starten.
+* Abschließendender Reboot des Clients.
+* Aufräumen und Wiederherstellen des ursprünglichen Zustands.
+** Löschen des opsiSetupUsers inklusive Benutzerprofils und Registry Einträgen.
+** Löschen aller verwendeten lokalen Dateien.
+** Wiederherstellen der gesicherten Werte von Auto Logon, zuletzt eingeloggtem Benutzer und der User Account Control.
+** Wiederherstellen des ursprünglichen Werts des Hostparameters opsiclientd.event_software_on_demand.shutdown_warning_time.
+
+===== Product Properties
+Das Verhalten des Produkts kann über die folgenden Product Properties beeinflusst werden:
+
+*debug*
+
+* False (Default)
+** Sperrt Keyboard und Maus Eingaben während des Auto Logons des opsiSetupUsers um Benutzerinteraktion zu vermeiden. Das Passwort des opsiSetupUsers wird nicht im Klartext im Logfile angezeigt.
+* True
+** Keyboard und Maus bleiben während des Auto Logons zum Debuggen im Fehlerfall aktiv. Das Passwort des opsiSetupUsers wird im Logfile im Klartext angezeigt.
+
+*execution_method*
+
+* event_starter_local_files
+** Während des Auto Logons wird die Installation über die opsiclientd_event_starter_asInvoker.exe getriggert, die den Server kontaktiert und dort ein on_demand Ereignis auslöst.
+** Die Installation wird im Kontext des System Users ausgeführt.
+** Der opsiSetupUser wird ohne Administrator Rechte angelegt.
+** Die Installationsdateien werden lokal auf dem Client gespeichert.
+* event_starter_smb_share
+** Während des Auto Logons wird die Installation über die opsiclientd_event_starter_asInvoker.exe getriggert, die den Server kontaktiert und dort ein on_demand Ereignis auslöst.
+** Die Installation wird im Kontext des System Users ausgeführt.
+** Der opsiSetupUser wird ohne Administrator Rechte angelegt.
+** Die Installationsdateien liegen auf dem opsi_depot Share.
+* local_winst_local_files (Default)
+** Während des Auto Logons erfolgt die Installation über den lokal installierten opsi-winst.
+** Die Installation wird im Kontext des opsiSetupUsers ausgeführt.
+** Der opsiSetupUser wird mit Administrator Rechten angelegt.
+** Die Installationsdateien werden lokal auf dem Client gespeichert.
+* Befindet sich ein Client im WAN/VPN Modus (automatische Erkennung) wird diese Product Property ignoriert und die Installation mit folgenden Optionen durchgeführt:
+** Während des Auto Logons erfolgt die Installation über den lokal installierten opsi-winst.
+** Die Installation wird im Kontext des opsiSetupUsers ausgeführt.
+** Der opsiSetupUser wird mit Administrator Rechten angelegt.
+** Es werden die lokal im Cache vorhandenen Installationsdateien verwendet.
+
+*uninstall_before_install*
+
+* False (Default)
+** Vor der Installation wird keine Deinstallation ggf. bereits installierter Versionen durchgeführt.
+* True
+** Vor der Installation wird geprüft ob die Software auf dem Client bereits vorhanden ist. Falls ja wird diese vor der Installation deinstalliert.
+
+===== Aufbau des Produkts
+Das Produkt gliedert sich in ein Hauptscript, das den Auto Logon und die Installation vorbereitet und das eigentliche Installationsscript, das während des Auto Logons des lokalen Benutzers ausgeführt wird.
+
+====== Hauptscript
+Der besseren Übersicht halber verteilt sich das Hauptscript auf die folgenden Dateien:
+
+* declarations.opsiinc (Auslagerung der Definition aller Variablen des Hauptscripts)
+* sections.opsiinc (Auslagerung aller Sektionen des Hauptscripts)
+* setup.opsiscript
+
+Die einzigen Änderungen, die am Hauptscript vorgenommen werden müssen sind die Angabe des benötigten freien Speicherplatzes und die Parameter für die Generierung des für den Auto Login benötigten zufälligen Passwortes.
+Diese werden in der Datei `declarations.opsiinc` vorgenommen:
+
 [source,winst]
 ----
-[Actions]
-ExitWindows /Reboot
+; ----------------------------------------------------------------
+; - Please edit the following values                             -
+; ----------------------------------------------------------------
+;Available free disk space required
+	Set $ProductSizeMB$ = "1000"
+
+;Number of digits
+	Set $RandomStrDigits$ = "3"
+
+;Number of lower case characters
+	Set $RandomStrLowerCases$ = "3"
+
+;Minimum lenght of the generated string
+	Set $RandomStrMinLength$ = "12"
+
+;Number of special case characters
+	Set $RandomStrSpecialChars$ = "3"
+
+;Number of upper case characters
+	Set $RandomStrUpperCases$ = "3"
+; ----------------------------------------------------------------
 ----
 
-Das nachfolgende abgedruckte '{opsi-winst}/opsi-script' Skript-Template erzeugt temporär den gewünschten Benutzerkontext, führt in ihm eine Installation aus und beseitigt ihn schließlich wieder. Für die Verwendung sind die folgende Variablen zu setzen:
+====== Installationsscript
+Auch das Installationsscript unterteilt sich der Übersicht halber auf mehrere Dateien:
 
-* der richtige Wert für die Variable `$Productname$`,
-* der richtige Wert für die Variable `$ProductSize$` und
-* der richtige Wert für die Variable `$LocalSetupScript$` (Name des eigentlichen setup-scriptes)
+* declarations-local.opsiinc (Auslagerung der Definition aller Variablen des Installationsscripts)
+* sections-local.opsiinc (Auslagerung aller Sektionen des Installationsscripts)
+* setup-local.opsiinc
+* delsub-local.opsiinc
+* uninstall-local.opsiscript
 
-Das Skript führt im Einzelnen folgende Schritte aus:
+====== Einfügen der Installationsdateien
+Öffnen Sie das Verzeichnis des Produktes in Ihrem Depot und legen Sie die Installationsdateien in das Unterverzeichnis `localsetup\files`.
+Die Dateien `Testfolder1` und `Testfile1.txt` können bedenkenlos gelöscht werden.
 
-* Anlegen eines lokalen Administrator opsiSetupAdmin;
-* Sichern des bisherigen Autologon-Zustands;
-* Eintragen des opsiSetupAdmin als Autologon-User;
-* Installationsdateien auf den Client kopieren (wohin steht in `$localFilesPath$`), dort befindet sich das Installationsskript, das als lokaler Benutzer ausgeführt werden soll;
-* RunOnce-Eintrag in der Registry anlegen, der den '{opsi-winst}/opsi-script' mit dem lokalen Skript als Argument aufruft;
-* Neustart des Client (damit die Änderungen an der Registry Wirkung haben);
-* '{opsi-winst}/opsi-script' startet und führt ExitWindows /ImmediateLogout aus: durch den Autologon meldet sich nun automatisch der Benutzer opsiSetupAdmin an, es wird der RunOnce-Befehl ausgeführt;
-* nun läuft die Installation ganz normal, jedoch am Ende des Skripts muss zwingend neugestartet werden (also mit ExitWindows /ImmediateReboot), da sonst die Oberfläche des momentan eingeloggten Users opsiSetupAdmin mit Administratorrechten(!) freigegeben wird;
-* nach dem Reboot wird wieder aufgeräumt (alten Zustand von Autologon wiederherstellen, lokale Setup-Dateien löschen, Benutzerprofil von opsiSetupAdmin löschen).
+====== Anpassen der Variablen
+Passen Sie die Variablen in der Datei `localsetup\declarations-local.opsiinc` an Ihre Bedürfnisse an:
 
-Wie man sieht, gliedert sich die Installation in 2 Bereiche: ein Skript, das als Service ausgeführt wird, alles zum lokalen Login vorbereitet und später wieder aufräumt (Masterscript) und ein Skript, dass als lokaler Administrator ausgeführt wird und die eigentliche Setup-Routine für das Produkt enthält (Localscript).
-
-CAUTION: Erfordert das Localscript mehr als nur einen Reboot, muss auch das Masterscript verändert bzw. um diese Anzahl von Reboots erweitert werden. Solange das Localscript nicht fertig ist, muss das Masterscript ein ExitWindows /ImmediateLogout ausführen, um die Kontrolle an das Localscript zu übergeben. Der RunOnce-Eintrag muss dann immer wieder neu gesetzt werden. Ebenso müssen Username und Passwort des Autologins nach jedem Reboot neu gesetzt werden.
-
-Es gibt (ab opsi 4.0.2-2) einen direkten Zugang vom lokalen Skript auf die Produkteigenschaften und das Lizenzmanagement mit den gewohnten Funktionen.
-
-Es kann Produktinstallationen (also aus dem Localscript heraus) geben, die Schlüssel in der Registry verändern, die vorher vom Masterscript gesichert und am Ende durch dieses wieder überschreiben werden. In diesem Fall muss die Wiederherstellung der Werte im Masterscript unterbunden werden.
-
-Das Localscript läuft unter eingeloggtem Administrator Account. Wenn hier nicht Keyboard/Maus gesperrt werden, besteht für den Anwender die Möglichkeit das Skript zu unterbrechen und Administrator zu werden.
-
-Es gibt daher im Template ein Property 'debug'. Steht dieses auf dem Default (=false) so werden Tastatur und Maus gesperrt und keine Passwörter geloggt. Während der Skriptentwicklung und den Tests kann dieses Property auf 'true' gesetzt werden.
-
-Das Passwort des temporären opsiSetupAdmin wird in nachfolgenden Beispiel durch die Funktion RandomStr bestimmt.
-
-IMPORTANT: Verwenden Sie aktualisierte Versionen des folgenden Beispiels aus dem Templateprodukt: opsi-template-with-admin.
 [source,winst]
 ----
-; Copyright (c) uib gmbh (www.uib.de)
-; This sourcecode is owned by uib
-; and published under the Terms of the General Public License.
-
-; TEMPLATE for
-; Skript fuer Installationen im Kontext eines temporaeren lokalen Administrators
-; installations as temporary local admin
-; see winst_manual.pdf / winst_handbuch.pdf
-
-;
-; !!! Das lokale Installations-Skript, das durch den temporaeren lokalen Admin ausgefuehrt wird
-; !!! (sein Name steht in $LocalSetupScript$), muss mit dem Befehl
-; !!! exitWindows /Reboot
-; !!! enden
-;
-
-; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-; Vorarbeiten/Voraussetzungen/Doku pruefen wie in Winsthandbuch
-;  Skript fuer Installationen im Kontext eines lokalen Administrators
-; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-[Actions]
-requiredWinstVersion >= 4.11.4.12
-setLogLevel=7
-ScriptErrorMessages=off
-DefVar $ProductName$
-DefVar $ProductSizeMB$
-DefVar $LocalSetupScript$
-DefVar $LockKeyboard$
-DefVar $OpsiAdminPass$
-DefVar $RebootFlag$
-DefVar $WinstRegKey$
-DefVar $AutoName$
-DefVar $AutoPass$
-DefVar $AutoDom$
-DefVar $AutoLogon$
-DefVar $AutoBackupKey$
-DefVar $LocalFilesPath$
-DefVar $LocalWinst$
-DefVar $DefaultLoglevel$
-DefVar $PasswdLogLevel$
-DefVar $AdminGroup$
-DefVar $SearchResult$
-DefVar $LocalDomain$
-DefVar $debug$
-DefVar $isFatal$
-
 ; ----------------------------------------------------------------
-; - Please edit the following values
+; - Please edit the following values                             -
 ; ----------------------------------------------------------------
-Set $ProductName$ = "opsi-template-with-admin"
-Set $ProductSizeMB$ = "1"
-Set $LocalSetupScript$ = "setup32.opsiscript"
+;The name of the software
+	Set $ProductId$ = "opsi-template-with-userlogin"
+
+;The folder that the software installs itself to
+	Set $InstallDir$ = "%ProgramFilesSysNativeDir%\" + $ProductId$
+
+;Path to the installed executable
+	Set $InstalledExecutable$ = $InstallDir$ + "\" + $ProductId$ + ".exe"
+
+;Name of the license pool to be used
+	Set $LicensePool$ = "p_" + $ProductId$
+
+;Does the installation require a license?
+	Set $LicenseRequired$ = "false"
+
+;GUID of the installed MSI (Can be found in either HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall or HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall or determined by the opsi-setup-detector)
+	Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+
+;Name of the uninstaller executable
+	Set $Uninstaller$ = $InstallDir$ + "\uninstall.exe"
 ; ----------------------------------------------------------------
-
-comment "get and set initial values..."
-set $debug$ = GetProductProperty("debug","false")
-set $isFatal$ = "false"
-set $DefaultLoglevel$ = "7"
-SetLogLevel=$DefaultLoglevel$
-Set $LocalDomain$ = "%PCNAME%"
-
-comment "check if we productive or debugging..."
-if $debug$ = "true"
-	comment "we are in debug mode"
-	Set $LockKeyboard$="false"
-	Set $PasswdLogLevel$="7"
-else
-	comment "we are in productive mode"
-	comment "set $LockKeyboard$ to true to prevent user hacks while admin is logged in"
-	Set $LockKeyboard$="true"
-	comment " set $PasswdLogLevel$ to 0 for production"
-	Set $PasswdLogLevel$="0"
-endif
-
-comment "handle Rebootflag"
-Set $WinstRegKey$ = "HKLM\SOFTWARE\opsi.org\winst\"+$ProductName$
-Set $RebootFlag$ = GetRegistryStringValue32("["+$WinstRegKey$+"] "+"RebootFlag")
-
-comment "some paths required"
-Set $AutoBackupKey$ = $WinstRegKey$+"\AutoLogonBackup"
-Set $LocalFilesPath$ = "C:\opsi.org\tmp\opsi_local_inst"
-Set $LocalWinst$ = "%ProgramFilesDir%\opsi.org\opsi-client-agent\opsi-winst\winst32.exe"
-if not( FileExists($LocalWinst$) )
-	LogError "No opsi-winst found. Abborting."
-	isFatalError
-endif
-
-comment "show product picture"
-ShowBitmap "%scriptpath%\localsetup\"+$ProductName$+".png" $ProductName$
-
-if not (($RebootFlag$ = "1") or ($RebootFlag$ = "2") or ($RebootFlag$ = "3"))
-	comment "Part before first Reboot"
-	comment "just reboot - this must be done if this is the first product after OS installation"
-	comment "handle Rebootflag"
-	Set $RebootFlag$ = "1"
-	Registry_SaveRebootFlag /32bit
-	;ExitWindows /ImmediateReboot
-endif ; Rebootflag = not (1 or 2 or 3)
-
-if $RebootFlag$ = "1"
-	comment "Part before second Reboot"
-	setActionProgress "Preparing"
-
-	if not(HasMinimumSpace ("%SYSTEMDRIVE%", ""+$ProductSizeMB$+" MB"))
-		LogError "Not enough space on drive C: . "+$ProductSizeMB$+" MB on C: required for "+$ProductName$
-		isFatalError
-	endif
-
-	comment "Lets work..."
-	Message "Preparing "+$ProductName$+" install step 1..."
-	sub_Prepare_AutoLogon
-
-	comment "we need to reboot now to be sure that the autologon work"
-	comment "handle Rebootflag"
-	Set $RebootFlag$ = "2"
-	Registry_SaveRebootFlag /32bit
-	ExitWindows /ImmediateReboot
-endif ; Rebootflag = not (1 or 2)
-
-if ($RebootFlag$ = "2")
-	comment "Part after first Reboot"
-
-	comment "handle Rebootflag"
-	Set $RebootFlag$ = "3"
-	Registry_SaveRebootFlag /32bit
-
-	comment "Lets work..."
-	Message "Preparing "+$ProductName$+" install step 2..."
-	Registry_enable_keyboard /sysnative
-
-	comment "now let the autologon work"
-	comment "it will stop with a reboot"
-	setActionProgress "Run Installation"
-
-	ExitWindows /ImmediateLogout
-endif ; Rebootflag = 2
-
-if ($RebootFlag$ = "3")
-	comment "Part after second Reboot"
-	ExitWindows /Reboot
-	setActionProgress "Cleanup"
-	comment "handle Rebootflag"
-	Set $RebootFlag$ = "0"
-	Registry_SaveRebootFlag /32bit
-
-	comment "Lets work..."
-	Message "Cleanup "+$ProductName$+" install (step 3)..."
-	sub_Restore_AutoLogon
-	set $SearchResult$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce] opsi_autologon_setup")
-	if $SearchResult$ = $LocalWinst$+" "+$LocalFilesPath$+"\"+$LocalSetupScript$+" /batch /productid %installingProdName%"
-		LogError "Localscript did not run. We remove the RunOnce entry and abort"
-		Registry_del_runonce /sysnative
-		set $isFatal$ = "true"
-	endif
-	if "true" = getRegistryStringValue32("[HKLM\Software\opsi.org\winst] with-admin-fatal")
-		LogError "set to fatal because the local script stored this result"
-		set $isFatal$ = "true"
-	endif
-	comment "cleanup the registry key which stores a fatal result of the local script"
-	Registry_clean_fatal_flag /32bit
-	if $isFatal$ = "true"
-		isFatalError
-	endif
-	comment "This is the clean end of the installation"
-endif ; Rebootflag = 3
-
-
-[sub_Prepare_AutoLogon]
-comment "copy the setup script and files"
-Files_copy_Setup_files_local
-comment "read actual Autologon values for backup"
-set $AutoName$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultUserName")
-comment "if AutoLogonName is our setup admin user, something bad happend"
-comment "then let us cleanup"
-if ($AutoName$="opsiSetupAdmin")
-	set $AutoName$=""
-	set $AutoPass$=""
-	set $AutoDom$=""
-	set $AutoLogon$="0"
-else
-	set $AutoPass$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultPassword")
-	set $AutoDom$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] DefaultDomainName")
-	set $AutoLogon$ = GetRegistryStringValueSysnative("[HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon] AutoAdminLogon")
-endif
-
-comment "backup AutoLogon values"
-Registry_save_autologon /32bit
-
-comment "prepare the admin AutoLogon"
-SetLogLevel=$PasswdLogLevel$
-set $OpsiAdminPass$= randomstr
-Registry_autologon /sysnative
-
-comment "get the name of the admin group"
-set $AdminGroup$ = SidToName("S-1-5-32-544")
-comment "create our setup admin user"
-DosInAnIcon_makeadmin
-SetLogLevel=$DefaultLoglevel$
-
-comment "store our setup script as run once"
-Registry_runOnce /sysnative
-
-comment "disable keyboard and mouse while the autologin admin works"
-if ($LockKeyboard$="true")
-	Registry_disable_keyboard /Sysnative
-endif
-
-comment "cleanup the registry key which stores a fatal result of the local script"
-Registry_clean_fatal_flag /32bit
-
-[sub_Restore_AutoLogon]
-comment "read AutoLogon values from backup"
-set $AutoName$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultUserName")
-set $AutoPass$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultPassword")
-set $AutoDom$ = GetRegistryStringValue("["+$AutoBackupKey$+"] DefaultDomainName")
-set $AutoLogon$ = GetRegistryStringValue("["+$AutoBackupKey$+"] AutoAdminLogon")
-
-comment "restore the values"
-SetLogLevel = $PasswdLogLevel$
-Registry_restore_autologon /Sysnative
-SetLogLevel = $DefaultLoglevel$
-comment "delete our setup admin user"
-DosInAnIcon_deleteadmin
-comment "cleanup setup script, files and profiledir"
-Files_delete_Setup_files_local
-comment "delete profiledir"
-DosInAnIcon_deleteprofile
-
-[Registry_save_autologon]
-openkey [$AutoBackupKey$]
-set "DefaultUserName"="$AutoName$"
-set "DefaultPassword"="$AutoPass$"
-set "DefaultDomainName"="$AutoDom$"
-set "AutoAdminLogon"="$AutoLogon$"
-
-[Registry_restore_autologon]
-openkey [HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
-set "DefaultUserName"="$AutoName$"
-set "DefaultPassword"="$AutoPass$"
-set "DefaultDomainName"="$AutoDom$"
-set "AutoAdminLogon"="$AutoLogon$"
-
-[DosInAnIcon_deleteadmin]
-NET USER opsiSetupAdmin  /DELETE
-
-[Registry_SaveRebootFlag]
-openKey [$WinstRegKey$]
-set "RebootFlag" = "$RebootFlag$"
-
-[Files_copy_Setup_files_local]
-copy -s "%ScriptPath%\localsetup\*.*" "$LocalFilesPath$"
-
-[Files_delete_Setup_files_local]
-del -sf $LocalFilesPath$\
-; folgender Befehl funktioniert nicht vollständig, deshalb ist er zur Zeit auskommentier
-; der Befehl wird durch die Sektion "DosInAnIcon_deleteprofile" ersetzt (P.Ohler)
-;delete -sf "%ProfileDir%\opsiSetupAdmin"
-
-[DosInAnIcon_deleteprofile]
-rmdir /S /Q "%ProfileDir%\opsiSetupAdmin"
-
-[DosInAnIcon_makeadmin]
-NET USER opsiSetupAdmin $OpsiAdminPass$ /ADD
-NET LOCALGROUP $AdminGroup$ /ADD opsiSetupAdmin
-
-[Registry_autologon]
-openkey [HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon]
-set "DefaultUserName"="opsiSetupAdmin"
-set "DefaultPassword"="$OpsiAdminPass$"
-set "DefaultDomainName"="$LocalDomain$"
-set "AutoAdminLogon"="1"
-
-[Registry_runonce]
-openkey [HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce]
-set "opsi_autologon_setup"='"$LocalWinst$" "$LocalFilesPath$\$LocalSetupScript$" /batch /productid %installingProdName%'
-
-[Registry_del_runonce]
-openkey [HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce]
-DeleteVar "opsi_autologon_setup"
-
-[Registry_disable_keyboard]
-openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Kbdclass]
-set "Start"=REG_DWORD:0x4
-openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Mouclass]
-set "Start"=REG_DWORD:0x4
-
-[Registry_enable_keyboard]
-openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Kbdclass]
-set "Start"=REG_DWORD:0x1
-openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Mouclass]
-set "Start"=REG_DWORD:0x1
-
-[Registry_clean_fatal_flag]
-openkey [$WinstRegKey$]
-DeleteVar "with-admin-fatal"
 ----
+
+====== Anpassen der Datei setup-local.opsiinc
+Die Installation der Software erfolgt über die Datei `setup-local.opsiinc`
+Diese beinhaltet neben dem Handling der Installation und des Lizenzmanagements auskommentierte Beispiele für das Kopieren von Dateien, das Erstellen von Registry Einträgen und das Anlegen von Verknüpfungen.
+Diese können, je nach Bedarf einkommentiert, gelöscht, oder auskommentiert gelassen werden.
+
+====== Anpassen der Datei sections-local.opsiinc
+Diese Datei beinhaltet alle von der Installation verwendeten Sektionen.
+In der Sektion `[Sub_Check_ExitCode]` muss die zum Installations Typ der verwendeten Software passende Funktion zur Auswertung des Exit Codes einkommentiert werden.
+Es können die Exit Codes für die folgenden Installations Typen ausgewertet werden:
+
+* Inno Setup
+* InstallShield
+* MSI
+* Nullsoft Scriptable Install System (NSIS)
+
+[TIP]
+====
+Der Installations Typ kann über das Tool `opsi-setup-detector` ermittelt werden.
+====
+
+In diesem Beispiel wurde die Funktion `isMsiExitcodeFatal` einkommentiert:
+
+[source,winst]
+----
+[Sub_Check_ExitCode]
+Set $ExitCode$ = getlastexitcode
+;if stringtobool(isInnoExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+;if stringtobool(isInstallshieldExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+if stringtobool(isMsiExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+;if stringtobool(isNsisExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+  Set $ErrorFlag$ = $ErrorString$
+  Registry_Save_Fatal_Flag /32Bit
+  ExitWindows /ImmediateReboot
+else
+  Comment $ErrorString$
+endif
+----
+
+Die Sektionen `Winbatch_Install` und `Winbatch_Uninstall` enthalten auskommentierte Beispiele für die Installations- bzw. Deinstallationskommados der unterschiedlichen Installations Typen.
+Hier muss das passende Installations- bzw. Deinstallationskommando für den entsprechenden Installations Typ einkommentiert und angepasst werden.
+
+[source,winst]
+----
+[Winbatch_Install]
+;Choose one of the following examples as basis for your installation
+;You can use the variable $LicenseKey$ to pass a license key to the installer
+
+;========= Inno Setup =========
+;"%ScriptPath%\localsetup\files\setup.exe" /sp- /silent /norestart
+
+;========= InstallShield =========
+;Create an setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
+;"%ScriptPath%\localsetup\files\setup.exe" /s /sms /f1"%ScriptPath%\localsetup\files\setup.iss" /f2"$LogDir$\$ProductId$.install_log.txt"
+
+;========= MSI package =========
+;msiexec /i "%ScriptPath%\localsetup\files\setup.msi" /qb! /l* "$LogDir$\$ProductId$.install_log.txt" ALLUSERS=1 REBOOT=ReallySuppress
+
+;========= Nullsoft Scriptable Install System (NSIS) =========
+;"%ScriptPath%\localsetup\files\setup.exe" /S <additional_parameters>
+
+[Winbatch_Uninstall]
+;Choose one of the following examples as basis for your uninstallation
+
+;========= Inno Setup =========
+;"$Uninstaller$" /silent /norestart
+
+;========= InstallShield =========
+;Create an uninstall.iss answer file by running: setup.exe /uninst /r /f1"c:\uninstall.iss"
+;"%ScriptPath%\localsetup\files\setup.exe" /uninst /s /f1"%ScriptPath%\localsetup\files\uninstall.iss" /f2"$LogDir$\$ProductId$.uninstall_log.txt"
+
+;========= MSI =========
+;msiexec /x $MsiId$ /qb! /l* "$LogDir$\$ProductId$.uninstall_log.txt" REBOOT=ReallySuppress
+
+;========= Nullsoft Scriptable Install System (NSIS) =========
+;"$Uninstaller$" /S
+----
+
+====== Anpassen der Datei delsub-local.opsiinc
+Beim Handling der Deinstallation wird entweder nach einer bereits installierten ausführbaren Datei, oder nach einer in der Registry vorhandenen MSI GUID gesucht.
+Hier muss, je nach Installations Typ die entsprechende Zeile ein- und die ander auskommentiert werden. Im folgenden Beispiel wurde die Zeile für MSI einkommentiert:
+
+[source,winst]
+----
+Comment "Searching for already installed version"
+;if FileExists($InstalledExecutable$)
+if NOT(GetRegistryStringValue("[HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ + "] DisplayName") = "")
+  Comment "Starting the uninstallation"
+    Winbatch_Uninstall /SysNative
+    Sub_Check_ExitCode
+
+    Comment "License handling"
+      if NOT($LicenseRequired$ = "false")
+        Comment "Licensing required, free license used"
+          Sub_Free_License
+      endif
+
+    ;Comment "Deleting files"
+    ;	Files_Delete /SysNative
+
+    ;Comment "Deleting registry entries"
+    ;	Registry_Delete /SysNative
+
+    ;Comment "Deleting links"
+    ;	LinkFolder_Delete
+endif
+----
+
+Analog zur Datei `setup-local.opsiinc` finden sich auch hier neben dem Handling der Deinstallation und des Lizenzmanagements auskommentierte Beispiele für das Löschen von Dateien, Registry Einträgen und Verknüpfungen.
+Diese können ebenfalls, je nach Bedarf einkommentiert, gelöscht, oder auskommentiert gelassen werden.
+
+[NOTE]
+====
+Die Deinstallation erfolgt nicht im Kontext eines angemeldeten Benutzers, da dies meist nicht erforderlich ist.
+====
+
+===== Verhalten im Fehlerfall
+[IMPORTANT]
+====
+Wird das Script angepasst muss dringend darauf geachtet werden dass die Funktion `isFatalError` in den lokalen Installationsscripten nicht verwendet wird!
+`isFatalError` bricht die Ausführung des Scripts *sofort* ab, was dazu führt dass die Cleanup Phase, in der ggf. die Tastatur und Maus Eingaben wieder aktiviert werden, die vorherigen Werte für z.B. den Auto Logon wiederhergestellt und der lokale opsiSetupUser gelöscht wird *nicht* ausgeführt wird! Das führt dazu dass der Client sich immer wieder als opsiSetupUser einloggt.
+Um dies zu unterbinden wird im Falle eines Fehlers die Fehlermeldung in der Variablen `$ErrorFlag$` abgelegt, in der Registry gespeichert und der Client per `ExitWindows /ImmediateReboot` sofort neu gestartet.
+Das führt dazu dass nach dem Reboot die Cleanup Phase durchlaufen, und dort der Fehler ausgewertet wird.
+
+[source,winst]
+----
+Set $ErrorFlag$ = "Installation not successful"
+Registry_Save_Fatal_Flag /32Bit
+ExitWindows /ImmediateReboot
+----
+====
 
 [[opsi-winst-cookbook-patchxml]]
 === XML-Datei patchen: Setzen des Vorlagenpfades für OpenOffice.org 2.0
