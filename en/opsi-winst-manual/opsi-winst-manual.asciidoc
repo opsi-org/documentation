@@ -2443,22 +2443,36 @@ Example: `GetShortWinPathName("C:\Program Files (x86)")` returns `"C:\PROGRA~2"`
 
 anchor:RandomStr[]
 
-* `RandomStr : string` [W/L/M] +
-returns a random String of length 10 where upper case letters, lower case letters and digits are mixed (for creating passwords). More exactly: 2 lower case chars, 2 upper case chars, 2 special chars and 4 digits. The possible special chars are: +
+* `RandomStr (`<usespecialchars>`): string` [W/L/M] +
+returns a random String of length 10 where upper case letters, lower case letters and digits are mixed (for creating passwords). 
+More exactly: if usespecialchars = true, it will create a string of 2 lower case chars, 2 upper case chars, 2 special chars and 4 digits. The possible special chars are: +
+'!','$','(',')','*','+','/',';','=','?','[',']','{','}','ß','~','§','°'
+if usespecialchars = false, it will create a string of 3 lower case chars, 3 upper case chars and 4 digits.
+
+anchor:RandomStrWithParameters[]
+
+* `RandomStrWithParameters (<minLength>,<nLowerCases>,<nUpperCases>,<nDigits>,<nSpecialChars>): string` [W/L/M] +
+returns a random String (useful for creating passwords) according to the input configuration in the parameters, where:
+ - <minLength>: the length of the string, 
+ - <nLowerCases>: the count of lower case letters wanted, 
+ - <nUpperCases>: the count of upper case letters wanted, 
+ - <nDigits>: the count of digits wanted, 
+ - <nSpecialChars>: the count of special characters wanted. +
+ Possible special chars are:  
 '!','$','(',')','*','+','/',';','=','?','[',']','{','}','ß','~','§','°'
 
 anchor:RandomIntStr[]
 
-* `RandomIntStr(`<number str>`) : string` [W/L/M] +
+* `RandomIntStr(<number str>) : string` [W/L/M] +
 returns a number between 0 and <number str> as string.
 
 
 anchor:CompareDotSeparatedNumbers_str[]
 
-* `CompareDotSeparatedNumbers(`<string1>, <string2>`) : string` [W/L/M] +
+* `CompareDotSeparatedNumbers(<string1>, <string2>) : string` [W/L/M] +
 compares two strings of the form <number>[.<number>[.<number>[.<number>]]] +
 It returns "0" if the strings are equal, "1" if <string1> is higher and "-1" if <string1> is lower than <string2>. +
-see also: `CompareDotSeparatedNumbers(`<str1>,<relation str>,<str2>`)` : <<CompareDotSeparatedNumbers_bool>>
+see also: `CompareDotSeparatedNumbers(<str1>,<relation str>,<str2>)` : <<CompareDotSeparatedNumbers_bool>>
 
 Example: +
 The Code:
@@ -3854,7 +3868,7 @@ reads the file <file name> and generates the string list, that contains all line
 
 anchor:loadUnicodeTextFile[]
 
-* `loadUnicodeTextFile (`<file name>`) : stringlist` [W] +
+* `loadUnicodeTextFile (`<file name>`) : stringlist` [W/L/M] +
 reads the unicode text file <file name> and generates the string list, that contains all lines of the file. +
 By this call, the strings are converted into the system default 8 bit code.
 
@@ -3864,6 +3878,13 @@ anchor:getSectionNames[]
 interprets the specified file as an inifile, looks for list of all lines of form +
 '[<SectionName>]' +
 and returns the pure section names (without brackets).
+
+anchor:GetSectionFromInifile[]
+
+* `GetSectionFromInifile(`<ini-file-section>`,`<ini-file>`) : stringlist` [W/L/M] +
++interprets the specified file as an inifile, looks for the list related to the + '[<ini-file-section>]' chosen in input +
++and returns the complete raw section content in a stringlist.
+
 
 [[opsi-winst-stringlist-getstring]]
 ==== Simple String Values generated from String Lists or Files [W/L/M]
@@ -4594,6 +4615,15 @@ anchor:setStringInListAtIndex[]
 * `setStringInListAtIndex(`<newstring>,<list>,<indexstr>`) : stringlist`   //since 4.11.6 [W/L/M] +
 Replaces in the existing stringlist <list> the existing string at <index> by <newstring>. If <index> is to hight, <newstring> will be appended. In case of an error the result is an empty string list. +
 see also : <<takeString>>
+
+anchor:areListsEqual[]
+
+* `areListsEqual(`<strlist1>, <strlist2>, <flag>`) : boolean` +
+Evaluates if the 2 stringlists <strlist1> and  <strlist2> are equal according to the chosen flag : +
+If flag='FLAG_AUTOMODE': The function will do a case insensitive comparaison. It handles key/value stringlists (with the structure : 'key1=value1') or simple stringlists. +
+If flag='FLAG_AUTO_CS' : The function will do a case sensitive comparaison. It also handles both key/value stringlists (with the structure : 'key1=value1') or simple stringlists. +
+If flag='FLAG_STRING_CS' : The function will do a case sensitive comparaison that only handles simple stringlists (So it does not take into consideration the key/value structure). +
+
 
 anchor:forInDo[]
 
@@ -5576,6 +5606,51 @@ else
 endif
 ----
 
+anchor:isValidFQDN[]
+
+* `isValidFQDN (<domainName>) : boolean`   +
+returns true if the input string is a Fully Qualified Domain Name (FQDN)
+and false if not.
+A Fully Qualified Domain Name (FQDN) has the following conditions :
+- Its total length should not exceed 254 characters,
+- It should have at least 3 dot-separated labels,
+- Each label's length should not exceed 63 characters,
+- Labels contain only letters, numbers and dashes,
+- The last label (TLD) should contain only letters and should have at least 2 characters,
+- Each label starts with a letter or a number (no dashes)
+
+Example:
+[source,winst]
+----
+Message "Testing of isValidFQDN"
+SetLogLevel=7
+
+DefVar $TestResult$
+DefVar $CompValue$
+
+DefStringList $CorrectFQDNs$
+DefStringList $IncorrectFQDNs$
+
+Set $CorrectFQDNs$ = CreateStringList("www.uib.de", "opsi-script.uib.de", "m.opsi.org", "a-a.b-b.cc", "a1b2.c3d4.e5f6.g7h8.i9j0.zz", "1a-2b.3c_4d.5e-6f.zzz","123.123.com")
+Set $IncorrectFQDNs$ = CreateStringList("abcde", "uib.de", "www.uib", "www.uib.d", "-script.uib.de", "_script.uib.de", "www.uib.00", "a1b2.c3d4.e5f6", "aaa.-bbb.zz", "#aaa.bbb.zz", "a+a.bbb.zz", "a?a.bbb.zz")
+
+DefFunc myFQDNTester($expected$ : string, $fqdn$ : string, ref $TestResult$ : string) : void
+    DefVar $CompValue$
+    set $CompValue$ = booltostring(isValidFQDN($fqdn$))
+    if $CompValue$ = $expected$
+            comment "Testing isValidFQDN succeeded"
+    else
+            set $TestResult$ = "not o.k."
+            LogWarning "Testing isValidFQDN failed"
+    endif
+endfunc
+
+for %s% in $CorrectFQDNs$ do  myFQDNTester("true","%s%",$TestResult$)
+for %s% in $IncorrectFQDNs$ do  myFQDNTester("false","%s%",$TestResult$)
+----
+
+
+
 For further examples see the product 'opsi-script-test'
 expecially the file `sub-scripts/networkcalc.opsiscript`
 
@@ -6299,6 +6374,13 @@ returns 'true' if the denoted file or directory exists otherwise 'false'.
 
 * `FileExistsSysNative`(<file name>) see <<opsi-winst-64bit,Chapter 64 Bit support>>
 
+anchor:FileOrFolderExists[]
+
+* `FileOrFolderExists` (<file or folder path> [,<access str>]) : boolean //since 4.12.4.14 [W/L/M] +
+returns 'true' if the denoted file or directory exists, otherwise 'false'.+
+The optional second parameter <access str> is only for Windows : You should enter '32bit', '64bit' or 'sysnative'.Otherwise, 'sysnative' is the default for <access str>.
+see <<opsi-winst-64bit,Chapter 64 Bit support>>
+
 anchor:LineExistsIn[]
 
 * `LineExistsIn (`<string>, <file name>`) : bool` [W/L/M] +
@@ -6390,8 +6472,14 @@ true: if list is succesfully written to file
 
 anchor:saveTextFileWithEncoding[]
 
-* `saveTextFileWithEncoding(`<list>, < filename>`,` <encoding>`) : bool` //since 4.11.6.4 +
+* `saveTextFileWithEncoding(`<list>, < filename>, <encoding>`) : bool` //since 4.11.6.4 [W/L/M] +
 true: if list is succesfully written to file [W/L/M]
+
+anchor:saveUnicodeTextFile[] 
+
+* `saveUnicodeTextFile(`<list>, < filename>, <encoding>`) : bool` //since 4.12.4.14 [W/L/M] +
+specific for unicode encoding +
+returns true: if list is succesfully written to unicode file [W/L/M]
 
 anchor:CompareDotSeparatedNumbers_bool[]
 
@@ -6564,6 +6652,7 @@ anchor:isPingReachable[]
 
 `isPingReachable(<host>) : boolean`     //since 4.12.3.6  [W/L/M] +
 Gives back true if the host given by <host> is reachable by ping. <host> may be a IP-Number or a IP-Name.
+
 
 [[opsi-winst-commands-include]]
 === Include Commands
@@ -10424,6 +10513,7 @@ For a reading access to the different aereas of registry and filesystem we have 
 * `FileExists32`
 * `FileExists64`
 * `FileExistsSysNative`
+* `FileOrFolderExists`
 
 The following functions have the possibility to control the access mode by a parameter (the default is here `sysnative`):
 
