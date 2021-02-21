@@ -976,7 +976,7 @@ The installation of opsi on CentOS or Red Hat Enterprise Linux (RHEL) differs on
 IMPORTANT: Please check the <<opsi-getting-started-requirements,configuration requirements>>!
 
 When using Red Hat Enterprise Linux, you must register with the Red Hat Network to have access to all required packages in the Red Hat repositories:
-+
+
 [source,prompt]
 ----
 subscription-manager register
@@ -984,9 +984,8 @@ subscription-manager attach --auto
 ----
 
 Necessary preparations:
-
+////
 * Install wget and add the MariaDB repository, as the version in the official repositories is outdated.
-
 +
 [source,prompt]
 ----
@@ -1004,6 +1003,7 @@ cd /etc/pki/rpm-gpg
 wget https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 yum makecache
 ----
+////
 
 * Install Samba and the database:
 +
@@ -1027,42 +1027,49 @@ mysql_secure_installation
 
 * If the machine should also act as DHCP-server then the dhcpd daemon has to be configured and running.
 
-* When using Red Hat Enterprise Linux, you must register with the Red Hat Network to have access to all required packages in the Red Hat repositories:
-
-[source,prompt]
-----
-rhn_register
-----
-
-
-Add the opsi CentOS Repository:
+Add the repositories:
 
 *CentOS 8:*
 [source,prompt]
+[subs="attributes"]
 ----
 cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/CentOS_8/home:uibmz:opsi:4.2:stable.repo
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/CentOS_8/home:uibmz:opsi:4.2:{release}.repo
 yum makecache
 ----
 
 *RHEL 8:*
 [source,prompt]
+[subs="attributes"]
 ----
 cd /etc/yum.repos.d/
-wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:stable/RHEL_8/home:uibmz:opsi:4.2:stable.repo
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RHEL_8/home:uibmz:opsi:4.2:{release}.repo
 yum makecache
 ----
 
+
 After adding the repository you may start the opsi installation:
 
+*Single server setup:*
 [source,prompt]
 ----
 yum install opsi-server-full
 ----
 
+*Manual setup:*
+[source,prompt]
+----
+yum makecache
+yum install redis-server redis-timeseries grafana
+systemctl daemon-reload
+systemctl enable grafana-server
+systemctl start grafana-server
+yum install opsi-server
+----
+
+
 You may be asked to import the GPG key of the repository.
 The message is pretty similar to the following one:
-
 [source,prompt]
 ----
    Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.1:/stable/CentOS_7/repodata/repomd.xml.key
@@ -1075,7 +1082,7 @@ Please make sure that your iptables and SELinux configuration allow access to th
 * tftp: 69/UDP
 * opsi: 4447/TCP and 4441/TCP
 
-Assuming all of the previous steps were completed successfully we can assume that the network is properly configured.
+Assuming all of the previous steps were completed successfully we can assume that the network is properly configured. +
 Next continue with <<opsi-getting-started-installation-config>>.
 
 WARNING: The unix commands used in the following chapters are based on Debian systems. You may have to adapt them to match your CentOS- /RHEL system.
@@ -1085,29 +1092,6 @@ WARNING: The unix commands used in the following chapters are based on Debian sy
 === Update and Configuration of the {opsi-server}
 
 In this chapter, the installed {opsi-Server} is configured.
-
-
-[[opsi-getting-started-installation-config-backend]]
-==== Backend Configuration
-
-Opsi supports different backends for data storage.
-
-These are essentially:
-
-* Configure samba and database server:
-+
-[source,prompt]
-----
-systemctl start smb.service
-systemctl start nmb.service
-systemctl start mariadb.service
-systemctl enable smb.service
-systemctl enable nmb.service
-systemctl enable mariadb.service
-mysql_secure_installation
-----
-
-* If the machine should also act as DHCP-server then the daemon dhcpd has to be configured and up and running.
 
 [[opsi-getting-started-installation-config-proxy]]
 ==== Proxy Entry in apt-configuration File
@@ -1121,6 +1105,27 @@ mcedit /etc/apt/apt.conf
 
 [[opsi-getting-started-installation-config-update]]
 ==== Update of the {opsi-server}
+
+Bring the {opsi-server} up to date by executing the following commands one after the other in a terminal window:
+
+[source,prompt]
+----
+apt update
+apt upgrade
+----
+
+TIP: If you are asked during the update whether the `smb.conf` should be overwritten, you have to confirm this. If the `smb.conf` has already been changed, you should keep the default and compare the files later. If this question has already been answered with no, you can do this later on the {opsi-server} by running `opsi-setup --auto-configure-samba`.
+
+
+[[opsi-getting-started-installation-config-backend]]
+==== Backend Configuration
+
+Opsi supports different backends for data storage.
+
+These are essentially:
+
+* *file* - data storage in files
+* *mysql* - data storage in a MySQL database
 
 Besides these there are some backends for special purposes:
 
@@ -1208,6 +1213,7 @@ audit.*            : mysql
 At the top of this file information and examples are given.
 In the first column is the name of the opsi method being called (with wildcard `.*`) and after the colon is the list of backends used by that opsi method.
 For every called method procedure the first column of this list is checked to determine which backend has to be used.
+The first line that matches the method name is used.
 The last line (`.*`) matches all opsi method calls.
 
 The default configuration after the installation is the usage of the {file-backend} as main backend and the {mysql-backend} for license management and inventory data.
