@@ -1,4 +1,4 @@
-FROM ubuntu:bionic
+FROM ubuntu:focal
 
 LABEL maintainer Erol Ueluekmen <e.ueluekmen@uib.de>
 
@@ -11,6 +11,7 @@ texlive-lang-german \
 texlive-lang-english \
 texlive-lang-french \
 lmodern texlive-extra-utils \
+git \
 make
 WORKDIR /root
 
