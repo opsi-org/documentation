@@ -1,9 +1,10 @@
-image: docker.uib.local/opsi/opsidoc-builder
+image: docker.uib.gmbh/opsi/opsidoc-builder
 
 stages:
   - build
   - package
   - publish
+  - publish_ext
 
 # per document-type job templates
 .build_template_html: &build_template_html
@@ -228,5 +229,19 @@ publish_docs:
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
   script:
     - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/git-stable/"
+  only:
+    - stable
+
+# Publishing documentation to internal server
+publish_docs_ext:
+  stage: publish_ext
+  when: manual
+  before_script:
+    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -P 10022 -o StrictHostKeyChecking=no -r pub/* "$DOCUSER_EXT@$DOCSERVER_EXT:/var/www/opsi/htdocs/opsi4.1/$DOCTARGET/documentation/"
   only:
     - stable
