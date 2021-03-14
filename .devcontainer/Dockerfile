@@ -21,5 +21,5 @@ make
 RUN if [ -z ${USER+x} ]; then echo "var USER is unset"; else useradd --create-home -s /bin/bash ${USER}; fi
 
 
-WORKDIR /root
+WORKDIR /home
 
