@@ -16,9 +16,17 @@ texlive-lang-english \
 texlive-lang-french \
 lmodern texlive-extra-utils \
 git \
+bash-completion \
+sudo \
 make
 
-RUN if [ -z ${USER+x} ]; then echo "var USER is unset"; else useradd --create-home -s /bin/bash ${USER}; fi
+RUN if [ -z ${USER+x} ]; then \
+	echo "var USER is unset"; \
+	else \
+		useradd --create-home -s /bin/bash ${USER} \
+		&& adduser ${USER} sudo \
+		&& echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers; \
+	fi
 
 
 WORKDIR /home
