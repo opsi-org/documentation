@@ -16,12 +16,13 @@
 :Email:     info@uib.de
 :Revision:  4.2
 :doctype:   book
+:release:	testing
 
 // Include common opsi terms
 include::../common/opsi_terms.asciidoc[]
 
 [[opsi-4.2-releasenotes]]
-= opsi Version 4.2 Release Notes
+= opsi version 4.2 release notes
 
 // Include common opsi copyright
 include::../common/opsi_manual_copyright.asciidoc[]
@@ -32,62 +33,67 @@ include::../common/opsi_manual_copyright.asciidoc[]
 *Main aspects of this release are:*
 
 * Switch to Python 3
-* All python applications are deployed as excutables
+* All Python applications are distributed as executable binary files
+* python-opsi interpreter for your own scripts
 * opsi server
-** Full rewrite of opsiconfd focusing on performance and scalability
-** opsiconfd can now be run in a docker container
-** Dependency to Redis Server >= 5 including RedisTimeSeries module
-** Use of Grafana for performance data visualization
-** python-opsi interpreter for custom scripts
-** New default acl
+** Complete new implementation of opsiconfd with a focus on performance and scalability
+** opsiconfd can now run in a docker container
+** New dependency on Redis Server >= 5 including the RedisTimeSeries module
+** Use of Grafana for visualization of performance data
+** New default ACLs for API access
 
 [[opsi-4.2-releasenotes-important]]
-== Important considerations - Please pay attention
+== Important information - please note
 
-opsi 4.2 is an independent release and thus has its own package repositories.
-These must be added into the system you want to update before installation.
+opsi 4.2 is an independent release and has its own repositories.
+These new repositories have to be added to the system and the repositories of the previous version have to be removed.
+Only then can the installation / upgrade be carried out.
 
-For an update from opsi 4.1 the packages need to be the latest version available on the stable repositories.
+For an upgrade from opsi 4.1 the installed packages need to be the latest opsi 4.1 stable versions.
 Other packages - such as MySQL server - should also be up-to-date.
-Otherwise problems are to be expected during the update.
+Otherwise errors in the upgrade process may occur.
 
-It is also recommended that 'opsi-winst', 'opsi-client-agent' or 'opsi-linux-client-agent' are updated to the latest version of opsi 4.1 before updating on the clients.
+It is also strongly recommended to update the packages 'opsi-winst', 'opsi-client-agent' or 'opsi-linux-client-agent' on all clients to the latest opsi 4.1 versions before upgrading.
 
 === Python 3
-opsi 4.2 is now based on Python 3.
-Furthermore we now deploy all python based packages as binaries.
-We do no longer provide `python-opsi` as an installable package.
-Therefore it is important to check the following:
+opsi 4.2 is now completely based on Python 3.
+Furthermore, all Python-based packages are now distributed as executable binary files.
+The 'python-opsi' package is no longer provided as an installable package.
+It is therefore important to note the following points:
 
-==== Opsi-packages containing server-side Python scripts
-Please use opsi-package-manager to reinstall any opsi packages that contain Python scripts running on the server, such as:
+[[opsi-4.2-releasenotes-important-reinstall-opsi-packages]]
+==== Opsi packages containing server-side Python scripts
+After upgrading the server to opsi 4.2, please use 'opsi-package-manager' to reinstall opsi-packages that contain Python scripts running on the server:
 
 * +opsi-client-agent+: `opsi-deploy-client-agent`
 * +win*+: `create_driver_links.py`, `show_drivers.py`
 
-The postinst script will automatically set the right interpreter.
+The postinst script automatically corrects these scripts and sets the new interpreter to `opsi-python`.
 
 Alternatively, the Python scripts can be corrected manually.
-For this, the interpreter must be set to +opsi-python+ (use `#!/usr/bin/opsi-python` as shebang).
+For this, the interpreter must be set to +opsi-python+ (use `#!/usr/bin/opsi-python` as 'shebang').
 
-==== Own python script using python-opsi (import OPSI)
-If you are using any python scripts which depend on python-opsi, you will need to do the following:
-* Convert these scripts to Python 3 (you can use `2to3` to achieve that).
-* Use `opsi-python`, which provides `python-opsi`, as interpreter (use `#!/usr/bin/opsi-python` as shebang).
+==== Own Python scripts that use python-opsi (import OPSI)
+If scripts are used that depend on python-opsi, the following steps must be carried out:
+* Convert these scripts to Python 3 (Python's own `2to3` can be used for this).
+* Change the interpreter to `opsi-python`, which provides `python-opsi` (`import OPSI`) (use `#!/usr/bin/opsi-python` as 'shebang').
 
 === File admin group pcpatch / opsifileadmins.
 With opsi 4.2 the default name for the opsi file admin group was changed from 'pcpatch' to 'opsifileadmins'.
 However, when upgrading from opsi 4.1, the previously used name will continue to be used.
 The name can be customized in the `/etc/opsi/opsi.conf` configuration file via option `fileadmingroup` of the `groups` section.
 
-=== opsiconfd config and logs
-There are some changes in the 'opsiconfd' config and log files.
+==== Backend extensions (/etc/opsi/backendManager/extend.d)
+If you have modified the configuration files in `/etc/opsi/backendManager/extend.d` or added new ones, these changes must be checked for Python 3 compatibility and adjusted if necessary.
 
-* All config options are documented in the opsiconfd help text ('opsiconfd --help').
-* All options starting with '--' can be used in the config file (without '--').
-* opsiconfd now uses its own log rotation. The log rotation can be configured by using the options 'max-log-size' and 'keep-rotated-logs'.
-* The log file 'package.log' is now part of the 'opsiconfd.log'.
-* The logs include a context by whitch you can filter. For example you can use 'grep' or start opsiconfd with the option '--log-filter LOG_FILTER':
+=== opsiconfd configuration and logs
+There are some changes in the configuration and the logs of 'opsiconfd'.
+
+* All configuration options are documented in the help text of opsiconfd ('opsiconfd --help').
+* These command line parameters can also be used in the configuration file `opsiconfd.conf` (without '--').
+* The opsiconfd now has a built-in log rotation. This can be configured with the options 'max-log-size' and 'keep-rotated-logs'.
+* The log file 'package.log' is now part of 'opsiconfd.log'.
+* The logs now contain context that can be used to filter the logs. For example you can filter these with 'grep' or start opsiconfd with the option '--log-filter LOG_FILTER':
 
 [source,prompt]
 ----
@@ -112,85 +118,217 @@ opsiconfd --log-filter client_addr=10.100.7.5
 ...
 ----
 
+=== Depraction of opsi4ucs package
 
-==== Backend extensions (/etc/opsi/backendManager/extend.d)
-If you have modified or added any configuration files in `/etc/opsi/backendManager/extend.d` you will have to adapt these files to be compatible with Python 3.
+With opsi 4.2 the ucs support was adepted to the opsi-standard like on other supported distibutions. The function of opsi4ucs was implemented in opsi-server package and its variants. 
+The opsi4ucs package exists in opsi 4.2 as a transitionpackage to make the migration easier. This package will automatically removed during the upgrade process.
+
 
 [[opsi-4.2-releasenotes-installation]]
-== Installation notice
+== Installation instructions
 
-We strongly suggest to create a backup of your backends with {opsi-backup} before updating:
+We strongly suggest to create a backup of the backends with {opsi-backup} before upgrading:
 [source,prompt]
 ----
 opsi-backup create
 ----
 
-The products contained in this release depend on each other in many cases.
-Do not try to install just parts of this update.
+All opsi components that are published in this release depend on each other in many places.
+Therefore all components should be upgraded.
 
-We recommend to first update the server, and then update the opsi products.
+We recommend to first upgrade the server, and then update the opsi packages (products).
 
-In a multi-depot environment it is recommended to first update the configserver before updating the depots.
+In a multi-depot environment, it is recommended to upgrade the config server first before upgrading the depots.
 
-To make sure that permissions are applied correctly
-we recommend to run `opsi-setup --set-rights` after the installation.
-Please be aware that the execution of the latter can take several minutes.
+We recommend running `opsi-setup --set-rights` after the update to ensure that access rights are set correctly.
+This command can take several minutes to complete.
 
 
 [[opsi-4.2-releasenotes-installation-systempackages]]
 === Advice for updating the operating system packages
 
-Please make sure that at the time of the update you are using the latest packages from opsi 4.1 from the stable branch.
+Please make sure that you are using the latest opsi 4.1 packages from the stable branch at the time of the upgrade!
 
 
 [[opsi-4.2-releasenotes-installation-opsipackages]]
-=== Notes for updating opsi-packages
+=== Notes on updating opsi-packages
 
-opsi-packages are usually compatible with opsi 4.1 and opsi 4.2.
+Usually, opsi packages are compatible with both opsi 4.1 and opsi 4.2.
 
-The official opsi 4.1 repositories at _download.uib.de_ contain packages that are compatible with opsi 4.2.
-Please note that these packages not necessarily have to contain `4.2` in the version to be compatible.
+The official opsi 4.2 repositories on _download.uib.de_ contain packages which are compatible with opsi 4.1.
+Please note that these packages do not necessarily have to specify `4.2` as the version in order to be compatible.
 
 
 [[opsi-4.2-releasenotes-installation-migration]]
 === Migration of an opsi 4.1 server
 
-It is possible to migrate an existing opsi 4.1 installation to opsi 4.2 on supported operating systems.
+On supported operating systems it is possible to migrate an existing opsi 4.1 installation to opsi 4.2.
 
-If you manage your opsi servers through opsi than the migration can be done with the package `l-opsi-server-migrate`.
+If the opsi servers are managed with opsi, the migration can be done with the package `l-opsi-server-migrate`.
 
-NOTE: Upgrading from opsi 4.0 to opsi 4.2 directly is not supported. In such a case you have to upgrade to opsi 4.1 first before you can upgrade to opsi 4.2.
+NOTE: Upgrading from opsi 4.0 directly to opsi 4.2 is not supported. In such a case an upgrade to opsi 4.1 has to be carried out before an upgrade to opsi 4.2 is possible.
 
+[[opsi-4.2-releasenotes-installation-migration-prerequired]]
+==== Requirements for a migration
 
-[[opsi-4.2-releasenotes-installation-migration-repositories]]
-==== Changing to the new repositories
+From version 4.2 the opsi-server needs access to a Redis and a Grafana instance.
+If these services will also be provided by the opsi server, we recommend switching to the 'opsi-server-full' package during the migration. This package installs and configures everything that is necessary on the opsi server (this will be referred to as a single server setup).
 
-First the opsi 4.2 package repositories have to be added to the systems package manager.
+The Grafana repositories are required for the installation of Grafana:
 
-The following commands will add the repositories and add the new repository key if required.
-These commands require 'root' rights.
+===== Debian/Ubuntu:
 
 [source,prompt]
 ----
 sudo apt-get install -y apt-transport-https software-properties-common wget
-wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/testing/Debian_10/Release.key | sudo apt-key add -
-sudo echo "deb https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/testing/Debian_10/ /" > /etc/apt/sources.list.d/opsi.list
 wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-sudo echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list
+echo "deb https://packages.grafana.com/oss/deb stable main" > /etc/apt/sources.list.d/grafana.list
+----
+
+===== RHEL/CentOS:
+
+[source,prompt]
+----
+yum install wget
+cd /etc/yum.repos.d
+cat <<EOF > grafana.repo
+[grafana]
+name=grafana
+baseurl=https://packages.grafana.com/oss/rpm
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+----
+
+===== openSUSE:
+
+[source,prompt]
+----
+zypper install wget
+cd /etc/zypp/repos.d
+cat <<EOF > grafana.repo
+[grafana]
+name=grafana
+baseurl=https://packages.grafana.com/oss/rpm
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+----
+
+
+[[opsi-4.2-releasenotes-installation-migration-repositories]]
+==== Switching to the new repositories
+
+First, the opsi 4.2 repositories have to be registered in the package sources of your operating system.
+
+The commands below add the new repositories and, if required, the repository key.
+The following commands require 'root'-rights.
+
+*Ubuntu 20.04 LTS _Focal Fossa_:*
+[source,prompt]
+[subs="attributes"]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_20.04/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_20.04/Release.key | sudo apt-key add -
+----
+
+*Ubuntu 18.04 LTS _Bionic Beaver_:*
+[source,prompt]
+[subs="attributes"]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_18.04/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_18.04/Release.key | sudo apt-key add -
+----
+
+*Debian 10 _Buster_:*
+[source,prompt]
+[subs="attributes"]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_10/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_10/Release.key | sudo apt-key add -
+----
+
+*Debian 9 _Stretch_:*
+[source,prompt]
+[subs="attributes"]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_9.0/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_9.0/Release.key | sudo apt-key add -
+----
+
+*CentOS 8:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/CentOS_8/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*RHEL 8:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RHEL_8/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*openSUSE Leap 15.1:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/zypp/repos.d
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/openSUSE_Leap_15.1/home:uibmz:opsi:4.2:{release}.repo
+zypper refresh
+----
+
+*openSUSE Leap 15.2:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/zypp/repos.d
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/openSUSE_Leap_15.2/home:uibmz:opsi:4.2:{release}.repo
+zypper refresh
+----
+
+*Univention UCS 4.4:*
+[source,prompt]
+[subs="attributes"]
+----
+echo "deb http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Univention_4.4/ /" > /etc/apt/sources.list.d/opsi.list
+wget -q -O - https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Univention_4.4/Release.key | sudo apt-key add -
 ----
 
 
 [[opsi-4.2-releasenotes-installation-migration-migrate]]
-==== Upgrading OS packages
+==== Upgrading the operating system packages
 
-After adding the new package repositories the system can be migrated.
+After adding the new package sources, the system can be migrated.
 
-IMPORTANT: Please note that the default acl `/etc/opsi/backendManager/acl.conf` has changed with opsi 4.2 for security reasons. Please use the new version of the configuration file unless you know exactly what you are doing.
+IMPORTANT: The default ACLs (`/etc/opsi/backendManager/acl.conf`) were changed in opsi 4.2 for security reasons.
+We therefore urgently recommend using the new version of the configuration file.
 
-IMPORTANT: For RPM-based distributions, existing configuration files are replaced by new ones during the migration. Please refer to the notes under the corresponding distributions.
+IMPORTANT: With RPM-based distributions, existing configuration files are replaced with new ones as part of the migration. Please refer to the information for the relevant distributions.
 
+Debian and Ubuntu are upgraded to opsi 4.2 with the following commands:
 
-Debian and Ubuntu are updated to opsi 4.2 with the following steps:
+*Single-Server-Setup:*
+[source,prompt]
+----
+apt update
+apt install opsi-server-full
+----
+
+*Manual Setup:*
 [source,prompt]
 ----
 apt update
@@ -201,7 +339,17 @@ systemctl start grafana-server
 apt dist-upgrade
 ----
 
-RedHat and CentOS systems need these steps to upgrade to opsi 4.2:
+RedHat and CentOS are updated to opsi 4.2 with the following commands:
+
+*Single-Server-Setup:*
+[source,prompt]
+----
+yum makecache
+yum install opsi-server-full
+yum upgrade
+----
+
+*Manual Setup:*
 [source,prompt]
 ----
 yum makecache
@@ -212,7 +360,16 @@ systemctl start grafana-server
 yum upgrade
 ----
 
-To migrate SLES and OpenSUSE please perform the following:
+OpenSUSE is updated to opsi 4.2 with the following commands:
+
+*Single-Server-Setup:*
+[source,prompt]
+----
+zypper refresh
+zypper install opsi-server-full
+----
+
+*Manual Setup:*
 [source,prompt]
 ----
 zypper refresh
@@ -220,35 +377,52 @@ zypper install redis-server redis-timeseries grafana
 systemctl daemon-reload
 systemctl enable grafana-server
 systemctl start grafana-server
-zypper dup --from home_uibmz_opsi_4.2_stable
+zypper dup --from home_uibmz_opsi_4.2_{release}
 ----
 
-On UCS you can update with the following command:
+Univention UCS is updated to opsi 4.2 with the following commands:
+
+*Single-Server-Setup:*
 [source,prompt]
 ----
-univention-upgrade
+univention-install opsi-server-full
+----
+
+*Manuelles Setup:*
+[source,prompt]
+----
+univention-install redis-server redis-timeseries grafana
+systemctl daemon-reload
+systemctl enable grafana-server
+systemctl start grafana-server
+univention-install opsi-server
 ----
 
 [[opsi-4.2-releasenotes-installation-migration-opsi-packages]]
-==== Updating opsi packages
+==== Updating the opsi packages
 
 The last step is to update to the latest opsi packages.
 
 [[opsi-4.2-releasenotes-installation-migration-opsi-packages-standard]]
-===== Use of the standard configuration
+===== Using the default configuration
 
-If you did not alter the configuration of your repositories you can simply run the following command:
+If you have not made any changes to the standard configuration in `/etc/opsi/package-updater.repos.d/`, you can update the opsi packages directly using this command:
 
 [source, prompt]
 ----
 opsi-package-updater -v update
 ----
 
-After these steps, your opsi 4.1 server is migrated to 4.2 and ready to use.
+==== Opsi packages that contain server-side Python scripts
+Please reinstall opsi packages that contain Python scripts that are executed on the server.
+These are usually `opsi-client-agent`, `opsi-linux-client-agent` and all packages that install Windows operating systems (`win *`).
+Details can be found at: <<opsi-4.2-releasenotes-important-reinstall-opsi-packages>>.
 
+After these steps your opsi 4.1 server is migrated to release 4.2 and ready for use.
 
+////
 [[opsi-4.2-releasenotes-installation-migration-cleanup]]
-==== Optional cleanup
+==== Optionale Aufräumarbeiten
 
 After a migration it can be that some unrequired files still exist on the server.
 The reason for this is that they either have been altered manually or that restoring a backup has brought these files back to the system.
@@ -256,88 +430,83 @@ The reason for this is that they either have been altered manually or that resto
 The following files resp. folders can be removed:
 
 * TBD
-
+////
 
 [[opsi-4.2-releasenotes-knownbugs]]
-== Known Bugs / Known Problems
+== Known bugs / known problems
 
 .KNOWN BUGS:
 
-* opsi-admin: The interactive mode does not work with non-ASCII characters like special umlauts ö, ä, ü.
+* opsi-admin: The interactive mode does not work with non-ASCII characters such as ö, ä, ü.
 
 .KNOWN PROBLEMS:
 
-* TBD
+* SLES and Univention UCS are not yet supported in this release. This is under development.
 
 
 [[opsi-4.2-releasenotes-eol]]
-== Discontinuation
+== End of support
 
-This chapters lists discontinuations.
-
+Discontinuations are listed in this chapter.
 
 [[opsi-4.2-releasenotes-eol_server]]
-=== Discontinued: Distributions for opsi-server
+=== End of support: Distributions for opsi-server
 
-These distributions will not be supported anymore for various reasons.
+These distributions will not be supported anymore by opsi for various reasons.
 
 * CentOS 7.x
 * Debian 8.x
-* Debian 9.x
 * RedHat Enterprise Linux 7.x
 * Suse Linux Enterprise Server 12
 
-Also see separate chapter: <<opsi-4.2-releasenotes-supportmatrix>>.
+See the separate chapter: <<opsi-4.2-releasenotes-supportmatrix>>.
 
 
 [[opsi-4.2-releasenotes-supportmatrix]]
-== opsi Support Matrix
+== opsi support matrix
 
-An overview of the supported platforms for opsi 4.2 servers.
+This is an overview on which platforms opsi runs as a server.
 
 include::supportmatrix-server.asciidoc[]
 
-If you are using an OS version which is not contained in the section above,
-we recommend updating the OS before installing opsi v4.2.
+If you are using opsi-server on an operating system version which is not listed as supported in the previous section, we recommend an operating system upgrade before installing opsi 4.2.
 
 
 [[opsi-releasenotes-4.2-changes-changed-defaults]]
-== Changed Defaults
+== Changes in default settings
 
-With opsi 4.2 some default settings have been changed to reflect experiences from opsi operations.
+With opsi 4.2 some default settings have been changed to reflect experiences from running opsi.
 
-This is important if in an already existing environment new opsi servers are to be installed because this may lead to a change in expected behavior.
+This is especially important if new opsi servers are installed in an existing environment, as this may lead to a change in expected behavior.
 
-* For opsiconfd the setting of `update ip` is `yes` by default.
-* In the file 'dispatch.conf' the usage of the mysql backend for keeping the inventory is the new default.
-* The default loglevel for `opsi-admin` is now WARNING so that possible problems are easier to spot.
+* Note the changed acl.conf.
 
 
 [[opsi-releasenotes-4.2-changes-python]]
 == Switch to Python 3 and PyInstaller
 
-This version is now based on Python 3.
-All opsi Python applications (opsiconfd, opsipxeconfd, opsiclientd, opsi-utils, ...) are now distributed as binaries build with PyInstaller.
-Please use the `opsi-python` interpreter for your own scripts which need access to the python-opsi library.
+This version is based on Python 3.
+All opsi Python applications (opsiconfd, opsipxeconfd, opsiclientd, opsi-utils, ...) are now distributed as binaries built with PyInstaller.
+Please use the `opsi-python` interpreter for your own scripts that need access to the python-opsi library.
 
 [[opsi-releasenotes-4.2-changes-mysql-config]]
 == MySQL backend: Limiting connection lifetime
 
-In order for a better user experience and less "mysql server has gone away" the default configuration for the MySQL backend is that `connectionPoolRecycling` has been set to _28800_ as default in the configuration file.
-This limits the lifetime of connections in the connection pool used to connect to the MySQL (or MariaDB) server.
+To avoid the error messages: "mysql server has gone away", the default configuration of the MySQL backend was changed. The `connectionPoolRecycling` option now has been set to _28800_ as the default value.
+This setting limits the lifetime of the connections in the connection pool, which is used for the connections to MySQL (or MariaDB) server.
 
 
 [[opsi-4.2-releasenotes-linux]]
-== Linux Support
+== opsi support matrix for Linux clients
 
-=== Support Matrix
+This is an overview on which Linux platforms opsi runs as a client.
 
 include::supportmatrix-linclient.asciidoc[]
 
 [[opsi-4.2-releasenotes-netboot-windows]]
-== opsi Support Matrix Windows Clients
+== opsi support matrix for Windows clients
 
-In the following graphic you will find on which Windows platforms opsi can be run as client.
+This is an overview on which Windows platforms opsi runs as a client.
 
 include::supportmatrix-winclient.asciidoc[]
 
@@ -345,27 +514,25 @@ include::supportmatrix-winclient.asciidoc[]
 [[opsi-4.2-releasenotes-api-changes]]
 == API changes
 
-The API has received changes in opsi 4.2.
+The API has been changed in opsi 4.2.
 
-This affects the API of the webservice, `opsi-admin`, calls made through
-`opsiServiceCall` in opsicript among others.
+Affected by this are among others the API of the web service, opsi-admin and calls made with opsiServiceCall in opsi-script.
 
 
 [[opsi-4.2-releasenotes-changed-api-methods]]
 === Changed API methods
 
- * `getClients_listOfHashes`: Method has been marked as deprecated during opsi 4.1. If called without parameters will return result from `getClients` in other cases an error will be returned.
- * `getClientIds_list`: Method has been marked as deprecated during opsi 4.1. If called without parameters will return result of `getClientIDs`. If called with parameter `depotIds` then the result of `getClientsOnDepot` will be returned. If called with parameters `productId` and optionally `installationStatus` the result of `getClientsWithProducts` will be returned.
+* `getClients_listOfHashes`: This method was marked as deprecated in opsi 4.1. When called without parameters, this method returns the output of `getClients`. In all other cases an error is returned.
+* `getClientIds_list`: This method was marked as deprecated in opsi 4.1. When called without parameters, this method returns the output of `getClientIDs`. If called with parameter `depotIds` then the result of `getClientsOnDepot` will be returned. If called with parameters `productId` and optionally `installationStatus` the result of `getClientsWithProducts` will be returned.
 
 
 [[opsi-4.2-releasenotes-deprecated-api-methods]]
-=== Deprecation of API methods
+=== Deprecated API methods
 
-The following methods are considered deprecated.
-This means they will be removed with the next major or minor release.
+The following methods are considered deprecated. They will be removed with the next major or minor release.
 
- * `getClients_listOfHashes`
- * `getClientIds_list`
+* `getClients_listOfHashes`
+* `getClientIds_list`
 
 
 [[opsi-4.2-releasenotes-removed-api-methods]]
@@ -375,13 +542,13 @@ The following API methods have been removed:
 
 * `backend_searchIdents`
 
-These methods aren't available anymore.
+These methods are no longer available.
 
 
 [[opsi-4.2-releasenotes-misc]]
 == Miscellaneous
 
-* opsiwebservice does not support decompressing deflate-encoded data anymore.
+* opsiwebservice does not support "deflate" encoded data as a compression method anymore.
 
 
 [[opsi-4.2-releasenotes-packages]]
@@ -395,7 +562,7 @@ These methods aren't available anymore.
 * opsi-utils 4.2...
 * opsi-linux-bootimage
 
-NOTE: The updated opsi packages are also made available for opsi 4.1 with this release. The exception for this are `l-opsi-server` and `l-opsi-server-migrate`.
+NOTE: The updated opsi packages have already been released for opsi 4.1. The only exceptions are `l-opsi-server` and `l-opsi-server-migrate`.
 
 // Changelogs
 include::./opsi-v4.2-changelogs.asciidoc[]

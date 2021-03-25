@@ -69,8 +69,6 @@ These requirements may be greater in large environments, which is why adjustment
 The installation and operation is only supported on Linux.
 Support for Windows is not planned.
 
-The connector uses Python 3, which must be at least version 3.2.
-
 By using standardized protocols for communication, no additional opsi- or directory service-specific components are required.
 
 
@@ -88,8 +86,6 @@ On a Debian-based machine the installation can be done as follows:
 apt-get install opsi-directory-connector
 ----
 
-NOTE: CentOS and RedHat version 6 and 7 do not provide Python 3 as part of their core repositories, which is why we can not support the installation on these operating systems.
-
 
 [[opsi-manual-dircon-configuration]]
 ==== Configuration
@@ -100,12 +96,12 @@ The configuration is done via a configuration file in JSON format, which must co
 To specify Boolean values, please use `true` or `false`.
 Text has to be entered with double quotation marks, for example `"this is text"`.
 
-An example configuration is provided as `/etc/opsi/opsidirectoryconnector.example.conf`
+An example configuration is provided as `/user/share/opsi-directoy-connector/opsi-directory-connector.example.conf.conf`
 This file can be used as a template for your own configuration.
 
 [source,prompt]
 ----
-cp /etc/opsi/opsidirectoryconnector.example.conf /etc/opsi/opsidirectoryconnector-custom.conf
+cp `/user/share/opsi-directoy-connector/opsi-directory-connector.example.conf.conf /etc/opsi/opsi-directory-connector-custom.conf
 ----
 
 [[opsi-manual-dircon-conf-dir]]
@@ -274,6 +270,27 @@ The domain part for this is formed from the DC values of the element.
 
 TIP: On Univention Corporate Server (UCS), the value for `hardwareAddress` can be set to `macAddress` if the connection is established via LDAP (port 7389 or 7636).
 
+In the "mapping" area, the assignment of clients to depots can be defined. Currently there is only the mapping type "network"..
+With the "network" type, a client is assigned to a depot if the ip address of the client matches the network address range ("networkAddress") of the depot.
+Alternatively, a list of network ranges can be assigned to a depot.
+
+[source,json]
+----
+{
+    ...
+    "mapping": {
+        ...
+        "depot": {
+            "type": "network",
+            "test-depot1.test.local": ["192.168.24.0/24","192.168.25.0/24"],
+            "test-depot1.test.local": ["192.168.27.0/24","192.168.28.0/24"]
+        }
+    },
+    ...
+}
+----
+
+
 
 [[opsi-manual-dircon-conf-mapping-groupnames]]
 ===== Manual assignment of group names
@@ -357,13 +374,13 @@ Since version 14 it is possible to test the connection to the opsi server via th
 [[opsi-manual-dircon-run]]
 ==== Running the connector
 
-After the installation a binary called `opsidirectoryconnector` will be present on the system.
+After the installation a binary called `opsi-directory-connector` will be present on the system.
 
 It is required to pass an argument `--config` together with the path to the configuration file.
 
 [source,prompt]
 ----
-opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+opsi-directory-connector --config /etc/opsi/opsi-directory-connector-custom.conf
 ----
 
 NOTE: The user running the binary does not require any access to opsi as this is all stored in the configuration file.
@@ -448,19 +465,27 @@ usage: opsi-directory-connector [-h] [--version]
                                 [--log-level {0,1,2,3,4,5,6,7,8,9}]
                                 [--check-directory | --check-opsi] --config
                                 CONFIG
-
-opsi directory connector
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --version             show program's version number and exit
-  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
-                        Sets how much information will be logged.
-  --check-directory     Check if a connection to the directory can be
-                        established and if items will be received.
-  --check-opsi          Check if a connection to the opsi server can be
-                        established.
-  --config CONFIG       Path to the config.
 ----
 
-Since version 39 opsi-directory-connector uses the OPSI logger with log levels 0-9.
+Starting with version 39 the opsi-directory-connector uses the OPSI logger with loglevel 0-9. By default logs are written to `/var/log/opsi-directory-connector` and to `stderr`. With the parameters `--log-level-stderr`, `--log-level-file` the log level of the respective log can be set. `--log-file` defines the log file.
+
+The log file is rotated after a specified size (default 5 MB) and by default one of these rotated log files is kept. The parameters `--max-log-size` and `--keep-rotated-logs` can be used to override the default values.
+
+In addition to the command line parameters, the values can also be set in the configuration file or via environment variables. The following applies here:
+
+- Parameters overwrite everything
+- Environment variables overwrite configuration and default
+- Configuration overwrites default
+
+Example configuration:
+
+[source,prompt]
+----
+{
+...
+    "log-level-stderr": 6,
+    "log-level-file": 3,
+    "keep-rotated-logs": 4
+...
+}
+----
