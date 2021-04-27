@@ -15,8 +15,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      19.10.2017
-:Revision:  4.1
+:Date:      20.01.2021
+:Revision:  4.2
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -37,6 +37,17 @@ Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Ins
 
 Die aus diesen Diensten entstehenden Hardwareanforderungen sind in der Regel gering, so das ein Betrieb eines opsi-servers in einer Virtualisierungsumgebung kein Problem darstellt.
 
+Seit Version 4.2 wird die In-Memory-Datenbank Redis eingesetzt (https://redis.io/). Der '{opsi-server}' speichert folgende Daten in Redis:
+
+* Session Daten
+
+* Log-Ausgaben werden MessagePack-codiert in einen Redis-Stream geschrieben. Dieser Stream wird dann z. B. vom Logviewer gelesen (https://msgpack.org/).
+
+* Statistiken wie zB. CPU Auslastung werden als Time Series in Redis gespeichert. Hierzu wird das Modul RedisTimeSeries verwendet (https://github.com/RedisTimeSeries/RedisTimeSeries).
+
+Die Statistiken werden von Grafana (https://grafana.com/) ausgelesen und angezeigt. Das Grafana Dashboard ist über die Adminseite https://<opsi-server>:4447/admin erreichbar.
+
+image::grafana_dashboard.png["Grafana Dashboard", width="120mm"]
 
 [[opsi-manual-server-installation]]
 ==== Installation und Inbetriebnahme
@@ -57,70 +68,44 @@ Nach einer Änderung der Samba-Konfigurationsdateien ist ein Neustart der Samba-
 ==== Der Daemon opsiconfd
 Der 'opsiconfd' ist der zentrale Konfigurations-Daemon von opsi.
 Alle Client-Komponenten ({opsi-client-agent}, {opsi-configed}, {opsi-linux-bootimage}, ...) verbinden sich mit diesem Service um auf die Konfigurationen in den Backends zuzugreifen.
-Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf` konfiguriert.
-Die einzelnen Konfigurations-Optionen sind in dieser Datei dokumentiert.
-An dieser Stelle finden sich weitere Ergänzungen.
+Der 'opsiconfd' wird über die Datei `/etc/opsi/opsiconfd.conf`, über Umgebungsvariablen oder über Kommandozeilen-Parameter konfiguriert.
 
-* +[global] admin networks+: +
-Über diese Option kann der administrative Zugriff auf den 'opsiconfd' auf Verbindungen von bestimmten Netzwerkadressen eingeschränkt werden. +
-Es können mehrere Netzwerkadressen durch Kommas getrennt angegeben werden. +
-Nicht-administrative Client-Verbindungen können auch aus anderen Netzwerken erfolgen.
+Die einzelnen Konfigurations-Optionen können über den Befehl `opsiconfd --help` abgefragt werden. Um Optionen bei jedem Start des 'opsiconfd' zu verwenden, können die Option aus dem Hilfetext ohne das `--` in die Konfigurationsdatei eingetragen werden.
 
-* +[global] max log size+: +
-Über diese Option kann die Größe der Logdateien beschränkt werden. +
-Aus historischen Gründen ist dies auf 5MB pro Logdatei beschränkt. +
-Seit opsi 4.0.6 ist es möglichen diesen Wert an eigene Bedürfnisse anzupassen. +
-Um die Größenbeschränkung zu deaktivieren, kann der Wert auf 0 gesetzt werden.
+Außerdem ist es möglich, die Umgebungsvariablen, wie im Hilfetext gezeigt, zu verwenden.
 
-Ergänzend zu dieser Einstellmöglichkeit ist es möglich durch das Werkzeug +
-'logrotate' die Logdateien auf einem Server automatisch zu komprimieren und +
-rotieren zu lassen. +
-Bitte entnehmen Sie dem zugehörigen Handbuch die Konfigurationsmöglichkeiten.
-
-Ist die maximale Größe der Logdateien bekannt, lässt sich
-berechnen wieviel Speicherplatz die anfallenden Logs benötigen werden.
-Es gibt fünf verschiedene, Client-bezogene Log-Arten die vom opsiconfd
-geschrieben werden: 'bootimage', 'clientconnect', 'instlog', 'opsiconfd' und +
-'userlogin'.
-Es gibt außerdem einige Client-unabhängige Logs: 'opsiconfd.log', 'opsipxeconfd.log', +
-'opsi-backup.log', 'opsi-package-updater.log' und 'package.log'.
-
-Wenn wir von einer mit opsiconfd und logrotate realisierten Konfiguration +
-ausgehen, bei der alle Logdateien auf 5MB limitiert sind, abgesehen von +
-'package.log', welche 10MB groß werden darf, dann kommen wir auf folgende +
-Berechnung:
-
-[source,prompt]
-----
-(Anzahl der clients * 5 * 5MB) + 5MB + 5MB + 5MB + 5MB + 10MB
-----
-
-Bei 100 Clients sollten wir bis zu 2530MB für Logs von opsi reservieren.
-Weil Logrotate überlicherweise zu einer bestimmten Uhrzeit aktiv wird, empfehlen wir diese Zahl aufzurunden.
+Werden die einzelnen Ansätze miteinander kombiniert, gilt die folgende Reihenfolge:
+Einträge in der Konfigurationsdatei überschreiben die Defaults,
+Umgebungsvariablen überschreiben Einträge in der Konfigurationsdatei, Kommandozeilen-Parameter überschreiben Umgebungsvariablen.
 
 
 [[opsi-manual-server-accounts]]
 ==== Notwendige System-User und Gruppen
 
 * User 'opsiconfd' +
-Dies ist der user unter dem der opsiconfd Deamon läuft.
+Dies ist der user unter dem der opsiconfd Daemon läuft.
 
 * User 'pcpatch' +
 Dies ist der user, den der '{opsi-client-agent}' verwendet um den 'depotshare' zu mounten und von diesem zu lesen.
-Dieser User hat per Voreinstellung das Heimatverzeichnis `/var/lib/opsi`.Setzen und Ändern Sie das Passwort mit `opsi-admin -d task setPcpatchPassword`.
+Dieser User hat per Voreinstellung das Heimatverzeichnis `/var/lib/opsi`.
+Das Passwort des Benutzers kann mittels `opsi-admin -d task setPcpatchPassword` gesetzt werden.
 
-* Gruppe 'pcpatch' +
-Neben dem User pcpatch gibt es noch die Gruppe pcpatch. Die meisten Dateien sind sowohl für den User als auch für die Gruppe im Vollzugriff. Die Systemadministratoren des opsi-servers sollten daher Mitglieder der Gruppe pcpatch sein.
+* Gruppe 'opsifileadmins' +
+Mitglieder dieser Gruppe haben Zugriff auf eine opsi-Paket-Daten, wie Depot, Repository und Workbench. Die Systemadministratoren des opsi-Servers sollten daher Mitglieder dieser Gruppe sein.
+
+Ehemals hieß diese Gruppe 'pcpatch', seit opsi 4.2 wird standardmäßig 'opsifileadmins' als Gruppenname verwendet. Wird eine bestehende opsi-Umgebung auf opsi 4.2 aktualisiert wird der verwendete Gruppenname jedoch beibehalten.
+
+Bei Anbindung des opsi-Servers an ein Active Directory muss in jedem Fall der Gruppenname 'opsifileadmins' verwendet werden.
 
 * Gruppe 'opsiadmin' +
-Die Mitglieder dieser Gruppe können sich gegenüber dem opsi-webservice Authentifizieren und damit z.B. mit dem opsi-configed arbeiten. Daher sollten alle Mitarbeiter die mit opsi arbeiten, Mitglied dieser Gruppe sein.
+Die Mitglieder dieser Gruppe können sich gegenüber dem opsi-webservice authentifizieren und damit z.B. mit dem opsi-configed arbeiten. Daher sollten alle Mitarbeiter die mit opsi arbeiten, Mitglied dieser Gruppe sein.
 
 [[opsi-manual-server-shares]]
 ==== Notwendige Shares
 
 * Bereich: 'Depotshare' mit Softwarepaketen ('opsi_depot') +
 Auf dem depot-Share liegen die für die Installation durch das Programm opsi Winst vorbereiteten Softwarepakete. +
-In der Voreinstellung liegt dieses Verzeichniss auf dem opsi-server unter `/var/lib/opsi/depot`. +
+In der Voreinstellung liegt dieses Verzeichnis auf dem opsi-server unter `/var/lib/opsi/depot`. +
 Unterhalb von diesem Verzeichnis findet sich für jedes Softwarepaket ein Verzeichnis mit dem Namen des Softwarepakets. +
 Wiederum unterhalb dieses Verzeichnisses liegen dann die Installationsskripte und -dateien.
 +
@@ -162,3 +147,40 @@ Folgendes einfaches Beispiel soll das Verhalten verdeutlichen: Wenn Sie ein Debi
 Nach einem Neustart von `opsiconfd` benutzt opsi automatisch das `sshd`-`PAM`-Modul zur authentifizierung.
 
 NOTE: Bitte beachten Sie, dass die Anwendung der ACL auf case-sensitive arbeitende Schnittstellen zurückgreift, wohingegen die Authentifizierung über PAM case-insensitiv geschehen kann. Dadurch kann der Fall eintreten, dass trotz erfolgreicher Authentifizierung keine Arbeit mit dem Service möglich ist, da die ACL dies verhindern.
+
+[[opsi-manual-server-opsi-ldap-authentification]]
+==== opsi LDAP/Active Directory Authentifizierung
+Statt PAM für die Authentifizierung zu nutzen, ist es auch möglich einen LDAP-Server bzw. ein Active Directory direkt zu verwenden.
+Hierfür ist die opsi-Erweiterung 'opsi directory connector' notwendig. Dieses Modul ist momentan eine
+link:http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung].
+
+ifdef::manual[]
+Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
+endif::manual[]
+
+Die Konfiguration findet über die Datei `/etc/opsi/opsi.conf` statt.
+In der Sektion 'ldap_auth' muss hierfür die Option 'ldap_url' gesetzt werden.
+Die ldap_url besitzt dabei den folgenden Aufbau:
+`ldap[s]://<adresse-des-ldap-servers>[:port]/<base-dn>`
+
+Zusätzlich kann, wenn notwendig, die Option 'bind_user' verwendet werden.
+Damit kann definiert welcher Benutzername bei der Authentifizierung am LDAP/AD übergeben werden soll. Hierbei können die Platzhalter '{username}' und '{base}' verwendet werden.
+
+Beispiel zur Anbindung an ein Active Directory bzw. Samba 4:
+
+[source,ini]
+----
+[ldap_auth]
+ldap_url = ldaps://ad.company.de/dc=ad,dc=company,dc=de
+----
+
+Beispiel zur Anbindung an einen OpenLDAP:
+
+[source,ini]
+----
+[ldap_auth]
+ldap_url = ldaps://ldap.company.org:636/dc=company,dc=org
+bind_user = uid={username},dc=Users,{base}
+----
+
+Damit die Änderungen übernommen werden, muss der opsiconfd neu gestartet werden.
