@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      19.10.2017
-:Revision:  4.1
+:Date:      26.05.2021
+:Revision:  4.2
 :toclevels: 6
 
 
@@ -88,77 +88,74 @@ systemctl restart opsiconfd.service
 CAUTION: Do not use this feature if you are not really sure, that your name resolution works properly in both directions for all clients.
 
 [[opsi-manual-security-server2client]]
-=== Server authentication at the client
+=== Verification of the server identity
 
+Since opsi 4.2, the trustworthiness of the '{opsi-server}' can be ensured using standard TLS methods.
 
-Since opsi 4.0.1 there are different possibilities to check the trustworthiness of the contacted server.
+Each '{opsi-configserver}' maintains a Certificate Authority (CA), the 'opsi CA'.
+This CA is automatically managed by the '{opsi-configserver}'.
+Each '{opsi-server}', also the '{opsi-depotserver}' receive a TLS certificate from the '{opsi-configserver}', which is signed by this CA.
+These certificates are also automatically created, distributed and updated as needed.
+Any client that trusts the 'opsi CA' also trusts these server certificates.
 
-CAUTION: Do not use them in combination. Choose only one way or you will be locked out from your client.
+The certificate of the 'opsi CA' can be retrieved from any '{opsi-server}' at the URL https://<server-address>:4447/ssl/opsi-ca-cert.pem.
+More information about the CA and the server certificate is available on the '{opsi-server}s' admin page (https://<server-address>:4447/admin).
 
-==== Variant 1: verify_server_cert
+If a '{opsi-client-agent}' connects to a '{opsi-configserver}', it automatically retrieves the 'opsi CA' and stores it at 'c:\opsi.org\tls\opsi-ca-cert.pem' or '/etc/opsi-client-agent/tls/opsi-ca-cert.pem'.
+However, this only happens under the condition that either no 'opsi CA' is stored there yet or a secure, verified connection to the '{opsi-configserver}' is established.
 
-At the first contact to a opsi-server, the client will accept the given SSL certificate and store it at `C:\opsi.org\opsiclientd\server-certs`. +
-On any subsequent contact, the client creates a random string and uses the 'public key' of the stored certificate to encrypt this string (and the own access parameters). These encrypted data will be sent to the server. +
-The server uses the 'private key' of its own SSL certificate to decrypt the data and sends the decrypted random string back to the client. +
-Now the client checks if the correct string was sent back. If not, the communication to the server will be aborted.
-
-You can prevent this way that somebody directs your clients to a wrong server, e.g. by manipulating the DNS. If you setup a new server, you may migrate the SSL certificate from the old to the new server without problems. And you must not deploy any certification authority (CA).
-
-The disadvantage of this method is, that a 'man-in-the-middle' attack is still possible.
-
-This security method checks the communication between client and '{opsi-configserver}'.
-
-Using the opsi WAN extension and as +clientconfig.depot.protocol+ +webdav+, also the communication to the '{opsi-depotserver}' is checked.
-
-<<opsi-manual-wansupport-depot-protocol>>
-
-
-To activate this check, set at the `opsiclientd.conf` in the section '[global]' the option:
+To enable verification of server connections, the following option is set in `opsiclientd.conf`, section '[global]':
 [source,configfile]
 ----
 verify_server_cert = true
 ----
-Run the following command at your '{opsi-configserver}' to create this configuration entry for all clients:
+
+It is advisable not to make this change manually, but to create a corresponding host parameter on the server.
+For example, the boolean host parameter 'opsiclientd.global.verify_server_cert' with default value 'false' is created via '{opsi-configed}'.
+This also works via opsi-admin:
 
 [source,prompt]
 ----
-opsi-admin -d method config_createBool opsiclientd.global.verify_server_cert "verify_server_cert" false
+opsi-admin -d method config_createBool opsiclientd.global.verify_server_cert verify_server_cert false
 ----
 
-Now you can activate this using the '{opsi-configed}' at the 'Server configuration' or at the 'Host parameter' of seleted clients by chaning the value from 'false' to 'true'.
+This parameter can then be set to +true+ on a client-specific basis, or it can be enabled globally.
+This will enable server verification.
+If +webdav+ is used as +clientconfig.depot.protocol+, the '{opsi-depotserver}' will also be verified accordingly.
 
-CAUTION: Be very careful with activating "verify_server_cert", for in case of improper configuration your clients will refuse the connection!
+CAUTION: Once verification is enabled, the client will refuse connections to servers without a valid certificate.
+So it should be ensured in advance that the mechanism works as desired.
 
-==== Variant 2: verify_server_cert_by_ca
+Additionally it is possible to store the 'opsi CA' in the certificate store of the operating system.
+Then the operating system as well as all applications which use this certificate store trust the 'opsi CA' and the certificates of the '{opsi-server}'.
+This is also a prerequisite to mount an opsi repository via +WevDAV+.
 
-This variant works just like SSL certificates are checked in your browser. +
-The given SSL certificate will be accepted, if it is issued for the exact FQDN ('commonName') of the server (or if the DNS verifies that this is the FQDN matching the IP address of the server) *and* the certificate is issued and signed by the 'uib gmbh'.
-
-Is one of these conditions not true, the communication to the server will be aborted.
-
-This method is more secure than the first one. But you will have to buy the certificates from 'uib gmbh'.
-For prizes and conditions have a look at the prize list of 'uib gmbh': +
-http://uib.de/en/opsi_support/index.html
-
-Any profits from selling these certificates will be invested in the maintenance of the opsi security.
+The associated boolean configuration is `opsiclientd.global.install_opsi_ca_into_os_store`.
+If this is enabled, the '{opsi-client-agent}' automatically injects the 'opsi CA' into the certificate store of the operating system.
 
 
-To activate this security method, set at the `opsiclientd.conf` in the section '[global]' the option:
-[source,configfile]
-----
-verify_server_cert_by_ca = true
-----
-Run the following command at your '{opsi-configserver}' to create this configuration entry for all clients:
+==== Problem solving
+If it comes to the situation that a client does not accept the server certificate of the '{opsi-configserver}s' anymore because of problems with the 'opsi CA', the client is no longer manageable by the normal opsi mechanisms.
 
-[source,prompt]
-----
-opsi-admin -d method config_createBool opsiclientd.global.verify_server_cert_by_ca "verify_server_cert_by_ca" false
-----
+In this case there are several ways to solve the problem:
 
-Now you can activate this using the '{opsi-configed}' at the 'Server configuration' or at the 'Host parameter' of seleted clients by chaning the value from 'false' to 'true'.
+==== Delete the 'opsi CA' on the client.
+The file 'opsi-ca-cert.pem' is deleted on the client.
+The next time the client connects to the '{opsi-configserver}', the '{opsi-client-agent}' will retrieve the 'opsi CA' again.
 
+==== Replacing the 'opsi CA' via the {opsi-client-agent}'s control server.
+The 'opsi CA' can be updated via the control server API of the {opsi-client-agent}.
+The RPC 'updateOpsiCaCert' is used for this purpose. Via the parameter 'ca_cert_pem' the content of the 'opsi CA' certificate is passed in PEM format as a string.
 
-CAUTION: Be very careful with activating "verify_server_cert_by_ca", for in case of improper configuration your clients will refuse the connection!
+==== Via a temporary server certificate of uib GmbH.
+In addition to the 'opsi CA' of the respective environment, a '{opsi-client-agent}' also trusts the 'uib opsi CA'
+if the corresponding configuration 'opsiclientd.global.trust_uib_opsi_ca' is set to 'true'.
+The 'uib opsi CA' is managed by 'uib GmbH'.
+The uib GmbH is therefore able to generate a temporary valid server certificate for the '{opsi-configserver}'.
+This certificate can then be installed on the '{opsi-configserver}' of the environment.
+The '{opsi-client-agent}' then reconnects and automatically retrieves the 'opsi CA' of that environment.
+When this process has taken place on all affected clients, the temporary certificate can be removed again.
+
 
 [[opsi-manual-security-clientcontrolserver]]
 === Authentication at the control server of the client
@@ -224,7 +221,7 @@ restricts administrative access to the server itself and to the network '10.1.1.
 [[opsi-manual-security-blockclients]]
 === Configuration Lock out clients and unlock them again.
 
-If a client tries to log in to the server too often without success, it will be locked out for a certain time. 
+If a client tries to log in to the server too often without success, it will be locked out for a certain time.
 There are three configuration options for this:
 
 +max-auth-failures+ specifies after how many failed attempts a client will be locked out.
@@ -234,7 +231,7 @@ The default is:
 max-auth-failures = 10
 ----
 
-The option +auth-failures-interval+ determines in which time period the failures specified with `max-auth-failures` must occur, 
+The option +auth-failures-interval+ determines in which time period the failures specified with `max-auth-failures` must occur,
 that a cleint is blocked. The specification is in seconds.
 
 Default:
@@ -252,9 +249,9 @@ client-block-time = 120
 ----
 
 The information about the error attempts and which clients are blocked is stored in Redis. There are two Redis keys for this:
- 
+
 - opsiconfd:stats:client:failed_auth:<client ip> Number of failed attempts of the client (Redis Time Series)
-- opsiconfd:stats:client:blocked:<client ip>: Will be created when the client is blocked and contains the value "True" (Type: stirng) 
+- opsiconfd:stats:client:blocked:<client ip>: Will be created when the client is blocked and contains the value "True" (Type: stirng)
 
 To release the clients manually you can use the admin page https://<opsi-server>:4447/admin (see <<opsi-manual-configuration-tools-opsi-interface-page>>).
 
