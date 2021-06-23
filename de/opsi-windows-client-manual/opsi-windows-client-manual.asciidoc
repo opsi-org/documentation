@@ -1,0 +1,959 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.2
+:toclevels: 6
+:doctype:   book
+:date:      26.05.2021
+
+:linclientmanual: opsi-windows-client-manual
+
+// Include common opsi terms
+include::../common/opsi_terms.asciidoc[]
+
+
+= opsi Windows client manual
+
+// Include common opsi copyright
+include::../common/opsi_manual_copyright.asciidoc[]
+
+
+[[opsi-winclient-introduction]]
+== Einführung Windows Clients in opsi
+
+Diese Anleitung beschreibt den Betrieb von Windows Clients in opsi.
+
+Es wird voraus gesetzt, das die Installation und Inbetriebnahme eines {opsi-Server}s bereits erfolgt ist.
+
+Wesentliche Themen dieser Anleitung:
+
+. Automatische Windows OS-Installation
+. Aufnahme und Einbindung von Windows-Rechnern in opsi
+(Installation des opsi-client-agent)
+. Bereitstellung von opsi Standardsoftware für Windows auf dem opsi-server
+. Installation von Standard Software auf den Windows-Clients
+. opsi-Standardsoftware für Windows unter opsi
+. Paketierung eigener Software 
+. Erstellung von opsi-Paketen
+. Hinweise zu Windows Clients
+.. Spezielle Befehle für Windows
+.. Directories die Sie verwenden dürfen
+
+
+[[opsi-winclient-convention]]
+== Konventionen dieses Dokuments
+
+Befehle werden gesondert hervorgehoben:
+
+[source,prompt]
+----
+dies ist ein Befehl
+----
+
+Im Rahmen der Installation und Konfiguration können Sie die Befehle aus diesen Feldern in der Regel der Reihe nach per _copy & paste_ aus diesem Dokument kopieren und ausführen.
+
+Das ist ein opsi-script Code:
+
+[source,winst]
+----
+Message "Installing "+ $ProductId$ +" ..."
+----
+
+Kapitel welche den Namen einer bestimmten Plattform enthalten sind spezifisch für diese Plattform. Die unterstützen Plattformen sind:
+
+* *Windows*
+
+* *Linux*
+
+* *MacOS*
+
+
+[[opsi-winclient-requirements]]
+== Voraussetzungen für Windows Clients
+
+Nachfolgend werden die Voraussetzungen für das Management von Windows Clients unter opsi beschrieben.
+
+Technische Voraussetzungen ist ein opsi-server mit opsi 4.1.
+
+[[opsi-winclient-supportmatrix-clients-linux]]
+== Von opsi unterstützte Windows Versionen
+
+include::../../en/common/opsi_manual_supportmatrix-winclient-core.asciidoc[]
+
+
+[[opsi-winclient-installation-config-get-essential-products]]
+== Einspielen der minimalen Windows opsi-Produkte
+
+Zur Verteilung von Software mit opsi stehen fertige Produkte zur Installation bereit.
+Diese beinhalten unter anderem den Agent ('opsi-client-agent'), welcher für das Management auf Clients installiert werden muss.
+
+Es gibt eine automatische und manuelle Möglichkeit dies zu tun.
+Der automatisierte Weg wird empfohlen.
+
+[[opsi-winclient-installation-config-get-essential-products-automatic]]
+=== Automatisches Einspielen der minimalen Windows opsi-Produkte
+
+Zur automatischen Installation der opsi-Produkte gibt es das Werkzeug `opsi-package-updater`, welches wie in '/etc/opsi/opsi-package-updater.conf' bzw. `/etc/opsi/package-updater.repos.d/` konfiguriert, automatisch die aktuellen Pakete vom opsi Repository holt und auf dem Server installiert.
+
+Die Konfiguration der opsi Repositories für Windows-Clients findet sich im Verzeichnis `/etc/opsi/package-updater.repos.d/` in der Datei `uib-windows.repo`.
+
+Aktivieren Sie die gewünschten repos in dem Sie in der gewünschten *.repo Datei den Eintrag `active = true` setzen.
+
+.`/etc/opsi/package-updater.repos.d/uib-windows.repo`
+
+[source,configfile]
+----
+; This repository provides products for deploying and managing Microsoft
+; Windows clients with opsi.
+
+[repository_uib_windows]
+description = opsi Windows Support
+active = true
+baseUrl = http://download.uib.de
+; dirs = opsi4.2/stable/packages/windows/localboot/, opsi4.2/stable/packages/windows/netboot/
+; dirs = opsi4.1/stable/packages/windows/localboot/, opsi4.1/stable/packages/windows/netboot/
+dirs = opsi4.2/testing/packages/windows/localboot/, opsi4.2/testing/packages/windows/netboot/
+autoInstall = false
+autoUpdate = true
+autoSetup = false
+; Set Proxy handler like: http://10.10.10.1:8080
+proxy =
+----
+
+Installieren Sie die Pakete auf dem Server durch die Ausführung des Befehls als root:
+
+[source,prompt]
+----
+opsi-package-updater -v --repo uib_linux install
+----
+
+
+Nach erfolgreicher Installation müssen Sie beim `opsi-configed` ein erneutes laden aller Daten ausführen, damit die neuen Produkte dort sichtbar werden.
+
+Muss für den Zugriff auf das Internet die Verbindung über einen Proxy geleitet werden, so muss dieser in den `.repo`-Konfigurationsdateien unter `/etc/opsi/package-updater.repos.d/` als Wert für `proxy` eingetragen werden.
+Ab Version 4.1.1.33 von opsi-utils kann ein globaler Proxy in `/etc/opsi/opsi-package-updater.conf` konfiguriert werden.
+
+[source,configfile]
+----
+[repository_uib_windows]
+…
+proxy =
+----
+
+Sollen später installierte Pakete aktualisiert werden, so kann dies mit dem folgenden Befehl gelinuxht werden:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+Weitere Informationen zum `opsi-package-updater` können im Handbuch gefunden werden.
+
+NOTE: Bitte beachten Sie, dass OS-Installationsprodukte wie z.B. {opsi-client-os}, nach der Installation nicht sofort einsatzbereit sind. Die Installation muss noch durch die Installationsdateien des entsprechenden Installationsmediums ergänzt werden (siehe: <<firststeps-osinstall-fill-base-packages>>).
+
+
+[[opsi-winclient-installation-config-get-essential-products-manually]]
+=== Manuelles Einspielen der Windows opsi-Produkte
+
+Es gibt auch die Möglichkeit manuell die Pakete herunter zu laden und zu installieren.
+
+Holen Sie sich die aktuellen opsi-Pakete im `.opsi`-Paketformat.
+Die Pakete finden Sie unter `https://download.uib.de/opsi4.2/stable/packages/windows/localboot` +
+`https://download.uib.de/opsi4.2/stable/packages/windows/netboot`
+bzw. unter 
+`https://download.uib.de/opsi4.2/testing/packages/windows/localboot` +
+`https://download.uib.de/opsi4.2/testing/packages/windows/netboot`.
+
+Wir empfehlen die .opsi-Dateien unter `/var/lib/opsi/repository` zu speichern.
+Zum Sicherstellen, dass der Prozess `opsiconfd` auf die Dateien zugreifen kann, sollte `opsi-set-rights /var/lib/opsi/repository` ausgeführt werden.
+
+Nach dem Download müssen Sie die Pakete auf dem Server mit dem Befehl `opsi-package-manager -i <paketname>.opsi` installieren.
+
+
+include::../common/firststeps-adding-clients.asciidoc[]
+
+include::../common/firststeps-win-client-integration.asciidoc[]
+
+[[firststeps-software-deployment-product-tests]]
+== Rollout existierender Produkte
+
+Für den Rollout von Software auf Clients muss auf diesen der 'opsi-client-agent' installiert sein.
+Dieser kann auf <<firststeps-software-deployment-client-integration,bestehende Rechner>> ausgerollt werden.
+Bei einer <<firststeps-osinstall,Betriebssysteminstallation>> über opsi wird der 'opsi-client-agent' automatisch installiert.
+
+Nachfolgend wird die Management-Oberfläche <<firststeps-software-deployment-configed,{opsi-configed}>> verwendet, um Software auf Clients zu verteilen.
+
+
+Folgende Produkte werden von opsi für Windows als Standard zur Verfügung gestellt:
+
+* `opsi-linux-client-agent`
+* `swaudit`
+* `hwaudit`
+* `l-system-update`
+* `opsi-configed`
+* `opsi-logviewer`
+* `opsi-auto-update`
+* `opsi-linux-client-kiosk`
+* `opsi-setup-detector`
+* ``
+
+include::../common/firststeps-swdp-product-tests-configed.asciidoc[]
+
+include::../common/firststeps-swdp-product-tests-inventory.asciidoc[]
+
+
+////
+[[firststeps-software-deployment-client-integration]]
+== Integration vorhandener Windows-Clients in opsi
+
+Um vorhandene Windows-Clients in opsi aufzunehmen, muss auf diesen der {opsi-client-agent} installiert werden.
+Dies kann auf mehrere Arten durchgeführt werden.
+Nachdem Sie, wie im Folgenden beschrieben, den {opsi-client-agent} installiert haben, erscheint der Client auch in der Client-Liste des {opsi-configed}, sofern Sie ihn dort noch nicht hinzugefügt hatten.
+
+
+Grundsätzlich gibt es die Möglichkeit die Installation des Agenten <<firststeps-software-deployment-client-integration-service-setup,auf dem Client auszuführen>> oder <<firststeps-software-deployment-client-integration-opsi-deploy,vom Server aus>> die Installation anzustoßen.
+
+Das Ausführen der Installation direkt auf dem Client eignet sich für einzelne Rechner.
+Für einen Massen-Rollout des Agenten eignet sich grundsätzlich der <<firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>
+besser, wenn die dazu nötigen Freischaltungen auf den Windows-Clients vorhanden sind.
+
+Falls bereits eine andere Möglichkeit existiert Software zu verteilen, so ist es ebenfalls möglich darüber den opsi-client-agent zu verteilen und das im Paket mitgelieferte Script `silent_setup.sh` auszuführen.
+
+Sobald der Agent installiert ist, können vorhandene opsi-Produkte auf diesen Clients <<firststeps-software-deployment-product-tests,installiert>> werden.
+
+
+
+
+[[firststeps-software-deployment-client-integration-service-setup]]
+=== Verwendung von service_setup.sh auf Windows
+
+
+[[firststeps-software-deployment-client-integration-service-setup1]]
+==== Verwendung von service_setup.sh auf Windows (Erst- oder Reperaturinstallation)
+
+
+* Loggen Sie sich auf dem Client ein.
+* Starten Sie das Terminal-Programm
+* Für die folgenden Befehle müssen Sie die folgenden Platzhalter ersetzen:
+**  `<username>` mit Ihrem login Namen
+** `<mnt>` durch ein Verzeichnisnamen der noch nicht existiert z.B. 'mnt'
+** `<serviceuser>` durch einen Usernamen der auf dem opsi-server bekannt ist.
+** `<servicepass>` durch das Passwort des <serviceuser>. Sie können `:<servicepass>` zusammen mit der mount-Option `-N` auch weglassen, dann werden Sie nach dem Passwort gefragt
+** `<opsi-server>` durch den Namen oder die IP-Nummer des opsi-servers
+
+[source,prompt]
+----
+sudo su
+cd /mnt
+mount.cifs //<opsi-server>/opsi_depot /mnt -o user=<serviceuser>
+cd /mnt/opsi-linux-client-agent
+./service_setup.sh
+cd
+umount /mnt
+----
+
+bzw. ohne Passwortabfrage
+
+[source,prompt]
+----
+sudo su
+cd /mnt
+mount.cifs //<opsi-server>/opsi_depot /mnt -o user=<serviceuser>, pass=<servicepass>
+cd /mnt/opsi-linux-client-agent
+./service_setup.sh
+cd
+umount /mnt
+----
+
+Beispiel:
+
+[source,prompt]
+----
+sudo su
+cd /mnt
+mount.cifs //sepia/opsi_depot /mnt -o user=adminuser
+cd /mnt/opsi-linux-client-agent
+./service_setup.sh
+cd
+umount /mnt
+----
+
+
+. Starten Sie von dem gemounteten share das Script `opsi-linux-client-agent\service_setup.sh` +
+Bestätigen Sie mit 2 x Enter
+. Das Skript kopiert die notwendigen Dateien in ein temporäres lokales Verzeichnis und startet dann zur eigentlichen Installation opsi-script. 
+. Das Skript nimmt per opsi-Webservice Kontakt zum Server auf um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit der in der config.ini eingetragenen user/password Kombination. Schlägt dies fehl, so erscheint ein Login-Fenster mit Service-URL ({opsi-configserver}), Benutzername und Passwort. Hier wird ein Benutzer benötigt, der Mitglied der Gruppe 'opsiadmin' ist. Möglich ist auch ein Benutzer, welcher nur die Methode `host_createOpsiClient` ausführen darf.
+
+CAUTION: Der Client benötigt nach der Installation ein Reboot um aktiv zu werden. +
+Der Reboot wird *nicht* automatisch ausgelöst.
+
+
+[[firststeps-software-deployment-client-integration-opsi-deploy]]
+=== Verwendung von opsi-deploy-client-agent für Windows
+
+Das `opsi-deploy-client-agent` Skript verteilt den {opsi-client-agent} direkt vom {opsi-server} auf die Clients.
+Es ist hiermit einfach möglich eine große Menge an Clients vom Server aus in eine opsi-Umgebung zu integrieren.
+Voraussetzung hierfür sind bei den Clients:
+
+* ein aktivierter ssh Zugang
+* Administrativer User mit Passwort
+
+
+Das `opsi-deploy-client-agent` Skript findet sich unter `/var/lib/opsi/depot/opsi-client-agent` +
+Führen Sie das Script mit 'root' Rechten aus.
+Falls das Script nicht ausführbar ist, so können Sie dieses Problem mit dem folgenden Befehl beheben: +
+`opsi-set-rights /var/lib/opsi/depot/opsi-client-agent/opsi-deploy-client-agent`
+
+Das Skript erzeugt serverseitig den Client, kopiert die Installations-Dateien und Konfigurationsinformationen, wie bspw. den pckey, auf den Client und startet dort die Installation. +
+Die Installation läuft im Hintergrund ohne das ein User davon etwas bemerken muß.
+
+Der Befehl `opsi-deploy-client-agent` hat eine Fülle von Aufrufparametern. +
+Bei allen nachfolgenden Beispielen wird davon ausgegangen, das Sie in das Stammverzeichnis des opsi-client-agent Produktes gewechselt sind: +
+
+[source,prompt]
+----
+cd /var/lib/opsi/depot/opsi-linux-client-agent
+----
+
+Typische Aufrufe sind:
+
+* Für einen einzelnen Client:
+
+[source,prompt]
+----
+./opsi-deploy-client-agent -v --user=uib uib-mmini1
+----
+
+Ergibt folgende Ausgabe:
+
+[source,ini]
+----
+Password is required for deployment.
+Password: 
+[5] [2021-02-04 16:43:43.121] [               ] Starting deployment to host uib-mmini1.uib.local   (posix.py:84)
+[5] [2021-02-04 16:43:43.121] [               ] Querying for ip address of host uib-mmini1.uib.local   (common.py:158)
+[5] [2021-02-04 16:43:43.122] [               ] Got ip address 192.168.10.70 from syscall   (common.py:167)
+[5] [2021-02-04 16:43:43.123] [               ] Pinging host 192.168.10.70 ...   (common.py:183)
+[5] [2021-02-04 16:43:44.146] [               ] Host 192.168.10.70 is up   (common.py:194)
+[5] [2021-02-04 16:43:44.153] [               ] Patching config.ini   (posix.py:91)
+[5] [2021-02-04 16:43:44.157] [               ] Copying installation scripts...   (posix.py:107)
+[5] [2021-02-04 16:43:48.316] [               ] Running installation script...   (posix.py:147)
+[5] [2021-02-04 16:43:53.382] [               ] opsi-client-agent successfully installed on uib-mmini1.uib.local   (posix.py:176)
+[5] [2021-02-04 16:43:53.395] [               ] Restarting opsiclientd service on computer: uib-mmini1   (posix.py:331)
+[5] [2021-02-04 16:43:55.620] [               ] 1/1 deployments successfully   (__init__.py:210)
+----
+
+* Für eine Liste von Clients:
+
+[source,prompt]
+----
+./opsi-deploy-client-agent -v --user=uib --hosts-from-file HOSTFILE.TXT  --skip-existing-clients 
+----
+
+Hier ist HOSTFILE.TXT eine Datei mit einem Clientnamen (FQDN) pro Zeile. Soweit die Clients dem opsi-server noch nicht bekannt sind, wird versucht den `opsi-linux-client-agent` auf dieser Maschine zu installieren
+
+* Anzeigen alle Kommandozeilen Parameter:
+
+[source,prompt]
+----
+./opsi-deploy-client-agent --help
+----
+
+
+[[firststeps-software-deployment-product-tests]]
+== Rollout existierender Produkte auf Windows
+
+Für den Rollout von Software auf Clients muss auf diesen der 'opsi-client-agent' installiert sein.
+Dieser kann auf <<firststeps-software-deployment-client-integration,bestehende Rechner>> ausgerollt werden.
+
+
+Nachfolgend wird die Management-Oberfläche <<firststeps-software-deployment-product-tests-configed,{opsi-configed}>> verwendet, um Software auf Clients zu verteilen.
+
+
+Folgende Produkte werden von opsi für Windows als Standard zur Verfügung gestellt:
+
+* `opsi-linux-client-agent`
+* `swaudit`
+* `hwaudit`
+* `l-system-update`
+* `opsi-configed`
+* `opsi-logviewer`
+* `opsi-auto-update`
+* `opsi-linux-client-kiosk`
+* `opsi-setup-detector`
+* ``
+
+
+
+include::../common/firststeps-swdp-product-tests-configed.asciidoc[]
+
+include::../common/firststeps-swdp-product-tests-inventory.asciidoc[]
+////
+
+////
+[[opsi-winclient-std-netboot-packages]]
+=== opsi-netboot Pakete zur OS Installation von Windows durch opsi
+////
+
+include::../common/firststeps-configed.asciidoc[]
+
+// include::../common/firststeps-adding-clients.asciidoc[]
+
+include::../common/firststeps-osinstall-hwinvent.asciidoc[]
+
+
+include::../common/firststeps-osinstall_win.asciidoc[]
+
+
+// include::../common/firststeps-osinstall_win.asciidoc[]
+
+// include::opsi-packaging-tutorial-windows.adoc[]
+
+
+////
+[[opsi-winclient-std-localboot-packages]]
+=== opsi-Standardsoftware für Linux unter opsi
+
+Zur Verteilung von Software mit opsi stehen fertige Produkte zur Installation bereit.
+Diese beinhalten unter anderem den Agent ('opsi-client-agent'), welcher für das Management auf Clients installiert werden muss.
+
+Es gibt eine automatische und manuelle Möglichkeit dies zu tun.
+Der automatisierte Weg wird empfohlen.
+////
+
+////
+Folgende Produkte werden von opsi für Linux als Standard zur Verfügung gestellt:
+
+* `opsi-linux-client-agent`
+* `swaudit`
+* `hwaudit`
+* `l-system-update`
+* `opsi-configed`
+* `opsi-logviewer`
+* `opsi-auto-update`
+* `opsi-linux-client-kiosk`
+* `opsi-setup-detector`
+* ``
+
+
+
+[[firststeps-software-deployment-product-tests-inventory]]
+=== Inventarisierung mit dem localboot-Produkten hwaudit und swaudit
+
+Wählen Sie im '{opsi-configed}', Modus 'Client-Konfiguration', unter dem Reiter 'Clients' den betreffenden Client aus.
+
+Wenn noch nicht geschehen, aktualisieren Sie den Datenbestand des {opsi-configed}s mittels 'Datei/Daten neu laden' bzw. Anklicken des entsprechenden Icons.
+
+Wechseln Sie zum Reiter 'Produktkonfiguration', klicken Sie in die Spalte 'Angefordert' für das Produkt +hwaudit+, daraufhin öffnet sich eine Liste/Dropdown-Menü und dort wählen Sie die Aktion 'setup'. Wiederholen Sie das für das Produkt +swaudit+.
+
+Der Haken in der Icon-Menüleiste sollte seine Farbe auf Rot wechseln. Wenn Sie ihn anklicken, werden die neuen Einstellungen zum {opsi-Server} übermittelt, im Anschluss ist seine Farbe wieder grün.
+
+Starten Sie dann den Client (neu).
+Er sollte jetzt den +opsi-client-agent+ starten und die Produkte +hwaudit+ und +swaudit+ installieren.
+Bei +hwaudit+ und +swaudit+ werden Hard- bzw. Softwareinformationen erhoben und zum {opsi-Server} übermittelt.
+Die gesammelten Informationen werden unter den Tabs 'Hardwareinformationen' bzw. 'Software-Inventur' angezeigt.
+
+[[firststeps-software-deployment-product-tests-configed]]
+=== Verteilung von opsi Standard Produkten: opsi-configed
+
+Zu den Standard-Produkten gehört das Produkt `opsi-configed` welches das opsi Management Interface als Anwendung auf einem Rechner installiert.
+Da diese Anwendung eine Java-Anwendung ist, wird ein JavaRE mitgeliefert.
+
+Wählen Sie im '{opsi-configed}', Modus 'Client-Konfiguration', unter dem Reiter 'Clients' den betreffenden Client aus.
+
+Wenn noch nicht geschehen, aktualisieren Sie den Datenbestand des {opsi-configed}s mittels 'Datei/Daten neu laden' bzw. Anklicken des entsprechenden Icons.
+
+Wechseln Sie zum Reiter 'Produktkonfiguration', klicken Sie in die Spalte 'Angefordert' für das Produkt +opsi-configed+, daraufhin öffnet sich eine Liste/Dropdown-Menü und dort wählen Sie die Aktion 'setup'.
+
+Der Haken in der Icon-Menüleiste sollte seine Farbe auf Rot wechseln. Wenn Sie ihn anklicken, werden die neuen Einstellungen zum {opsi-Server} übermittelt, im Anschluss ist seine Farbe wieder grün.
+
+Starten Sie dann den Client (neu).
+Er sollte jetzt den +opsi-client-agent+ starten und das Produkt +opsi-configed+ installieren.
+Nach Abschluß der Installation sollten Sie unter `Anwendungen` den Punkt `opsi-configed` finden.
+////
+
+
+// include::../common/firststeps-osinstall_lin.asciidoc[]
+
+[[opsi-winclient-softwintegration]]
+== Einbindung eigener Software in die Softwareverteilung von opsi
+
+Die Installation von Software erfolgt bei opsi durch den {opsi-client-agent} und insbesondere durch das Script gesteuerte Setup Programm {opsi-script}. Daher muss zu jedem opsi-Produkt ein {opsi-script}-Script erstellt werden. Danach werden dieses Script, die Installationsdateien und die Metadaten zu einem opsi-Produkt gepackt, welches sich schließlich auf dem {opsi-Server} installieren lässt.
+
+[[opsi-winclient-softwintegration-tutorial]]
+=== Ein kleines Tutorial zur Erstellung eines {opsi-script} Scriptes
+
+
+include::../common/softwintegration-tutorial-introduction.asciidoc[]
+
+[[opsi-winclient-softwintegration-tutorial-general]]
+==== Methoden der nicht interaktiven Softwareinstallation bei Windows
+
+Prinzipiell gibt es drei Verfahren der Einbindung eines Softwarepakets in die automatische Softwareverteilung für Windows-Betriebssysteme, zuzüglich einer Variante, die sich auf die Pakete für den Microsoft Installer Service bezieht.
+
+. *Unattended / Silent Setup*: +
+Das Original-Setupprogramm wird verwendet und über Kommandozeilenargumente in einen nicht-interaktiven Modus versetzt.
+Der wichtigste Spezialfall davon ist der +
+*„stille“ Aufruf eines MSI-Pakets*: +
+Ein Paket für den Microsoft Installer Service ist vorhanden und wird mit einer „quiet“-Option aufgerufen.
+
+. *Interaktives Setup mit automatisierten Antworten*: +
+Zur Vorbereitung wird bei einem Lauf des Original-Setupprogramms festgestellt, welche Fenstertitel das Programm zeigt
+und welche Fragen und Antworten beim Setup anfallen. Dies wird in einem Skript niedergeschrieben.
+Im Prozess der Softwareverteilung läuft das Setupprogramm dann unter Kontrolle eines Automatisierungs-Programms
+wie z.B. AutoIt oder Autohotkey, welches das Setupprogramm gemäß dem Skript steuert.
+
+. *Nachbilden der Setup-Routine mit dem OPSI-Winst*: +
+Bei einem Lauf des originalen Setupprogramms werden etwaige System-Änderungen mitprotokolliert, z.B. mit procmon und mit Hilfe des opsi-winst nachgefahren.
+
+NOTE: Opsi unterstützt alle drei Varianten. In der Praxis werden sie häufig ergänzend verwendet.
+
+include::../common/softwintegration-tutorial-script-structure-opsi-script-basics.asciidoc[]
+//
+[[opsi-winclient-softwintegration-tutorial-Windows-special-commands]]
+===== Spezielle Kommandos für Windows
+
+siehe auch: https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#opsi-winst-rc-linux-specific
+
+* getOS   // liefert: Linux or Windows_NT or MacOS [W/L/M]
+
+* `getMsVersionInfo : string` //Windows Version Information [W] +
+https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#getLinuxDistroType +
+#####################
+
+* `getMSVersionMap : stringlist` [W] +
+https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#getLinuxVersionMap
++
+#####################
+
+Siehe auch: +
+http://bonifax.uib.local/opsidoc/git-stable/html/opsi-winst-manual/opsi-winst-manual.html#opsi-script-rc-linux-specific +
+#####################
+
+
+[[opsi-winclient-softwintegration-tutorial-template]]
+==== Drittes Beispiel: Windows-Template 'opsi-template'
+
+Dieses Template können Sie sich mit dem `opsi-setup-detector` erstellen.
+
+.define_vars_multi.opsiscript: Variablen deklaration
+[source,winst]
+----
+; -------------------------------------
+; include file for opsi-setup-detector products
+; Define all variables here
+;---------------------------
+DefVar $ProductId$
+DefVar $InstallDir$
+DefVar $InstallDir1$
+DefVar $InstallDir2$
+DefVar $MinimumSpace$
+DefVar $ExitCode$
+DefVar $ErrorString$
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+DefVar $OS$
+DefVar $OSshort$
+DefVar $oldProgFound$
+DefVar $installSuccess$
+DefVar $installCommand$
+DefVar $MsiId$
+DefVar $UninstallProgram$
+DefVar $installerfile$
+DefVar $distrotype$
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $arch$
+DefVar $tmpstr$
+DefVar $targetfile$
+DefVar $iconfile$
+
+DefStringlist $ListOfPackageNames$
+DefStringList $osinfomap$
+----
+
+.setup.opsiscript: Installationsscript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "opsi-template"
+Set $MinimumSpace$	 = "1 MB"
+; the path were we find the product after the installation
+;Set $InstallDir$		= "%ProgramFiles32Dir%\<path to the product>"
+Set $InstallDir$		= "unknown"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = "" 
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "Windows_NT"))
+	logError "Installation aborted: wrong OS version: only Windows"
+	isFatalError "wrong OS"
+endif
+
+if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
+	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
+	isFatalError "No Space"
+	; Stop process and set installation status to failed
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+Message "Installing " + $ProductId$ + " ..."
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, reserve license and get license key"
+	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
+endif
+
+
+comment "Start setup program"
+ChangeDirectory "%SCRIPTPATH%"
+;----------------------------------------------
+Winbatch_install
+;----------------------------------------------
+set $ExitCode$ = getlastexitcode
+if "true" = isMsiExitcodeFatal_short($exitcode$, "true", $ErrorString$ )
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+
+comment "Copy files"
+Files_install /32Bit
+
+comment "Patch Registry"
+Registry_install /32Bit
+
+comment "Create shortcuts"
+LinkFolder_install
+
+[Winbatch_install]
+; Choose one of the following examples as basis for your installation
+; You can use $LicenseKey$ var to pass a license key to the installer
+;
+; === Nullsoft Scriptable Install System ================================================================
+; "%ScriptPath%\Setup.exe" /S
+;
+; === MSI package =======================================================================================
+; You may use the parameter PIDKEY=$Licensekey$
+; msiexec /i "%ScriptPath%\some.msi" /l* "%opsiLogDir%\$ProductId$.install_log.txt" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
+;
+; === InstallShield + MSI=====================================================================================
+; Attention: The path to the log file should not contain any whitespaces
+; "%ScriptPath%\setup.exe" /s /v" /l* %opsiLogDir%\$ProductId$.install_log.txt /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
+; "%ScriptPath%\setup.exe" /s /v" /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
+;
+; === InstallShield =====================================================================================
+; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
+; You may use an answer file by the parameter /f1"c:\setup.iss"
+; "%ScriptPath%\setup.exe" /s /sms /f2"%opsiLogDir%\$ProductId$.install_log.txt"
+;
+; === Inno Setup ========================================================================================
+; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
+; You may create setup answer file by: setup.exe /SAVEINF="filename"
+; You may use an answer file by the parameter /LOADINF="filename"
+; "%ScriptPath%\setup.exe" /sp- /silent /norestart /nocancel /SUPPRESSMSGBOXES
+
+[Files_install]
+; Example of recursively copying some files into the installation directory:
+;
+; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
+
+[Registry_install]
+; Example of setting some values of an registry key:
+;
+; openkey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
+; set "name1" = "some string value"
+; set "name2" = REG_DWORD:0001
+; set "name3" = REG_BINARY:00 af 99 cd
+
+[LinkFolder_install]
+; Example of deleting a folder from AllUsers startmenu:
+;
+; set_basefolder common_programs
+; delete_subfolder $ProductId$
+;
+; Example of creating a shortcut to the installed exe in AllUsers startmenu:
+;
+; set_basefolder common_programs
+; set_subfolder $ProductId$
+;
+; set_link
+; 	name: $ProductId$
+; 	target: <path to the program>
+; 	parameters:
+; 	working_dir: $InstallDir$
+; 	icon_file:
+; 	icon_index:
+; end_link
+;
+; Example of creating a shortcut to the installed exe on AllUsers desktop:
+;
+; set_basefolder common_desktopdirectory
+; set_subfolder ""
+;
+; set_link
+; 	name: $ProductId$
+; 	target: <path to the program>
+; 	parameters: <some_param>
+; 	working_dir: $InstallDir$
+; 	icon_file: <path to icon file>
+; 	icon_index: 2
+; end_link
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+----
+
+
+.delsub.opsiscript: Deinstallations-SubSkript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib gmbh
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+Message "Check for existing installation of " + $ProductId$ + " ..."
+
+Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+Set $UninstallProgram$ = $InstallDir$ + "\uninstall.exe"
+
+if FileExists($UninstallProgram$)
+	
+	comment "Uninstall program found, starting uninstall"
+	Winbatch_uninstall
+	Sub_check_exitcode_del
+	
+endif
+if not (getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ , "DisplayName","32bit") = "")
+	
+	comment "MSI id " + $MsiId$ + " found in registry, starting msiexec to uninstall"
+	Winbatch_uninstall_msi
+	Sub_check_exitcode_del
+	
+endif
+
+
+comment "Delete files"
+if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown'))
+	Files_uninstall
+endif
+
+comment "Cleanup registry"
+Registry_uninstall
+
+comment "Delete program shortcuts"
+LinkFolder_uninstall
+
+[Winbatch_uninstall]
+; Choose one of the following examples as basis for program uninstall
+;
+; === Nullsoft Scriptable Install System ================================================================
+; maybe better called as
+; Winbatch_uninstall /WaitforProcessending "Au_.exe" /Timeoutseconds 10
+; "$UninstallProgram$" /S
+;
+; === Inno Setup ========================================================================================
+; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
+
+[Winbatch_uninstall_msi]
+msiexec /x $MsiId$ /qb-! REBOOT=ReallySuppress
+
+[Files_uninstall]
+; Example for recursively deleting the installation directory:
+;
+; del -sf "$InstallDir$\"
+
+[Registry_uninstall]
+; Example of deleting a registry key:
+;
+; deletekey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
+
+[LinkFolder_uninstall]
+; Example of deleting a folder from AllUsers startmenu:
+;
+; set_basefolder common_programs
+; delete_subfolder $ProductId$
+;
+; Example of deleting a shortcut from AllUsers desktop:
+;
+; set_basefolder common_desktopdirectory
+; set_subfolder ""
+; delete_element $ProductId$
+
+[Sub_check_exitcode_del]
+set $ExitCode$ = getlastexitcode
+if "true" = isMsiExitcodeFatal_short($exitcode$, "true", $ErrorString$ )
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+
+;-----------------------------------------------------
+----
+
+
+.uninstall.opsiscript: Deinstallations-Skript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "opsi-template"
+; the path were we find the product after the installation
+;Set $InstallDir$	= "%ProgramFiles32Dir%\<path to the product>"
+Set $InstallDir$	= "unknown"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "Windows_NT"))
+	logError "Installation aborted: wrong OS version: only Windows"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+Message "Uninstalling " + $ProductId$ + " ..."
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, free license used"
+	Set $tmpstr$ = FreeLicense($LicensePool$)
+endif
+----
+
+
+
+[[opsi-client-softwintegration-create-opsi-package]]
+=== Erstellen eines opsi-Produkt-Pakets
+
+[[opsi-setup-detector-installation]]
+==== Installation des opsi-setup-detector, {opsi-package-builder} und opsi-logviewer
+
+// include docu: opsi-setup-detector installation
+include::../common/setup-detector-installation.asciidoc[]
+
+
+// include docu: opsi-logviewer installation
+include::../common/opsi-logviewer-installation.asciidoc[]
+
+
+
+[[opsi-winclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
+==== Das Programm opsi-setup-detector zum Erstellen eines Windows Scriptes
+
+// include docu: opsi-setup-detector 
+include::../common/setup-detector-use-start.asciidoc[]
+
+// include docu: Linux specific tasks in opsi-setup-detector
+include::../common/osd_tasks_windows.asciidoc[]
+
+// include docu: how to use the opsi-setup-detector
+include::../common/osd-task-use-single-analyze-and-create.asciidoc[]
+
+Mehr Details zum `opsi-setup-detector` finden Sie im opsi-manual: +
+https://download.uib.de/opsi4.2/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-setup-detector
+
+// include docu: how to use the opsiPackagebuilder
+include::../common/softwintegration-tutorial-packagebuilder-use.asciidoc[]
+
+// include docu: The modify and test cycle
+include::../common/softwintegration-tutorial-modify-test-cycle.asciidoc[]
+
+
+[[opsi-winclient-hints]]
+== Allgemeine Hinweise zu Windows
+
+
+[[opsi-winclient-hints-opsi-files-dirs]]
+=== Die opsi Verzeichnisse auf Windows
+
+Wesentliche opsi Verzeichnisse und Dateien auf dem Windows-Client
+
+* c:\program files (x86)\opsi.org\opsi-client-agent
+
+* c:\opsi.org (sonstige opsi Log und andere variable files)
+
+
+[[opsi-winclient-more-info]]
+== Weitere Informationen
+
+Das link:https://download.uib.de/opsi_stable/doc/opsi-handbuch-stable-de.pdf[opsi-Handbuch] enthält eine Fülle von weiteren Informationen, die für den produktiven Betrieb wichtig sind.
+Wenn Sie ihren opsi-Server produktiv einsetzen empfehlen wir Ihnen besonders sich mit dem Werkzeug 'opsi-backup' vertraut zu linuxhen, um eine Sicherung Ihrer Daten erstellen zu können.
+
+Wenn Sie dort nicht fündig werden oder Hilfe benötigen, wenden Sie sich an link:https://forum.opsi.org[die opsi Community].
+
+Für produktive Installationen empfehlen wir professionelle Unterstützung durch uib im Rahmen eines link:https://uib.de/de/support-schulung/support/[Pflege- und Supportvertrages].
+
