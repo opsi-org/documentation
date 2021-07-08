@@ -37,15 +37,17 @@ Since opsi 4 we have to different kinds of API methods:
 ===== Overview
 
 
-At the 'object oriented' methods a Object has some properties.
+The opsi4 backends are based on objects.
+An object has a set of attributes.
 
-As a example let us have a look at the object 'product'. A object of the type 'product' which describes the product 'javavm' may look like this:
+As an example serves here the object 'Product'.
+The object of type 'Product' which describes the opsi package 'javavm' looks for example like this:
 
 [source, configfile]
 ----
 "ident": "javavm;1.6.0.20;2"
 "id": "javavm"
-"description": "Java 1.6"
+"description": "Java 1.6"
 "changelog": ""
 "advice": ""
 "userLoginScript": ""
@@ -53,10 +55,10 @@ As a example let us have a look at the object 'product'. A object of the type 'p
 "priority": 0
 "packageVersion": "2"
 "productVersion": "1.6.0.20"
-"windowsSoftwareIds": None
-"productClassIds": None
+"windowsSoftwareIds": null
+"productClassIds": null
 "type": "LocalbootProduct"
-"licenseRequired": False
+"licenseRequired": false
 "setupScript": "javavm.ins"
 "updateScript": ""
 "uninstallScript": "deljvm.ins"
@@ -64,63 +66,115 @@ As a example let us have a look at the object 'product'. A object of the type 'p
 "onceScript": ""
 "customScript": ""
 ----
-Every object has a set of operators which can be used to work with this object. Most time these operators are:
 
-* 'getObjects' (returns the objects)
-* 'getHashes' (We recommend to use 'getObjects')
-* 'create'  (create one object comfortable)
-* 'createObjects' (create one or more objects, existing objects will be updatet)
-* 'delete' (delete one object)
-* 'deleteObjects' (delete one or more objects)
-* 'getIdents' (returns the object id's)
-* 'insertObject' (create a new object, if the obect exists, it will be updatet)
-* 'updateObject' (update a single object, if the object doesn't exists *no object will be created*. We recommend to use 'insertObject' instead.)
-* 'updateObjects' (update a bundle of objects, if the objects doesn't exists *they will not be created*. We recommend to use 'createObjects' instead.)
+For each object there is a set of operations. Usually these are:
 
-The method names are concatenated:
+* 'getObjects': returns a list of objects that match the specified filter.
+If a list of attributes is specified, only these will be populated from the backend.
+* 'getHashes': Like 'getObjects', except that unchecked raw data from the backend is delivered directly.
+Works more performant than 'getObjects', but should be used with caution.
+* 'getIdents' Returns a list of object IDs that match the specified filter.
+The 'returnType' can be used to select the data structure of the elements in the result.
+Possible values are: 'unicode', 'list' and 'hash'.
+* insertObject': Creates a new object. If the object already exists, it will be completely overwritten with the new values.
+Attributes that are not passed (or passed with the value 'null') will be set to 'null' in the backend.
+* updateObject': Updates an object. Attributes that are not passed (or passed with the value 'null'),
+will *not* be changed in the backend. If the object does not exist, no change takes place, *no* object is created.
+* 'createObjects': An object or a list of objects can be passed. Each object is passed internally to 'insertObject'.
+* 'updateObjects': An object or a list of objects can be passed. Each object is passed internally to 'insertObject' if it does not exist yet, otherwise to 'updateObject'.
+* 'create': Creates a new object and takes all possible attributes as single parameters.
+Internally 'createObjects' is used. Existing objects will be overwritten completely.
+* 'deleteObjects': Deletes a list of objects. It is mandatory to pass a list. Only the attributes identifying the object ('type'/'id'/'ident') are used to select the objects to be deleted.
+* 'delete': Deletes the object identified by the specified parameters.
 
-'<object name>_<operation>'
+TIP: To update an object, it is usually a good idea to use the 'updateObjects' method.
+For example, 'productOnClient_updateObjects' can be used to update the state of a package on a client.
+Whether the object already exists or not is then irrelevant.
 
-According to this naming rule, these new methods are easily to difference from the old 'legacy' opsi 3 methods, which almost start with 'get', 'set' or 'create'.
+The names of the methods are composed of:
+
+'<object-type>_<operation>'
+
+Thus they differ from the 'legacy' methods from opsi 3.x which usually start with 'get', 'set' or 'create'.
 
 The 'getObjects' methods have two optional parameters:
 
 * 'attributes'
 * 'filter'
 
-The 'attributes' parameter is used query only for some properties of an object. If you are using attributes the returned object has all attribute keys, but only values the attribute you asked for and for all attributes which are used to identify this object. All other attributes have the value 'none'.
+The 'attributes' parameter is used to query only certain attributes of the object, which can provide speed advantages.
+If a list of attributes is specified, only these are read from the backend.
+The remaining attributes are returned with the value 'null'.
+Attributes that identify the object ('type'/'id'/'ident') are always filled.
+If all attributes should be read (default), 'null' or '[]' can be passed as 'attributes'.
 
-For Example you will get by calling the method 'product_getObjects' with 'attributes:["name"]' for the product 'javavm':
+Example for the method 'product_getObjects', parameterized with 'attributes:["name"]' for the package ('Product') 'javavm':
 
 [source, configfile]
 ----
-"onceScript": None,
+"onceScript": null,
 "ident": "javavm;1.6.0.20;2",
-"windowsSoftwareIds": None,
-"description": None,
-"setupScript": None,
-"changelog": None,
-"customScript": None,
-"advice": None,
-"uninstallScript": None,
-"userLoginScript": None,
+"windowsSoftwareIds": null,
+"description": null,
+"setupScript": null,
+"changelog": null,
+"customScript": null,
+"advice": null,
+"uninstallScript": null,
+"userLoginScript": null,
 "name": "Sun Java Runtime Environment",
-"priority": None,
+"priority": null,
 "packageVersion": "2",
 "productVersion": "1.6.0.20",
-"updateScript": None,
-"productClassIds": None,
-"alwaysScript": None,
+"updateScript": null,
+"productClassIds": null,
+"alwaysScript": null,
 "type": "LocalbootProduct",
 "id": "javavm",
-"licenseRequired": None
+"licenseRequired": null
 ----
 
 If you don't want to ask for attributes but instead you need to use the second parameter 'filter' you have to pass the attribute parameter as '[]'.
 
 The parameter filter is used to define which objects you want to get. For example if you are using the filter '{ "id":"javavm" }' on the method  'product_getObjects' you will get only the object(s) which describe the product 'javavm'.
 
-If you are using methods which expect one ore more objects, these objects have to be given as JSON objects or as an array of JSON objects.
+The 'filter' parameter can be used to filter the list of objects.
+For example, for 'product_getObjects' the filter '{"id": "javavm"}' restricts the return to the object with the ID 'javavm'.
+Multiple passed filter attributes are 'AND'-linked here.
+If a list of values is passed for an attribute, this results in an 'OR' operation.
+For strings, a '*' can be used as a placeholder.
+If you do not want to filter (default), you can pass 'null' or '{}' as 'filter'.
+
+Example for 'product_getIdents' with filter '{"id":["opsi-client-agent", "opsi-script"], "productVersion": "4.1*"}' ('returnType' = 'hash'):
+
+[source, json]
+----
+[
+    {
+        }, "id": "opsi-client-agent",
+        "productVersion": "4.1.0.0",
+        "packageVersion": "47"
+    },
+    {
+        }, "id": "opsi-client-agent",
+        "productVersion": "4.1.1.40",
+        "packageVersion": "1"
+    },
+    {
+        }, "id": "opsi-script",
+        "productVersion": "4.12.4.21",
+        "packageVersion": "1"
+    },
+    {
+        }, "id": "opsi-script",
+        "productVersion": "4.12.4.23",
+        "packageVersion": "1"
+    }
+]
+----
+
+For the methods to which one or more objects are passed,
+this must be done as a JSON object or a list of JSON objects.
 
 The most important objects are:
 
