@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/opsidoc-builder
+image: asciidoctor/docker-asciidoctor
 
 stages:
   - build
@@ -10,17 +10,21 @@ stages:
 .build_template_html: &build_template_html
   stage: build
   script:
-    - make DEBUG=1 LANG=$LANGUAGE $DOCUMENT.html
-    - test -f build/xhtml/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+    - apk add --no-cache python3 py3-pip
+    - python3 tools/create_docu.py -l=$LANGUAGE -o=html -s=opsi -f=$DOCUMENT
+    - test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
   artifacts:
     paths:
-      - build/xhtml/$LANGUAGE/$DOCUMENT/*
+      - build/html/$LANGUAGE/$DOCUMENT/*
     expire_in: 2 days
 
 .build_template_epub: &build_template_epub
   stage: build
   script:
-    - make LANG=$LANGUAGE $DOCUMENT.epub
+    - apk add graphicsmagick-dev ruby-dev musl-dev gcc
+    - gem install prawn-gmagick
+    - apk add --no-cache python3 py3-pip
+    - python3 tools/create_docu.py -l=$LANGUAGE -o=epub -f=$DOCUMENT
     - test -f build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
   artifacts:
     paths:
@@ -30,7 +34,10 @@ stages:
 .build_template_pdf: &build_template_pdf
   stage: build
   script:
-    - make LANG=$LANGUAGE $DOCUMENT.pdf
+    - apk add graphicsmagick-dev ruby-dev musl-dev gcc
+    - gem install prawn-gmagick
+    - apk add --no-cache python3 py3-pip
+    - python3 tools/create_docu.py -l=$LANGUAGE -o=pdf -t=opsi -f=$DOCUMENT
     - test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
   artifacts:
     paths:
@@ -391,6 +398,8 @@ en-pdf-quickinstall-manual:
 # Packaging and renaming of documents
 package_docs:
   stage: package
+  before_script:
+    - apk add --no-cache python2
   script:
     - make publish
   artifacts:
@@ -405,7 +414,7 @@ package_docs:
 publish_docs:
   stage: publish
   before_script:
-    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - 'which ssh-agent || (apk --update add openssh-client)'
     - mkdir -p ~/.ssh
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
@@ -420,7 +429,7 @@ publish_docs_ext:
   stage: publish_ext
   when: manual
   before_script:
-    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - 'which ssh-agent || (apk --update add openssh-client)'
     - mkdir -p ~/.ssh
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
