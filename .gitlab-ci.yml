@@ -1,4 +1,5 @@
-image: docker.uib.gmbh/opsi/opsidoc-builder
+# image: docker.uib.gmbh/opsi/opsidoc-builder
+image: asciidoctor/docker-asciidoctor
 
 stages:
   - build
@@ -11,29 +12,36 @@ stages:
   stage: build
   when: manual
   script:
-    - make DEBUG=1 LANG=$LANGUAGE $DOCUMENT.html
-    - test -f build/xhtml/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+    - which asciidoctor
+    - asciidoctor -v
+    - apk add --no-cache python3 py3-pip
+    - python3 tools/create_docu.py -l=$LANGUAGE -o=html -f=$DOCUMENT
+    - test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
   artifacts:
     paths:
-      - build/xhtml/$LANGUAGE/$DOCUMENT/*
+      - build/html/$LANGUAGE/$DOCUMENT/*
     expire_in: 2 days
 
-.build_template_epub: &build_template_epub
-  stage: build
-  when: manual
-  script:
-    - make LANG=$LANGUAGE $DOCUMENT.epub
-    - test -f build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
-  artifacts:
-    paths:
-      - build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
-    expire_in: 2 days
+# .build_template_epub: &build_template_epub
+#   stage: build
+#   when: manual
+#   script:
+#     - make LANG=$LANGUAGE $DOCUMENT.epub
+#     - test -f build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+#   artifacts:
+#     paths:
+#       - build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+#     expire_in: 2 days
 
 .build_template_pdf: &build_template_pdf
   stage: build
   when: manual
   script:
-    - make LANG=$LANGUAGE $DOCUMENT.pdf
+    - which asciidoctor
+    - asciidoctor -v
+    - apk add --no-cache python3 py3-pip
+    - apk add --no-cache python3 py3-pip
+    - python3 tools/create_docu.py -l=$LANGUAGE -o=pdf -f=$DOCUMENT
     - test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
   artifacts:
     paths:
@@ -133,71 +141,71 @@ en-html-mac-client-manual:
 #    DOCUMENT: opsi-windows-client-manual
 
 # - epub build jobs -
-de-epub-getting-started-v4.1:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-getting-started-v4.1
+# de-epub-getting-started-v4.1:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-getting-started-v4.1
 
-en-epub-getting-started-v4.1:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-getting-started-v4.1
+# en-epub-getting-started-v4.1:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-getting-started-v4.1
 
-de-epub-manual-v4.1:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-manual-v4.1
+# de-epub-manual-v4.1:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-manual-v4.1
 
-en-epub-manual-v4.1:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-manual-v4.1
+# en-epub-manual-v4.1:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-manual-v4.1
 
-de-epub-winst-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-winst-manual
+# de-epub-winst-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-winst-manual
 
-en-epub-winst-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-winst-manual
+# en-epub-winst-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-winst-manual
 
-en-epub-winst-reference-card:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-winst-reference-card
+# en-epub-winst-reference-card:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-winst-reference-card
 
-de-epub-supportmatrix:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-supportmatrix
+# de-epub-supportmatrix:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-supportmatrix
 
-en-epub-supportmatrix:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-supportmatrix
+# en-epub-supportmatrix:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-supportmatrix
 
-de-epub-mac-client-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-mac-client-manual
+# de-epub-mac-client-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-mac-client-manual
 
-en-epub-mac-client-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-mac-client-manual
+# en-epub-mac-client-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-mac-client-manual
 
 #de-epub-linux-client-manual:
 #  <<: *build_template_epub
@@ -331,7 +339,7 @@ package_docs:
 publish_docs:
   stage: publish
   before_script:
-    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - 'which ssh-agent || (apk --update add openssh-client)'
     - mkdir -p ~/.ssh
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
@@ -345,7 +353,7 @@ publish_docs_ext:
   stage: publish_ext
   when: manual
   before_script:
-    - 'which ssh-agent || (apt update -y && apt install -y openssh-client)'
+    - 'which ssh-agent || (apk --update add openssh-client)'
     - mkdir -p ~/.ssh
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
