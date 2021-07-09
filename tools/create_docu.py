@@ -85,11 +85,11 @@ def listdirs(path):
 
 for lang in languages:
 	print(listdirs(lang))
-	
+
 	for root, dirs, files in os.walk(lang):
 		if "opsi" not in root:
 			continue
-		
+
 		for f in files:
 			if input_files and os.path.splitext(f)[0] not in input_files:
 				continue
@@ -99,7 +99,7 @@ for lang in languages:
 				print("########: ", f)
 				source = os.path.join(root,f)
 				for output in outputs:
-					destination_folder = f"build/{lang}/{output}/{root_basename}"
+					destination_folder = f"build/{output}/{lang}/{root_basename}"
 					try:
 						os.makedirs(destination_folder)
 					except OSError:
@@ -110,7 +110,7 @@ for lang in languages:
 					destination = os.path.join(destination_folder, f"{root_basename}.{output}")
 					if output == "pdf":
 						print(f"asciidoctor -r asciidoctor-pdf -b pdf -a icons=font -a doctype=book -chapter-label="" -a icons=font {pdf_style} -a imagesdir=../images -D '{destination_folder}' {f}")
-						os.system(f"asciidoctor -r asciidoctor-pdf -b pdf -a icons=font -a doctype=book -a title-logo-image=../images/opsi_logo.png -a icons=font {pdf_style} -a imagesdir=../images -D '{destination_folder}' {os.path.join(root, f)}")					
+						os.system(f"asciidoctor -r asciidoctor-pdf -b pdf -a icons=font -a doctype=book -a title-logo-image=../images/opsi_logo.png -a icons=font {pdf_style} -a imagesdir=../images -D '{destination_folder}' {os.path.join(root, f)}")
 					if output == "html":
 						print(f'asciidoctor -a encoding=UTF-8 -a doctype=book -a icons=font -chapter-label="" -a xrefstyle=full -a lang={lang} {html_style} --verbose  --out-file "{destination}" {source} ')
 						os.system(f'asciidoctor -a encoding=UTF-8 -a doctype=book -a icons=font -a xrefstyle=full -a lang={lang} {html_style} --verbose  --out-file "{destination}" {source} ')
@@ -120,4 +120,3 @@ for lang in languages:
 						print(f"asciidoctor -r asciidoctor-epub3 -b epub3 -a icons=font -a doctype=book -chapter-label="" -a icons=font -a imagesdir=images -D '{destination_folder}' {f}")
 						os.system(f"asciidoctor -r asciidoctor-epub3 -b epub3 -a icons=font -a doctype=book -a icons=font -a imagesdir=images -D '{destination_folder}' {os.path.join(root, f)}")
 						shutil.rmtree(f"{root}/images")
-		
