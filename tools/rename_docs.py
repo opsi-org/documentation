@@ -8,7 +8,7 @@ import sys
 def rename_docs(path, documenttype, dest):
 
 	print(documenttype)
-	assert documenttype in ("pdf", "epub", "xhtml")
+	assert documenttype in ("pdf", "epub", "html")
 
 	if not dest.endswith(documenttype):
 		dest = os.path.join(dest, documenttype)
@@ -23,10 +23,10 @@ def rename_docs(path, documenttype, dest):
 			if entry.endswith(documenttype):
 				d = root.split("/")
 				lang = d[d.index(documenttype)+1]
-	
+
 				source = os.path.join(root, entry)
 				destination = os.path.join(dest, "%s.%s" % ("%s-%s" % (entry.rsplit(".", 1)[0], lang), documenttype))
-	
+
 				print("Copying {0!r} to {1!r}".format(source, destination))
 				shutil.copy2(source, destination)
 
