@@ -8,7 +8,7 @@ import sys
 def rename_docs(path, documenttype, dest):
 
 	print(documenttype)
-	assert documenttype in ("pdf", "epub", "html")
+	assert documenttype in ("pdf", "epub", "xhtml")
 
 	if not dest.endswith(documenttype):
 		dest = os.path.join(dest, documenttype)
