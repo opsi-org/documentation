@@ -5,7 +5,7 @@ SYS_DOC_DIR := /usr/share/doc/opsi
 
 ASCIIDOC := /usr/bin/asciidoc
 A2X := /usr/bin/a2x
-PYTHON := /usr/bin/python
+PYTHON := /usr/bin/python3
 
 FIND := /usr/bin/find
 ASPELL := /usr/bin/aspell
