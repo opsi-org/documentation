@@ -89,7 +89,6 @@ publish: rename
 	cp -r $(DEST_DIR)/html/de/* $(PUB_DIR)/html/
 	mkdir -p $(PUB_DIR)/html/en/
 	cp -r $(DEST_DIR)/html/en/* $(PUB_DIR)/html/en/
-	rm -rf $(PUB_DIR)/html
 	cd $(PUB_DIR) ; \
 	tar -cvf pub.tar ./*
 	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
