@@ -86,10 +86,9 @@ publish: rename
 	cp $(PUB_DIR)/epub/*-de.epub $(PUB_DIR)/epub/de/
 	rm $(PUB_DIR)/epub/*.epub
 	mkdir -p $(PUB_DIR)/html/
-	cp -r $(DEST_DIR)/xhtml/de/* $(PUB_DIR)/html/
+	cp -r $(DEST_DIR)/html/de/* $(PUB_DIR)/html/
 	mkdir -p $(PUB_DIR)/html/en/
-	cp -r $(DEST_DIR)/xhtml/en/* $(PUB_DIR)/html/en/
-	rm -rf $(PUB_DIR)/xhtml
+	cp -r $(DEST_DIR)/html/en/* $(PUB_DIR)/html/en/
 	cd $(PUB_DIR) ; \
 	tar -cvf pub.tar ./*
 	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
@@ -100,12 +99,12 @@ pdf: $(addsuffix .pdf,$(DOCS))
 %.pdf: FORMAT = pdf
 
 html: $(addsuffix .html,$(DOCS))
-%.html: FORMAT = xhtml
+%.html: FORMAT = html
 
 epub: $(addsuffix .epub,$(DOCS))
 %.epub: FORMAT = epub
 
-%: FORMAT ?= $(subst html,xhtml,$(FORMATS))
+%: FORMAT ?= $(FORMATS) #$(subst html,xhtml,$(FORMATS))
 %:
 	@$(foreach L,$(LANG),\
 		$(foreach F,$(FORMAT), \
