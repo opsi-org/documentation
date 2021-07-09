@@ -100,12 +100,12 @@ pdf: $(addsuffix .pdf,$(DOCS))
 %.pdf: FORMAT = pdf
 
 html: $(addsuffix .html,$(DOCS))
-%.html: FORMAT = xhtml
+%.html: FORMAT = html
 
 epub: $(addsuffix .epub,$(DOCS))
 %.epub: FORMAT = epub
 
-%: FORMAT ?= $(subst html,xhtml,$(FORMATS))
+%: FORMAT ?= $(FORMATS) #$(subst html,xhtml,$(FORMATS))
 %:
 	@$(foreach L,$(LANG),\
 		$(foreach F,$(FORMAT), \
