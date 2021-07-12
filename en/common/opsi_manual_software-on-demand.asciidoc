@@ -7,15 +7,18 @@
 ////
 
 :Author: uib gmbh
-:Date:      19.10.2017
+:Date: 20.04.2021
 :Revision:  4.1
+:toc:
+:numbered:
+:website: http://opsi.org
 
 
 include::../common/opsi_terms.asciidoc[]
 
 
 [[software-on-demand]]
-=== opsi Software On Demand (Kiosk-Mode) (free)
+=== opsi Software On Demand - opsi-client-kiosk (free)
 
 [[software-on-demand_introduction]]
 ==== Introduction
@@ -24,6 +27,8 @@ With the module "Software-on-Demand" opsi administrators may give their users ac
 These software products may be selected and installed user-driven without the administrator needing to do anything.
 This documentation shows how the module "Software-on-Demand" works, describes it's functions and how to configure it.
 
+*Conventions:* When the opsi-client-kiosk/agent in general is mentioned, it refers to all OS versions (Windows/Linux) unless stated otherwise. When talking about packages or products then the opsi-client-kiosk/agent package/product is the Windows package/product and the l-opsi-client-kiosk or opsi-linux-client-agent package/product is the Linux package/product.
+
 [[software-on-demand_prerequisits]]
 ==== Prerequisites
 
@@ -31,31 +36,167 @@ There are some preconditions needed for the usage of this extension.
 The product-groups are needed, available with opsi 4.0.
 Furthermore the opsi-client-agent and the opsi-configed at version 4.0.1 are needed.
 
-Starting with opsi-client-agent version 4.1.1.6-5 the kiosk is available as a standalone package (opsi-client-kiosk). It will be however installed during the installation of the opsi-client-agent if it's not already present.
+NOTE: Windows: Starting with opsi-client-agent version 4.1.1.6-5 the kiosk is available as a standalone package (opsi-client-kiosk). It will be however installed during the installation of the opsi-client-agent if it's not already present. For more details please check <<software-on-demand_opsi-client-kiosk, New opsi-client-kiosk application>>
+
 
 .Required Packages
 [options="header"]
 |==========================
-|opsi-Package|Version
-|opsi-client-agent|>=4.0.1-3,  >=4.1.1.6-5**
-|opsi-winst|>=4.10.8.12
-|python-opsi|>=4.0.1-7
+|opsi-package|version
+|opsi-client-agent / opsi-linux-client-agent|>=4.1.0.0-36,  >=4.1.1.6-5** / >= 4.1.1.11-1
+|opsi-winst / opsi-script|>=4.10.8.12
+|python-opsi|>=4.1.1.71-1
 |opsi-server|>=4.0.1-2
 |opsi-configed|>=4.0.1.6-1
-|opsi-client-kiosk**|>=4.1.1.7-6
+|(l-)opsi-client-kiosk|>=4.1.1.7-6
+|==========================
+**opsi-client-kiosk as a standalone package
+
+[[software-on-demand_configuration-parameter]]
+==== Configuration
+
+The configuration of this extension is based on product-groups and config-variables.
+The used config-variables are:
+
+* software-on-demand.active
+* software-on-demand.product-group-ids
+* software-on-demand.admin-mode
+* software-on-demand.installation-now-button
+
+These config-variables are created with installing the opsi-server-package.
+
+[[software-on-demand_product-group-management]]
+===== Managing product-groups
+
+The most comfortable way to create and manage product-groups is using the `opsi-configed`.
+There you have to change to the tab `product configuration`.
+
+TIP: Since version 4.0.1.6 of the `opsi-configed` you can change to `product configuration` without choosing a client.
+
+The product-group menu is above the product list.
+
+.product-group menue
+image::configed_productgroup_en.png[pdfwidth=70%]
+
+With the drop down menu you can choose a product-group to edit it.
+If you have chosen a group, the corresponding products will be highlighted.
+ +
+With a second icon, filter can be activated or deactivated.
+When a filter was activated, only the products of the activated product-group are seen.
+ +
+Product-groups can be edited after activating the icon with the yellow packets (show editor / hide editor) next to the icon with the filter.
+In this view, a new group and it's description can be added. Save the editing by activating the red check icon.
+ +
+If some more products should be added to a group, select them and press the red check icon. (Press the <ctrl> button and select the products).
+
+[[software-on-demand_configuration]]
+===== configure the module Software-On-Demand
+
+The module can be configured, as mentioned above, with the config-variables described in the following table:
+
+.overview of the config-variables of the module Software-on-Demand
+[options="header"]
+|==========================
+|Configuration|Description|Values
+|software-on-demand.active|activates or deactivates the module, is used as a flag for the migration (<<software-on-demand_kiosk_migration, Nur Windows: Installation über einen alten opsi-client-agent der den alten Kiosk noch enthält>>). It's irrelevant for the opsi-client-kiosk with version >=4.1.1.6-5. |true/false
+|software-on-demand.product-group-ids|Product-groups with software-products, that can be used for Software-on-Demand.|List of product-groups
+|software-on-demand.admin-mode|Schaltet spezifische Funktionen für die Administration/Gestalltung des Kiosk frei. Sollte nur client-spezifisch bei Bedarf angewandt werden.|true/false
+|software-on-demand.installation-now-button|Schaltet die Möglichkeit zur sofortigen Installation von Produkten über den Kiosk frei|true/false
 |==========================
 
-**Starting with opsi-client-agent version >=4.1.1.6-5 the kiosk is available as a standalone package (opsi-client-kiosk). It will be however installed during the installation of the opsi-client-agent if it's not already present. For more details please check the next chapter.
+There are two ways to use these configuration objects.
+For the whole system or for each client.
+The following 2 chapters will explain both ways.
 
-CAUTION: If you invested time into customizing the kiosk, it's recommended to backup the custom directory before installing a new kiosk/client-agent on the depot: +
-Kiosk as a standalone package (opsi-client-kiosk): `/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom`
-Kiosk still integrated in opsi-client-agent package:
-`/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/app/ock_custom` oder `/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/ock_custom` +
+[[software-on-demand_systemwide-configuration]]
+===== Configuration for the whole system
+
+The configuration here is the default system wide for every client.
+The configuration can be edited in the `opsi-configed`. Push the Button `Server Configuration` and change to the tab `Host Parameter`
+
+.part of the module server configuration in the opsi configuration editor
+image::configed_serverconfiguration_en.png[pdfwidth=70%]
+
+Another possibility is to change the server-configuration with the following command:
+
+[source, prompt]
+----
+opsi-setup --edit-config-defaults
+----
+
+.edit-config-defaults with opsi-setup
+image::editconfigdefaults.png[pdfwidth=70%]
+
+TIP: Administration is also possible with the opsi-python-API or with 'opsi-admin'
+
+[[software-on-demand_client-configuration]]
+===== Configuration for a single client
+
+The configuration for a single client - or client specific configuration - is useful if, for example, only some of the clients should have access to the Software-on-Demand extension. Or if you want to make several product groups available to some clients. +
+
+The configuration of the client specific host parameters can be edited in different ways: +
+
+The most comfortable way to edit the configuration is via '{opsi-configed}'.
+Choose one or several clients (even all clients of a client group if you want to)
+and then navigate to the tab "Host parameters".
+
+.edit hostparameter in the configuration editor
+image::opsi-configed-hostparameters.png[pdfwidth=70%]
+
+This editing overrides the system wide defaults.
+
+////
+[[software-on-demand_event-configuration]]
+===== opsiclientd event-configuration
+
+There are two ways for the users to start the software-installation:
+
+* with the next system start
+* immediately
+
+If the user chooses "with the next system start", the product state will be set to "setup."
+If the choice is "immediately", the '{opsiclientd}' creates an event `software on demand`. This event can be configured in the file `opsiclientd.conf` as any other event.
+////
+
+[[software-on-demand_opsi-client-kiosk]]
+==== New opsi-client-kiosk application
+
+*Windows*
+
+With the opsi-client-agent version (>=4.1.1.6-5) the kiosk is available as a standalone product (opsi-client-kiosk) and will be installed as such when installing the opsi-client-agent. It tries to migrate the existing kiosk settings. +
+
+Background of this changes are:
+
+* simpler maintenance of the opsi-client-agent package
+* Changes to the kiosk can be published independently from the opsi-client-agent package
+* Allows to apply new settings of the kiosk to the clients without the need to reinstall the opsi-client-agent
+
+NOTE: When installing the opsi-client-agent (>=4.1.1.6-5) on the depot, the opsi-client-kiosk package will be installed as well if necessary. For clients, when installing the opsi-client-agent (>=4.1.1.18-1) on the afore mentioned, the opsi-client-kiosk product is set to setup if necessary. For details see <<software-on-demand_kiosk_migration, Installation über einen alten opsi-client-agent der den alten Kiosk noch enthält>>.
+
+CAUTION: The old (web based) Kiosk client no longer works with the new opsi-client-agent/opsiclientd.
+
+*Linux*
+
+The opsi-client-kiosk is also available under Linux as l-opsi-client-kiosk package or product.
+
+[[software-on-demand_install]]
+===== opsi-client-kiosk: Installation on a depot
+
+If you invested time into customizing the kiosk, it's recommended to backup the custom directory before installing a new opsi-client-kiosk/opsi-client-agent on the depot: +
+Kiosk as a standalone package (opsi-client-kiosk or l-opsi-client-kiosk): `/var/lib/opsi/depot/(l-)opsi-client-kiosk/files/app/ock_custom` +
+
+Kiosk still integrated in opsi-client-agent package (only windows):
+`/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/app/ock_custom` or `/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/ock_custom` +
 In rare cases also `/var/lib/opsi/depot/opsi-client-agent/files/opsiclinetkiosk/files_to_copy/ock_custom`
 
+*First installation / installation over an already existing (l-)opsi-client-kiosk product*
+
+Install the current (l-)opsi-client-kiosk package (available at download.uib.de) on the desired depot and update the opsi-(linux)-client-agent package if needed.
+
+NOTE: opsi-client-agent package >=4.1.1.6-5 had to be installed on the depot as well as on the respective client.
 
 [[software-on-demand_kiosk_migration]]
-===== Automatic migration of the kiosk from the opsi-client-agent (>=4.1.1.6.5)
+*Windows only: Installation through an old opsi-client-agent which still contains the old kiosk (i.e. contains the directory opsiclientkiosk, or \<=4.1.0.0)*
 
 To minimize the number of manual changes or interactions, it is attempt to migrate the kiosk settings automatically from the opsi-client-agent to the opsi-client-kiosk package and install it on the depot or the corresponding clients if needed. Usually this is done automatically without the need of further interaction.
 
@@ -82,155 +223,37 @@ If the kiosk is not available on some clients, despite attempted automatic migra
 a. if an opsi-client-kiosk package is installed on the depot the client is connected to, if not install the opsi-client-kiosk package or the current opsi-client-agent package, respectively +
 b. if the opsi-client-kiosk is installed on the client, should that not be the case please set it to setup
 
-[[software-on-demand_configuration-parameter]]
-==== configuration
 
-The configuration of this extension is based on product-groups and config-variables.
-The used config-variables are:
 
-* software-on-demand.active
-* software-on-demand.product-group-ids
-* software-on-demand.show-details
+===== opsi-client-kiosk: Installation on a client
 
-These config-variables are created with installing the opsi-server-package.
+//If the opsi-client-agent during the installation notes that, the //configuration (Host Parameter): _software-on-demand.active_ is set to //_true_, it will automatically create a Start menu item during the //installation on the Client, on which the Kiosk application can be run //directly. It can be found under: _Start -> Programs -> opsi.org -> //software-on-demand_.
 
-[[software-on-demand_product-group-management]]
-===== Managing product-groups
-
-The most comfortable way to create and manage product-groups is using the `opsi-configed`.
-There you have to change to the tab `product configuration`.
-
-TIP: Since version 4.0.1.6 of the `opsi-configed` you can change to `product configuration` without choosing a client.
-
-The product-group menu is above the product list.
-
-.product-group menue
-image::configed_productgroup_en.png[width=300]
-
-With the drop down menu you can choose a product-group to edit it.
-If you have chosen a group, the corresponding products will be highlighted.
- +
-With a second icon, filter can be activated or deactivated.
-When a filter was activated, only the products of the activated product-group are seen.
- +
-Product-groups can be edited after activating the icon with the yellow packets (show editor / hide editor) next to the icon with the filter.
-In this view, a new group and it's description can be added. Save the editing by activating the red check icon.
- +
-If some more products should be added to a group, select them and press the red check icon. (Press the <ctrl> button and select the products).
-
-[[software-on-demand_configuration]]
-===== configure the module Software-On-Demand
-
-The module can be configured, as mentioned above, with the config-variables described in the following table:
-
-.overview of the config-variables of the module Software-on-Demand
-[options="header"]
-|==========================
-|Configuration|Description|Values
-|software-on-demand.active|activates or deactivates the module, is used as a flag for the migration (<<software-on-demand_kiosk_migration, Automatic migration of the kiosk from the opsi-client-agent (>=4.1.1.6.5)>>). It's irrelevant for the opsi-client-kiosk with version >=4.1.1.6-5. |true/false
-|software-on-demand.product-group-ids|Product-groups with software-products, that can be used for Software-on-Demand.|List of product-groups
-
-|==========================
-
-There are two ways to use these configuration objects.
-For the whole system or for each client.
-The following 2 chapters will explain both ways.
-
-[[software-on-demand_systemwide-configuration]]
-===== Configuration for the whole system
-
-The configuration here is the default system wide for every client.
-The configuration can be edited in the `opsi-configed`. Push the Button `Server Configuration` and change to the tab `Host Parameter`
-
-.part of the module server configuration in the opsi configuration editor
-image::configed_serverconfiguration_en.png[width=300]
-
-Another possibility is to change the server-configuration with the following command:
-
-[source, prompt]
-----
-opsi-setup --edit-config-defaults
-----
-
-.edit-config-defaults with opsi-setup
-image::editconfigdefaults.png[width=300]
-
-TIP: Administration is also possible with the opsi-python-API or with 'opsi-admin'
-
-[[software-on-demand_client-configuration]]
-===== Configuration for a single client
-
-The configuration for a single client - or client specific configuration - is useful if, for example, only some of the clients should have access to the Software-on-Demand extension. Or if you want to make several product groups available to some clients. +
-
-The configuration of the client specific host parameters can be edited in different ways: +
-
-The most comfortable way to edit the configuration is via '{opsi-configed}'.
-Choose one or several clients (even all clients of a client group if you want to)
-and then navigate to the tab "Host parameters".
-
-.edit hostparameter in the configuration editor
-image::opsi-configed-hostparameters.png[width=300]
-
-This editing overrides the system wide defaults.
-
-////
-[[software-on-demand_event-configuration]]
-===== opsiclientd event-configuration
-
-There are two ways for the users to start the software-installation:
-
-* with the next system start
-* immediately
-
-If the user chooses "with the next system start", the product state will be set to "setup."
-If the choice is "immediately", the '{opsiclientd}' creates an event `software on demand`. This event can be configured in the file `opsiclientd.conf` as any other event.
-////
-
-[[software-on-demand_clientagent-kiosk]]
-==== New opsi-client-kiosk application
-
-With the opsi-client-agent version (>=4.1.1.6-5) the kiosk is available as a standalone product (opsi-client-kiosk) and will be installed as such when installing the opsi-client-agent. It tries to migrate the existing kiosk settings. +
-
-Background of this changes are:
-
-* simpler maintenance of the opsi-client-agent package
-* Changes to the kiosk can be published independently from the opsi-client-agent package
-* Allows to apply new settings of the kiosk to the clients without the need to reinstall the opsi-client-agent
-
-NOTE: When installing the opsi-client-agent (>=4.1.1.6-5) on the depot, the opsi-client-kiosk package will be installed as well if necessary. For clients, when installing the opsi-client-agent (>=4.1.1.18-1) on the afore mentioned, the opsi-client-kiosk product is set to setup if necessary. For details see <<software-on-demand_kiosk_migration, Automatic migration of the kiosk from the opsi-client-agent (>=4.1.1.6.5)>>.
-
-CAUTION: The old (web based) Kiosk client no longer works with the new opsi-client-agent/opsiclientd.
-
-[[software-on-demand_install]]
-===== Client Kiosk: Installation
-
-If the opsi-client-agent during the installation notes that, the configuration (Host Parameter): _software-on-demand.active_ is set to _true_, it will automatically create a Start menu item during the installation on the Client, on which the Kiosk application can be run directly. It can be found under: _Start -> Programs -> opsi.org -> software-on-demand_.
-
-The installation may be controlled by the following 'opsi-client-kiosk' product properties:
+The installation on a client is controlled by the following 'opsi-client-kiosk' product properties:
 
 * `startmenu_entry` +
-The Start Menu entry for the Client Kiosk (software on demand). +
+The Start Menu entry for the opsi-client-kiosk (software on demand). +
 Default=`software on demand`; editable
 
 * `startmenu_folder` +
-The Start Menu folder for the Client Kiosk (opsi.org) +
+The Start Menu folder for the opsi-client-kiosk (opsi.org) +
 Default=`opsi.org`; editable
 
 * `desktop_icon` +
-Create a desktop icon for client kiosk ? +
+Create a desktop icon for opsi-client-kiosk ? +
 Default=`false`
 
 * `install_icon_collection` +
 For adminsitrative purposes an icon collection can also be installed. It is only recommended though if product icons are to be set on the client via the kiosk admin mode and you want to select some of them from the icon collection. +
 Default=`false`
 
-The used icon for the start menu / Desktop may be modified by storing a `kiosk.ico` file at
+The used icon for the start menu / Desktop may be modified by storing a `kiosk.ico` file (Windows) or `kiosk.png` file (Linux) at
 `/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin/` (since opsi-client-kiosk version 4.1.1.7-2).
 
 
 
 [[software-on-demand_usage]]
-===== Client kiosk: Usage
+===== opsi-client-kiosk: Usage
 
 
 *Standard mode*
@@ -424,7 +447,7 @@ The following apply to the software-on-demand module:
    - Software that depends on software from the Demand group, will automatically be set to setup (install), without interaction from the user..
 
 [[software-on-demand_CI]]
-===== Client kiosk: Customizable to Corporate Identity
+===== opsi-client-kiosk: Customizable to Corporate Identity
 
 The header bar of the main window (1) is customizable. Three files in the ock_custom directory (`/var/lib/opsi/depot/opsi-client-kiosk/files/app/ock_custom/skin`) are key:
 
@@ -450,4 +473,4 @@ FontItalic = false
 FontUnderline = false
 ----
 
-The applied desktop/startmenu icon can be changed by placing a `kiosk.ico` file in the ock_custom/skin directory (starting with opsi-client-kiosk version 4.1.1.7-2).
+The applied desktop/startmenu icon can be changed by placing a `kiosk.ico` file (Windows) or `kiosk.png` file (Linux) in the ock_custom/skin directory (starting with opsi-client-kiosk version 4.1.1.7-2).

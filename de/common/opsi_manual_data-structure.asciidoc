@@ -36,9 +36,9 @@ Seit opsi 4 gibt es zwei unterschiedliche Arten von API Methoden:
 ===== Übersicht
 
 Die opsi4-Backends basieren auf Objekten.
-Ein Objekt hat eine Reihe von Eigenschaften.
+Ein Objekt hat eine Reihe von Attributen.
 
-Als Beispiel diene hier das Objekt 'product'.
+Als Beispiel dient hier das Objekt 'product'.
 Das Objekt vom Typ 'product', welches das opsi-Produkt 'javavm' beschreibt sieht z.B. so aus:
 
 [source, configfile]
@@ -53,10 +53,10 @@ Das Objekt vom Typ 'product', welches das opsi-Produkt 'javavm' beschreibt sieht
 "priority": 0
 "packageVersion": "2"
 "productVersion": "1.6.0.20"
-"windowsSoftwareIds": None
-"productClassIds": None
+"windowsSoftwareIds": null
+"productClassIds": null
 "type": "LocalbootProduct"
-"licenseRequired": False
+"licenseRequired": false
 "setupScript": "javavm.ins"
 "updateScript": ""
 "uninstallScript": "deljvm.ins"
@@ -67,20 +67,31 @@ Das Objekt vom Typ 'product', welches das opsi-Produkt 'javavm' beschreibt sieht
 
 Zu jedem Objekt gibt es eine Reihe von Operationen. In der Regel sind dies:
 
-* 'getObjects' (liefert die Objekte)
-* 'getHashes' (Verwenden Sie besser 'getObjects')
-* 'create' (zum komfortablen Erzeugen eines Objektes)
-* 'createObjects' (zum Erzeugen vieler Objekte, Updatet vorhandene Objekte)
-* 'delete' (zum Löschen eines Objektes)
-* 'deleteObjects' (zum Löschen vieler Objekte. Es werden nur die das Object identifizierenden Merkmale zur Auswahl der zu löschenden Objekte verwendet.)
-* 'getIdents' (liefert nur die Objekt-Ids)
-* 'insertObject' (zum Erzeugen eines neuen Objektes, Updatet ein vorhandenes Objekt)
-* 'updateObject' (zum Aktualisieren eines Objektes, erzeugt *kein* Objekt, wenn nicht vorhanden. Daher besser 'insertObject' verwenden.)
-* 'updateObjects' (zum Aktualisieren vieler Objekte, erzeugt *kein* Objekte, wenn nicht vorhanden. Daher besser 'createObjects' verwenden.))
+* 'getObjects': Liefert eine Liste von Objekten zurück, die auf den angegebenen Filter passen.
+Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend befüllt.
+* 'getHashes': Wie 'getObjects', nur dass ungeprüfte Rohdaten aus dem Backend direkt ausgeliefert werden.
+Arbeitet performanter als 'getObjects', ist jedoch mit Vorsicht zu verwenden.
+* 'getIdents' Liefert eine Liste von Objekt-IDs zurück, die auf den angegebenen Filter passen.
+Über den 'returnType' kann die Datenstruktur der Elemente im Ergebnis gewählt werden.
+Mögliche Werte sind hierbei: 'unicode', 'list' und 'hash'.
+* 'insertObject': Erzeugt ein neues Objekt. Existiert das Objekt bereits, wird es mit den neuen Werten komplett überschrieben.
+Hierbei werden Attribute, die nicht (oder mit dem Wert 'null') übergeben werden, im Backend auf 'null' gesetzt.
+* 'updateObject': Aktualisiert ein Objekt. Attribute, die nicht (oder mit dem Wert 'null') übergeben werden,
+werden hierbei im Backend *nicht* geändert. Existiert das Objekt nicht, findet keine Änderung statt, es wird *kein* Objekt erzeugt.
+* 'createObjects': Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an 'insertObject' übergeben.
+* 'updateObjects': Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an 'insertObject' übergeben falls es noch nicht existiert, andernfalls jedoch an 'updateObject'.
+* 'create': Erzeugt ein neues Objekt und nimmt hierbei alle möglichen Attribute als einzelne Parameter entgegen.
+Intern wird hierbei 'createObjects' verwendet. Existierende Objekte werden also komplett überschrieben.
+* 'deleteObjects': Löscht eine Liste von Objekten. Es muss hierbei zwingend eine Liste übergeben werden. Es werden nur die das Objekt identifizierenden Attribute ('type'/'id'/'ident') zur Auswahl der zu löschenden Objekte verwendet.
+* 'delete': Löscht das über die angegebenen Parameter identifizierte Objekt.
+
+TIP: Zum Aktualisieren eines Objekts bietet sich in der Regel die Verwendung der Methode 'updateObjects' an.
+Zum Beispiel kann über 'productOnClient_updateObjects' der Zustand eines Pakets auf einem Client aktualisiert werden.
+Ob das Objekt dabei bereits existiert oder nicht, spielt dann keine Rolle.
 
 Die Namen der Methoden setzen sich zusammen aus:
 
-'<object name>_<operation>'
+'<Objekt-Typ>_<Operation>'
 
 Dadurch unterscheiden sie sich von den 'Legacy' Methoden aus opsi 3.x welche in der Regel mit 'get', 'set' oder 'create' anfangen.
 
@@ -89,43 +100,72 @@ Die 'getObjects'-Methoden haben zwei optionale Parameter:
 * 'attributes'
 * 'filter'
 
-'attributes' dient dazu, nur bestimmte Attribute des Objektes abzufragen.
-Zurückgeliefert werden immer alle Attributnamen,
-aber nur die Werte der Attribute, welche das Objekt eindeutig kennzeichnen sowie die in 'attributes'
-angegebenen Attributwerden. Die restlichen Attribute werden mit dem Wert 'None' geliefert.
+Der Parameter 'attributes' dient dazu, nur bestimmte Attribute des Objektes abzufragen, was Geschwindigkeitsvorteile bringen kann.
+Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend gelesen.
+Die restlichen Attribute werden mit dem Wert 'null' zurückgegeben.
+Attribute die das Objekt identifizieren ('type'/'id'/'ident') werden immer befüllt.
+Wenn alle Attribute ausgelesen werden sollen (default), kann 'null' oder '[]' als 'attributes' übergeben werden.
 
-So liefert z.B die Methode 'product_getObjects', parametrisiert mit 'attributes:["name"]' für das Produkt 'javavm':
+Beispiel für die Methode 'product_getObjects', parametrisiert mit 'attributes:["name"]' für das Produkt 'javavm':
 
 [source, configfile]
 ----
-"onceScript": None,
+"onceScript": null,
 "ident": "javavm;1.6.0.20;2",
-"windowsSoftwareIds": None,
-"description": None,
-"setupScript": None,
-"changelog": None,
-"customScript": None,
-"advice": None,
-"uninstallScript": None,
-"userLoginScript": None,
+"windowsSoftwareIds": null,
+"description": null,
+"setupScript": null,
+"changelog": null,
+"customScript": null,
+"advice": null,
+"uninstallScript": null,
+"userLoginScript": null,
 "name": "Sun Java Runtime Environment",
-"priority": None,
+"priority": null,
 "packageVersion": "2",
 "productVersion": "1.6.0.20",
-"updateScript": None,
-"productClassIds": None,
-"alwaysScript": None,
+"updateScript": null,
+"productClassIds": null,
+"alwaysScript": null,
 "type": "LocalbootProduct",
 "id": "javavm",
-"licenseRequired": None
+"licenseRequired": null
 ----
 
-Wenn Sie keine 'attributes', aber einen 'filter' angeben möchten, darf das Feld Sie für 'attributes' nicht
-ganz leer bleiben, sondern muss den Wert '[]' erhalten.
+Mit dem Parameter 'filter' kann die Liste der Objekte gefiltert werden.
+So schränkt für 'product_getObjects' der Filter '{"id":"javavm"}' die Rückgabe auf das Object mit der ID 'javavm' ein.
+Mehrere übergebene Filter-Attribute werden hierbei 'AND'-verknüpft.
+Wird für ein Attribut eine Liste von Werten übergeben, resultiert hieraus eine 'OR'-Verknüpfung.
+Für Strings kann ein '*' als Platzhalter verwendet werden.
+Wenn nicht gefiltert werden soll (default), kann 'null' oder '{}' als 'filter' übergeben werden.
 
-Mit 'filter' kann eingeschränkt werden, zu welchen Objekten Informationen geholt werden sollen,
-ähnlich einer sql-where-Bedingung. So schränkt für 'product_getObjects'
-der Filter '{ "id":"javavm" }' die Rückgabe auf das Object 'javavm' ein.
+Beispiel für 'product_getIdents' mit Filter '{"id":["opsi-client-agent","opsi-script"],"productVersion":"4.1*"}' ('returnType' = 'hash'):
+
+[source, configfile]
+----
+[
+    {
+        "id": "opsi-client-agent",
+        "productVersion": "4.1.0.0",
+        "packageVersion": "47"
+    },
+    {
+        "id": "opsi-client-agent",
+        "productVersion": "4.1.1.40",
+        "packageVersion": "1"
+    },
+    {
+        "id": "opsi-script",
+        "productVersion": "4.12.4.21",
+        "packageVersion": "1"
+    },
+    {
+        "id": "opsi-script",
+        "productVersion": "4.12.4.23",
+        "packageVersion": "1"
+    }
+]
+----
 
 Bei den Methoden, denen ein oder mehrere Objekte übergeben werden,
 muss dies als JSON-Objekt bzw. als Liste von JSON-Objekten geschehen.
@@ -1140,7 +1180,7 @@ Parameter: `hostIds`
 Führt die angegebene Methode auf dem Service des opsiclientd aus. +
 Verbindet sich dazu mit dem opsiclientd auf den angegebenen Hosts und führt die Methode `method` mit den gegebenen `params` als Parameter aus. +
 Das ist die generischste Methode, da sich hierüber beliebige weitere Methoden starten lassen. +
-Der einfachste Weg die verfügbaren Methoden zu erfahren ist sich auf das Control-Interface des Zielclients zu verbinden. Dieses ist zu erreichen unter https://<clientId>:4441. +
+Der einfachste Weg die verfügbaren Methoden zu erfahren ist sich auf das Control-Interface des Zielclients zu verbinden. Dieses ist zu erreichen unter \https://<clientId>:4441. +
 Parameter: `method *params hostIds`
 
 * `hostControlSafe_reachable` +
@@ -1672,7 +1712,7 @@ Liefert den Installationsstatus zum angegebenen Client.
 [source,prompt]
 ----
 method getProductProperties_hash productId
------
+----
 
 Liefert die Schalterstellungen ({Product-properties}) zum angegebenen Produkt und Client.
 

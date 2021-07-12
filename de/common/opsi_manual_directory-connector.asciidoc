@@ -120,7 +120,6 @@ Diese Einstellungen werden benötigt, um eine Verbindung zum Verzeichnisdienst h
         "search_query_computers": "(objectClass=computer)",
         "identifying_attribute": "dn",
         "connection_options": {
-            "start_tls": true,
             "paged_search_limit": 768
         }
     },
@@ -128,8 +127,15 @@ Diese Einstellungen werden benötigt, um eine Verbindung zum Verzeichnisdienst h
 }
 ----
 
-Unter `address` muss angegeben werden unter welcher Adresse der Server angesprochen wird.
-`user` und `password` werden für die Authentifikation an Selbigem verwendet.
+Unter `address` muss angegeben werden unter welcher Adresse der Server angesprochen wird. Wird das Protokoll `ldaps` oder der Port `636` verwendet wird eine SSl Verbindung zum Directory geöffnet. Beispiel:
+
+[source,json]
+----
+        "address": "192.168.12.34:636",
+----
+
+
+`user` und `password` werden für die Authentifikation am Directory-Server verwendet.
 Sofern für `passwordFile` ein Wert angegeben wird, wird dieser als Pfad zu einer Datei, welche das Passwort enthält, interpretiert.
 Der Inhalt dieser Datei wird als Passwort verwendet.
 Dadurch muss das Passwort nicht im Klartext in der Konfigurationsdatei vorgehalten werden.
@@ -148,7 +154,8 @@ Als Standard wird hier `dn` verwendet.
 Eine häufige Alternative zu `dn` ist der Wert `distinguishedName`, diese Variante kommt oftmals in Microsoft Active Directory zum Einsatz.
 
 Der Parameter `connection_options` beinhaltet zusätzliche Optionen zur Konfiguration der Verbindung.
-Mit `start_tls` kann gesteuert werden, ob eine gesicherte Verbindung verwendet werden soll.
+Durch den Parameter `verify` wird bestimmt, ob bei einer SSL Verbindung das Zertifikat überprüft werden soll oder nicht. Zusätzlich kann der Pfad zu einer CA Datei angegeben werden. Wird eine Datei angeben, erfolgt die Verifizierung über diese Datei.
+Mit `start_tls` kann gesteuert werden, ob nach Anmelden am Directory eine gesicherte Verbindung gestartet wird.
 
 Ist der optionale Parameter `paged_search_limit` vorhanden und als Wert eine Ganzzahl angegeben, so werden zum Auslesen der Elemente aus dem Directory mehrere Abfragen verwendet. Wieviele Elemente eine Antwort maximal enthält wird über den gesetzten Wert gesteuert.
 Dieses Verhalten wird seit Version 20 unterstützt.
@@ -476,6 +483,8 @@ Für eine zu jeder Stunde stattfindenden Synchronisation kann dort folgendes als
 0 * * * * /usr/bin/opsi-directory-connector --config /etc/opsi/opsi-directory-connector-custom.conf
 ----
 
+
+
 ===== Kommandozeilenparameter
 
 [source,prompt]
@@ -486,8 +495,8 @@ Usage: __main__.py [-h] [--version] [--log-level {0,1,2,3,4,5,6,7,8,9}]
                    [--log-file LOG_FILE]
                    [--max-log-size MAX_LOG_SIZE]
                    [--keep-rotated-logs KEEP_ROTATED_LOGS]
-                   [--check-directory | --check-opsi |
-                   --dry-run] --config
+                   [--check-directory | --check-opsi | --delete-clients DELETE_CLIENTS [DELETE_CLIENTS ...]]
+                   [--dry-run] --config
                    CONFIG
 
 If an arg is specified in more than one place, then commandline values override environment
@@ -522,6 +531,8 @@ optional arguments:
   --check-opsi
                               Check if a connection to the opsi server can be established. (default:
                               False)
+  --delete-clients DELETE_CLIENTS [DELETE_CLIENTS ...]
+                              Delete list of clients from directory. (default: None)
   --dry-run
                               Print what would be done. (default: False)
   --config CONFIG
@@ -575,3 +586,32 @@ Create  6 clients and 0 groups.
 Adding 4 clients to a new group.
 ----------------------------------
 ----
+
+==== Clients aus dem Directory löschen
+
+Im Standardfall greift der opsi-directory-connector nur lesend auf das Directory zu. Mit dem Startparameter `--delete-clients` wird ein unabhäniger Lauf gestartet, der die übergebenen Objekte versucht aus dem Verzeichnis zu löschen.
+Bsp:
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients client1
+----
+Bei diesem Aufruf würde der Connector unterhalb der Suchbasis nach Objekten mit `cn=client1` suchen. Gibt es nur einen Treffer, wird das Objekt gelöscht. Wurden allerding mehrere gefunden, wird ein Fehler ausgegeben und kein Objekt gelöscht.
+
+Die zu löschenden Objekte können noch genauer angegeben werden:
+
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients computers/test-clients/client1
+----
+Dieser Aufruf würde auf das Objekt `cn=client1,ou=test-clients,ou=computers,dc=example,dc=org` passen, aber nicht auf
+`cn=client1,ou=clients,ou=computers,dc=example,dc=org`. So wird das eine gefundene Objekt gelöscht.
+
+Es können auch mehere Clients angegeben werden:
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients computers/clients/client1 client2 client3
+----
+
+WARNING: Die Funktion `delete-clients` sollte mit Vorsicht verwendet werden.
+
+TIP: Die `dry-run` Funktion kann auch mit `delete-clients` verwendet werden.
