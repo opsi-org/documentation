@@ -3,38 +3,32 @@ INSTALL_DATA := ${INSTALL} -m 644
 
 SYS_DOC_DIR := /usr/share/doc/opsi
 
-ASCIIDOC := /usr/bin/asciidoc
-A2X := /usr/bin/a2x
-PYTHON := /usr/bin/python
+PYTHON := /usr/bin/python3
+PYTHON2 := /usr/bin/python2
 
 FIND := /usr/bin/find
-ASPELL := /usr/bin/aspell
 
 TOP_DIR := $(shell dirname $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST)))))
 DEST_DIR := $(TOP_DIR)/build
 PUB_DIR := $(TOP_DIR)/pub
 
-ASCIIDOC_OPTS := -f $(TOP_DIR)/conf/asciidoc.conf -a encoding=UTF-8
-DBLATEX_OPTS := -p $(TOP_DIR)/conf/dblatex/asciidoc-dblatex.xsl \
-		-s $(TOP_DIR)/conf/dblatex/asciidoc-dblatex.sty \
+LOG_LEVEL=30
+
+
+ifdef VERBOSE
+LOG_LEVEL=20
+endif
 
 ifdef DEBUG
 VERBOSE := true
 DBLATEX_OPTS := $(DBLATEX_OPTS) --debug
-endif
-
-ifdef VERBOSE
-MAK_VERB := -v
-endif
-
-ifdef SLIDE
-ASCIIDOC_OPTS := $(ASCIIDOC_OPTS) --backend deckjs
+LOG_LEVEL=10
 endif
 
 
 REFERENCE_LANG := de
 
-LANG := de en fr
+LANG := de en
 DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
 FORMATS := html pdf epub
@@ -50,16 +44,6 @@ clean:
 
 distclean: clean
 
-spell:
-	$(foreach L,$(LANG), \
-		$(foreach D,$(DOCS), \
-			if [ -f $(TOP_DIR)/$(L)/$(D)/$(D).asciidoc ]; then	\
-				$(ASPELL) check -p $(TOP_DIR)/$(L)/opsi.dict -l $(L) --encoding=utf-8 $(TOP_DIR)/$(L)/$(D)/$(D).asciidoc;	\
-			fi \
-			;\
-		)	\
-	)
-	$(ASPELL) check -p $(TOP_DIR)/en/opsi.dict -l en --encoding utf-8 $(TOP_DIR)/README.txt
 
 build: all
 
@@ -69,12 +53,12 @@ install: build
 
 check: clean
 	$(foreach L,$(LANG), \
-		$(PYTHON) tools/check_images.py $(TOP_DIR)/$(L); \
+		$(PYTHON2) tools/check_images.py $(TOP_DIR)/$(L); \
 	)
 
 rename:
 	$(foreach F,$(FORMAT), \
-		$(PYTHON) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
+		$(PYTHON2) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
 	)
 
 publish: rename
@@ -86,10 +70,9 @@ publish: rename
 	cp $(PUB_DIR)/epub/*-de.epub $(PUB_DIR)/epub/de/
 	rm $(PUB_DIR)/epub/*.epub
 	mkdir -p $(PUB_DIR)/html/
-	cp -r $(DEST_DIR)/xhtml/de/* $(PUB_DIR)/html/
+	cp -r $(DEST_DIR)/html/de/* $(PUB_DIR)/html/
 	mkdir -p $(PUB_DIR)/html/en/
-	cp -r $(DEST_DIR)/xhtml/en/* $(PUB_DIR)/html/en/
-	rm -rf $(PUB_DIR)/xhtml
+	cp -r $(DEST_DIR)/html/en/* $(PUB_DIR)/html/en/
 	cd $(PUB_DIR) ; \
 	tar -cvf pub.tar ./*
 	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
@@ -100,29 +83,17 @@ pdf: $(addsuffix .pdf,$(DOCS))
 %.pdf: FORMAT = pdf
 
 html: $(addsuffix .html,$(DOCS))
-%.html: FORMAT = xhtml
+%.html: FORMAT = html
 
 epub: $(addsuffix .epub,$(DOCS))
 %.epub: FORMAT = epub
 
-%: FORMAT ?= $(subst html,xhtml,$(FORMATS))
+%: FORMAT ?= $(FORMATS) #$(subst html,xhtml,$(FORMATS))
 %:
 	@$(foreach L,$(LANG),\
 		$(foreach F,$(FORMAT), \
-			if [ -f $(TOP_DIR)/conf/docbook-xsl/$(F).xsl ]; then	\
-				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/$(F).xsl" ;\
-			else	\
-				XSLT_FILE="--xsl-file=$(TOP_DIR)/conf/docbook-xsl/common.xsl"	;\
-			fi;	\
 			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
-				mkdir -p $(DEST_DIR)/$(F)/$(L)/$(basename $@);					\
-				if $(A2X) $(MAK_VERB) -D $(DEST_DIR)/$(F)/$(L)/$(basename $@) -f $(F)			\
-					--resource '$(TOP_DIR)/$(L)/images'	\
-					--asciidoc-opts='$(ASCIIDOC_OPTS) -a lang=$(L)'			\
-					--dblatex-opts='$(DBLATEX_OPTS) -I $(TOP_DIR)/$(L)/images'	\
-					"$$XSLT_FILE"							\
-					$(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; then	\
-					cp $(TOP_DIR)/conf/stylesheets/docbook-xsl.css $(DEST_DIR)/$(F)/$(L)/$(basename $@);	\
+				if $(PYTHON) tools/create_docu.py --log-level $(LOG_LEVEL) -l $(L) -o $(F) -s opsi  -t opsi -f $(basename $@); then	\
 					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
 				else	\
 					echo "ERROR: Document $@ could not be built for language $(L)";	\
@@ -130,6 +101,7 @@ epub: $(addsuffix .epub,$(DOCS))
 				;	\
 			else									\
 				echo "ERROR: Document $@ does not exist for language $(L)";	\
+				echo $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; \
 			fi									\
 			;									\
 		)	\
