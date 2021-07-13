@@ -9,32 +9,16 @@ A rendered version is available [here](https://download.uib.de/opsi4.1/documenta
 
 Building the opsi manuals requires the following software to be installed on your system:
 
-* asciidoc >= 8.6.3
-* dblatex  >= 0.3 (part of texlive-extra-utils)
-* aspell
+- asciidoctor: https://github.com/asciidoctor/asciidoctor
+- asciidoctor-pdf: https://github.com/asciidoctor/asciidoctor-pdf
+  - graphicsmagick
+  - prawn-gmagick: better PNG support
+- asciidoctor-epub3: https://github.com/asciidoctor/asciidoctor-epub3
 
 To build the documentation using make you will need:
 
 * make
 
-
-### Additional packages on Ubuntu
-
-Since Ubuntu 13.04 you need the following additional packages:
-* texlive-lang-german
-* texlive-lang-english
-* texlive-lang-french
-* lmodern
-
-See also:
-http://tex.stackexchange.com/questions/139700/package-babel-error-unknown-option-francais
-
-
-Easy line for installation:
-
-``` shell
-sudo apt install asciidoc aspell texlive-lang-german texlive-lang-english texlive-lang-french lmodern texlive-extra-utils make
-```
 
 ## How to build an opsi manual
 
@@ -141,17 +125,17 @@ This script requires Python 3 to be able to run.
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
 
-## How to build an opsi manual with asciidoctor
+## How to build an opsi manual with tools/create_docs.py
 
 
 ### Dependencies
 
 - asciidoctor: https://github.com/asciidoctor/asciidoctor
 - asciidoctor-pdf: https://github.com/asciidoctor/asciidoctor-pdf
+  - graphicsmagick
   - prawn-gmagick: better PNG support
 - asciidoctor-epub3: https://github.com/asciidoctor/asciidoctor-epub3
 
-- graphicsmagick
 
 ### CSS stylesheet
 
@@ -160,7 +144,8 @@ To create the css files call the build_stylesheets.sh script.
 dependencies:
 - ruby, ruby-gems
 - gem install compass
-- gem install zurb-foundation --version 4.3.2
+- gem install zurb-foundation
+<!-- - gem install zurb-foundation  --version 4.3.2 -->
 
 ```shell
 sh tools/build_stylesheets.sh
