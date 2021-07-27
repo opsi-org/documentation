@@ -29,7 +29,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-script Manual (4.12.4.17)
+opsi-script Manual (4.12.4.25)
 ==============================
 
 For Windows [W], Linux [L] and MacOS [M]
@@ -50,7 +50,7 @@ include::../opsi-winst-reference-card/opsi-winst-reference-card.asciidoc[]
 [[opsi-script-introduction]]
 == Introduction
 
-The open source program '{opsi-script}' serves in the context of opsi – open pc server integration (cf. www.opsi.org) – as the central function for initiating and performing the automatic software installation. It may also be used stand alone as a tool for setup programs for any piece of software.
+The open source program '{opsi-script}' (former at windows 'opsi-winst') serves in the context of opsi – open pc server integration (cf. www.opsi.org) – as the central function for initiating and performing the automatic software installation. It may also be used stand alone as a tool for setup programs for any piece of software.
 
 '{opsi-script}' is basically an interpreter for a specific, rather simple script language which can be used to express all relevant elements of a software installation.
 
@@ -99,9 +99,7 @@ In the following section the availability is marked as:
 
 'opsi-script.exe' is at Windows a GUI application which may be started with the parameter `/silent` also without a GUI.
 
-needs a running and accessible X Windows.
-
-'opsi-script' is at Linux and MacOS command line version which can be started without any access to a graphical display. Nevertheless this program starts a test if a access to a graphical display is possible and (if it is) starts the GUI version 'opsi-script-gui'. This featur may be supressed by calling `opsi-script` with the parameter `-silent`.
+'opsi-script' is at Linux and MacOS command line version which can be started without any access to a graphical display. Nevertheless this program starts a test if a access to a graphical display is possible and (if it is) starts the GUI version 'opsi-script-gui'. This feature may be supressed by calling `opsi-script` with the parameter `-silent`.
 
 'opsi-script-gui' is a graphical version wich can not be started without access to a graphical display.
 
@@ -110,7 +108,9 @@ At Linux and MacOS the parameter delimiter is not "/" but "-". So instead of cal
 [[opsi-script-linux-path]]
 === opsi-script path at Linux
 
-According to the Linux Filesystem Hierachy Standard the files that belong to 'opsi-script' are not at one place but distributed around the system. So here an overview where to find which part:
+Since opsi-client-agent 4.2 you will find all components of the opsi-script program at `/opt/opsi-script/`.
+
+Before opsi-client-agent 4.2:
 
 * executable programs: +
 `/usr/bin/opsi-script` +
@@ -130,11 +130,26 @@ Custom = `/usr/share/opsi-script/customskin`
 * opsi-script library files: +
 `/usr/share/opsi-script/lib` +
 
+Independent of the version:
+
+* log files directories: +
+if running with root privileges: `/var/log/opsi-script` +
+if not running with root privileges: `/tmp`
+
 * config files: +
 `/etc/opsi-script`
 
-* varibale files: +
-`/var/lib/opsi-client-agent/opsi-script`
+[[opsi-script-macos-path]]
+=== opsi-script path at macOS
+
+You will find all components of the opsi-script program at `/Applications/opsi-script/`.
+
+* log files directories: +
+if running with root privileges: `/var/log/opsi-script` +
+if not running with root privileges: `/tmp`
+
+* config files: +
+`/etc/opsi-script`
 
 [[opsi-script-linux-pathhandling]]
 === Path handling in opsi-script
@@ -153,6 +168,10 @@ For Linux support there are the following special functions:
 * `getLinuxVersionMap` [L]
 
 * `chmod` in Files sections [L/M]
+
+* `waitForPackageLock(`<wait_seconds>,<abort_on_timeout>`) : bool`
+
+References to some mor Linux specific library function you will find at: <<opsi-script-rc-linux-specific>>
 
 [[opsi-script-linux-examples]]
 === Example scripts for Linux
@@ -393,6 +412,81 @@ exit $?
 [[opsi-script-linux-install_package]]
 ==== Installing a package
 
+.Generic for all supported distributions
+
+A simple example:
+
+[source,opsiscript]
+----
+[Actions]
+importlib "uib_lin_install"
+
+DefStringlist $packages$
+DefVar $installresult$
+
+comment "install new needed packages"
+if waitForPackageLock("300", "false")
+	comment "we got the package lock."
+else
+	LogError "could not get Package Lock"
+endif
+
+set $packages$ = CreateStringlist("lsb-release","cifs-utils","xterm")
+set $installresult$ = genericLinInstall($packages$)
+if not(stringtobool($installresult$))
+	LogError "failed install packages"
+	Message "failed install packages"
+	isFatalError "failed dependent packages"
+endif
+----
+
+A more sophisticated example:
+
+[source,opsiscript]
+----
+[Actions]
+importlib "uib_lin_install"
+
+DefStringlist $packages$
+DefVar $installresult$
+DefStringlist $errorList$
+DefVar $fatal_error$
+DefVar $result_string$
+
+if waitForPackageLock("300", "false")
+	comment "we got the package lock."
+else
+	LogError "could not get Package Lock"
+endif
+
+comment "update and clean package system"
+cleanupPackageSystem()
+
+comment "install pending updates"
+set $result_string$ = installupdates()
+
+comment "install new needed packages"
+set $packages$ = CreateStringlist("lsb-release","cifs-utils","xterm")
+set $installresult$ = genericLinInstall($packages$)
+if not(stringtobool($installresult$))
+	if waitForPackageLock("300", "false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+	endif
+	cleanupPackageSystem()
+	set $installresult$ = debinstall($packages$)
+	if not(stringtobool($installresult$))
+		LogError "failed install packages"
+		Message "failed install packages"
+		;isFatalError "failed install packages"
+		set $fatal_error$ = "true"
+		set $errorList$ = addtolist($errorList$, " failed install packages")
+	endif
+endif
+----
+
+////
 .Ubuntu / Debian
 
 [source,opsiscript]
@@ -494,7 +588,7 @@ set -x
 zypper --no-gpg-checks --non-interactive install wget
 exit $?
 ----
-
+////
 
 [[opsi-script-macos-functions]]
 === MacOS specific functions
@@ -506,6 +600,9 @@ For MacOS support there are the following special functions:
 * `getMacosVersionInfo`   [M]
 
 * `getMacosVersionMap` [M]
+
+* `GetOSArchitecture` // 'x86_32' or 'x86_64' or 'arm_64'  [W/L/M]
+
 
 * `chmod` in Files sections [L/M]
 
@@ -543,7 +640,7 @@ Documentation is not completed here.
 [[opsi-script-cliparams]]
 == Start and Command Line Options
 
-Since version 4.11.3, the '{opsi-script}' program contains a manifest with the statement: +
+Since version 4.11.3, the '{opsi-script}' program contains at Windows a manifest with the statement: +
 `<requestedExecutionLevel level="highestAvailable" />`. This means that if '{opsi-script}' is called on an NT6 OS by an Administrator, then it will run as an 'elevated' process. If '{opsi-script}' is called with normal user privileges, then it will run with the privileges of this user.
 
 '{opsi-script}' can be started with different sets of parameters depending on context and purpose of use.
@@ -570,7 +667,7 @@ There are the following syntactical schemata:
       [`/usercontext` <[domain\]user name> ] +
       [`/parameter` <parameter string>] +
 
-4) Read the PC configuration from the opsi service and act accordingly, since '{opsi-script}' 4.11.2
+4) Process the action requests stored on the opsi-server using the opsi service (since '{opsi-script}' 4.11.2)
 
 `opsi-script /opsiservice` <opsiserviceurl> +
      `/clientid` <clientname> +
@@ -7658,6 +7755,7 @@ There are also the Options:
 which manipulate the 'file redirection' on 64 Bit systems.
 For more details see <<opsi-script-64bit>>
 
+[[opsi-script-files-commands]]
 ==== Commands
 
 In a Files section the following commands are defined:
@@ -7670,7 +7768,7 @@ In a Files section the following commands are defined:
 
 *  `CheckTargetPath` [W/L/M]
 
-*  `chmod` [L]
+*  `chmod` [L/M]
 
 * `hardlink`  [W/L/M]
 

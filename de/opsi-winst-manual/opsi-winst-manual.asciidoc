@@ -30,7 +30,7 @@ include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-script Handbuch (4.12.4.17)
+opsi-script Handbuch (4.12.4.25)
 ================================
 
 Für Windows [W], Linux [L] und MacOS [M]
@@ -49,7 +49,7 @@ include::../../en/opsi-winst-reference-card/opsi-winst-reference-card.asciidoc[]
 
 [[opsi-script-introduction]]
 == Einführung
-Das Open-Source-Programm 'opsi-script' (bzw. früher unter Windows '{opsi-script}') fungiert im Kontext des Systems opsi – Open PC Server Integration (www.opsi.org) – als zentrale Instanz zur Abwicklung der automatischen Softwareinstallation und -Konfiguration. Es kann aber auch stand alone als Setup-Rahmen-Programm verwendet werden.
+Das Open-Source-Programm 'opsi-script' (bzw. früher unter Windows 'opsi-winst') fungiert im Kontext des Systems opsi – Open PC Server Integration (www.opsi.org) – als zentrale Instanz zur Abwicklung der automatischen Softwareinstallation und -Konfiguration. Es kann aber auch stand alone als Setup-Rahmen-Programm verwendet werden.
 
 '{opsi-script}' ist im Kern ein Interpreter für eine eigene, einfache Skriptsprache mit der alle, für die Software-Installation relevanten, Schritte ausgedrückt werden können.
 
@@ -67,7 +67,7 @@ Dateien (z.B. DLLs) können beim Kopieren auf ihre interne Version überprüft w
 * Es existiert eine ausgearbeitete und gut verständliche Syntax zum Patchen von XML-Konfigurationsdateien, das in die sonstigen Konfigurationsaufgaben integriert ist.
 
 [[opsi-script-linux]]
-== Betrieb unter Linux oder MacOS
+== Betrieb von opsi-script unter Linux oder MacOS
 
 [[opsi-script-linux-intro]]
 === Einführung
@@ -105,13 +105,12 @@ Unter Linux und MacOS ist das Parameterzeichen nicht "/" sondern "-". Also statt
 
 Unter Linux sind die unterschiedlichen Komponenten gemäß des Linux Filesystem Hierachie Standard nicht an einer Stelle zu finden. Daher hier ein Überblick:
 
+Seit opsi-client-agent 4.2 liegen all Komponenten von opsi-script unter `/opt/opsi-script/`.
+
+Vor opsi-client-agent 4.2:
 * Ausführbare Programme: +
 `/usr/bin/opsi-script` +
 `/usr/bin/opsi-script-nogui`
-
-* Verzeichnisse für Logdateien: +
-Ausgeführt als root: `/var/log/opsi-script` +
-Ausgeführt als user: `/tmp`
 
 * Language files: +
 `/usr/share/locale`
@@ -123,12 +122,26 @@ Custom = `/usr/share/opsi-script/customskin`
 * opsi-script library files: +
 `/usr/share/opsi-script/lib` +
 
+Unabhängig von der Version gilt:
+
+* Verzeichnisse für Logdateien: +
+Ausgeführt als root: `/var/log/opsi-script` +
+Ausgeführt als user: `/tmp`
 
 * Config files: +
 `/etc/opsi-script`
 
-* Variable files: +
-`/var/lib/opsi-client-agent/opsi-script`
+[[opsi-script-macos-path]]
+=== Pfade unter macOS
+
+Unter macOS liegen all Komponenten von opsi-script unter `/Applications/opsi-script/`.
+
+* Verzeichnisse für Logdateien: +
+Ausgeführt als root: `/var/log/opsi-script` +
+Ausgeführt als user: `/tmp`
+
+* Config files: +
+`/etc/opsi-script`
 
 [[opsi-script-linux-pathhandling]]
 === Verwendung von Pfaden in opsiscript
@@ -148,6 +161,9 @@ Zur Unterstützung von Linux gibt es folgende Linuxspezifische Funktionen:
 
 * `chmod` in Files Sektionen [L/M]
 
+* `waitForPackageLock(`<wait_seconds>,<abort_on_timeout>`) : bool`
+
+Verweise auf weitere Linux-spezifische Bibliotheks Funktionen finden Sie hier: <<opsi-script-rc-linux-specific>>
 
 [[opsi-script-linux-examples]]
 === Beispiel Scripte für Linux
@@ -399,6 +415,81 @@ exit $?
 [[opsi-script-linux-install_package]]
 ==== Installieren eines Paketes
 
+.Generic for all supported distributions
+
+A simple example:
+
+[source,opsiscript]
+----
+[Actions]
+importlib "uib_lin_install"
+
+DefStringlist $packages$
+DefVar $installresult$
+
+comment "install new needed packages"
+if waitForPackageLock("300", "false")
+	comment "we got the package lock."
+else
+	LogError "could not get Package Lock"
+endif
+
+set $packages$ = CreateStringlist("lsb-release","cifs-utils","xterm")
+set $installresult$ = genericLinInstall($packages$)
+if not(stringtobool($installresult$))
+	LogError "failed install packages"
+	Message "failed install packages"
+	isFatalError "failed dependent packages"
+endif
+----
+
+A more sophisticated example:
+
+[source,opsiscript]
+----
+[Actions]
+importlib "uib_lin_install"
+
+DefStringlist $packages$
+DefVar $installresult$
+DefStringlist $errorList$
+DefVar $fatal_error$
+DefVar $result_string$
+
+if waitForPackageLock("300", "false")
+	comment "we got the package lock."
+else
+	LogError "could not get Package Lock"
+endif
+
+comment "update and clean package system"
+cleanupPackageSystem()
+
+comment "install pending updates"
+set $result_string$ = installupdates()
+
+comment "install new needed packages"
+set $packages$ = CreateStringlist("lsb-release","cifs-utils","xterm")
+set $installresult$ = genericLinInstall($packages$)
+if not(stringtobool($installresult$))
+	if waitForPackageLock("300", "false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+	endif
+	cleanupPackageSystem()
+	set $installresult$ = debinstall($packages$)
+	if not(stringtobool($installresult$))
+		LogError "failed install packages"
+		Message "failed install packages"
+		;isFatalError "failed install packages"
+		set $fatal_error$ = "true"
+		set $errorList$ = addtolist($errorList$, " failed install packages")
+	endif
+endif
+----
+
+////
 .Ubuntu / Debian
 
 [source,opsiscript]
@@ -506,6 +597,7 @@ export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 zypper --no-gpg-checks --non-interactive install wget
 exit $?
 ----
+////
 
 [[opsi-script-macos-functions]]
 === MacOS spezifische Funktionen
@@ -522,6 +614,7 @@ Für die Unterstützung von MacOS gibt es die folgenden spezifischen Funktionen:
 
 * `chmod` in Files sections [L/M]
 
+Verweise auf weitere macOS-spezifische Bibliotheks Funktionen finden Sie hier: <<opsi-script-rc-macos-specific>>
 
 [[opsi-script-macos-examples]]
 === Beispiel Scripte für MacOS
@@ -564,21 +657,92 @@ Wird der '{opsi-script}' ohne Parameter  aufgrefufen, so startet er interaktiv.
 
 '{opsi-script}' kann ja nach Kontext und Verwendungszweck mit unterschiedlichen Parametern gestartet werden.
 
-Es existieren folgende Syntax-Varianten des Aufrufs:
+Es existieren eine Vielzahl von Optionen welche teilweise nur in Kombination und dann in der richtigen Reihenfolge verwendet werden können (im folgendenfolgende Syntax-Varianten des Aufrufs:
 
-(1) Anzeigen der Varianten:
+Allgemeine Optionen:
 
-`opsi-script /?` +
-`opsi-script /h`[elp]
+* `/?` oder `/h`[elp] +
+Hilfe aufrufen: +
 
-(2) Ausführung eines Skripts:
+* `/silent` +
+opsi-script ohne GUI ausführen: +
+
+
+Ausführung eines (oder mehrerer) Skripts: +
+`opsi-script` <scriptfile>[;<scriptfile>]* [<logfile>] +
+Dabei ist: +
+<scriptfile> = Name der Scriptdatei inclusive Pfad +
+<logfile> = Name der Logdatei inclusive Pfad +
+
+* `/parameter` <parameterstring> +
+Einen String als abfragbaren Parameter übergeben: +
+
+* `/logfile` <logfile>  +
+Festlegen des Logfiles: +
+Dabei ist: +
+<logfile> = Name der Logdatei inclusive Pfad
+
+* `/lang` <lang> +
+Festlegen der Lokalisierung: +
+Dabei ist: +
+<lang> = Zwei Buchstaben Kurzbezeichnung der Sprache (de,en,fr,es,...)
+
+* `/batch` +
+Ausführen eines angegeben Scriptes mit Batchoberflache.
+
+* `/productid` <productId> +
+Verwendung zusammen mit `/servicebatch` ; siehe dort.
+
+* `/servicebatch` +
+Ausführen eines angegeben Scriptes mit Batchoberflache und mit opsi-service Verbindung, so als würde das auch angegebene `/productid` auf 'setup' stehen. +
+Dabei muß die Scriptdatei als erster Parameter angegeben sein. +
+Dabei muß auch der Parameter `/opsiservice` und seine Zusatzparameter angegeben sein. +
+Dabei muß auch der Parameter `/productid` angegeben sein.
+
+* `/logproductid` <productId> +
+Bei der Erstellung der Logdatei soll <productId> als Quelle des Logs angegeben werden. +
+Wird z.B. verwendet bei Scripten welche im Kontext eines Produktes welches mit einem temporären user arbeitet als teil dieses Produktes ausgeführt werden
+
+* `/normalwindow` +
+
+* `/usercontext` <[domain\]username> ] +
+      
+
+
+* `/opsiservice` <opsiserviceurl> +
+     `/clientid` <clientname> +
+     `/username` <username> +
+     `/password` <password> +
+     [`/sessionid` <sessionid>] +
+     [`/credentialfile` <credentialfile>] +
+Angabe der Verbindungsdaten zum opsi-service: +
+Dabei müssen entweder `/clientid` und `/username` und `/password`
+sowie optional die `/sessionid` angegeben werden +
+oder diese Daten werden in einem `/credentialfile` zur Verfügung gestellt.
+
+Beeinflussung was im Kontext des `/opsiservice` getan werden soll: +
+
+* Default (keine weiteren der folgenden Parameter): +
+Abarbeitung der Aktionsanforderungen welche für den client auf dem opsi-server gespeichert sind.
+
+* `/allloginscripts` oder `/loginscripts` +
+Abarbeitung der Loginscripts der opsi-produkte. Dabei werden bei `/allloginscripts` alle dem opsi-server bekannten login-scripte ausgeführt und bei `/loginscripts` nur die Login-Scripte von Produkten welche auf dem Client installiert sind oder waren (es existiert für das Produkt ein productOnClient Objekt).
+
+* `/productlist` <productid>[,<productid>]* +
+Bearbeite die angegebene `/productlist` so, als würden für diese Produkte die Aktionsanforedung auf dem opsi-server auf 'setup' stehen. +
+Üblicherweise verwendet vom `event_silent_install`.
+
+* `/processproducts` <productid>[,<productid>]* +
+Abarbeitung der Aktionsanforderungen welche für den client auf dem opsi-server gespeichert sind aber beschränkt auf die Liste welche mit `/processproducts` übergeben wurde.
+
+
+////
+(1) Ausführung eines Skripts:
 
 `opsi-script` <scriptfile>
-      [`/logfile` <logfile> ] +
-      [`/batch` | `/histolist` <opsi-scriptconfigfilepath>] +
+      [`/batch`] +
       [`/productid` <productid> ] +
-      [`/usercontext` <[domain\]username> ] +
-      [`/parameter` parameterstring]
+
 
 (3) Ausführen einer Liste von Skripts:
 
@@ -586,9 +750,22 @@ Es existieren folgende Syntax-Varianten des Aufrufs:
       [ `/logfile` <logfile> ] +
       [`/batch` | `/silent` ] +
       [`/usercontext` <[domain\]username> ] +
-      [`/parameter` <parameterstring>] +
 
-(4) Abarbeitung des Software-Profils über den opsi Service mit der entsprechenden Umsetzung (seit '{opsi-script}' 4.11.2)
+(4) Abarbeitung der Aktionsanforderungen auf dem opsi-server über den opsi Service (seit '{opsi-script}' 4.11.2)
+
+`opsi-script /opsiservice` <opsiserviceurl> +
+     `/clientid` <clientname> +
+     `/username` <username> +
+     `/password` <password> +
+     [`/sessionid` <sessionid>] +
+     [`/credentialfile` <credentialfile>] +
+     [`/depotpath` <credentialfile>] +
+     [`/usercontext` <[domain\]username>] +
+     [`/allloginscripts` | `/loginscripts`|  +
+     `/productlist` <productid>[,<productid>]* | +
+     `/processproducts` <productid>[,<productid>]* ] +
+     
+(4) Ausführung eines Skripts mit Verbindung zum opsi Service (seit '{opsi-script}' 4.12.4.23)
 
 `opsi-script /opsiservice` <opsiserviceurl> +
      `/clientid` <clientname> +
@@ -599,13 +776,13 @@ Es existieren folgende Syntax-Varianten des Aufrufs:
      [`/allloginscripts` | `/loginscripts`|  +
      `/productlist` <productid>[,<productid>]* | +
      `/processproducts` <productid>[,<productid>]* ] +
-     [`/silent`]
+////
 
 Note:: Unter Linux or MacOS ist das Parameterzeichen nicht "/" sondern "-". Also statt unter Windows `opsi-script /help` unter Linux / MacOS `opsi-script -help`.
 
 Generelle Erläuterungen:
 
-* Default Name für die Logdatei ist unter Windows (ab 4.11.4) `C:\opsi.org\log\opsi-script.txt`
+* Default Name für die Logdatei ist unter Windows (ab 4.11.4) `C:\opsi.org\log\opsi-script.log`
 
 * Der Parameterstring, angekündigt durch die Option "/parameter", wird an das jeweils aufgerufene '{opsi-script}' Skript (über die String-Funktion ParamStr) übergeben.
 
@@ -615,7 +792,9 @@ Erläuterungen zu (2) und (3):
 
 * Wenn der Aufruf mit der Option `/usercontext <[domain\]username>` erfolgt, kann die Konfiguration für eine spezifizierten eingeloggten Nutzer erfolgen (besonders im Zusammenhang mit der 'User Profile Management' Erweiterung).
 
+////
 * Die Verwendung des Parameters `/histolist` gefolgt von opsi-scriptconfigfilepath bewirkt, dass in der Dialog-Oberfläche das Eingabefeld für den Skript-Dateinamen mit einer Historienliste erscheint und automatisch die zuletzt verwendete Datei erneut vorgeschlagen wird. Wenn opsi-scriptconfigfilepath nur ein Verzeichnis benennt (mit "\" abgeschlossen), wird als Dateiname 'WINST.INI' verwendet.
+////
 
 Erläuterungen zu (4):
 
@@ -7684,6 +7863,7 @@ Weiterhin gibt es die Aufrufparameter:
 Welche die 'file redirection' auf 64 Bit-Systemen beeinflussen.
 siehe <<opsi-script-64bit,Kapitel 64 Bit-Unterstützung>>
 
+[[opsi-script-files-commands]]
 ==== Kommandos [W/L/M]
 
 Innerhalb einer Files-Sektion sind die Anweisungen
@@ -7696,7 +7876,7 @@ Innerhalb einer Files-Sektion sind die Anweisungen
 
 *  `CheckTargetPath` [W/L/M]
 
-*  `chmod` [L]
+*  `chmod` [L/M]
 
 * `hardlink`  [W/L/M]
 
