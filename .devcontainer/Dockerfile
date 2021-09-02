@@ -1,6 +1,6 @@
-FROM ubuntu:focal
+FROM debian:buster AS opsidoc-asciidoctor
 
-LABEL maintainer Erol Ueluekmen <e.ueluekmen@uib.de>
+LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
 ARG USER
 
@@ -9,16 +9,27 @@ ENV USER=${USER}
 ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-RUN apt update && apt install -y asciidoc \
-aspell \
-texlive-lang-german \
-texlive-lang-english \
-texlive-lang-french \
-lmodern texlive-extra-utils \
-git \
-bash-completion \
-sudo \
-make
+RUN apt update && apt install -y asciidoctor \
+	graphicsmagick \
+	libgraphicsmagick++1-dev \
+	libgraphicsmagick1-dev \
+	graphicsmagick-libmagick-dev-compat \
+	ruby \
+	ruby-dev \
+	musl-dev \
+	gcc \
+	git \
+	bash-completion \
+	sudo \
+	make \
+	python2 \
+	python3 \
+	&& gem install sass \
+	&& gem install compass \
+	&& gem install prawn-gmagick \
+	&& gem install zurb-foundation \
+	&& gem install asciidoctor-epub3 \
+	&& gem install asciidoctor-pdf
 
 RUN if [ -z ${USER+x} ]; then \
 	echo "var USER is unset"; \
@@ -30,4 +41,3 @@ RUN if [ -z ${USER+x} ]; then \
 
 
 WORKDIR /home
-
