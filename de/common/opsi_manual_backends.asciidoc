@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      24.10.2017
-:Revision:  4.0.7
+:Date:      18.01.2021
+:Revision:  4.2
 :toclevels: 6
 
 include::../common/opsi_terms.asciidoc[]
@@ -31,7 +31,7 @@ Bei Verwendung des '{file-Backend}s' liegen die Konfigurationsinformationen in I
 
 Wesentliche Merkmale des Backends 'file':
 
-* Aktuelles Defaultbackend von opsi
+* Aktuelles Standard-Backend von opsi
 * Die Dateien dieses Backends liegen unter `/var/lib/opsi/config`.
 * Ist implementiert in der Annahme, dass der FQDN des Servers auf welchem das Backend verwendet wird dem FQDN des {configserver} in opsi entspricht.
 
@@ -43,18 +43,18 @@ Inhalt und Aufbau dieser Dateien ist im Kapitel <<opsi-manual-important-files-fi
 [[opsi-manual-backends-mysql-inventory]]
 ===== mysql-Backend für Inventarisierungsdaten (Übersicht und Datenstruktur)
 
-Die Daten der Hardware- und Softwareinventarisierung werden per default über das opsi '{file-Backend}' in Textdateien abgelegt. Diese Form der Ablage ist für freie Abfragen und Reports weniger geeignet. Hierfür bietet sich die Ablage der Daten in einer SQL-Datenbank an.
+Die Daten der Hardware- und Softwareinventarisierung werden standardmäßig über das opsi '{file-Backend}' in Textdateien abgelegt. Diese Form der Ablage ist für freie Abfragen und Reports weniger geeignet. Hierfür bietet sich die Ablage der Daten in einer SQL-Datenbank an.
 
 Wesentliche Merkmale des Backends 'mysql':
 
-* Optional (nicht das default Backend)
+* Optional (nicht das Standard-Backend)
 * Für Inventarisierungsdaten kostenfrei, für die Nutzung für sonstige Daten benötigen Sie eine kostenpflichtige Freischaltung.
 * Fein granulierte Datenstruktur zur Datenhaltung und zusätzlich vereinfachtes Datenmodell für Abfragen.
 * Eine Historyfunktion, welche Änderungen an den Inventarisierungsdaten protokolliert.
 
 Bedingt durch die sehr unterschiedliche Natur der zu inventarisierenden Hardwarekomponenten ist die Datenstruktur in etwa wie folgt aufgebaut:
 
-* Eine Tabelle 'host' beschreibt alle bekannten Clients und stellt eine eindeutige 'host_id' bereit.
+* Eine Tabelle 'HOST' beschreibt alle bekannten Clients und stellt eine eindeutige 'host_id' bereit.
 * Für jeden Device-Typ gibt es zwei Tabellen:
 ** 'HARDWARE_DEVICE_ ....' beschreibt das Device z.B. Netzwerkkartentyp mit PCI-Kennung
 ** 'HARDWARE_CONFIG...' beschreibt Konfiguration der konkreten Netzwerkkarte z.B. MAC-Adresse. Die beiden Tabellen sind über das Feld 'hardware_id' miteinander verbunden.
@@ -261,8 +261,12 @@ Beispiele für Abfragen:
 Liste aller Festplatten:
 [source,prompt]
 ----
-SELECT * FROM HARDWARE_DEVICE_HARDDISK_DRIVE D
-LEFT OUTER JOIN HARDWARE_CONFIG_HARDDISK_DRIVE H ON D.hardware_id=H.hardware_id ;
+SELECT
+  *
+FROM HARDWARE_DEVICE_HARDDISK_DRIVE AS d
+LEFT OUTER JOIN HARDWARE_CONFIG_HARDDISK_DRIVE AS h
+ON
+  d.hardware_id = h.hardware_id ;
 ----
 
 Die Softwareinventarisierung verwendet als Hauptschlüssel die folgenden Felder:
@@ -302,15 +306,15 @@ image::mysql-schema-configdata.png["Datenbankschema: Konfigurationsdaten", pdfwi
 
 
 [[opsi-manual-backends-mysql-initializing]]
-===== Initialisierung des mysql-Backends
+===== Initialisierung des MySQL-Backends
 
-Wenn der mysql-server noch nicht installiert ist, muss dies zunächst erfolgen mit:
+Wenn der MySQL-server noch nicht installiert ist, muss dies zunächst erfolgen mit:
 [source,prompt]
 ----
 apt install mysql-server
 ----
 
-Danach muss für der root Zugang von mysql ein Passwort gesetzt werden:
+Danach muss für den MySQL-Benutzer 'root' ein Passwort gesetzt werden:
 [source,prompt]
 ----
 mysqladmin --user=root password linux123
@@ -359,13 +363,13 @@ systemctl restart opsipxeconfd.service
 CAUTION: Der Dienst 'opsiconfd' hat per Default keine feste Abhängigkeit zu MySQL,
 da opsi einerseits ohne MySQL-Backend auskommt,
 andererseits der Dienst auch auf einem anderen Server starten kann.
-Bitte entnehmen Sie der Dokumentation Ihres Betriebssystems wie eine solche Konfiguration gemacht wird.
+Bitte entnehmen Sie der Dokumentation Ihres Betriebssystems wie eine solche Konfiguration vorgenommen wird.
 
 
 [[opsi-manual-backends-mysql-configuration]]
 ===== Manualle Konfiguration
 
-Manuelle Konfiguration kann über die Backend-Konfigurations-Datei erfolgen.
+Eine manuelle Konfiguration kann über die Backend-Konfigurations-Datei erfolgen.
 Diese ist standardmäßig `/etc/opsi/backends/mysql.conf`.
 
 Seit python-opsi 4.1.1.76 ist es möglich die Erstellung neuer Verbindungen nach einer bestimmten Zeit zu forcieren, um Probleme mit Timeouts zu vermeiden.
@@ -379,12 +383,9 @@ Wird diesert Wert gesetzt, sollte er in der Regel niedriger als der auf dem Serv
 [[opsi-manual-backends-mysql-access-config]]
 ===== Konfigurieren der MySQL-Datenbank zum Zugriff von außen
 
-Die vorliegende Datenbank muss so konfiguriert werden, dass ein Zugriff
-von außen möglich ist, also nicht nur Verbindungen von 'localhost' akzeptiert
-werden.
+Die vorliegende Datenbank muss so konfiguriert werden, dass ein Zugriff von außen möglich ist, also nicht nur Verbindungen von 'localhost' akzeptiert werden.
 
-Bitte informieren Sie sich um Handbuch der von Ihnen verwendeten Datenbank
-über die nötigen Schritte.
+Bitte informieren Sie sich um Handbuch der von Ihnen verwendeten Datenbank über die nötigen Schritte.
 
 
 [[opsi-manual-backends-hostcontrol]]
@@ -416,7 +417,7 @@ Für jede Broadcast-Adresse können unterschiedliche Ports konfiguriert werden.
 [[opsi-manual-backends-hostcontrolsafe]]
 ==== HostControlSafe-Backend
 
-Eine Besonderheit beim Standardverhalten von opsi 4.0 Methoden ist, dass bei einer Abfrage ohne Angaben von Parametern, alle Objekte abgerufen werden. Beispielsweise gibt der Befehl "host_getObjects" ohne Parameter aufgerufen, alle Host-Objekte zurück. Dieses Verhalten ist im HostControl-Backend etwas problematisch. Besonders bei den beiden Befehlen: `hostControl_shutdown` und `hostControl_reboot`. In diesen Fällen würde ein Aufruf dieser Methoden ohne Parameter alle Clients hunterfahren bzw. neustarten.
+Eine Besonderheit beim Standardverhalten von opsi 4.0 Methoden ist, dass bei einer Abfrage ohne Angaben von Parametern, alle Objekte abgerufen werden. Beispielsweise gibt der Befehl "host_getObjects" ohne Parameter aufgerufen, alle Host-Objekte zurück. Dieses Verhalten ist im HostControl-Backend etwas problematisch. Besonders bei den beiden Befehlen: `hostControl_shutdown` und `hostControl_reboot`. In diesen Fällen würde ein Aufruf dieser Methoden ohne Parameter alle Clients herunterfahren bzw. neu Starten.
 
 Deshalb gibt es mit Service Release opsi 4.0.3 an dieser Stelle zwei Änderungen:
 
@@ -432,7 +433,7 @@ Aus den oben genannten Gründen, empfehlen wir hostControlSafe-Methoden zu verwe
 
 [[opsi-manual-backends-convert]]
 ==== Konvertierung zwischen Backends
-Der Befehl `opsi-convert` dient zum Konvertieren der opsi-Konfigurationsdaten zwischen verschiedenen Backends. Die Quelle und das Ziel können auf verschieden Arten bestimmt werden:
+Der Befehl `opsi-convert` dient zum Konvertieren der opsi-Konfigurationsdaten zwischen verschiedenen Backends. Das Ziel und die Quelle können auf verschieden Arten bestimmt werden:
 
 * Backendnamen: +
 Durch Angabe des Namens wird ein entsprechendes Backend auf dem aktuellen Server angegeben. So konvertiert `opsi-convert file mysql` auf dem aktuellen Server vom '{file-Backend}' zum '{mysql-Backend}'.
