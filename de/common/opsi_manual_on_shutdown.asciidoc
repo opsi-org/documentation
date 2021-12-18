@@ -14,8 +14,8 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      30.06.2015
-:Revision:  1.1
+:Date:      18.12.2021
+:Revision:  4.2
 :toclevels: 6
 
 
@@ -34,171 +34,44 @@ Das opsi Modul zur Installation beim Shutdown stellt genau diese Funktionalität
 [[opsi-on-shutdown-prerequires]]
 ==== Vorbedingungen für die Installation beim Shutdown
 
-Das Modul Installation beim Shutdown kann auf Clients ab *Windows XP* eingesetzt werden. Die erforderliche Grundfunktionalität ist Bestandteil des Paketes '{opsi-client-agent}'. 
-
-Das Paket '{opsi-client-agent}' muss mindestens die Version 4.0.2.3-2 haben mit einem `opsiclientd` mindestens der Version 4.0.75. 
-
-Da die **Kofinanzierungsphase abgeschlossen** ist, wurde das Modul Installation beim Shutdown mit der opsi Version 4.0.5.4-2 freigegeben und ist **nun Bestandteil des freien opsi Systems.** Eine entsprechende modules-Datei ist somit ab der aktuellen opsi Version nicht mehr erforderlich. 
-Für ältere '{opsi-client-agent}' Pakete, d.h. 4.0.2.3-2 bis 4.0.5.4-2, ist noch eine entsprechende modules-Datei erforderlich. Weitere Details zu Kofinanzierungs-Projekten finden Sie in <<opsi-manual-modules>> sowie unter dem Link http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterungen].
-
+Das Modul Installation beim Shutdown kann auf einem Windows-Clients eingesetzt werden. Die erforderliche Grundfunktionalität ist Bestandteil des Paketes '{opsi-client-agent}'. 
 
 Einschränkungen und Besonderheiten bestehen in folgendem Zusammenhang:
 
 * WAN-Erweiterung: das On-Shutdown-Modul ist derzeit nur auf Clients anwendbar, die nicht mit der WAN-Erweiterung betrieben werden. Bei der WAN-Erweiterung ist teilweise die lokale und nicht die serverseitige Konfiguration relevant, dies kollidiert mit der Zustandssteuerung für die Installation beim Shutdown.
 
-* Group Policies: da ein Teil des Mechanismusses für die Installation beim Shutdown auf Shutdown-Skripten per Local Group Policy beruht, werden diese Einstellungen eventuell durch übergeordnete Group Policies überschrieben. In diesem Fall sollten die notwendigen Einstellungen in die übergeordneten Group-Policies aufgenommen werden. Siehe hierzu <<opsi-on-shutdown-concept-shutdownscript>>.
-
 * Wenn durch einen Shutdown oder Reboot auf einem Windows-Rechner eine Installation beim Shutdown ausgelöst wurde, lässt die Windows-API zu diesem Zeitpunkt keine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) mehr zu. Im Falle eines Shutdown werden also Produkte, die einen Reboot beinhalten, erst beim nächsten Hochfahren des Rechners fertig installiert.  
-
-* Windows Home-Edition: Windows Home enthält nicht die erforderlichen Group Policy Shutdown-Skript-Mechanismen. Von daher kann die On-Shutdown-Installation auf Windows-Home-Edition nicht eingesetzt werden. 
-
-* Windows 2000: Auf Windows 2000 beträgt die maximale Wartezeit für Shutdown-Skripte 10 Minuten, danach wird die Installation durch Windows automatisch abgebrochen. Aus diesem Grund ist das Modul nicht auf Windows 2000 Clients einsetzbar. 
 
 
 [[opsi-on-shutdown-activate]]
 ==== Inbetriebnahme der Installation beim Shutdown
 
-Die Grundfunktionalität für die Installation beim Shutdown ist bereits im aktuellen `opsi-client-agent`-Paket enthalten. Seit opsi Version 4.0.5.4-2 ist keine entsprechende `modules`-Datei mehr erforderlich. 
+Mit opsi 4.2 wurde das Paket {opsi-client-agent} komplett überarbeitet. Einer der größten Änderungen betrifft die Installation beim Shutdown. Vor opsi 4.2 wurde die Konfiguration dieses Moduls hauptsächlich über den Produktschalter `on_shutdown_install` des Paketes {opsi-client-agent} gesteuert. Dieser Produktschalter wurde im {opsi-client-agent} Paket entfernt und durch eine neue {opsi-config-object} ersetzt: `opsiclientd.event_on_shutdown.active`.
 
-Für geeignete Clients (siehe <<opsi-on-shutdown-prerequires>>) kann einfach der Produktschalter `on_shutdown_install` des Paketes `opsi-client-agent` auf `on` und der `opsi-client-agent` für diese Clients auf `update` (oder auch `setup`) gesetzt werden.
+Das opsi-Paket vom {opsi-client-agent} migriert automatisch die Stände des alten Produktschalters mit dem neuen {opsi-config-object}. Für neue Clients muss nur noch dieser {opsi-config-object} aktiviert werden. Eine Neuinstallation des {opsi-client-agent} ist nicht mehr notwendig, der {opsi-config-object} sollte sofort greifen. Ebenfalls wurden die on_shtdown-Skripte entfernt, da Sie im neuen Modul nicht mehr benötigt werden.
 
-Weitere Einstellungen sind im Normalfall nicht notwendig. 
+Eine eventuelle Kollision mit Shutdown-Group-Policies einer eventuell vorhandenen Domäne lassen sich gänzlich nicht ganz ausschließen. Da der {opsiclientd} Service sich aber während der Laufzeit selbst in den Shutdown-Prozess integriert, sollte das Modul Installation beim Shutdown verlässlich aktiviert werden. Dennoch empfehlen wir im Fehlerfall die Domänen GroupPolices auf entsprechende Kollisionen zu prüfen.
 
-Außer es werden auf den Clients bereits Group-Policies eingesetzt. Falls es hier zu Kollisionen kommt, sollten die entsprechenden Policy-Einträge nicht automatisch über den opsi-client-agent gemacht werden (on_shutdown_install_set_policy = off), sondern händig in die eigene Group-Policy-Verwaltung integriert werden, siehe   
-<<opsi-on-shutdown-concept-shutdownscript>>.
+Das Deaktivieren dieses Moduls benötigt ebenfalls keine komplette Neuinstallation des {opsi-client-agent} Pakets. Sobald die Konfiguration deaktiviert wird bei einem Client, wird bei diesem die Installation beim Shutdown nicht mehr aktiv.
 
-Die Installation beim Shutdown wird zusätzlich zur Installation beim Hochfahren ausgeführt. Dies ist im Normalfall sinnvoll, da somit auch Rechner, die längere Zeit ausgeschaltet waren (z.B. nach Urlaub des Anwenders), vor der Benutzung die neuesten Security-Updates bekommen. Falls gewünscht, kann die Installation beim Hochfahren abgeschaltet werden, siehe <<opsi-on-shutdown-config>>. Angefangene Installationen werden aber auf jeden Fall beim Hochfahren des Rechners fortgesetzt, siehe <<opsi-on-shutdown-concept-opsiclientd>>.
+Die Installation beim Shutdown kann zusätzlich zur Installation beim Hochfahren ausgeführt werden. Dies ist im Normalfall sinnvoll, da somit auch Rechner, die längere Zeit ausgeschaltet waren (z.B. nach Urlaub des Anwenders), vor der Benutzung die neuesten Security-Updates bekommen. Falls gewünscht, kann die Installation beim Hochfahren abgeschaltet werden, siehe <<opsi-on-shutdown-config>>. Angefangene Installationen werden aber auf jeden Fall beim Hochfahren des Rechners fortgesetzt, siehe <<opsi-on-shutdown-concept-opsiclientd>>.
 
-* Windows unterscheidet beim Herunterfahren systemtechnisch nicht zwischen einem Shutdown und einem Reboot. Die Installation beim Shutdown wird also sowohl beim Shutdown, als auch beim Reboot ausgeführt und es ist nicht möglich, diese beiden Fälle bei der Ausführung eines Skriptes zu unterscheiden. Die Windows-API lässt zu diesem Zeitpunkt weder eine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) mehr zu, als auch keinen Abbruchs des Shutdowns/Reboot. Falls einzelne Software-Pakete eine mehrphasige Installation mit Reboot benötigen, wird die Installation erst beim nächsten Start des Clients fortgesetzt. 
+Windows unterscheidet beim Herunterfahren systemtechnisch nicht zwischen einem Shutdown und einem Reboot. Die Installation beim Shutdown wird also sowohl beim Shutdown, als auch beim Reboot ausgeführt und es ist nicht möglich, diese beiden Fälle bei der Ausführung eines Skriptes zu unterscheiden. Die Windows-API lässt zu diesem Zeitpunkt weder eine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) mehr zu, als auch keinen Abbruchs des Shutdowns/Reboot. Falls einzelne Software-Pakete eine mehrphasige Installation mit Reboot benötigen, wird die Installation erst beim nächsten Start des Clients fortgesetzt. 
 
 
 [[opsi-on-shutdown-concept]]
 ==== Technisches Konzept
 
-Die folgenden Erläuterungen dienen dem besseren Verständnis der technischen Zusammenhänge für spezielle Konfigurationsvarianten sowie der Untersuchung im Fehlerfall. Im Normalfall werden alle erforderlichen Einstellungen vom Paket `opsi-client-agent` durchgeführt. 
+Die folgenden Erläuterungen dienen dem besseren Verständnis der technischen Zusammenhänge für spezielle Konfigurationsvarianten sowie der Untersuchung im Fehlerfall. Im Normalfall werden alle erforderlichen Einstellungen vom Paket `opsi-client-agent` und dem {opsiclientd} selbsständig und voll automatisiert durchgeführt.
 
 [[opsi-on-shutdown-concept-overview]]
 ===== Überblick
 
-Die Installation beim Shutdown basiert auf dem Zusammenspiel verschiedener System-Komponenten. Ein wesentlicher Bestandteil ist die Nutzung des Windows Shutdown-Skript-Mechanismus per Local Group Policy. Shutdown-Skripte ermöglichen die Durchführung von Tasks genau zu dem Zeitpunkt des Shutdown-Vorgangs, an dem der Benutzer bereits abgemeldet ist und alle Benutzer-Tasks beendet sind, aber noch alle Systemdienste laufen. 
+Die Installation beim Shutdown basiert auf dem Zusammenspiel verschiedener System-Komponenten. Ein wesentlicher Bestandteil ist die Nutzung des Windows Shutdown-Skript-Mechanismus per Local Group Policy. Shutdown-Skripte ermöglichen die Durchführung von Tasks genau zu dem Zeitpunkt des Shutdown-Vorgangs, an dem der Benutzer bereits abgemeldet ist und alle Benutzer-Tasks beendet sind, aber noch alle Systemdienste laufen.
 
-Per Shutdown-Skript wird ein opsi-Task ausgeführt, der über den opsi Systemdienst '{opsiclientd}' eine Installation anstößt und auf deren Beendigung wartet. Erst dann wird das System ganz runter gefahren. Systemtechnisch wird hier nicht zwischen einem Shutdown und einem Reboot unterschieden, so dass die Installation auch bei einem Reboot ausgelöst wird. 
+Der {opsiclientd} Dienst nutzt diese Technik. Das Skript entsteht zur Laufzeit des Dienstes automatisch. Bei aktiviertem Modul unterbricht der Dienst den System-Shutdown-Prozess und startet das on_shutdown-Event des {opsiclientd}. Erst nach der Beendigung dieses Events wird der Shutdown-Prozess des Systems fortgesetzt.
 
-Der opsi-Client-Systemdienst '{opsiclientd}' ist für die Aktionsart `on_shutdown` konfiguriert, die die Installation handhabt. Falls für die Installation Reboots benötigt werden, ist die precondition `installation_pending` für die korrekte Steuerung des Ablaufs zuständig.
-Falls während der Installation im Shutdown ein Reboot benötigt wird, führt die Precondition `installation_pending` (unabhängig davon, ob `gui_startup` aktiviert ist oder nicht) zu einer direkten Fortführung der Installation beim nächsten Hochfahren des Systems, gegebenenfalls auch mit weiteren Reboots. Im Zustand `installation_pending` wird bei eventuell erforderlichen weiteren Reboots keine Installation beim Shutdown ausgeführt, da ansonsten zwischen der Installation beim Hochfahren und der Installation beim Runterfahren kein Reboot liegen würde. D.h. es wird bis zum Abschluss der aktuellen Installation beim Hochfahren des Systems weiter installiert, aber nicht beim Shutdown, da sonst kein Reboot zwischen den einzelnen Installationsphasen liegen würde.
-
-Im Folgenden werden die beiden Komponenten im Detail beschrieben.
-
-[[opsi-on-shutdown-concept-shutdownscript]]
-===== Durchführung per Shutdown-Skript
-
-Über entsprechende Registry-Einträge wird per Local Group Policy beim Herunterfahren des Systems ein Shutdown-Skript ausgeführt, das die Installation anstößt. Die Registry-Einträge entsprechen den Einstellungen, wie sie auch mit dem Group Policy-Editor `gpedit.msc` erzeugt werden können.
-
-So kann man per Group Policy-Editor den Eintrag eines Shutdown-Skriptes erzeugen:
-
-* Richtlinien für Lokaler Computer
-* Computerkonfiguration
-* Windows-Einstellungen
-* Skripts (Start/Herunterfahren)
-* Herunterfahren
-* Skripts - Hinzufügen - Durchsuchen
-* C:\Programme\opsi.org\opsi-client-agent\on_shutdown\doinstall32.cmd (bzw. doinstall64.cmd für 64Bit-Systeme)
-
-Damit das System mit dem Shutdown wartet, bis die Installation vollständig abgeschlossen ist, wird die Wartezeit für Shutdown-Skripte auf unendlich gesetzt (0 Sekunden):
-
-* Richtlinien für Lokaler Computer
-* Computerkonfiguration
-* Administrative Vorlagen
-* System - Skripts
-* Maximale Wartezeit für Gruppenrichtlinienskripts
-* Einstellung - Aktiviert - Sekunden: 0
-
-Das eingetragene Shutdown-Skript `doinstall32.cmd` bzw. `doinstall64.cmd` wechselt das Arbeitsverzeichnis und löst das 'on_shutdown'-Event aus:
-[source,prompt]
-----
-echo Start opsi product installation ...
-cd "%ProgramFiles%\opsi.org\opsi-client-agent\on_shutdown" 
-opsiclientd_event_starter.exe --event=on_shutdown
-----
-
-bzw. für 64Bit-Systeme:
-[source,prompt]
-----
-echo Start opsi product installation ...
-cd "%ProgramFiles(x86)%\opsi.org\opsi-client-agent\on_shutdown"
-opsiclientd_event_starter.exe --event=on_shutdown
-----
-
-Der `opsiclientd_event_starter` wartet auf die Beendigung der Installation, so dass der System Shutdown so lange aufgehalten wird.
-
-[[opsi-on-shutdown-concept-regedit]]
-===== Registry-Einträge für die Ausführung des Shutdown-Skripts
-
-Diese Registry-Einträge werden über das Setup des `opsi-client-agent` Paketes gesetzt und führen zur Ausführung des angegebenen Shutdown-Skriptes auf WinXP / 32Bit. Für 64Bit-Systeme ist der Skriptname `doinstall64.cmd` (statt `doinstall32.cmd`). 
-
-[source,prompt]
-----
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State\Machine\Scripts\Shutdown\0]
-"GPO-ID"="LocalGPO"
-"SOM-ID"="Local"
-"FileSysPath"="C:\\WINDOWS\\System32\\GroupPolicy\\Machine"
-"DisplayName"="opsi shutdown install policy"
-"GPOName"="opsi shutdown install policy"
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State\Machine\Scripts\Shutdown\0\0]
-"Script"="C:\\Program Files\\opsi.org\\opsi-client-agent\\on_shutdown\\doinstall32.cmd"
-"Parameters"=""
-"ExecTime"=hex(b):00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System\Scripts\Shutdown\0]
-"GPO-ID"="LocalGPO"
-"SOM-ID"="Local"
-"FileSysPath"="C:\\WINDOWS\\System32\\GroupPolicy\\Machine"
-"DisplayName"="opsi shutdown install policy"
-"GPOName"="opsi shutdown install policy"
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\System\Scripts\Shutdown\0\0]
-"Script"="C:\\Program Files\\opsi.org\\opsi-client-agent\\on_shutdown\\doinstall32.cmd"
-"Parameters"=""
-"ExecTime"=hex:00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\policies\system]
-"MaxGPOScriptWait"=dword:00000000
-----
-
-Dies sind die entsprechenden Registry-Einträge für Windows 64Bit (Vista / Win7 / Win8 / Win10):
-
-[source,prompt]
-----
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State\Machine\Scripts\Shutdown\0]
-"GPO-ID"="LocalGPO"
-"SOM-ID"="Local"
-"FileSysPath"="C:\\WINDOWS\\System32\\GroupPolicy\\Machine"
-"DisplayName"="opsi shutdown install policy"
-"GPOName"="opsi shutdown install policy"
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\State\Machine\Scripts\Shutdown\0\0]
-"Script"="C:\\Program Files (x86)\\opsi.org\\opsi-client-agent\\on_shutdown\\doinstall32.cmd"
-"Parameters"=""
-"ExecTime"=hex(b):00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\Scripts\Shutdown\0]
-"GPO-ID"="LocalGPO"
-"SOM-ID"="Local"
-"FileSysPath"="C:\\Windows\\System32\\GroupPolicy\\Machine"
-"DisplayName"="opsi shutdown install policy"
-"GPOName"="opsi shutdown install policy"
-"PSScriptOrder"=dword:00000001
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Group Policy\Scripts\Shutdown\0\0]
-"Script"="C:\\Program Files (x86)\\opsi.org\\opsi-client-agent\\on_shutdown\\doinstall64.cmd"
-"Parameters"=""
-"IsPowershell"=dword:00000000
-"ExecTime"=hex:00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\policies\system]
-"MaxGPOScriptWait"=dword:00000000
-----
+Falls für die gestartete Installationssequenz Reboots benötigen werden, ist die precondition `installation_pending` für die korrekte Steuerung des Ablaufs zuständig. In einem solchen Fall führt die Precondition `installation_pending` (unabhängig davon, ob `gui_startup` aktiviert ist oder nicht) zu einer direkten Fortführung der Installation beim nächsten Hochfahren des Systems, gegebenenfalls auch mit weiteren Reboots. Im Zustand `installation_pending` wird bei eventuell erforderlichen weiteren Reboots keine Installation beim Shutdown ausgeführt, da ansonsten zwischen der Installation beim Hochfahren und der Installation beim Runterfahren kein Reboot liegen würde.
 
 [[opsi-on-shutdown-concept-opsiclientd]]
 ===== Erforderliche Konfiguration des opsiclientd
