@@ -27,14 +27,14 @@ include::../common/opsi_terms.asciidoc[]
 [[opsi-on-shutdown-introduction]]
 ==== Einführung
 
-Standardmäßig wird die Installation von opsi Software-Paketen beim Hochfahren des Clients gestartet. Der Anwender muss dann auf die Beendigung der Software-Installationen warten, bevor er sich am Rechner anmelden kann. Von daher kann es wünschenswert sein, die Software-Installationen vorwiegend beim Runterfahren des Clients durchzuführen.
+Standardmäßig wird in opsi die Installation von Software beim Systemstart des Clients gestartet. So lange die Installation läuft, wird die Benutzeranmeldung blockiert. Von daher kann es wünschenswert sein, die Software-Installationen vorwiegend beim Runterfahren des Clients durchzuführen.
 
-Das opsi Modul zur Installation beim Shutdown stellt genau diese Funktionalität zur Verfügung. Individuell für bestimmte Clients kann die Installation beim Shutdown aktiviert werden.
+Das opsi On-Shutdown-Modul stellt genau diese Funktionalität zur Verfügung. Individuell für bestimmte Clients kann die Installation beim Shutdown aktiviert werden.
 
 [[opsi-on-shutdown-prerequires]]
 ==== Vorbedingungen für die Installation beim Shutdown
 
-Das Modul Installation beim Shutdown kann auf einem Windows-Clients eingesetzt werden. Die erforderliche Grundfunktionalität ist Bestandteil des Paketes '{opsi-client-agent}'. 
+Das On-Shutdown-Modul kann auf Windows-Clients eingesetzt werden. Die erforderliche Grundfunktionalität ist Bestandteil des Paketes '{opsi-client-agent}'. 
 
 Einschränkungen und Besonderheiten bestehen in folgendem Zusammenhang:
 
@@ -42,30 +42,41 @@ Einschränkungen und Besonderheiten bestehen in folgendem Zusammenhang:
 
 * Wenn durch einen Shutdown oder Reboot auf einem Windows-Rechner eine Installation beim Shutdown ausgelöst wurde, lässt die Windows-API zu diesem Zeitpunkt keine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) mehr zu. Im Falle eines Shutdown werden also Produkte, die einen Reboot beinhalten, erst beim nächsten Hochfahren des Rechners fertig installiert.  
 
+* Das On-Shutdown-Modul steht nur auf Windows-Clients zur Verfügung. Auf Linux und MacOS-Clients steht das Feature aktuell nicht zur Verfügung.
 
 [[opsi-on-shutdown-activate]]
 ==== Inbetriebnahme der Installation beim Shutdown
 
-Mit opsi 4.2 wurde das Paket {opsi-client-agent} komplett überarbeitet. Einer der größten Änderungen betrifft die Installation beim Shutdown. Vor opsi 4.2 wurde die Konfiguration dieses Moduls hauptsächlich über den Produktschalter `on_shutdown_install` des Paketes {opsi-client-agent} gesteuert. Dieser Produktschalter wurde im {opsi-client-agent} Paket entfernt und durch eine neue {opsi-config-object} ersetzt: `opsiclientd.event_on_shutdown.active`.
+Mit opsi 4.2 wurde das Paket '{opsi-client-agent}' komplett überarbeitet. Dabei wurde auch das On-Shutdown-Modul verbessert. Vor opsi 4.2 wurde die Konfiguration dieses Moduls hauptsächlich über den Produktschalter `on_shutdown_install` des Paketes '{opsi-client-agent}' gesteuert. Dieser Produktschalter wurde im '{opsi-client-agent}' Paket entfernt und durch einen neue {opsi-config-object} ersetzt: `opsiclientd.event_on_shutdown.active`.
 
-Das opsi-Paket vom {opsi-client-agent} migriert automatisch die Stände des alten Produktschalters mit dem neuen {opsi-config-object}. Für neue Clients muss nur noch dieser {opsi-config-object} aktiviert werden. Eine Neuinstallation des {opsi-client-agent} ist nicht mehr notwendig, der {opsi-config-object} sollte sofort greifen. Ebenfalls wurden die on_shtdown-Skripte entfernt, da Sie im neuen Modul nicht mehr benötigt werden.
+Das opsi-Paket vom '{opsi-client-agent}' migriert automatisch die Stände des alten Produktschalters mit dem neuen {opsi-config-object}. Für neue Clients muss nur noch dieser {opsi-config-object} aktiviert werden. Eine Neuinstallation des '{opsi-client-agent}' ist nicht mehr notwendig, der {opsi-config-object} sollte sofort greifen. Ebenfalls wurden die alten on_shutdown-Skripte entfernt, da Sie im neuen Modul nicht mehr benötigt werden.
 
-Eine eventuelle Kollision mit Shutdown-Group-Policies einer eventuell vorhandenen Domäne lassen sich gänzlich nicht ganz ausschließen. Da der {opsiclientd} Service sich aber während der Laufzeit selbst in den Shutdown-Prozess integriert, sollte das Modul Installation beim Shutdown verlässlich aktiviert werden. Dennoch empfehlen wir im Fehlerfall die Domänen GroupPolices auf entsprechende Kollisionen zu prüfen.
+Eine eventuelle Kollision mit Shutdown-Group-Policies einer eventuell vorhandenen Domäne lassen sich gänzlich nicht ganz ausschließen. Da der {opsiclientd} Dienst sich während der Laufzeit selbst in den Shutdown-Prozess integriert, sollte das On-Shutdown-Modul verlässlich aktiviert werden. Dennoch empfehlen wir im Fehlerfall die Domänen Group-Polices auf entsprechende Kollisionen zu prüfen.
+
+Zum aktivieren des Moduls reicht folgende Befehl:
+
+[source,bash]
+----
+opsi-admin -d method configState_create opsiclientd.event_on_shutdown.active myclient.domain.de true
+----
 
 Das Deaktivieren dieses Moduls benötigt ebenfalls keine komplette Neuinstallation des {opsi-client-agent} Pakets. Sobald die Konfiguration deaktiviert wird bei einem Client, wird bei diesem die Installation beim Shutdown nicht mehr aktiv.
 
-Die Installation beim Shutdown kann zusätzlich zur Installation beim Hochfahren ausgeführt werden. Dies ist im Normalfall sinnvoll, da somit auch Rechner, die längere Zeit ausgeschaltet waren (z.B. nach Urlaub des Anwenders), vor der Benutzung die neuesten Security-Updates bekommen. Falls gewünscht, kann die Installation beim Hochfahren abgeschaltet werden, siehe <<opsi-on-shutdown-config>>. Angefangene Installationen werden aber auf jeden Fall beim Hochfahren des Rechners fortgesetzt, siehe <<opsi-on-shutdown-concept-opsiclientd>>.
+Mit folgendem Befehl wird das Modul deaktiviert:
 
-Windows unterscheidet beim Herunterfahren systemtechnisch nicht zwischen einem Shutdown und einem Reboot. Die Installation beim Shutdown wird also sowohl beim Shutdown, als auch beim Reboot ausgeführt und es ist nicht möglich, diese beiden Fälle bei der Ausführung eines Skriptes zu unterscheiden. Die Windows-API lässt zu diesem Zeitpunkt weder eine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) mehr zu, als auch keinen Abbruchs des Shutdowns/Reboot. Falls einzelne Software-Pakete eine mehrphasige Installation mit Reboot benötigen, wird die Installation erst beim nächsten Start des Clients fortgesetzt. 
+[source,bash]
+----
+opsi-admin -d method configState_create opsiclientd.event_on_shutdown.active myclient.domain.de false
+----
 
+Die Installation beim Shutdown kann zusätzlich zur Installation beim Systemstart ausgeführt werden. Dies ist im Normalfall sinnvoll, da somit auch Clients, die sich längere Zeit am opsi Service nicht gemeldet haben (z.B. nach Urlaub des Anwenders), vor der Benutzung die neuesten Security-Updates bekommen. Falls gewünscht, kann die Installation beim Systemstart abgeschaltet werden, siehe <<opsi-on-shutdown-config>>. Angefangene Installationen werden aber auf jeden Fall beim Systemstart des Clients fortgesetzt, siehe <<opsi-on-shutdown-concept>>.
+
+Windows unterscheidet beim Herunterfahren systemtechnisch nicht zwischen einem Shutdown und einem Reboot. Die Installation beim Shutdown wird also sowohl beim Shutdown, als auch beim Reboot ausgeführt und es ist nicht möglich, diese beiden Fälle bei der Ausführung eines Skriptes zu unterscheiden. Die Windows-API lässt zu diesem Zeitpunkt weder eine Umwandlung eines Shutdown in einen Reboot (oder umgekehrt) zu. Ein Abbruch des Shutdowns/Reboot ist ebenfalls nicht erlaubt. Falls einzelne Software-Pakete eine mehrphasige Installation mit Reboot benötigen, wird die Installation erst beim nächsten Start des Clients fortgesetzt. 
 
 [[opsi-on-shutdown-concept]]
 ==== Technisches Konzept
 
-Die folgenden Erläuterungen dienen dem besseren Verständnis der technischen Zusammenhänge für spezielle Konfigurationsvarianten sowie der Untersuchung im Fehlerfall. Im Normalfall werden alle erforderlichen Einstellungen vom Paket `opsi-client-agent` und dem {opsiclientd} selbsständig und voll automatisiert durchgeführt.
-
-[[opsi-on-shutdown-concept-overview]]
-===== Überblick
+Die folgenden Erläuterungen dienen dem besseren Verständnis der technischen Zusammenhänge für spezielle Konfigurationsvarianten sowie der Untersuchung im Fehlerfall. Im Normalfall werden alle erforderlichen Einstellungen vom Paket '{opsi-client-agent}' und dem {opsiclientd} selbstständig und voll automatisiert durchgeführt.
 
 Die Installation beim Shutdown basiert auf dem Zusammenspiel verschiedener System-Komponenten. Ein wesentlicher Bestandteil ist die Nutzung des Windows Shutdown-Skript-Mechanismus per Local Group Policy. Shutdown-Skripte ermöglichen die Durchführung von Tasks genau zu dem Zeitpunkt des Shutdown-Vorgangs, an dem der Benutzer bereits abgemeldet ist und alle Benutzer-Tasks beendet sind, aber noch alle Systemdienste laufen.
 
@@ -73,82 +84,14 @@ Der {opsiclientd} Dienst nutzt diese Technik. Das Skript entsteht zur Laufzeit d
 
 Falls für die gestartete Installationssequenz Reboots benötigen werden, ist die precondition `installation_pending` für die korrekte Steuerung des Ablaufs zuständig. In einem solchen Fall führt die Precondition `installation_pending` (unabhängig davon, ob `gui_startup` aktiviert ist oder nicht) zu einer direkten Fortführung der Installation beim nächsten Hochfahren des Systems, gegebenenfalls auch mit weiteren Reboots. Im Zustand `installation_pending` wird bei eventuell erforderlichen weiteren Reboots keine Installation beim Shutdown ausgeführt, da ansonsten zwischen der Installation beim Hochfahren und der Installation beim Runterfahren kein Reboot liegen würde.
 
-[[opsi-on-shutdown-concept-opsiclientd]]
-===== Erforderliche Konfiguration des opsiclientd
-
-Der opsi-Client-Systemdienst 'opsiclientd' hat für das neue Event 'on_shutdown' zusätzliche Standard-Einträge in der Konfigurationsdatei 'opsiclientd.conf' bekommen. Hier alle relevanten Einträge:
-
-[source,prompt]
-----
-[event_gui_startup]
-active = True
-
-[event_gui_startup{installation_pending}]
-active = True
-
-[event_on_shutdown]
-active = False
-
-[event_on_shutdown{installation_pending}]
-active = False
-
-[precondition_installation_pending]
-installation_pending = true
-----
-
-Die Precondition `installation_pending` zeigt an, ob noch eine Installation im Gange ist. Falls bei Beendigung des Skriptes immer noch der Zustand `installation_pending` auf true gesetzt ist, bedeutet dies, dass die aktuelle Installation einen Reboot benötigt und noch nicht abgeschlossen ist. Im Normalbetrieb ohne Installation bei Shutdown sind die Sektionen für die neue Aktion `event_on_shutdown` deaktiviert.  
-
-Für einen Client mit aktivierter Installation bei Shutdown ist dies die erforderliche Konfiguration:
-
-[source,prompt]
-----
-[event_gui_startup]
-active = True
-
-[event_gui_startup{installation_pending}]
-active = True
-
-[event_on_shutdown]
-active = True
-
-[event_on_shutdown{installation_pending}]
-active = False
-
-[precondition_installation_pending]
-installation_pending = true
-----
-
-Der einzige Unterschied ist hier also:
-
-[source,prompt]
-----
-[event_on_shutdown]
-active = True
-----
-
-Diese Einstellung wird über den Produktschalter `on_shutdown_install` des Paketes `opsi-client-agent` gesteuert.
-
-Die Precondition `precondition_installation_pending = true` besagt, dass eine angefangene Installation noch nicht beendet ist. Dieser Zustand bleibt über einen oder mehrere Reboots hinweg so lange bestehen, bis die Installation abgeschlossen ist. Wenn die unvollständige Installation einen Reboot benötigt, wird beim nächsten Hochfahren durch die Konfiguration `[event_gui_startup{installation_pending}] active = True` die begonnene Installation beim Hochfahren des Systems fortgesetzt. Diese Einstellung darf nicht verändert werden, da eine angefangene Installation auf jeden Fall beendet werden muss, bevor der Benutzer sich anmelden darf.
-
-Der Eintrag `[event_on_shutdown{installation_pending}] active = False` muss auch in jedem Fall auf False bleiben, da bei einer angefangenen Installation ansonsten kein Reboot wäre zwischen den Installationsphasen beim Startup und beim Shutdown.
-
-Sobald die laufende Installation abgeschlossen ist, wird die Precondition `installation_pending = false` und somit auch wieder die Installation im Shutdown aktiv.
-
 [[opsi-on-shutdown-config]]
-===== Spezielle Konfiguration der Installation bei Shutdown
+==== Spezielle Konfiguration der Installation bei Shutdown
 
-Im Normalfall ist zur Inbetriebnahme der Installation bei Shutdown, wie in <<opsi-on-shutdown-activate>> beschrieben, nichts weiter erforderlich als ein aktuelles `opsi-client-agent` Paket.  Für geeignete Clients kann mit dem `opsi-client-agent`-Produktschalter `on_shutdown_install` die Installation beim Shutdown aktiviert werden. 
+Im Normalfall ist zur Inbetriebnahme der Installation bei Shutdown, wie in <<opsi-on-shutdown-activate>> beschrieben, nichts weiter erforderlich als ein aktuelles `opsi-client-agent` Paket. Für geeignete Clients kann mit dem {opsi-config-object} `opsiclientd.event_on_shutdown.active` die Installation beim Shutdown aktiviert werden. 
 
 Die Installation beim Hochfahren des Systems bleibt standardmässig auch aktiv. Somit ist gewährleistet, dass auch ein längere Zeit ausgeschalteter Client (z.B. nach dem Urlaub des Benutzers) auf jeden Fall die neuesten Versionsstände bekommt, bevor der Benutzer sich anmelden kann.
 
-Sollte dies nicht erwünscht sein, kann die Installation beim Hochfahren deaktiviert werden. Da die Konfiguration des '{opsi-client-agent}s' auch zentral über den Webservice erfolgen kann (siehe: <<opsi-manual-clientagent-configuration-webservice>>), ist zu empfehlen, dass folgender '{opsi-config-object}' angelegt wird:
-
-* +opsiclientd.event_gui_startup.active+ (boolean, default: +true+)
-
-Über diesen '{opsi-config-object}' kann dann das gui_startup-Event Client-spezifisch aktiviert bzw. deaktiviert werden.
-Die '{opsi-config-objects}' können über den '{opsi-configed}' oder '{opsi-admin}' angelegt werden.
-
-Zum Anlegen des '{opsi-config-object}' über '{opsi-admin}' ist der folgende Befehl auf dem '{opsi-configserver}' auszuführen:
+Sollte dies nicht erwünscht sein, kann die Installation beim Hochfahren deaktiviert werden. Da dies nur Clientspezifisch abgeschaltet werden soll muss zuerst eine Default-Konfiguration angelegt werden, wo der Standard festgelegt wird:
 
 [source,prompt]
 ----
@@ -157,110 +100,13 @@ opsi-admin -d method config_createBool opsiclientd.event_gui_startup.active "gui
 
 Der Standard-Wert 'true' entspricht hierbei dem Wert in der mitgelieferten `opsiclientd.conf`.
 
-Wenn für einen Install_on_shutdown-Client die Installation im Startup deaktiviert werden soll, wird der entsprechende '{opsi-config-object}' wie folgt konfiguriert:
-
-* +opsiclientd.event_gui_startup.active+: +false+
-
-Dies sollte aber nur in begründeten Ausnahmefällen geschehen. Die Einstellungen mit der Zusatzbedingung 'installation_pending' sollten unter keinen Umständen geändert werden, es müssen hier immer die default-Werte verwendet werden, um eine korrekte Steuerung des Ablaufs zu gewährleisten. +
-
-Zum Setzen des '{opsi-config-object}' über '{opsi-admin}' ist der folgende Befehl auf dem '{opsi-configserver}' auszuführen (im Beispiel für einen Client mit der {opsi-host-id} +myclient.domain.de+):
+Wenn für einen Install_on_shutdown-Client nun die Installation im Startup deaktiviert werden soll, wird der entsprechende '{opsi-config-object}' wie folgt angelegt:
 
 [source,prompt]
 ----
 opsi-admin -d method configState_create opsiclientd.event_gui_startup.active myclient.domain.de false
 ----
 
-Diese Konfiguration hat zur Folge, dass beim Start des Rechners kein Verbindungsaufbau zum '{opsi-configserver}' und somit keine Installation stattfindet. Ausser bei einer angefangenen Installation, die durch die Zusatzbedingung `installation_pending` angezeigt wird. In diesem Fall wird durch die Einstellung `event_gui_startup{installation_pending}` beim Systemstart die angefangene Installation weiter fortgesetzt. Wenn ein weiterer Reboot erforderlich ist, wird durch die Einstellung `event_on_shutdown{installation_pending}` (die ebenfalls nicht verändert werden darf) verhindert, dass zusätzlich auch beim Shutdown die Installation weitergeführt wird. Ansonsten wäre kein System-Neustart zwischen den einzelnen Installationsphasen. 
+Diese Konfiguration hat zur Folge, dass beim Start des Rechners kein Verbindungsaufbau zum '{opsi-configserver}' und somit keine Installation stattfindet. Ausser bei einer angefangenen Installation, die durch die Zusatzbedingung `installation_pending` ausgelöst wird. Wenn danach ein weiterer Reboot erforderlich ist, wird das on_shutdown-Event blockiert und somit verhindert, dass zusätzlich auch beim Shutdown die Installation weitergeführt wird. Ansonsten wäre kein System-Neustart zwischen den einzelnen Installationsphasen.
 
-[[opsi-on-shutdown-error]]
-===== Lokale Logdatei für den Fehlerfall
-
-Beim Install-On-Shutdown werden zwei lokale Logdateien angelegt:
-
-* `C:\opsi.org\log\doinstall.log`
-* `C:\opsi.org\log\opsiclientd_event_starter.log`
-
-mit normalerweise folgendem Inhalt:
-
-`doinstall.log`:
-[source,prompt]
-----
-doinstall32.cmd started
-Aktuelles Datum: 29.01.2013 
-----
-
-`opsiclientd_event_starter.log`:
-[source,prompt]
-----
-[1] [Okt 06 18:49:44:435] opsiclientd_shutdown_starter: version: 4.0.7.0
-[5] [Okt 06 18:49:44:435] clientid=pctry4detlef.uib.local
-[5] [Okt 06 18:49:44:435] service_url=https://localhost:4441/opsiclientd
-[5] [Okt 06 18:49:44:435] service_user=pctry4detlef.uib.local
-[5] [Okt 06 18:49:44:450] host_key=***(confidential)***
-[5] [Okt 06 18:49:44:450] myevent=on_shutdown
-[6] [Okt 06 18:49:44:450] Working with ssl protocol: sslvSSLv23 - auto negotation
-[6] [Okt 06 18:49:45:107] JSON Bench for backend_info "params":[],"id":1} Start: 18:49:44:450 Time: 00:00:00:657
-[6] [Okt 06 18:49:45:232] opsidata connected
-[5] [Okt 06 18:49:45:232] init Connection done
-[6] [Okt 06 18:49:45:232] JSON service request https://localhost:4441/opsiclientd isInstallationPending
-[6] [Okt 06 18:49:45:529] JSON Bench for isInstallationPending "params":[],"id":1} Start: 18:49:45:232 Time: 00:00:00:297
-[5] [Okt 06 18:49:45:622] resultstring={"id": 1, "result": false, "error": null}
-[5] [Okt 06 18:49:45:622] No installation pending - fine
-[6] [Okt 06 18:49:45:622] JSON service request https://localhost:4441/opsiclientd fireEvent
-[6] [Okt 06 18:49:45:966] JSON Bench for fireEvent "params":["on_shutdown"],"id":1} Start: 18:49:45:622 Time: 00:00:00:344
-[5] [Okt 06 18:49:46:091] resultstring={"id": 1, "result": null, "error": null}
-[5] [Okt 06 18:49:46:091] Succesfull fired event: on_shutdown
-[5] [Okt 06 18:49:51:107] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:49:51:107] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:49:51:357] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:49:51:107 Time: 00:00:00:250
-[5] [Okt 06 18:49:51:451] resultstring={"id": 1, "result": true, "error": null}
-[5] [Okt 06 18:49:56:467] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:49:56:467] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:49:56:935] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:49:56:467 Time: 00:00:00:468
-[5] [Okt 06 18:49:57:060] resultstring={"id": 1, "result": true, "error": null}
-[5] [Okt 06 18:50:02:076] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:50:02:076] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:50:02:545] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:02:076 Time: 00:00:00:469
-[5] [Okt 06 18:50:02:670] resultstring={"id": 1, "result": true, "error": null}
-[5] [Okt 06 18:50:07:686] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:50:07:686] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:50:08:186] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:07:686 Time: 00:00:00:500
-[5] [Okt 06 18:50:08:311] resultstring={"id": 1, "result": true, "error": null}
-[5] [Okt 06 18:50:13:327] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:50:13:327] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:50:13:624] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:13:327 Time: 00:00:00:297
-[5] [Okt 06 18:50:13:749] resultstring={"id": 1, "result": true, "error": null}
-[5] [Okt 06 18:50:18:765] calling: isEventRunning,[on_shutdown]
-[6] [Okt 06 18:50:18:765] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:50:19:030] JSON Bench for isEventRunning "params":["on_shutdown"],"id":1} Start: 18:50:18:765 Time: 00:00:00:265
-[5] [Okt 06 18:50:19:171] resultstring={"id": 1, "result": false, "error": null}
-[5] [Okt 06 18:50:19:171] calling: isEventRunning,[on_shutdown{user_logged_in}]
-[6] [Okt 06 18:50:19:171] JSON service request https://localhost:4441/opsiclientd isEventRunning
-[6] [Okt 06 18:50:19:452] JSON Bench for isEventRunning "params":["on_shutdown{user_logged_in}"],"id":1} Start: 18:50:19:171 Time: 00:00:00:281
-[5] [Okt 06 18:50:19:562] resultstring={"id": 1, "result": false, "error": null}
-[5] [Okt 06 18:50:19:562] Task completed
-----
-
-oder
-
-[source,prompt]
-----
-[1] [Okt 12 18:07:57:352] opsiclientd_shutdown_starter: version: 4.0.7.0
-[5] [Okt 12 18:07:57:352] clientid=pctry4detlef.uib.local
-[5] [Okt 12 18:07:57:352] service_url=https://localhost:4441/opsiclientd
-[5] [Okt 12 18:07:57:352] service_user=pctry4detlef.uib.local
-[5] [Okt 12 18:07:57:352] host_key=***(confidential)***
-[5] [Okt 12 18:07:57:352] myevent=on_shutdown
-[6] [Okt 12 18:07:57:352] Working with ssl protocol: sslvSSLv23 - auto negotation
-[6] [Okt 12 18:07:57:946] JSON Bench for backend_info "params":[],"id":1} Start: 18:07:57:352 Time: 00:00:00:594
-[6] [Okt 12 18:07:58:055] opsidata connected
-[5] [Okt 12 18:07:58:055] init Connection done
-[6] [Okt 12 18:07:58:055] JSON service request https://localhost:4441/opsiclientd isInstallationPending
-[6] [Okt 12 18:07:58:290] JSON Bench for isInstallationPending "params":[],"id":1} Start: 18:07:58:055 Time: 00:00:00:235
-[5] [Okt 12 18:07:58:399] resultstring={"id": 1, "result": true, "error": null}
-[2] [Okt 12 18:07:58:399] State installation pending detected, do not starting shutdown event.
-[2] [Okt 12 18:07:58:399] Terminate called.
-----
-
-
-Diese Logdateien werden jedes Mal neu erzeugt und können im Fehlerfall überprüft werden. 
+CAUTION: Das Abschalten des Events `gui_startup` birgt die Gefahr, dass man sich seine Clients abhängt. Das bedeutet, wenn es Probleme bei dem on_shutdown-Event gibt, würde so ein Client nicht mehr aktiv Updates einspielen. Im Normalfall sollte durch die Verlagerung der Installationen auf den Shutdown-Prozess, die Blockade vom Event `gui_startup` stark minimiert werden. Deshalb gilt die allgemeine Empfehlung das `gui_startup` Event aktiviert zu lassen (Defaultverhalten).
