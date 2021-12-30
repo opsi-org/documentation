@@ -28,7 +28,7 @@ RELEASE_DATE=$(date +'%B %d, %Y')
 STYLE="opsi"
 STYLES_DIRECTORY="resources/themes"
 BUILD_BASE_DIR="build/books"
-AVAILABLE_MANUALS=(manual)
+AVAILABLE_MANUALS=(manual getting-started)
 
 ERR_UNSUPPORTED_MANUAL=21
 ERR_UNSUPPORTED_ACTION=22
