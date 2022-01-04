@@ -95,13 +95,20 @@ function convert_antora_nav_to_asciidoc_list()
 
         if [[ ${line} =~ \]$ ]]; then
 			# on multi manual repos, the level offset is corrected with 2 (NF-2)
-            level_offset=$(echo "$line" | awk -F"*" '{print NF-3}')
-            # level_offset=$(echo "$line" | awk -F"*" '{print NF-1}')
-            # echo $level_offset
-            revised_line=$(echo "$line" | sed "s|xref:|include::${2}|" | sed 's/\[.*\]//g' | sed -r 's/^\*{1,} //')
-            echo "${revised_line}[leveloffset=+${level_offset}]"
-            # echo "${revised_line}[]"
-            echo
+            if [[ $(echo "$line" | awk -F"*" '{print NF}') == 2 ]]; then
+                # echo "skip"
+                revised_line=$(echo "$line" | sed "s|xref:|include::${2}|" | sed 's/\[.*\]//g' | sed -r 's/^\*{1,} //')
+                echo "${revised_line}[leveloffset=+1}]"
+                echo
+            else               
+                level_offset=$(echo "$line" | awk -F"*" '{print NF-2}')
+                # level_offset=$(echo "$line" | awk -F"*" '{print NF-1}')
+                # echo $level_offset
+                revised_line=$(echo "$line" | sed "s|xref:|include::${2}|" | sed 's/\[.*\]//g' | sed -r 's/^\*{1,} //')
+                echo "${revised_line}[leveloffset=+${level_offset}]"
+                # echo "${revised_line}[]"
+                echo
+            fi
         fi
     done < "${filename}"
 }
