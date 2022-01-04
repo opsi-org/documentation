@@ -52,7 +52,7 @@ if command -v git &> /dev/null; then
     then
         DEFAULT_VERSION=${currentbranch}
     else
-        DEFAULT_VERSION='No Branch'
+        DEFAULT_VERSION='default'
     fi
 fi
 
