@@ -42,19 +42,22 @@ build-antora:
   stage: build
   script: | 
     sudo apt update
-    sudo apt install -y curl
+    sudo apt install -y curl git
     curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
     sudo apt update
     sudo apt install -y nodejs
     sudo apt install -y build-essential
     pwd 
     ls
+    git --version
     npm i
     npx antora -v
     npx antora --log-level=debug antora-playbook.yml
+    /bin/bash tools/make-books.sh -m
   artifacts:
     paths:
       - build/site
+      - build/books
     expire_in: 2 days
 
 # - HTML build jobs -
@@ -422,6 +425,20 @@ build-antora:
 #     - stable
 
 
+publish_antora_docs:
+  stage: publish
+  when: manual
+  before_script:
+    - which ssh-agent
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -o StrictHostKeyChecking=no -r build/site "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/antora"
+  # only:
+  #   - stable
+
+
 # Publishing documentation to internal server
 # publish_docs:
 #   stage: publish
@@ -437,15 +454,15 @@ build-antora:
 
 
 # Publishing documentation to external server
-# publish_docs_ext:
-#   stage: publish_ext
-#   when: manual
-#   before_script:
-#     - 'which ssh-agent || (apk --update add openssh-client)'
-#     - mkdir -p ~/.ssh
-#     - eval $(ssh-agent -s)
-#     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
-#   script:
-#     - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER_EXT@$DOCSERVER_EXT:/var/www/opsi/htdocs/opsi4.2/$DOCTARGET/documentation/"
-#   only:
-#     - stable
+publish_docs_ext:
+  stage: publish_ext
+  when: manual
+  before_script:
+    - 'which ssh-agent || (apk --update add openssh-client)'
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER_EXT@$DOCSERVER_EXT:/var/www/opsi/htdocs/opsi4.2/$DOCTARGET/documentation/"
+  only:
+    - stable
