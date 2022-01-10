@@ -14,7 +14,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      20.01.2021
+:Date:      30.07.2021
 :Revision:  4.2
 :toclevels: 6
 
@@ -113,7 +113,7 @@ um den Zeitpunkt der Freigabe des Logins zu erfragen. Auch diese Kommunikation e
 * Startet den '{opsi-notifier}' zur Interaktion und Kommunikation mit dem Anwender.
 
 * Bei Bedarf stellt er eine Verbindung zum '{opsi-depot}' her, aktualisiert die lokale Installation des '{opsi-script}'
-und startet diesen zur Bearbeitung der anstehenden '{action-requests}' (Software-Installationen).
+und startet diesen zur Bearbeitung der anstehenden '{action-requests}' (Installationen).
 
 [[opsi-manual-clientagent-opsi-notifier]]
 ===== opsi notifier
@@ -149,19 +149,10 @@ Startet sobald ein Shutdown/Reboot ausgeführt werden muss und bietet die Mögli
 .opsiclientd shutdown notifier
 image::opsiclientd-shutdown-notifier.png["Abbildung: opsiclientd shutdown notifier", pdfwidth=30%]
 
-CAUTION: Änderung der Benennung/Funktionalität von opsi 4.0.1 gegenüber opsi 4.0. +
-Den opsi 4.0 event notifier gibt es nicht mehr. +
-Der opsi 4.0.1 event notifier entspricht dem opsi 4.0 action notifier. +
-Der opsi 4.0.1 action notifier ähnelt dem opsi 4.0 event notifier, wird aber nur aktiv, wenn die Bearbeitung von Aktionen ansteht.
-
 
 [[opsi-manual-clientagent-loginblocker]]
 ===== {opsi-login-blocker}
-Der '{opsi-login-blocker}' für NT5 Win2K/WinXP ist als 'GINA' implementiert ('opsigina.dll').
-Diese 'GINA' wartet bis zum Abschluss der '{product-actions}' oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
-Danach wird die Kontrolle an die nächste 'GINA' übergeben (in der Regel an die msgina.dll).
-
-Der '{opsi-login-blocker}' für NT6 (Vista/Win7/Win10) ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
+Der '{opsi-login-blocker}' ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
 Er blockiert alle 'credential provider' bis zum Abschluss der '{product-actions}' oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
 
 [[opsi-manual-clientagent-event-flow]]
@@ -204,7 +195,7 @@ und +%action_cancel_counter%+ (Anzahl der bereits erfolgten Abbrüche) verwendet
 Wurden die Aktionen nicht vom User abgebrochen, wird der +action_cancel_counter+ zurückgesetzt und der '{opsi-script}' startet mit deren Bearbeitung.
 
 . Beendet sich der '{opsi-script}' mit einer Reboot-/Shutdown-Anforderung so wird geprüft ob ein +shutdown_notifier_command+ gesetzt ist
-und ob sie +shutdown_warning_time+ > 0 ist.
+und ob die +shutdown_warning_time+ > 0 ist.
 Sind diese Bedingungen erfüllt, wird der +shutdown_notifier_command+ ausgeführt. +
 Der nun startende '{opsi-notifier}' kündigt den Reboot / Shutdown an
 und ist +shutdown_warning_time+ Sekunden sichtbar. +
@@ -299,14 +290,11 @@ Dieses Problem wird am Beispiel von +event_on_demand+ wie folgt konfiguriert:
 * In der Event-Konfiguration +event_on_demand\{user_logged_in\}+ wird +shutdown_warning_time = 300+ gesetzt (300 Sekunden Vorwarnzeit).
 
 
-
 [[opsi-manual-clientagent-working-window]]
 ===== Working Window
 
 Für alle Events kann ein sogenanntes 'working_window' konfiguriert werden.
 Dieses begrenzt die Funktion eines Events auf einen Zeitraum innerhalb einer konfigurierbaren Start- und Endzeit.
-
-NOTE: Für das 'working_window' Feature wird der '{opsi-client-agent}' >= Version 4.1.0.0-39 benötigt.
 
 Um das 'working_window' zu verwenden, muss der Konfiguration eines Events der Key 'working_window' hinzugefügt werden.
 Falls dieser Key nicht existiert, oder keinen, oder einen ungültigen Wert hat, so gilt das 'working_window' als leer und es gibt keine zeitliche Beschränkung für das Event.
@@ -451,7 +439,7 @@ ip_version = auto
 wait_for_gui_timeout = 120
 
 # Application to run while blocking login
-block_login_notifier = %global.base_dir%\\notifier.exe -s notifier\\block_login.ini
+block_login_notifier = "%global.base_dir%\\opsi-notifier.exe" -s notifier\\block_login.ini
 
 # Use a proxy for connecting configservice
 # proxy_mode:
@@ -462,7 +450,7 @@ block_login_notifier = %global.base_dir%\\notifier.exe -s notifier\\block_login.
 proxy_mode = static
 proxy_url =
 
-# Try to Suspend Bitlocker before rebooting the client
+# Suspend bitlocker on reboot
 suspend_bitlocker_on_reboot = false
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -471,7 +459,7 @@ suspend_bitlocker_on_reboot = false
 [config_service]
 # Service url.
 # http(s)://<opsi config server address>:<port>/rpc
-url = https://opsi.uib.local:4447/rpc
+url =
 
 # Conection timeout.
 connection_timeout = 30
@@ -505,7 +493,7 @@ username = pcpatch
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 [cache_service]
 # Maximum product cache size in bytes
-product_cache_max_size = 5000000000
+product_cache_max_size = 20000000000
 # Members of this ProductGroups will be excluded from processing
 exclude_product_group_ids =
 # Only members of this ProductGroups will be excluded from processing
@@ -537,6 +525,12 @@ static_dir = %global.base_dir%\\opsiclientd\\static_html
 # is blocked for an amount of time.
 max_authentication_failures = 5
 
+# Determines the event to use if action processing is triggered by systray / kiosk.
+# Possible events are timer and on_demand.
+# Possible values are auto, timer, and on_demand.
+# If the value is set to auto then on WAN/VPN clients the timer event is used and on other clients the event on_demand.
+process_actions_event = auto
+
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     notification server settings                                    -
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -559,7 +553,7 @@ popup_port = 45000
 [opsiclientd_notifier]
 
 # Notifier application command
-command = %global.base_dir%\\notifier.exe -p %port% -i %id%
+command = "%global.base_dir%\\opsi-notifier.exe" -p %port% -i %id%
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     opsiclientd rpc tool settings                                   -
@@ -567,7 +561,7 @@ command = %global.base_dir%\\notifier.exe -p %port% -i %id%
 [opsiclientd_rpc]
 
 # RPC tool command
-command = %global.base_dir%\\opsiclientd_rpc.exe "%global.host_id%" "%global.opsi_host_key%" "%control_server.port%"
+command = "%global.base_dir%\\opsiclientd_bin\\opsiclientd_rpc.exe" "%global.host_id%" "%global.opsi_host_key%" "%control_server.port%"
 
 ; - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ; -     action processor settings                                       -
@@ -575,11 +569,12 @@ command = %global.base_dir%\\opsiclientd_rpc.exe "%global.host_id%" "%global.ops
 [action_processor]
 # Locations of action processor
 local_dir = %global.base_dir%\\opsi-script
-remote_dir = opsi-script\\files\\opsi-script
-filename = winst32.exe
+remote_dir = opsi-script\\windows\\x86
+remote_common_dir = opsi-script\\common
+filename = opsi-script.exe
 
 # Action processor command
-command = "%action_processor.local_dir%\\%action_processor.filename%" /opsiservice "%service_url%" /clientid %global.host_id% /username %global.host_id% /password %global.opsi_host_key%
+command = "%action_processor.local_dir%\\%action_processor.filename%" /opsiservice %service_url% /clientid %global.host_id% /username %global.host_id% /password %global.opsi_host_key%
 
 # Load profile / environment of %run_as_user%
 create_environment = false
@@ -601,8 +596,8 @@ activation_delay = 0
 notification_delay = 0
 # Event notifier command (string)
 event_notifier_command = %opsiclientd_notifier.command% -s notifier\\event.ini
-# The desktop on which the event notifier will be shown on (current/default/winlogon)
-event_notifier_desktop = current
+# The desktop on which the event notifier will be shown on (all/current/default/winlogon)
+event_notifier_desktop = all
 # Block login while event is been executed (bool)
 block_login = false
 # Lock workstation on event occurrence (bool)
@@ -623,6 +618,10 @@ reboot = false
 exclude_product_group_ids =
 # Only members of this ProductGroups will be excluded from processing
 include_product_group_ids =
+# Events will only be processes inside the working window, which can be specify like: 07:00-22:00
+working_window =
+# A command to execute at the end of event processing
+post_event_command =
 
 ; === Sync/cache settings
 # Sync configuration from local config cache to server (bool)
@@ -649,8 +648,8 @@ use_cached_products = false
 action_warning_time = 0
 # Action notifier command (string)
 action_notifier_command = %opsiclientd_notifier.command% -s notifier\\action.ini
-# The desktop on which the action notifier will be shown on (current/default/winlogon)
-action_notifier_desktop = current
+# The desktop on which the action notifier will be shown on (all/current/default/winlogon)
+action_notifier_desktop = all
 # Message shown in the action notifier window (string)
 action_message = Starting to process product actions. You are allowed to cancel this event a total of %action_user_cancelable% time(s). The event was already canceled %state.action_processing_cancel_counter% time(s).
 # German translation (string)
@@ -677,6 +676,8 @@ action_processor_desktop = current
 action_processor_timeout = 10800
 # Command which should be executed before after action processor has ended
 post_action_processor_command =
+# Activate or deactivate trusted installer Detection
+trusted_installer_detection = true
 
 ; === Shutdown notification (if machine should be shut down or rebooted)
 # Process shutdown requests from action processor
@@ -685,8 +686,8 @@ process_shutdown_requests = true
 shutdown_warning_time = 0
 # Shutdown notifier command (string)
 shutdown_notifier_command = %opsiclientd_notifier.command% -s notifier\\shutdown.ini
-# The desktop on which the action notifier will be shown on (current/default/winlogon)
-shutdown_notifier_desktop = current
+# The desktop on which the action notifier will be shown on (all/current/default/winlogon)
+shutdown_notifier_desktop = all
 # Message shown in the shutdown notifier window (string)
 shutdown_warning_message = A reboot is required to complete software installation tasks. You are allowed to delay this reboot a total of %shutdown_user_cancelable% time(s). The reboot was already delayed %state.shutdown_cancel_counter% time(s).
 # German translation (string)
@@ -697,16 +698,32 @@ shutdown_warning_message[fr] = Un redémarrage est nécessaire pour terminer l'i
 shutdown_user_cancelable = 0
 # Time in seconds after the shutdown notification will be shown again after the user has canceled the shutdown (int)
 shutdown_warning_repetition_time = 3600
+# If enabled, the user can select a time for shutdown in the shutdown notifier. The selected time overrides shutdown_warning_repetition_time.
+shutdown_user_selectable_time = false
+# Time in seconds for how long the shutdown notification is shown when the user selected time is reached (int, 0 to disable, -1 to use shutdown_warning_time)
+shutdown_warning_time_after_time_select = -1
+
+[event_opsiclientd_start]
+super = default
+type = daemon startup
+active = false
+activation_delay = 10
+max_repetitions = 0
+
+[event_opsiclientd_start{cache_ready}]
+active = false
+use_cached_config = true
+use_cached_products = true
 
 [event_gui_startup]
 super = default
 type = gui startup
-name = gui_startup
+active = true
 block_login = true
+max_repetitions = 0
 
 [event_gui_startup{user_logged_in}]
-name = gui_startup
-shutdown_warning_time = 300
+shutdown_warning_time = 3600
 block_login = false
 
 [event_gui_startup{cache_ready}]
@@ -716,21 +733,19 @@ action_user_cancelable = 3
 action_warning_time = 60
 
 [event_gui_startup{installation_pending}]
-name = gui_startup
 active = true
 
 [event_on_demand]
 super = default
 type = custom
-name = on_demand
 
 [event_on_demand{user_logged_in}]
-name = on_demand
-shutdown_warning_time = 300
+shutdown_warning_time = 3600
 
 [event_software_on_demand]
 super = default
 type = sw on demand
+shutdown_warning_time = 3600
 
 [event_sync]
 super = default
@@ -752,7 +767,7 @@ interval = 3600
 super = sync
 type = custom
 active = false
-wql = SELECT * FROM __InstanceModificationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_NetworkAdapter' AND TargetInstance.NetConnectionStatus = 2
+wql = SELECT * FROM __InstanceModificationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_NetworkAdapter' AND TargetInstance.NetConnectionStatus = 2 AND PreviousInstance.NetConnectionStatus != 2
 
 [event_sync_completed]
 super = default
@@ -765,7 +780,7 @@ write_log_to_service = false
 [event_sync_completed{cache_ready_user_logged_in}]
 reboot = true
 shutdown_user_cancelable = 10
-shutdown_warning_time = 300
+shutdown_warning_time = 3600
 
 [event_sync_completed{cache_ready}]
 reboot = true
@@ -786,24 +801,22 @@ write_log_to_service = false
 update_action_processor = true
 event_notifier_command = %opsiclientd_notifier.command% -s notifier\\userlogin.ini
 event_notifier_desktop = default
-action_processor_command = %action_processor.command% /sessionid %service_session% /allloginscripts /silent
+action_processor_command = %action_processor.command% /sessionid %service_session% /loginscripts /silent
 action_processor_desktop = default
 action_processor_timeout = 300
 
 [event_on_shutdown]
 super = default
 type = custom
-name = on_shutdown
-active = False
+active = false
+max_repetitions = 0
 
 [event_on_shutdown{installation_pending}]
-name = on_shutdown
-active = False
+active = false
 
 [event_silent_install]
 super = default
 type = custom
-name = silent_install
 event_notifier_command =
 process_shutdown_requests = false
 action_processor_productIds = swaudit,hwaudit
@@ -928,7 +941,7 @@ Beispiel:
 ----
 
 
-Die Log-Datei des '{opsi-login-blocker}s' befindet sich unter NT6 (Vista/Win7) als auch unter NT5 (Win2k/WinXP) in `C:\opsi.org\log\opsi_loginblocker.log`.
+Die Log-Datei des '{opsi-login-blocker}s' befindet sich in `C:\opsi.org\log\opsi_loginblocker.log`.
 
 [[opsi-manual-clientagent-infopage]]
 ===== {opsiclientd} infopage
@@ -1067,7 +1080,7 @@ opsi-admin -d method hostControlSafe_reboot [hostIds]
 
 Die Anpassung des Erscheinungsbildes des '{opsi-client-agent}' kann insbesondere bei der Einführung erheblich zur Akzeptanz beitragen. So kann z.B. durch das Einfügen eines bekannten Firmenlogos in die Hintergrundgrafiken eine Verunsicherung der Anwender vermieden werden.
 
-Seit opsi-client-agent 4.0.7.16 basieren alle graphischen Komponenten des opsi-client-agent (notifier, opsi-script, kiosk-client) auf den Darstellungskomponenten zum Anzeigen von Grafiken und werden auf die selbe Weise angepasst.
+Alle graphischen Komponenten des opsi-client-agent (notifier, opsi-script, kiosk-client) basieren auf den Darstellungskomponenten zum Anzeigen von Grafiken und werden auf die selbe Weise angepasst.
 Farben können auf drei unterschiedliche Weise angegeben werden: Als symbolischer Name (`clRed`), als Hexadezimalwert (`$FF00FF`) oder als rgb Wertliste (`(255,0,0)`).
 Ein Hilfsprogramm zur Auswahl von Farben und deren richtigen Schreibweise ist der link:http://download.uib.de/opsi4.1/misc/helper/opsi_color_chooser.exe[opsi color chooser].
 
@@ -1077,7 +1090,7 @@ Ein Hilfsprogramm mit dem Sie schnell prüfen können ob eine gegeben Bitmap Gra
 
 [[opsi-manual-clientagent-ci-opsi-script]]
 ===== Anzupassende Elemente: opsi-script
-Die Dateien die Sie beim opsi-script anpassen können finden Sie im Verzeichnis `/var/lib/opsi/depot/opsi-client-agent/files/opsi/opsi-winst/winstskin`:
+Die Dateien, die Sie beim opsi-script anpassen können finden Sie im Verzeichnis `/var/lib/opsi/depot/opsi-client-agent/files/opsi-script/skin`:
 
 * `bg.png` +
 Die Default Hintergrundgrafik des '{opsi-script}' in welche dann zur Laufzeit Textmeldungen und Produktlogos eingeblendet werden. Der Name kann in der Datei `skin.ini` angepasst werden.
@@ -1088,7 +1101,7 @@ Die Konfigurationsdatei in der festgelegt ist, an welcher Stelle, mit welchem Fo
 [[opsi-manual-clientagent-ci-opsiclientd]]
 ===== Anzupassende Elemente: opsiclientd
 Im Verzeichnis
-`/var/lib/opsi/depot/opsi-client-agent/files/opsi/opsi-notifier/notifier.d`
+`/var/lib/opsi/depot/opsi-client-agent/files/opsi-notifier`
 finden sich die Dateien welche das Erscheinungsbild der unterschiedlichen Notifier bestimmen.
 Dabei gibt es für jeden Notifier ein Hintergrundbild und eine Konfigurationsdatei:
 
@@ -1218,26 +1231,7 @@ Dieser gibt den Zugriff auf den Login erst frei, wenn der Installations-Prozess 
 Ob der '{opsi-login-blocker}' während der '{opsi-client-agent}'-Installation installiert bzw. aktiviert wird,
 kann über das '{product-property}' +loginblockerstart+ konfiguriert werden.
 
-[[opsi-manual-clientagent-loginblock-nt5]]
-===== {opsi-login-blocker} unter NT5 (Win2k/WinXP)
-Der {opsi-login-blocker} (`opsigina.dll`) ist als 'GINA' realisiert.
-Die 'opsigina' wartet bis zum Abschluss der '{product-actions}' oder dem Timeout (standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
-Danach wird die Kontrolle an die nächste 'GINA' übergeben (in der Regel an die msgina.dll).
-
-'GINA' steht hierbei für „Graphical Identification and Authentication“ und stellt die seitens Microsofts offiziell unterstützte Möglichkeit dar,
-in den Login-Prozess von Windows einzugreifen.
-
-Gelegentlich ist es der Fall, dass bereits andere Softwareprodukte (z.B. Client für Novell-Netzwerke) eine 'GINA' auf dem System installiert haben
-und empfindlich auf Eingriffe reagieren.
-
-Generell sind mehrere ,nacheinander aufgerufene 'GINAs' ('GINA-chaining') durchaus möglich.
-Auch die 'opsigina.dll' des {opsi-login-blocker} ist für das genannte 'GINA-chaining' vorbereitet.
-Sollte der beschriebene Fall bei Ihren Clients eintreten, informieren Sie sich bitte auf dem freien Supportforum (https://forum.opsi.org)
-nach bestehenden Anpassungsmöglichkeiten oder kontaktieren Sie die Firma 'uib'.
-
-[[opsi-manual-clientagent-loginblock-nt6]]
-===== {opsi-login-blocker} unter NT6 (Vista/Win7/Win10)
-Der '{opsi-login-blocker}' für NT6 (Vista/Win7/Win10) ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
+Der '{opsi-login-blocker}' ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
 Er blockiert alle 'credential provider' bis zum Abschluss der '{product-actions}' oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem '{opsiclientd}'.
 
 [[opsi-manual-clientagent-subsequent-installation]]
@@ -1248,6 +1242,8 @@ Siehe aus Kapitel 'opsi Software On Demand (Kiosk-Mode)': <<software-on-demand>>
 
 [[opsi-manual-clientagent-image-installation]]
 ===== Installation des opsi-client-agent in einem Master-Image oder als Exe
+
+// TODO: was ist das? ist das noch aktuell?
 
 Um den opsi-client-agent über ein versiegeltes (sysprep) Masterimage zu verteilen, muss der opsi-client-agent sich beim 'aufwachen' also beim personaliesieren des erstellten Klons auch neu personalisieren.
 
@@ -1279,16 +1275,16 @@ Das Systray Programm des opsi-client-agent erfüllt folgende Aufgaben:
 * Information des Anwenders über anstehende Installationen auf Anforderung über das Kontextmenü
 * Möglichkeit des Anwenders den Start der Installationen anzufordern.
 
-.Message Fenster des opsi-systray Programms
-image::opsi-systray-message.png["Abbildung: Message Fenster des opsi-systray Programms",width=200]
+.Message Fenster des opsi-client-systray Programms
+image::opsi-systray-message.png["Abbildung: Message Fenster des opsi-client-systray Programms",width=200]
 
-.Kontext Menü (Rechte Maustaste) des opsi-systray Programms
-image::opsi-systray-menue.png["Abbildung: Kontext Menü (Rechte Maustaste) des opsi-systray Programms",width=200]
+.Kontext Menü (Rechte Maustaste) des opsi-client-systray Programms
+image::opsi-systray-menue.png["Abbildung: Kontext Menü (Rechte Maustaste) des opsi-client-systray Programms",width=200]
 
-*Steuerung des opsi systray Programms über die Produktproperties des Produkts 'opsi-client-agent':* +
+*Steuerung des opsi-client-systray Programms über die Produktproperties des Produkts 'opsi-client-agent':* +
 
 * `systray_install` +
-(`true` / `false`) Soll das opsi-systray Programm installiert werden ? +
+(`true` / `false`) Soll das opsi-client-systray Programm installiert werden ? +
 Default = `false`
 
 * `systray_check_interval` +
@@ -1302,7 +1298,7 @@ Mögliche Werte: +
 "productid : request", "productname : request", "productname productversion : request" +
 default: "productname : request"
 
-*Logging des opsi systray Programms:* +
+*Logging des opsi-client-systray Programms:* +
 
 Das Programm loggt nach `%Appdata%\opsi.org\log`. D.h. in das Verzeichnis `opsi.org\log` im Anwendungsdatenverzeichnis des angemeldeten Users. +
 Zum Beispiel: +
