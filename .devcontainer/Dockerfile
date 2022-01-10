@@ -29,7 +29,8 @@ RUN apt update && apt install -y asciidoctor \
 	&& gem install prawn-gmagick \
 	&& gem install zurb-foundation \
 	&& gem install asciidoctor-epub3 \
-	&& gem install asciidoctor-pdf
+	&& gem install asciidoctor-pdf \
+	&& gem install rouge
 
 RUN if [ -z ${USER+x} ]; then \
 	echo "var USER is unset"; \
