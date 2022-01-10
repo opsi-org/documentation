@@ -14,7 +14,7 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      30.07.2021
+:Date:      10.01.2022
 :Revision:  4.2
 :toclevels: 6
 
@@ -1184,28 +1184,122 @@ The '{opsi-login-blocker}' is implemented as a 'credential provider filter'. It 
 ==== Subsequent installation of the opsi-client-agents
 The information about the 'Subsequent installation of the opsi-client-agent' you will find in the 'opsi-getting-started' manual (Chapter 'First Steps').
 
-[[opsi-manual-clientagent-image-installation]]
-===== Installation of the opsi-client-agent from a master image or as exe
+[[opsi-manual-clientagent-manual-installation]]
+===== Manual installation of the opsi-client-agent
 
-In order to install the opsi-client-agent from a prepared (sysprep) masterimage,
-the opsi-client-agent has to be (re)installed while the clone awakes and get a new personality.
+The opsi-client-agent can be installed in many different modes:
 
-To do this use the following steps:
+* As part of an operating system installation
+* Manually from a (depot) directory (start oca-installation-helper.exe / service_setup.cmd / silent_setup.cmd)
+* Via push from the server (opsi-deploy-client-agent)
+* Via the new installer (opsi-client-agent-installer.exe)
+* Via the new MSI package (opsi-client-agent.msi)
+* In the opsi service context (opsi-client-agent updates itself)
 
-* Copy from the share `opsi_depot` the complete content of the directory `opsi-client-agent` in a temporary directory on the master.
+Except for the upgrade in the opsi service context, the new oca-installation-helper.exe is always used.
+This essentially fulfils the following purposes:
 
-* Edit there the file `files\opsi\cfg\config.ini` :
-** In section `[installation]` set for `service_user=` the login name of a user that is member of the opsiadmin group..
-** NOT RECOMMENDED: In section  `[installation]` set for `service_password=` the uncoded password of this user. Better:
-** In section `[installation]` set for `service_hidden_password=` the base64 encoded password of this user. For encoding of the pawword you may use the opsi-script function `base64EncodeStr(<string>)` or a online service like  http://www.base64encode.org/ +
-If `service_hidden_password=` has any value the key `service_password=` will be ignored.
-** In section `[opsiclientd]` set for `config_service.url =` the web service address of your opsi-config-server (e.g. `https://192.168.1.10:4447/rpc`)
+* The installation files are copied to a local temp directory if necessary (e.g. call via UNC path).
+* A dialogue window is displayed in which parameters for installation control can be entered.
+* The client is created at the opsi-service, if it does not already exist.
+* opsi-script is started and carries out the actual installation.
 
-* Make sure that the script `silent_setup.cmd` from the temporary directory is called after the clone has its new personality.
+The installation is always carried out with a functioning service connection.
+This means that, regardless of the installation mode, the product properties from the server are always used.
 
-* After the call of `silent_setup.cmd` is finished, the temporary directory should be deleted.
+The oca-installation-helper.exe supports the following parameters (--help): 
 
-If you like you may pack the temporary directory to a self extracting exe with final program start using a tool like filzip.
+[source,bash]
+----
+usage: oca-installation-helper.exe [-h] [--version] [--log-file LOG_FILE]
+                                   [--log-level {none,debug,info,warning,error,critical}]
+                                   [--service-address SERVICE_ADDRESS]
+                                   [--service-username SERVICE_USERNAME]
+                                   [--service-password SERVICE_PASSWORD]
+                                   [--client-id CLIENT_ID] [--non-interactive]
+                                   [--no-gui] [--gui]
+                                   [--encode-password PASSWORD]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version             show program's version number and exit
+  --log-file LOG_FILE
+  --log-level {none,debug,info,warning,error,critical}
+  --service-address SERVICE_ADDRESS
+                        Service address to use.
+  --service-username SERVICE_USERNAME
+                        Username to use for service connection.
+  --service-password SERVICE_PASSWORD
+                        Password to use for service connection.
+  --client-id CLIENT_ID
+                        Client id to use.
+  --non-interactive     Do not ask questions.
+  --no-gui              Do not use gui.
+  --gui                 Use gui.
+  --encode-password PASSWORD
+                        Encode PASSWORD.
+----
+
+This parameters can be used to automate the installation and run it unattend:
+
+[source,bash]
+----
+oca-installation-helper.exe --service-address 10.1.2.3 --service-username adminuser --service-password secret --non-interactive
+----
+
+The opsi-client-agent-installer.exe also takes the same parameters.
+The installer can be downloaded from an opsi 4.2 server without authentication via the following address:
+
+https://<opsi-server>:4447/public/opsi-client-agent/opsi-client-agent-installer.exe.
+
+This is usually easier than accessing the depot share when installing manually.
+
+When using the MSI package, the parameters can be passed via the property "INSTALL_PARAMS":
+
+[source,bash]
+----
+msiexec /i opsi-client-agent.msi INSTALL_PARAMS="--non-interactive --service-address=https://opsiserver.domain.tld:4447 --service-username=msi --service-password=secret"
+----
+
+The "service-password" can also be used encrypted:
+
+[source,bash]
+----
+oca-installation-helper.exe --service-password {crypt}w5TDjcOQw5PDjsOr
+----
+
+The encryption comes with the following command:
+
+[source,bash]
+----
+oca-installation-helper.exe --encode-password <plaintext-password>
+----
+
+At start-up, the oca-installation-helper.exe additionally evaluates the following configuration files in descending priority to fill the parameters:
+
+* .\custom\install.conf
+* .\install.conf
+* .\files\opsi\cfg\config.ini (do not use this file, it's depracted and will be removed soon)
+* %PROGRAMFILES%\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf
+
+Command line parameters always have priority.
+
+If no opsi-service-url is specified, an attempt is made to determine it via Zeroconf.
+
+Here is an example of an install.conf for automating the installation:
+
+[source,bash]
+----
+client_id =
+service_address = opsiserver.domain.tld
+service_username = adminuser
+service_password = {crypt}w5TDjcOQw5PDjsOr
+interactive = false
+----
+
+By default, the oca-installation-helper.exe always creates a log file (oca-installation-helper.log) in the user's temp directory.
+
+The files service_setup.cmd / silent_setup.cmd are only used for backward compatibility.
 
 [[opsi-manual-clientagent-systray-program]]
 ==== The Systray Program of the opsi-client-agent
