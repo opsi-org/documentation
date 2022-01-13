@@ -24,12 +24,18 @@ RUN apt update && apt install -y asciidoctor \
 	make \
 	python2 \
 	python3 \
-	&& gem install sass \
+	build-essential \
+	curl \
+	vim
+
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+	&& sudo apt install -y nodejs
+
+RUN gem install sass \
 	&& gem install compass \
 	&& gem install prawn-gmagick \
 	&& gem install zurb-foundation \
-	&& gem install asciidoctor-epub3 \
-	&& gem install asciidoctor-pdf
+	&& gem install asciidoctor-pdf 
 
 RUN if [ -z ${USER+x} ]; then \
 	echo "var USER is unset"; \
