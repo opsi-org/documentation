@@ -25,12 +25,94 @@
 
 :manual: opsi-script
 
+////
+todo:
+missed:
+
+#* files: del -r
+#Files [W/L/M]
+#Files-Sektionen [W/L/M]
+#[[opsi-script-files-commands]]
+
+#opsi-script (4.12.4.21)
+#* new constant %RealScriptPath% ; if the script is called via symlink
+#      then it is the resolved version of %scriptpath% 
+
+
+
+opsi-script (4.12.4.35) stable; urgency=low
+
+  * osparser: executeWith: AllSigned Hack: use:
+        "Get-Content -Path '+ tempfilename +' | Out-String | Invoke-Expression"
+          Additional parameters (to script or powershell) will be ignored in this case.
+  * osparser: new function getMSVersionName: string
+ * osprocesses: new isProcessChildOf(searchproc,parentproc: string): boolean;
+  * new boolean opsi-script function: isProcessChildOf(<searchprocstr>, <parentprocstr>): bool;
+    implemented for WLM
+  * new opsi-script constant %opsiscriptprocname% represents the name of the
+    just running opsi-script process (opsi-script.exe, opsi-script, opsi-script-gui)
+    changes in opsiconf, osparser, opsiscript.lpr
+  * write now component logs to subdir 'lastprodlogs'
+
+  opsi-script (4.12.4.34) stable; urgency=low
+
+  
+  * oslog: new property WriteComponentFile. if true a logfile for every component (product)
+    is (re)written.
+  * osconf: new config: opsi-script.global.writeProductLogFile (default=false)
+  * oslog: changed histrory line to:
+    'handled: <productid> Version: <versiion> Request: <request> Result: <result>
+  * osparser: opsiservicecall: new line allowed: "timeout" : <int>
+
+
+opsi-script (4.12.4.32) stable; urgency=low
+
+  * osparser: files section: unzip create target dir
+  * new void function ImportCertToSystem(<cert file name>)
+  * oscertificates: add functions for linux /mac
+  * GetProductProperty: if no service context, tries to find property in %scriptpah%/properties.conf
+  * GetProductPropertyList: if no service context, tries to find property in %scriptpath%/properties.conf
+  * new: stringlist literals in json style are allowed now (set $list$ = '["he","ho"]')
+  * new: allow after DefVar inital value: defvar $str$ = "huhu"
+  * new: allow after DefStringlist inital value: defstringlist $list$ = '["he","ho"]'
+
+opsi-script (4.12.4.31) stable; urgency=low
+
+  * osparser: files section: move / rename: allow also for directories
+
+opsi-script (4.12.4.29) stable; urgency=low
+
+ * osparser: doLDAPSearch: callLDAP: if port 636 then use ssl
+ * osconf: configuration: log_rotation_count (default = 8)  (max=999
+   will need new config: opsi-script.global.log_rotation_count to change (allowed 0 - 999)
+ * osfuncwin: getW10Release: Fixes detection of w10 release > 2009 (21h1) ; fixes #4665
+   getW10Release is now also called from osparser
+
+
+opsi-script (4.12.4.28) stable; urgency=low
+
+ * osparser: do XMLPatch2Main: new xml2-section commands:
+    * setNodePair <keyNodeName> <keyNodeTextContent> <valueNodeName> <valueNodeTextContent>
+      used for Apple info.plist
+ * osxmlsections: TuibXMLDocument: new:
+    setNodePair(keyNodeName: string; keyNodeTextContent: string;
+      valueNodeName: string; valueNodeTextContent: string): boolean;
+ * Execwith: if there is a parameter '/HookScript <path to script file>',
+   then the existing 'script file' will be called with the temporary file
+   as parameter before passing it to the interpreter.
+   The call of the hookscript has a 40 sec Timeout
+ * osparser: getDecimalCompareSign (used by compareDotSeperatedNumbers):
+     now support leading zeros (then it will handled as float starting with 0.)
+     now support a letter as last part of the number (1.0.23b like is used at openssl versions)
+////
+
+
 // Include common opsi terms
 include::../common/opsi_terms.asciidoc[]
 
 
 
-opsi-script Handbuch (4.12.4.27)
+opsi-script Handbuch (4.12.4.35)
 ================================
 
 Für Windows [W], Linux [L] und macOS [M]
@@ -1449,6 +1531,8 @@ NT6: 'c:\users\%USERNAME%'
 ==== '{opsi-script}' Pfad und Verzeichnisse [W/L/M]
 
 `%ScriptPath% or %ScriptDir%` : Pfad des '{opsi-script}' Skripts (ohne schließenden Backslash); mit Hilfe dieser Variable können die Dateien in Skripten relativ bezeichnet werden. Zum Testen können sie z.B. auch lokal gehalten werden.
+
+`%RealScriptPath%` : Wenn das laufende Skript über einen symbolischen Link aufgerufen wurde, so liefert `%RealScriptPath%` den Pfad auf den der symbolischelink letztendlich zeigt. In allen anderen Fällen ist der wert indentisch mit `%ScriptPath%`. (seit 4.12.4.21)
 
 `%ScriptDrive%` : Laufwerk, auf dem das ausgeführt '{opsi-script}' Skript liegt (inklusive Doppelpunkt).
 
@@ -8234,11 +8318,11 @@ Nur wenn diese Option gesetzt ist, bleibt ein eventuell vorhandenes read-only-At
 Unter Linux wird symbolischen Links auf Dateien und Verzeichnissen gefolgt. Es wird als nich der symbolische Link sondern dessen Ziel kopiert.
 
 
-*  `Delete` [-sfcd[n]] <Pfad> [W/L/M]
+*  `Delete` [-sfd[n]r[c]] <Pfad> [W/L/M]
 
 oder
 
-*  `Delete` [-sfcd[n]] <Datei(maske)> [W/L/M]
+*  `Delete` [-sfd[n]r[c]] <Datei(maske)> [W/L/M]
 +
 Löschen einer Datei bzw. eines Verzeichnisses. Mögliche Optionen (die in beliebiger Reihenfolge aufgeführt sein können) sind:
 
@@ -8255,8 +8339,13 @@ Durch den angehängen Backslash ist deutlich, dass Sie ein Verzeichnis meinen. +
 **  `f` ->  force +
 Erzwingt ("force") das Löschen auch von read-only-Dateien.
 
-**  `c` ->  continue [W] +
-Wenn eine Datei in Benutzung ist, kann sie im Rahmen eines Reboots gelöscht werden. Das '{opsi-script}' default-Verhalten ist dabei, dass ein Datei in Benutzung zum Löschen beim nächsten Reboot markiert wird UND die '{opsi-script}' Reboot Markierung gesetzt wird. Das Setzen der Option `-c` stellt den automatischen Reboot aus. Das Löschen wird in diesem Fall erst dann vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
+**  `r` ->  del on reboot [W] seit 4.12.4.3
+Wenn eine Datei in Benutzung ist, kann sie unter Windows nicht direkt gelöscht werden. Durch die Option `r` wird dafür gesorgt, das diese Datei in so einem Fall automatisch im Rahmen des nächsten Reboots gelöscht wird. Das '{opsi-script}' default-Verhalten ist das dabei auch die '{opsi-script}' Reboot Markierung gesetzt wird. D.h. das die Maschine nach Abschluß des Skriptes automatisch rebootet.
+siehe auch die Option: `c`
+
+**  `c` ->  continue with out reboot [W] +
+Wenn eine Datei in Benutzung ist, kann sie über die Option `r` im Rahmen eines Reboots gelöscht werden. Das '{opsi-script}' default-Verhalten ist das dabei auch die '{opsi-script}' Reboot Markierung gesetzt wird. Das Setzen der Option `-c` stellt den automatischen Reboot aus. Das Löschen wird in diesem Fall erst dann vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
+Die Option `c` hat ohne `r` keine Wirkung.
 
 **  `d [n]` ->  date +
 Dateien werden nur gelöscht, sofern sie mindestens n Tage alt sind. Default für n ist 1.
