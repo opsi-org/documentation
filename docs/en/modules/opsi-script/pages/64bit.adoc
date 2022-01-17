@@ -1,0 +1,208 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[opsi-script-64bit]]
+= 64 Bit Support on Windows [W]
+
+The '{opsi-script}' is a 32 bit program. In order to make it easy for 32 bit programs to run on 64 bit systems there are special 32 bit areas in the registry as well in the file system. Some accesses from 32 bit programs will be redirected to these special areas to avoid access to areas that reserved for 64 bit programs.
+
+A access to `c:\windows\system32` will be redirected to `c:\windows\syswow64`
+
+But a access to `c:\program files` will be *not* redirected to `c:\program files (x86)`
+
+A registry access to '[HKLM\software\opsi.org]' will be redirected to '[HKLM\software\wow6432node\opsi.org]'
+
+Therefore '{opsi-script}' installs as 32 bit program scripts, that run on 32 bit system fine, on 64 bit system correct without any change.
+
+For the installation of 64 bit programs some constants like `%ProgramFilesDir%` returns the wrong values. Therefore we have since '{opsi-script}' 4.10.8 some new features:
+
+Normally you may (and should) tell explicit to which place you want to write or from where you want to read. Here we have three variants:
+
+32:: explicit 32 bit
+
+64:: explicit 64 bit; if not on a 64 bi system like 'sysnative'
+
+SysNative::	according to the architecture on which the script runs
+
+Following this idea, we have some additional constants:
+
+.Constants
+[options="header"]
+|=======================
+|Constant|32 Bit|64 Bit
+|`%ProgramFilesDir%`|c:\program files|c:\program files (x86)
+|`%ProgramFiles32Dir%`|c:\program files|c:\program files (x86)
+|`%ProgramFiles64Dir%`|c:\program files|c:\program files
+|`%ProgramFilesSysnativeDir%`|c:\program files|c:\program files
+|=======================
+
+
+`%ProgramFilesDir%`:: you should avoid this in future...
+
+`%ProgramFiles32Dir%`:: should be used in the context of installing 32 bit Software.
+
+`%ProgramFiles64Dir%`:: should be used in the context of installing 64 bit Software.
+
+`%ProgramFilesSysnativeDir%`:: should be used if you need architecture specific information
+
+For a reading access to the different aereas of registry and filesystem we have now the following new functions:
+
+* `GetRegistrystringvalue32`
+* `GetRegistrystringvalue64`
+* `GetRegistrystringvalueSysNative`
+* `FileExists32`
+* `FileExists64`
+* `FileExistsSysNative`
+* `FileOrFolderExists`
+
+The following functions have the possibility to control the access mode by a parameter (the default is here `sysnative`):
+
+*  `getRegistryValue`
+*  `RegKeyExists`
+*  `RegVarExists`
+*  `powershellCall`
+
+A simple call to Registry-section results in writing to the 32 bit registry regions. Also a simple call to Files-section results in writing to the 32 bit file system regions.
+
+For 'Registry', 'Files' and `Winbatch` sections we have now the additional calling options:
+
+* `/32Bit` +
+This is the default. Any access will be redirected to the 32 bit regions.
+
+* `/64Bit` +
+Any access will be redirected to the 64 bit regions. If there are no 64 bit regions the architecture specific regions will be ussed.
+
+* `/SysNative` +
+ Any access will be redirected to the architecture specific regions
+
+For `DosBatch`, `DosInAnIcon` (`ShellBatch`, `ShellInAnIcon`) and `Execwith`  you have to keep in mind that any modifiers has to separated by the keyword `winst`. +
+Example:
+[source,opsiscript]
+----
+DosInAnIcon_do_64bit_stuff winst /64Bit
+----
+
+In addition to these '{opsi-script}' functions, we copy at the installation of the opsi-client agent the (64 bit) file `c:\windows\system32\cmd.exe` to `c:\windows\cmd64.exe`. Using this `cmd64.exe` with 'ExecWith' sections you may call any 64 bit operations on the command line.
+
+Examples:
+
+File handling:
+[source,opsiscript]
+----
+if $INST_SystemType$ = "64 Bit System"
+	comment ""
+	comment "------------------------------"
+	comment "Testing: "
+	message "64 Bit redirection"
+	Files_copy_test_to_system32
+	if FileExists("%System%\dummy.txt")
+		comment "passed"
+	else
+		LogWarning "failed"
+		set $TestResult$ = "not o.k."
+	endif
+	ExecWith_remove_test_from_system32 'cmd.exe' /C
+	Files_copy_test_to_system32 /64Bit
+	if FileExists64("%System%\dummy.txt")
+		comment "passed"
+	else
+		LogWarning "failed"
+		set $TestResult$ = "not o.k."
+	endif
+	ExecWith_remove_test_from_system32 '%SystemRoot%\cmd64.exe' /C
+endif
+----
+
+Registry Handling:
+[source,opsiscript]
+----
+message "Write to 64 Bit Registry"
+if ($INST_SystemType$ = "64 Bit System")
+	set $ConstTest$ = ""
+	set $regWriteValue$ = "64"
+	set $CompValue$ = $regWriteValue$
+	Registry_opsi_org_test /64Bit
+	ExecWith_opsi_org_test "%systemroot%\cmd64.exe" /c
+	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+	set $regWriteValue$ = "32"
+	set $CompValue$ = $regWriteValue$
+	Registry_opsi_org_test
+	ExecWith_opsi_org_test "cmd.exe" /c
+	set $ConstTest$ = GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+	set $ConstTest$ = GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+else
+	set $regWriteValue$ = "32"
+	set $CompValue$ = $regWriteValue$
+	Registry_opsi_org_test /64Bit
+	ExecWith_opsi_org_test "cmd.exe" /c
+	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
+	if ($ConstTest$ = $CompValue$)
+		comment "passed"
+	else
+		set $TestResult$ = "not o.k."
+		comment "failed"
+	endif
+endif
+
+if ($INST_SystemType$ = "64 Bit System")
+	set $regWriteValue$ = "64"
+	Registry_hkcu_opsi_org_test /AllNtUserDats /64Bit
+	set $regWriteValue$ = "32"
+	Registry_hkcu_opsi_org_test /AllNtUserDats
+else
+	set $regWriteValue$ = "32"
+	Registry_hkcu_opsi_org_test /AllNtUserDats
+	Registry_hkcu_opsi_org_test /AllNtUserDats /64Bit
+endif
+----
