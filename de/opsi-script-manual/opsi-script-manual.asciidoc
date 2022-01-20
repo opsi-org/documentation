@@ -42,9 +42,9 @@ missed:
 
 opsi-script (4.12.4.35) stable; urgency=low
 
-  * osparser: executeWith: AllSigned Hack: use:
-        "Get-Content -Path '+ tempfilename +' | Out-String | Invoke-Expression"
-          Additional parameters (to script or powershell) will be ignored in this case.
+#  * osparser: executeWith: AllSigned Hack: use:
+#        "Get-Content -Path '+ tempfilename +' | Out-String | Invoke-Expression"
+#          Additional parameters (to script or powershell) will be ignored in this case.
   * osparser: new function getMSVersionName: string
  * osprocesses: new isProcessChildOf(searchproc,parentproc: string): boolean;
   * new boolean opsi-script function: isProcessChildOf(<searchprocstr>, <parentprocstr>): bool;
@@ -6287,6 +6287,7 @@ net start
 anchor:powershellCall_list[]
 
 * `powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : stringlist (output)` //since 4.12.0.16 [W] +
+`powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true'][, <optionstr> = '']]`) : stringlist (output)` //since 4.12.4.28 [W] +
 Führt <command string> mit der powershell aus. +
 Genauer gesagt wird ein Script ausgeführt das wie folgt aussieht:
 ----
@@ -6297,8 +6298,12 @@ exit $LASTEXITCODE
 Die erste Zeile dient dazu, das bei Exceptions kein exitcode=0 zurückgeliefert wird und die letzte Zeile dient dazu den letzten produzierten exit code zurückzuliefern. +
 Die Architektur der powershell.exe ist per default `sysnative`. Die Architektur kann aber auch über den optionalen zweiten Parameter <access str> angegeben werden. Dabei muss der übergebene <access str> einer der folgenden Werte sein: `32bit`, `sysnative`, `64bit`. +
 (siehe auch: <<opsi-script-64bit,Kapitel 64 Bit-Unterstützung>>) +
-Da per Windows Default die Execution Policy der Powershell auf `Restricted` steht können Scripte nicht ohne weiteres ausgeführt werden. Daher hat der Befehl `powershellCall` per default folgendes Verhalten: Die aktuelle execution-policy wird gesichert und die execution-policy auf `RemoteSigned` gesetzt. Dann wird das Script ausgeführt und abschließend die Execution-policy wieder zurück gesetzt. Dieses Defaultverhalten kann über den optionalen dritten Parameter <policy bool str> geändert werden: Hat <policy bool str> den Wert "false" so wird die execution-policy nicht modifiziert. +
-Wird die Funktion `powershellCall` dort aufgerufen wo eine Stringliste erwartet wird, so enthält die Stringliste die Ausgabe von <commandstr>.
+Da per Windows Default die ExecutionPolicy der Powershell auf `Restricted` steht können Scripte nicht ohne weiteres ausgeführt werden. Daher hat der Befehl `powershellCall` per default folgendes Verhalten: Die aktuelle execution-policy wird gesichert und die ExecutionPolicy auf `RemoteSigned` gesetzt. Dann wird das Script ausgeführt und abschließend die ExecutionPolicy wieder zurück gesetzt. Dieses Defaultverhalten kann über den optionalen dritten Parameter <policy bool str> geändert werden: Hat <policy bool str> den Wert "false" so wird die ExecutionPolicy nicht modifiziert. +
+Wird die Funktion `powershellCall` dort aufgerufen wo eine Stringliste erwartet wird, so enthält die Stringliste die Ausgabe von <commandstr>. +
+Seit 4.12.4.35: +
+Wird als aktuelle ExecutionPolicy `AllSigned` detectiert, so wird der Powershell Aufruf automatisch so umgebaut, dass das temporäre Powershellskript nicht per `-File` aufgerufen wird, sondern per `-Command Get-Content -Path <tempfilename> | Out-String | Invoke-Expression`. Dadurch wird das Skript  ohne Berücksichtigung der ExecutionPolicy ausgeführt. In einem solchen Fall werden aber evtl. angegebene `PASSPARAS` nicht mehr berücksichtigt. +
+Seit 4.12.4.28: +
+Der optionale <optionstr> kann genutzt werden um dem Befehl zusätzliche Optionen mitzugeben. Da powershellcall intern letztendlich ein ExceWith Aufruf ist können die dor dokumentierten Optionen auch hier angegeben werden, siehe <<opsi-script-execwith-params>>
 
 Beispiel:
 [source,opsiscript]
@@ -6322,6 +6327,7 @@ exit $LASTEXITCODE
 anchor:powershellCall[]
 
 * `powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : noresult` //since 4.12.0.16 [W] +
+`powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true'][, <optionstr> = '']]`) : noresult` //since 4.12.4.28 [W] +
 siehe <<powershellCall_list>> +
 Die Funktion `powershellCall` kann auch dort aufgerufen werden, wo kein Rückgabe wert erwartet wird.
 
@@ -6334,6 +6340,7 @@ powershellCall('Get-Process -ProcessName "opsi*"')
 anchor:powershellCall_str[]
 
 * `powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true']]`) : string (exitcode)` //since 4.12.0.16 [W] +
+`powershellCall(`<commandstr> [,<access str>='sysnative' [,<policy bool str>='true'][, <optionstr> = '']]`) : string (exitcode)` //since 4.12.4.28 [W] +
 siehe <<powershellCall_list>> +
 Wird die Funktion `powershellCall` dort aufgerufen wo eine String erwartet wird, so enthält der String den Exitcode des ausgeführten Scriptes.
 
@@ -10938,8 +10945,11 @@ Wie bei ExecPython Sektionen wird die Ausgabe einer ExecWith-Sektion in einer St
 
 Der Inhalt der Sektion wird in eine temporäre Datei (*.cmd) gespeichert. Seit Version 4.11.3.5 wird, wenn im angegebene Interpreterpfad 'powershell.exe' vorkommt, die temporäre Datei als `.ps1` gespeichert.
 
-Note:: Die Ausführung von Skripten ist in der  Powershell per default ausgeschaltet. Um eine Execwith Sektion mit powershell nutzen zu können, muß die Skriptausführung erst erlaubt werden.
+Note:: *Hinweise zu Powershell* +
+Die Ausführung von Skripten ist in der  Powershell per default ausgeschaltet. Um eine Execwith Sektion mit powershell nutzen zu können, muß die Skriptausführung erst erlaubt werden.
 Das kann durch einen temporären `Bypass` beim Aufruf geschehen, indem man die `ExecWith`-Sektion als `ExecWith_name "powershell.exe" -ExecutionPolicy Bypass` aufruft, oder durch das vorherige Setzen der `ExecutionPolicy` wie folgt. +
+Seit 4.12.4.35: Wird als aktuelle ExecutionPolicy `AllSigned` detectiert, so wird der Powershell Aufruf automatisch so umgebaut, dass das temporäre Powershellskript nicht per `-File` aufgerufen wird, sondern per `-Command Get-Content -Path <tempfilename> | Out-String | Invoke-Expression`. Dadurch wird das Skript  ohne Berücksichtigung der ExecutionPolicy ausgeführt. In einem solchen Fall werden aber evtl. angegebene `PASSPARAS` nicht mehr berücksichtigt. +
+
 
 Beispiel
 [source,opsiscript]
