@@ -30,7 +30,7 @@ RELEASE_DATE=$(date +'%B %d, %Y')
 STYLE="opsi"
 STYLES_DIRECTORY="resources/themes"
 BUILD_BASE_DIR="build"
-AVAILABLE_MANUALS=(manual getting-started releasenotes windows-client linux-client macos-client opsi-script)
+AVAILABLE_MANUALS=(manual getting-started releasenotes windows-client linux-client macos-client opsi-script quickinstall)
 
 ERR_UNSUPPORTED_MANUAL=21
 ERR_UNSUPPORTED_ACTION=22
@@ -184,7 +184,8 @@ function build_html_manual()
 
     if [[ ! -f $book_file ]]; then
         echo "$book_file not found"
-        exit 1
+        # exit 0 to not break cicd
+        exit 0
     fi
 
     param=''
@@ -243,7 +244,8 @@ function build_pdf_manual()
 
     if [[ ! -f $book_file ]]; then
         echo "$book_file not found"
-        exit 1
+        # exit 0 to not break cicd
+        exit 0
     fi
 
     if [[ "$DRY_RUN" == true ]]; then
@@ -282,6 +284,7 @@ function build_pdf_manual()
     param+="$attributes"' '
     param+='--base-dir '$(pwd)' '
     param+='-a allow-uri-read '
+    param+='-a toc '
     param+='-a toclevels=3 '
     param+='-r ./tools/IncludeProcessor.rb '
     param+='-r ./tools/ChangeXref.rb '
