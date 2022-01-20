@@ -4,10 +4,11 @@ require 'open-uri'
 
 class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
   def handles? target
-    (target.start_with? 'common')
+    (target.start_with? 'common') or  (target.start_with? 'opsi-docs-en') or  (target.start_with? 'opsi-docs-de')
   end
 
   def process doc, reader, target, attributes
+    puts "CommonIncludeProcessor"
     # puts ENV.keys
     # puts Asciidoctor::Document::Title
     # puts doc.options().class
@@ -22,13 +23,17 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
       new_target = "docs/en/modules/"
     end
     split = target.split(/[:$]+/)
-    new_target = "docs/de/modules/"
+    # new_target = "docs/de/modules/"
     for string in split do
       # puts string
       if string.strip == "include" then
         next
       elsif string.start_with?("Unresolved directive") then
         next
+      elsif string.strip == "opsi-docs-en" then
+        new_target = "docs/en/modules/"
+      elsif string.strip == "opsi-docs-de" then
+        new_target = "docs/de/modules/"
       elsif string == "partial" then
         new_target.concat("partials/")
       elsif string.end_with?(".asciidoc") or string.end_with?(".adoc") then
@@ -44,6 +49,7 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
     content = (open target).readlines.join('').force_encoding('utf-8')
     # puts content
     reader.push_include content, target, target, 1, attributes
+    puts reader.class
     reader
   end
 end

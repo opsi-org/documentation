@@ -17,6 +17,8 @@ set -o pipefail
 set -o nounset
 IFS=$'\n\t'
 
+
+LANGUAGE=de
 ACTION=
 VERSION=
 FAILURE_LEVEL=
@@ -27,8 +29,8 @@ MANUAL_NAME=
 RELEASE_DATE=$(date +'%B %d, %Y')
 STYLE="opsi"
 STYLES_DIRECTORY="resources/themes"
-BUILD_BASE_DIR="build/books"
-AVAILABLE_MANUALS=(manual getting-started)
+BUILD_BASE_DIR="build/books/${LANGUAGE}"
+AVAILABLE_MANUALS=(manual getting-started releasenotes windows-client linux-client macos-client opsi-script)
 
 ERR_UNSUPPORTED_MANUAL=21
 ERR_UNSUPPORTED_ACTION=22
@@ -70,9 +72,10 @@ function usage()
     local list=$(echo ${AVAILABLE_MANUALS[@]} | sed -r 's/[ ]+/|/g')
 
     echo
-    echo "Usage: ./bin/makepdf [-c] [-d] [-h] [-m] [-n <${list}>]"
+    echo "Usage: ./bin/makepdf [-c] [-d] [-h] [-l] [-m] [-n <${list}>]"
     echo
     echo "-h ... help"
+    echo "-l ... set language default is de"
     echo "-e ... Set failure level to ERROR (default: FATAL)"
     echo "-c ... clean the build/ directory (contains the pdf)"
     echo "-d ... Debug mode, prints the book to be converted. Only in combination with -m and/or -n"
@@ -98,7 +101,7 @@ function convert_antora_nav_to_asciidoc_list()
             if [[ $(echo "$line" | awk -F"*" '{print NF}') == 2 ]]; then
                 # echo "skip"
                 revised_line=$(echo "$line" | sed "s|xref:|include::${2}|" | sed 's/\[.*\]//g' | sed -r 's/^\*{1,} //')
-                echo "${revised_line}[leveloffset=+1}]"
+                echo "${revised_line}[leveloffset=+1]"
                 echo
             else               
                 level_offset=$(echo "$line" | awk -F"*" '{print NF-2}')
@@ -112,6 +115,25 @@ function convert_antora_nav_to_asciidoc_list()
         fi
     done < "${filename}"
 }
+
+# function convert_antora_nav_to_asciidoc_list()
+# {
+#     local filename="$1"
+#     while read line; do
+
+#         if [[ ${line} =~ \]$ ]]; then
+# 			# on multi manual repos, the level offset is corrected with 2 (NF-2)
+#             level_offset=$(echo "$line" | awk -F"*" '{print NF-2}')
+#             # level_offset=$(echo "$line" | awk -F"*" '{print NF-1}')
+#             # echo $level_offset
+#             revised_line=$(echo "$line" | sed "s|xref:|include::${2}|" | sed 's/\[.*\]//g' | sed -r 's/^\*{1,} //')
+#             echo "${revised_line}[leveloffset=+${level_offset}]"
+#             # echo "${revised_line}[]"
+#             echo
+#         fi
+#     done < "${filename}"
+# }
+
 
 function validate_manual()
 {
@@ -137,9 +159,11 @@ function build_html_manual()
     local revision="$3"
     local build_directory="$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/"
     local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
-    local book_file="books/${manual_infix}.adoc"
-    local nav_file="docs/de/modules/${manual}/nav.adoc"
-    local module_base_path="docs/de/modules/${manual}/pages/"
+    local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
+    local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
+    local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
+
+    echo "Using book file: ${book_file} and nav ${nav_file} to build ${manual} (${LANGUAGE})"
 
     # Get the dynamic list of attributes from site.yml
     # The output after sed is a string like -a key=value -a key=value ...
@@ -157,24 +181,32 @@ function build_html_manual()
         return 0
     fi
 
+    if [[ ! -f $book_file ]]; then
+        echo "$book_file not found"
+        exit 1
+    fi
+
     param=''
     param+='-a encoding=UTF-8 '
     param+='-a doctype=book '
     param+='-a icons=font '
     param+='-a xrefstyle=short '
-    param+='-a lang=de '
+    param+='-a lang=${LANGUAGE} '
     param+='-a stylesdir=$(pwd)/resources/stylesheets '
     param+='-a stylesheet=opsi.css '
-    param+='-a examplesdir='$(pwd)/docs/de/modules/${manual}/examples/' '
-    param+='-a imagesdir='$(pwd)/docs/de/modules/${manual}/assets/images/' '
+    param+='-a examplesdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/examples/' '
+    param+='-a imagesdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/assets/images/' '
     # param+='-a imagesdir='/workspaces/opsidoc/assets/images/' '
-    param+='-a partialsdir='$(pwd)/docs/de/modules/${manual}/pages/_partials/' '
+    param+='-a partialsdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/pages/partials/' '
     param+='-a revnumber='${revision}' '
     param+='-a revdate="'${release_date}'" '
+    param+="$attributes"' '
     param+='--verbose '
     param+='-a toc=left '
     param+='-a toclevels=3 '
+    # param+='-r ./tools/IncludeProcessor.rb '
     param+='-r ./tools/ChangeXref.rb '
+    # param+='-r ./tools/myPre.rb '
     param+='-r asciidoctor-interdoc-reftext '
     param+='--trace '
     param+='--out-file '$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/opsi_${manual_infix}.html' '
@@ -194,9 +226,9 @@ function build_pdf_manual()
     local revision="$3"
     local build_directory="$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/"
     local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
-    local book_file="books/${manual_infix}.adoc"
-    local nav_file="docs/de/modules/${manual}/nav.adoc"
-    local module_base_path="docs/de/modules/${manual}/pages/"
+    local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
+    local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
+    local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
 
     # Get the dynamic list of attributes from site.yml
     # The output after sed is a string like -a key=value -a key=value ...
@@ -204,6 +236,13 @@ function build_pdf_manual()
     # You can do the same for extensions like kroki if needed (currently not implemented).
     # Be aware, that the tabs.js extension MUST not be used in case (html only)
     local attributes=("$(parse_yaml $YMLFILE | grep asciidoc_attributes | sed 's/asciidoc_attributes_/-a /g' | sed 's/\")/\"/' | sed 's/=(/=/' | sed "s/\"'/\'/" | sed "s/'\"/\'/")")
+
+    echo "Using book file: ${book_file} and nav ${nav_file} to build ${manual} (${LANGUAGE})"
+
+    if [[ ! -f $book_file ]]; then
+        echo "$book_file not found"
+        exit 1
+    fi
 
     if [[ "$DRY_RUN" == true ]]; then
         echo "Manual Generation - **DRY RUN**"
@@ -213,6 +252,8 @@ function build_pdf_manual()
         cat $book_file <(convert_antora_nav_to_asciidoc_list "$nav_file" "$module_base_path")
         return 0
     fi
+
+   
 
     echo "Generating the ${manual} manual from branch '${revision}', dated: ${release_date}"
     mkdir -p "$build_directory"
@@ -228,19 +269,21 @@ function build_pdf_manual()
     param+='-a pdf-fontsdir='${FONTS_DIRECTORY}' '
     param+='-a pdf-style='${STYLE}' '
     param+='-a format="pdf" '
-    param+='-a lang=de '
+    param+='-a lang=${LANGUAGE} '
+    # param+='-a manual=${manual} '
 #    param+='-a experimental="" ' #   experimental already set in site.yml
-    param+='-a examplesdir='$(pwd)/docs/de/modules/${manual}/examples/' '
-    param+='-a imagesdir='$(pwd)/docs/de/modules/${manual}/assets/images/' '
-    param+='-a partialsdir='$(pwd)/docs/de/modules/${manual}/pages/_partials/' '
+    param+='-a examplesdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/examples/' '
+    param+='-a imagesdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/assets/images/' '
+    param+='-a partialsdir='$(pwd)/docs/${LANGUAGE}/modules/${manual}/pages/partials/' '
     param+='-a revnumber='${revision}' '
     param+='-a revdate="'${release_date}'" '
     param+="$attributes"' '
     param+='--base-dir '$(pwd)' '
     param+='-a allow-uri-read '
     param+='-a toclevels=3 '
-    param+='-r ./tools/IncludeProcessor.rb '
+    # param+='-r ./tools/IncludeProcessor.rb '
     param+='-r ./tools/ChangeXref.rb '
+    # param+='-r ./tools/myPre.rb '
     param+='-r asciidoctor-interdoc-reftext '
     param+='--out-file '$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/opsi_${manual_infix}.pdf' '
     param+='--trace '
@@ -267,6 +310,9 @@ function build_manuals()
 {
     local actual_manual
 
+    echo ${LANGUAGE}
+    echo ${MANUAL_NAME}
+
     # if no specific manual is named, then build them all
     if [[ -z "${MANUAL_NAME}" ]]; then
         for actual_manual in "${AVAILABLE_MANUALS[@]}"
@@ -277,16 +323,20 @@ function build_manuals()
     # build the given manual
     else
         validate_manual "$MANUAL_NAME"
-        build_pdf_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
-        # build_html_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
+        # build_pdf_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
+        build_html_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
     fi
 }
 
-while getopts ":hecdmn:" o
+while getopts ":hecdmn:l::" o
 do
     case ${o} in
         d )
             DRY_RUN=true
+            ;;
+        l )
+            LANGUAGE=$OPTARG
+            BUILD_BASE_DIR="build/books/${LANGUAGE}"
             ;;
         n )
             MANUAL_NAME=$OPTARG
@@ -310,6 +360,8 @@ do
     esac
 done
 shift $((OPTIND-1))
+
+echo $ACTION
 
 case "$ACTION" in
     BUILD_MANUALS)
