@@ -158,7 +158,8 @@ function build_html_manual()
     local release_date="$2"
     local revision="$3"
     local build_directory="$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/"
-    local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
+    # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
+    local manual_infix=$manual
     local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
     local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
     local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
@@ -224,7 +225,8 @@ function build_pdf_manual()
     local release_date="$2"
     local revision="$3"
     local build_directory="$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/"
-    local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
+    # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
+    local manual_infix=$manual
     local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
     local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
     local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
