@@ -7,8 +7,12 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
     (target.start_with? 'common') or  (target.start_with? 'opsi-docs-en') or  (target.start_with? 'opsi-docs-de')
   end
 
+  RX = /xref:.*#/
+  SUB = "xref:"
+
   def process doc, reader, target, attributes
     puts "CommonIncludeProcessor"
+    # puts reader.class
     # puts ENV.keys
     # puts Asciidoctor::Document::Title
     # puts doc.options().class
@@ -16,16 +20,12 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
     # puts doc.options()
     # puts ENV["LANG"]
     if doc.options()[:attributes]["lang"] == "de" then
-      # puts "de"
       new_target = "docs/de/modules/"
     else
-      # puts "en"
       new_target = "docs/en/modules/"
     end
     split = target.split(/[:$]+/)
-    # new_target = "docs/de/modules/"
     for string in split do
-      # puts string
       if string.strip == "include" then
         next
       elsif string.start_with?("Unresolved directive") then
@@ -43,13 +43,16 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
         new_target.concat("/")
       end
     end
-    # puts new_target
     new_target
     target = new_target
-    content = (open target).readlines.join('').force_encoding('utf-8')
-    # puts content
-    reader.push_include content, target, target, 1, attributes
-    puts reader.class
+    puts target
+    content = (open target).readlines.map do |line|
+      line = line.force_encoding('utf-8')
+      line = (line.include? 'xref:') ? (line.gsub RX, SUB) : line
+      line
+    end 
+    content = content.join('').force_encoding('utf-8')
+    reader = reader.push_include content, target, target, 1, attributes
     reader
   end
 end

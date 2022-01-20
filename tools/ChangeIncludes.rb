@@ -16,6 +16,7 @@ class ChangeIncudes < Asciidoctor::Extensions::Preprocessor
         # puts "--------------------"
         line_split = line.split(/[:$]+/)
         new_line = "include::../../../"
+        # new_line = "include::../../"
         for string in line_split do
           # puts string
           if string.strip == "include" then
