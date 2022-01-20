@@ -321,7 +321,7 @@ function build_manuals()
     # build the given manual
     else
         validate_manual "$MANUAL_NAME"
-        # build_pdf_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
+        build_pdf_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
         build_html_manual "$MANUAL_NAME" "$RELEASE_DATE" "$VERSION"
     fi
 }

@@ -10,7 +10,7 @@ class ChangeXref < Asciidoctor::Extensions::Preprocessor
 
 # https://github.com/asciidoctor/asciidoctor-extensions-lab/issues/64
   def process document, reader
-    puts "ChangeXref"
+    # puts "ChangeXref"
 
     
     Asciidoctor::PreprocessorReader.new document, reader.lines.map {|line|
@@ -29,7 +29,7 @@ class XrefIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
   RX = /xref:.*#/
   SUB = "xref:"
   def process doc, reader, target, attributes
-    puts "XrefIncludeProcessor"
+    # puts "XrefIncludeProcessor"
     content = (open target).readlines.map do |line|
       line = line.force_encoding('utf-8')
       line = (line.include? 'xref:') ? (line.gsub RX, SUB) : line

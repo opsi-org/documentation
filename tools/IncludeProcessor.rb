@@ -11,7 +11,7 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
   SUB = "xref:"
 
   def process doc, reader, target, attributes
-    puts "CommonIncludeProcessor"
+    # puts "CommonIncludeProcessor"
     # puts reader.class
     # puts ENV.keys
     # puts Asciidoctor::Document::Title
@@ -45,7 +45,7 @@ class CommonIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
     end
     new_target
     target = new_target
-    puts target
+    # puts target
     content = (open target).readlines.map do |line|
       line = line.force_encoding('utf-8')
       line = (line.include? 'xref:') ? (line.gsub RX, SUB) : line
