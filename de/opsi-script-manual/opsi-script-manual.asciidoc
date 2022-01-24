@@ -70,11 +70,11 @@ opsi-script (4.12.4.32) stable; urgency=low
   * osparser: files section: unzip create target dir
   * new void function ImportCertToSystem(<cert file name>)
   * oscertificates: add functions for linux /mac
-  * GetProductProperty: if no service context, tries to find property in %scriptpah%/properties.conf
-  * GetProductPropertyList: if no service context, tries to find property in %scriptpath%/properties.conf
-  * new: stringlist literals in json style are allowed now (set $list$ = '["he","ho"]')
-  * new: allow after DefVar inital value: defvar $str$ = "huhu"
-  * new: allow after DefStringlist inital value: defstringlist $list$ = '["he","ho"]'
+#  * GetProductProperty: if no service context, tries to find property in %scriptpah%/properties.conf
+#  * GetProductPropertyList: if no service context, tries to find property in %scriptpath%/properties.conf
+#  * new: stringlist literals in json style are allowed now (set $list$ = '["he","ho"]')
+#  * new: allow after DefVar inital value: defvar $str$ = "huhu"
+#  * new: allow after DefStringlist inital value: defstringlist $list$ = '["he","ho"]'
 
 opsi-script (4.12.4.31) stable; urgency=low
 
@@ -1711,14 +1711,16 @@ Im opsi-Service-Kontext besser `%opsiserviceUser%` verwenden.
 
 [[opsi-script-strvar-decl]]
 ==== Deklaration
-String-Variable müssen vor ihrer Verwendung deklariert werden. Die Deklarationssyntax lautet
+String-Variable müssen vor ihrer Verwendung deklariert werden. Seit 4.12.4.32 können auch optional initiale Werte mitgegeben werden. Die Deklarationssyntax lautet
 
-`DefVar` <variable name>
+`DefVar` <variable name> [= <inital value>]
 
 Beispielsweise
 [source,opsiscript]
 ----
 DefVar $MsVersion$
+; since 4.12.4.32 also possible:
+DefVar $MsVersion$ = '10.0'
 ----
 
 Erklärung:
@@ -1816,10 +1818,16 @@ In der sekundären Sektion ist eine solcher Ausdruck ohne Wert und würde eventu
 [[opsi-script-lstvar]]
 === Variable für String-Listen [W/L/M]
 
-Variablen für String-Listen müssen vor ihrer anderweitigen Verwendung mit dem Befehl `DefStringList` deklariert werden, z.B.
+Variablen für String-Listen müssen vor ihrer anderweitigen Verwendung mit dem Befehl `DefStringList` deklariert werden. Seit 4.12.4.32 können auch optional initiale Werte mitgegeben werden. Die Deklarationssyntax lautet
+
+`DefStringList` <variable name> [= <inital value>]
+
+Beispielsweise
 [source,opsiscript]
 ----
-DefStringList $SMBMounts$
+DefStringList $MsVersionList$
+; since 4.12.4.32 also possible:
+DefStringList $MsVersionList$ = '["6.1","10.0"]'
 ----
 
 String-Listen können z.B. die Ausgabe eines Shell-Programms einfangen und dann in vielfältiger Weise weiterverarbeitet und verwendet werden. Genauere Details dazu findet sich in dem Abschnitt <<opsi-script-stringlist, String-Listenverarbeitung>>.
@@ -2404,9 +2412,12 @@ anchor:GetProductProperty[]
 *  `GetProductProperty (` <PropertyName>, <DefaultValue>`)` [W/L/M] +
 wobei  <PropertyName> und <DefaultValue> String-Ausdrücke sind.
 Die Funktion liefert die client-spezifischen Property-Werte für das aktuell installierte Produkt aus. +
-Auf diese Weise können PC-spezifische Varianten einer Installation konfiguriert werden. +
-Außerhalb des opsi-service Kontextes oder wenn aus anderen Gründen der Aufruf fehlschlägt, wird der angegebene Defaultwert zurückgegeben.
+Dabei werden die aktuellen Werte beim opsi-server abgefragt. +
+Kann der aktuelle Wert des Properies nicht vom opsi-server ermittelt werden (z.B. weil das Skript nicht im Kontext des opsi-service läuft), so wird der zurückzugebende Wert wie folgt ermittelt: +
+Seit 4.12.4.32 wird zunächst geprüft ob sich im `%ScriptPath%` eine Datei `properties.conf` befindet. Wenn ja, wird versucht aus dieser Datei den Wert des Properties zu lesen. Dabei wird die Datei `properties.conf` als Liste von key=value Paaren erwartet. Im Falle eines Strings wird hier ein Eintrag vom Muster `<property name>=<string value>` erwartet. Beispiel: `myproperty=myentry`. +
+Wird die Datei  `properties.conf` nicht gefunden oder enthält den gesuchten Eintrag nicht, so wird der `<default value>` zurückgegeben. +
 
+Auf diese Weise können PC-spezifische Varianten einer Installation konfiguriert werden. +
 So wurde beispielsweise die opsi UltraVNC Netzwerk Viewer Installation mit folgenden Produkt Properties konfiguriert:
 
 * viewer = <yes> | <no>
@@ -2418,6 +2429,33 @@ Innerhalb des Installationsskript werden die ausgewählten Werte wie folgt abger
 ----
 GetProductProperty("viewer", "yes")
 GetProductProperty("policy", "factory_default")
+----
+
+Ab 4.12.4.32 ist bei Existenz der folgenden `%ScriptPath%\properties.conf` Datei: +
+----
+propstr = from file
+proplist = ["from file",huhu"]
+----
+das folgende Skript ausserhalb des opsi-service Kontextes erfolgreich: +
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list$
+DefVar $str$
+
+set $str$ = GetProductProperty('propstr','')
+if $str$ = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
+
+set $list$ = GetProductPropertyList('proplist','')
+if takeString(0,$list$) = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
 ----
 
 anchor:GetConfidentialProductProperty[]
@@ -3507,15 +3545,24 @@ endif
 [[opsi-script-stringlist]]
 === String-Listenverarbeitung [W/L/M]
 
-Eine String-Liste (oder ein String-Listenwert) ist eine Abfolge von String-Werten. Der Wert einer Stringliste umfasst also alle Strings dieser Liste. Für diese Werte gibt es die Variable der String-Listen. Sie sind wie folgt definiert
+anchor:DefStringList[]
 
-`DefStringList` <VarName>
+Eine String-Liste (oder ein String-Listenwert) ist eine Abfolge von String-Werten. Der Wert einer Stringliste umfasst also alle Strings dieser Liste. Für diese Werte gibt es die Variable der String-Listen. Seit 4.12.4.32 können auch optional initiale Werte mitgegeben werden. Sie werden wie folgt definiert
 
-Ein String-Listenwert ist einer String-Listenvariable zugeteilt:
+`DefStringList` <VarName> [= <inital value>]
+
+Ein String-Listenwert wird einer String-Listenvariable zugeteilt:
 
 `Set` <VarName> `=` <StringListValue>
 
-String-Listen können auf vielfältige Weise erzeugt bzw. „eingefangen“ werden. Sie werden in String-Listen-Ausdrücken verarbeitet. Der einfachste String-Listen-Ausdruck ist das Setzen eines (String-Listen-) Wertes auf eine (String-Listen-) Variable.
+String-Listenwert (`string list expressions`) können auf unterschiedliche weise entstehen: +
+
+* Aus einer Funktion welche eine Stringliste liefert
+
+* Aus einer Stringlisten Variable
+
+* Seit 4.12.4.32 aus einem String im _json style_, welche als Stringliste gelesen werden kann
+
 
 Für die folgenden Beispiele sei generell eine String-Listen-Variable '$list1$' definiert:
 [source,opsiscript]
@@ -3523,7 +3570,18 @@ Für die folgenden Beispiele sei generell eine String-Listen-Variable '$list1$' 
 DefStringList $list1$
 ----
 
-Diese Variable lässt sich auf ganz unterschiedliche Weise mit Inhalten füllen:
+Seit 4.12.4.32 ist die einfachste Methode die Verwendung eines Strings im _json style_, welche als Stringliste gelesen werden kann: +
+`["<string>"]` +
+Beispiel: +
+`set $list1$ = '["ab","cd","de"]'`
+
+Das selbe Ergebnis kann mit der Funktion `CreateStringlist` erreicht werden: +
+`set $list1$ = createstringlist("ab","cd","de")`
+
+String-Listen können auf vielfältige Weise erzeugt bzw. „eingefangen“ werden. Sie werden in String-Listen-Ausdrücken verarbeitet. Der einfachste String-Listen-Ausdruck ist das Setzen eines (String-Listen-) Wertes auf eine (String-Listen-) Variable.
+
+
+Diese Variable (`$list1$`) lässt sich auf ganz unterschiedliche Weise mit Inhalten füllen:
 Wenn wir Variablen mit <String0>, <StringVal>, .. benennen bedeutet das, dass diese für jeden belieben String-Ausdruck stehen können.
 
 Wir beginnen mit einer speziellen und sehr hilfreichen Art von String-Listen: Funktionen – also aufgerufene Hashes oder zugehörige Arrays – welche aus einer Zeile von dem Aufruf  'KEY=VALUE' stammen. Tatsache ist, dass jede Funktion eine Funktion ermitteln sollte, welche einen VALUE mit einem KEY assoziiert. Jeder KEY sollte in dem ersten Abschnitt einer Zeile auftreten (während verschiedene KEYs mit identischen VALUE verbunden sein können).
@@ -4708,11 +4766,16 @@ Registry started with redirection (32 Bit)
 
 anchor:getProductPropertyList[]
 
-* `getProductPropertyList(`<propname>,<default value>`)` [W/L/M] +
+* `getProductPropertyList(`<propname>,<default value>`)` [W/L/M] // seit 4.11.3 +
 Liefert eine Liste mit den aktiven Werten des multivalue Properties <propname>. +
-Im Gegensatz zu der Funktion `GetProductProperty` welche in diesem Fall die einzelnen Werte als einen kommaseparierten String zurückliefert. Dieses Vorgehen ist aber problematisch wenn Kommas auch in der Werten vorkommen. +
-`<default value>` kann bei `getProductPropertyList` (seit 4.11.5.6) sowohl ein Stringausdruck sein, welcher das erste Element der einer Liste beschreibt, oder eine Liste. Diese Liste wird zurückgegeben, wenn der die aktuellen Werte des Servers nicht verfügbar sind.
-Seit 4.11.3 +
+Die Funktion `GetProductProperty` würde in diesem Fall die einzelnen Werte als einen kommaseparierten String zurückliefern. Dieses Vorgehen ist aber problematisch wenn Kommas auch in der Werten vorkommen. +
+Kann der aktuelle Wert des Properies nicht vom opsi-server ermittelt werden (z.B. weil das Skript nicht im Kontext des opsi-service läuft), so wird der zurückzugebende Wert wie folgt ermittelt: +
+Seit 4.12.4.32 wird zunächst geprüft ob sich im `%ScriptPath%` eine Datei `properties.conf` befindet. Wenn ja, wird versucht aus dieser Datei den Wert des Properties zu lesen. Dabei wird die Datei `properties.conf` als Liste von key=value Paaren erwartet. Im Falle einer Stringliste wird hier ein Eintrag vom Muster `<property name>=<list value>` erwartet. Beispiel: `myproperty=["entry1","entry2","entry3"]`. +
+Wird die Datei  `properties.conf` nicht gefunden oder enthält den gesuchten Eintrag nicht, so wird der `<default value>` zurückgegeben. +
+`<default value>` kann bei `getProductPropertyList` (seit 4.11.5.6) sowohl ein Stringausdruck sein, welcher das erste Element der einer Liste beschreibt, oder eine Liste. +
+Seit 4.12.4.32 kann die Liste auch als Zeichenkette angegeben werden. Beispiel `'["ab","cd","de"]'` +
+Die als `<default value>` angebene Liste wird zurückgegeben, wenn der die aktuellen Werte des Servers nicht verfügbar sind. +
+
 Beispiel:
 [source,opsiscript]
 ----
@@ -4741,7 +4804,38 @@ DefStringList $list$
 DefStringList $propertyList$
 Set $propertyList$ = createStringList('ab','cd','de')
 Set $list$ = GetProductPropertyList ("dummymulti",$propertyList$)
+
+;;;;;; since 4.12.4.32 also possible:  
+Set $list$ = GetProductPropertyList ("dummymulti",'["ab","cd","de"]')
 ----
+
+Ab 4.12.4.32 ist bei Existenz der folgenden `%ScriptPath%\properties.conf` : +
+----
+propstr = from file
+proplist = ["from file",huhu"]
+----
+das folgende Skript ausserhalb des opsi-service Kontextes erfolgreich: +
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list$
+DefVar $str$
+
+set $str$ = GetProductProperty('propstr','')
+if $str$ = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
+
+set $list$ = GetProductPropertyList('proplist','')
+if takeString(0,$list$) = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
+----
+
 siehe auch : <<asConfidential_list>>
 
 [[opsi-script-stringlist-misc]]

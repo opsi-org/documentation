@@ -1606,14 +1606,16 @@ If running in opsi service context it is better to use `%opsiserviceUser%`.
 [[opsi-script-strvar-decl]]
 ==== Declaration
 
-String variables must be declared before they can be used. The syntax for the declaration reads
+String variables must be declared before they can be used. Since 4.12.4.32 it is also possible to pass an optional inital value. The syntax for the declaration reads
 
-`DefVar` <variable name>
+`DefVar` <variable name> [= <inital value>]
 
 e.g.
 [source,opsiscript]
 ----
 DefVar $MsVersion$
+; since 4.12.4.32 also possible:
+DefVar $MsVersion$ = '10.0'
 ----
 
 Explanation:
@@ -1714,10 +1716,15 @@ In a secondary section any such expression would be worthless (and eventually wr
 [[opsi-script-lstvar]]
 === Stringlist Variables [W/L/M]
 
-Variables for string lists must be declared in a `DefStringList` statement, e.g.
+Variables for string lists must be declared in a `DefStringList` statement. Since 4.12.4.32 it is also possible to pass an optional inital value. The syntax for the declaration reads
+
+`DefStringList` <VarName> [= <inital value>]
+
 [source,opsiscript]
 ----
-DefStringList $SMBMounts$
+DefStringList $MsVersionList$
+; since 4.12.4.32 also possible:
+DefStringList $MsVersionList$ = '["6.1","10.0"]'
 ----
 
 A string list can serve e.g. as container for the captured output of a shell program. The collected strings can be manipulated in a lot of ways. In detail this will be treated in the section on string list processing (see <<opsi-script-stringlist, String List Functions and String List Processing>>).
@@ -2303,8 +2310,10 @@ anchor:GetProductProperty[]
 
 * `GetProductProperty (` <PropertyName>, <DefaultValue>`)` +
 where $PropertyName$ and $DefaultValue$ are String expressions.
-If '{opsi-script}' is connected to the opsi configuration service the product property is retrieved from the service.
-If the '{opsi-script}' is not connected to the service or for other reasons the the call fails, the given +<DefaultValue>+ will be returned.
+If '{opsi-script}' is connected to the opsi configuration service the product property is retrieved from the service. +
+If there is no connection to the opsi server, then the resulting string is constructed in the following way: +
+Since 4.12.4.32 it is checked if there ist a file `properties.conf` in the `%ScriptPath%` directory. If this file is found, we try to get the value from this file. The file will be interpreted as list of key=value pairs. In case of a string the entry should have the pattern `<property name>=<string value>` for examle: `myproperty=myentry`. +
+If there is no file `properties.conf` or it does not contain the searched entry, so value `<default value>` is returned.
 
 The product properties can be used to configure variants of an installation.
 
@@ -2319,6 +2328,33 @@ The installation script branches according to the chosen values for these option
 ----
 GetProductProperty("viewer", "yes")
 GetProductProperty("policy", "factory_default")
+----
+
+Since 4.12.4.32: if the file `%ScriptPath%\properties.conf` exists with the content: +
+----
+propstr = from file
+proplist = ["from file",huhu"]
+----
+the following script will be (with out opsi service) successful: +
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list$
+DefVar $str$
+
+set $str$ = GetProductProperty('propstr','')
+if $str$ = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
+
+set $list$ = GetProductPropertyList('proplist','')
+if takeString(0,$list$) = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
 ----
 
 anchor:GetConfidentialProductProperty[]
@@ -3404,15 +3440,21 @@ endif
 
 anchor:DefStringList[]
 
-A String list (or a String list value) is a sequence of String values. For this kind of values we have the variable of type String list. They are defined by the statement
+A String list (or a String list value) is a sequence of String values. For this kind of values we have the variable of type String list. Since 4.12.4.32 it is also possible to pass an optional inital value. They are defined by the statement
 
-`DefStringList` <VarName>
+`DefStringList` <VarName> [= <inital value>]
 
 A String list value may be assigned to String list variable:
 
 `Set` <VarName> `=` <StringListValue>
 
-String list values can be given only as results of String expressions. There are many ways to create or capture String lists, and many options for processing them, often yielding new String lists. They are presented in the following subsections.
+String list values can be given only as results of string list expressions. These string list expressions can be construced on different ways: +
+
+* by a function that returns a string list
+
+* by a string list variable
+
+* since 4.12.4.32 by a _json style_ string that can be read as string list
 
 For the following examples we declare a String list variable '$list1$':
 
@@ -3420,6 +3462,18 @@ For the following examples we declare a String list variable '$list1$':
 ----
 DefStringList $list1$
 ----
+
+Since 4.12.4.32 the simplest way is a string in _json style_ that can be read as string list: +
+`["<string>"]` +
+Example: +
+`set $list1$ = '["ab","cd","de"]'`
+
+The same result we get by using the function `CreateStringlist`: +
+`set $list1$ = createstringlist("ab","cd","de")`
+
+
+There are many ways to create or capture String lists, and many options for processing them, often yielding new String lists. They are presented in the following subsections.
+
 
 If we refer to variables named like String0, StringVal, .. it is meant that these represent any String expressions.
 
@@ -4612,14 +4666,18 @@ Registry started with redirection (32 Bit)
 
 anchor:getProductPropertyList[]
 
-* `getProductPropertyList(`<propname>,<default value>`)` +
-returns a stringlist of values that are referred to by the multivalue product property <propname>. If there is no connection to the opsi server, then the resulting stringlist contains only <default value>. +
+* `getProductPropertyList(`<propname>,<default value>`)` [W/L/M] // seit 4.11.3 +
+returns a stringlist of values that are referred to by the multivalue product property <propname>.  +
 If you call the function `GetProductProperty` with a multivalue property, then you will get the selected values in a comma-separated string format. This will lead to problems if the returned values contain any comma chars that are not meant to be parsed. +
-`<default value>` decribes the return value if no connection to the opsi-server is available. If `<default value>` is a string expression  this string is the first element of the returned list. Since 4.11.5.6 `<default value>` may also be a string list expression.
-Available since 4.11.3 +
+If there is no connection to the opsi server, then the resulting stringlist is constructed in the following way: +
+Since 4.12.4.32 it is checked if there ist a file `properties.conf` in the `ScriptPath` directory. If this file is found we try to get the value from this file. The file will be interpreted as list of key=value pairs. In case of a stringlist the entry should have the pattern `<property name>=<list value>` for examle: `myproperty=["entry1","entry2","entry3"]`. +
+If there is no file `properties.conf` or it does not contain the searched entry, so value `<default value>` is returned.
+`<default value>` decribes the return value if no connection to the opsi-server is available. If `<default value>` is a string expression  this string is the first element of the returned list. Since 4.11.5.6 `<default value>` may also be a string list expression. Since 4.12.4.32 `<default value>` may also be a string list from the kind: `'["ab","cd","de"]'` +
+
 Example:
 [source,opsiscript]
 ----
+DefStringList $list$
 ;Property "dummymulti" has the values: ("ab", "cd", "ef", "g,h")
 set $list$ = GetProductPropertyList ("dummymulti","True")
 if not ("" = takeFirstStringContaining($list$,"g,h"))
@@ -4644,6 +4702,36 @@ DefStringList $list$
 DefStringList $propertyList$
 Set $propertyList$ = createStringList('ab','cd','de')
 Set $list$ = GetProductPropertyList ("dummymulti",$propertyList$)
+
+;;;;;; since 4.12.4.32 also possible:  
+Set $list$ = GetProductPropertyList ("dummymulti",'["ab","cd","de"]')
+----
+
+Since 4.12.4.32: if the file `%ScriptPath%\properties.conf` exists with the content: +
+----
+propstr = from file
+proplist = ["from file",huhu"]
+----
+the following script will be (with out opsi service) successful: +
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list$
+DefVar $str$
+
+set $str$ = GetProductProperty('propstr','')
+if $str$ = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
+
+set $list$ = GetProductPropertyList('proplist','')
+if takeString(0,$list$) = "from file"
+	comment "got it"
+else
+	comment "failed"
+endif
 ----
 
 see also : <<asConfidential_list>>
