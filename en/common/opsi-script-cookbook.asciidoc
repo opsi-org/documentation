@@ -1,0 +1,664 @@
+[[opsi-script-cookbook]]
+== Cook Book
+
+This chapter contains a growing collection of examples showing real world problems that can be mastered by simple or sophisticated pieces _{opsi-script}_ scripting.
+
+[[opsi-script-cookbook-recursive-delete]]
+=== Delete a File in all Subdirectories
+
+Since _{opsi-script}_ 4.2 there is an easy solution for this task: To remove a file alt.txt from all subdirectories of the user profile directory the following Files call can be used:
+[source,opsiscript]
+----
+files_delete_Alt /AllUserProfiles
+
+[files_delete_Alt]
+delete "%UserProfileDir%\alt.txt"
+----
+Neverthelesse we document a workaround which could be used in older _{opsi-script}_ versions. It demonstrates some techniques which may be helpful for other purposes.
+
+The following ingredients are needed:
+
+* A DosInAnIcon section which produces a list of all directory names.
+* A Files section which deletes the file alt.txt in some directory.
+* A String list processing that puts the parts together.
+
+The complete script should look like:
+
+[source,opsiscript]
+----
+[Actions]
+
+; variable for file name
+DefVar $deleteFile$
+set $deleteFile$ = "alt.txt"
+
+; String list declarations
+DefStringList list0
+DefStringList list1
+
+; capture the lines produced by the dos dir command
+Set list0 = getOutStreamFromSection ('dosbatch_profiledir')
+
+; Loop through the lines. Call a files section for each line.
+for $x$ in list0 do files_delete_x
+
+; Here are the two special sections
+[dosbatch_profiledir]
+@dir "%ProfileDir%" /b
+
+[files_delete_x]
+delete "%ProfileDir%\$x$\$deleteFile$"
+----
+
+[[opsi-script-cookbook-service-running]]
+=== Check if a specific service is running
+
+If we want to check if a specific service (exemplified with "opsiclientd") is running, and, e.g., if it is not running, start it, we may use the following script.
+
+In order to get the list of running services we launch the command
+
+`net start`
+
+in a DosBatch section, capturing its output in list0. We trim the list, and iterate through its elements, thus seeing if the specified service is in it. If not, we do something for it.
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list0$
+DefStringList $list1$
+DefStringList $result$
+Set $list0$=getOutStreamFromSection('DosBatch_netcall')
+Set $list1$=getSublist(2:-3, $list0$)
+
+DefVar $myservice$
+DefVar $compareS$
+DefVar $splitS$
+DefVar $found$
+Set $found$ ="false"
+set $myservice$ = "opsiclientd"
+
+
+comment "============================"
+comment "search the list"
+; for developping loglevel = 7
+; setloglevel=7
+; in normal use we dont want to log the looping
+setloglevel = 5
+for %s% in $list1$ do sub_find_myservice
+setloglevel=7
+comment "============================"
+
+if $found$ = "false"
+   set $result$ = getOutStreamFromSection ("dosinanicon_start_myservice")
+endif
+
+
+[sub_find_myservice]
+set $splitS$ = takeString (1, splitStringOnWhiteSpace("%s%"))
+Set $compareS$ = $splitS$ + takeString(1, splitString("%s%", $splitS$))
+if $compareS$ = $myservice$
+   set $found$ = "true"
+endif
+
+
+[dosinanicon_start_myservice]
+net start "$myservice$"
+
+
+[dosbatch_netcall]
+@echo off
+net start
+----
+
+[[opsi-script-cookbook-local-admin]]
+=== Script for installations in the context of a local user
+
+Sometimes it is necessary to run an installation script as a logged in local user and not in the context of the opsi service. For example, there are installations that require a user context or use services that are only started after a user login.
+MSI installations that require a local user can sometimes be configured by the option 'ALLUSERS=1' to proceed without such a user:
+
+[source,opsiscript]
+----
+[Actions]
+DefVar $LOG_LOCATION$
+Set $LOG_LOCATION$ = %opsiLogDir% + "\myproduct.log"
+winbatch_install_myproduct
+
+[winbatch_install_myproduct]
+msiexec "%SCRIPTPATH%\files\myproduct.msi" /qb ALLUSERS=1 /l* $LOG_LOCATION$ /i
+----
+
+==== opsi-template-with-userlogin
+Another solution for this problem is to create a temporary local user and run the installation while it is logged in.
+For this scenario we offer the product `opsi-template-with-userlogin`, which supersedes the product `opsi-template-with-admin`.
+
+IMPORTANT: Always use the latest version of `opsi-template-with-userlogin`!
+
+===== Customizing the product
+To customize the template to fit your needs it is recommended to create a new product, based on `opsi-template-with-userlogin`:
+
+`opsi-package-manager -i --new-product-id myproduct opsi-template-with-userlogin_4.x.x.x-x.opsi`
+
+===== Workflow
+During the installation the following steps are processed:
+
+* Backup of the following values:
+** Current Auto Logon settings.
+** Last logged in user.
+** User Account Control settings.
+** Host parameter opsiclientd.event_software_on_demand.shutdown_warning_time.
+* Temporarily setting the host parameter opsiclientd.event_software_on_demand.shutdown_warning_time to 0, to avoid unnecessary delays.
+* Generation of a random password for the opsiSetupUser.
+* Creation of the local user opsiSetupUser.
+* Setup of the Auto Logon function for the user opsiSetupUser.
+* Creation of a Scheduled Tasks for the installation in the Task Scheduler.
+* Copying the installationfiles to the client. (Depending on the settings of the Product Property `execution_method`)
+* Reboot of the client so that the Auto Logon settings take effect.
+* Automatic login of the opsiSetupUser.
+* Running the installation via the Scheduled Task. The task starts with one minute delay in order to give all the services enough time to start.
+* Reboot of the client after the installation finishes.
+* Cleanup and restore of the formerly backed up values.
+** Deletion of the opsiSetupUser including the user profile and all registry entries.
+** Deletion of all local files.
+** Restoration of the former values for Auto Logon, last logged on user and User Account Control.
+** Restoration of the former value of the host parameter opsiclientd.event_software_on_demand.shutdown_warning_time.
+
+===== Product Properties
+The behaviour of the product can be customized via the following product properties:
+
+*debug*
+
+* False (Default)
+** Disables mouse and keyboard input during the Auto Logon to prevent user interaction. The password of the opsiSetupUser is not plainly visible in the logfile.
+* True
+** Keyboard and mouse input remain enabled during the Auto Logon. The password of the opsiSetupUser is written in plain text in the logfile.
+
+*execution_method*
+
+* event_starter_local_files
+** The installation is triggered via the opsiclientd_event_starter_asInvoker.exe during the Auto Logon, which contacts the server and triggers an on_demand event.
+** The installation runs in the context of the user System.
+** The opsiSetupUser is created without admin rights.
+** The installation files are copied locally to the client.
+* event_starter_smb_share
+** The installation is triggered via the opsiclientd_event_starter_asInvoker.exe during the Auto Logon, which contacts the server and triggers an on_demand event.
+** The installation runs in the context of the user System.
+** The opsiSetupUser is created without admin rights.
+** The installation files remain on the opsi_depot share.
+* local_winst_local_files (Default)
+** The installation during the Auto Logon is run by the locally installed opsi-script.
+** The installation runs in the context of the user opsiSetupUser.
+** The opsiSetupUser is created with admin rights.
+** The installation files are copied locally to the client.
+* If the client is using the WAN/VPN mode (determined automatically) this Product Property is ignored and the installation runs with the following settings:
+** The installation during the Auto Logon is run by the locally installed opsi-script.
+** The installation runs in the context of the user opsiSetupUser.
+** The opsiSetupUser is created with admin rights.
+** The installation files from the local cache are used.
+
+*uninstall_before_install*
+
+* False (Default)
+** No uninstallation takes place prior to the installation.
+* True
+** Checks if a the software is already installed prior to the installation. If that is the case the software will be uninstalled before the installation starts.
+
+===== Structure of the product
+The product is divided into a main script that prepares the Auto Logon and the installation, and an installation script that is triggered during the Auto Logon of the local user.
+
+====== Main script
+For the sake of readability the main script is split into the following files:
+
+* declarations.opsiinc (Contains the definition of all the used variables)
+* sections.opsiinc (Contains all the sections used in the main script)
+* setup.opsiscript
+
+The only changes that need to be made to the main script are the settings for the required available free space and the parameters for the generation of the random passwort used for the opsiSetupUser.
+These need to be made in the file `declarations.opsiinc`:
+
+[source,opsiscript]
+----
+; ----------------------------------------------------------------
+; - Please edit the following values                             -
+; ----------------------------------------------------------------
+;Available free disk space required
+	Set $ProductSizeMB$ = "1000"
+
+;Number of digits
+	Set $RandomStrDigits$ = "3"
+
+;Number of lower case characters
+	Set $RandomStrLowerCases$ = "3"
+
+;Minimum lenght of the generated string
+	Set $RandomStrMinLength$ = "12"
+
+;Number of special case characters
+	Set $RandomStrSpecialChars$ = "3"
+
+;Number of upper case characters
+	Set $RandomStrUpperCases$ = "3"
+; ----------------------------------------------------------------
+----
+
+====== Installation script
+The installation script is split into multiple files as well:
+
+* declarations-local.opsiinc (Contains the definition of all the used variables)
+* sections-local.opsiinc (Contains all the sections used in the installation script)
+* setup-local.opsiinc
+* delsub-local.opsiinc
+* uninstall-local.opsiscript
+
+====== Adding the installation files
+Open the directory of your product in the servers depot and copy the installation files into the folder `localsetup\files`.
+The files `Testfolder1` and `Testfile1.txt` can safely be deleted.
+
+====== Customizing the variables
+Customize the variables in `localsetup\declarations-local.opsiinc` to fit your needs:
+
+[source,opsiscript]
+----
+; ----------------------------------------------------------------
+; - Please edit the following values                             -
+; ----------------------------------------------------------------
+;The name of the software
+	Set $ProductId$ = "opsi-template-with-userlogin"
+
+;The folder that the software installs itself to
+	Set $InstallDir$ = "%ProgramFilesSysNativeDir%\" + $ProductId$
+
+;Path to the installed executable
+	Set $InstalledExecutable$ = $InstallDir$ + "\" + $ProductId$ + ".exe"
+
+;Name of the license pool to be used
+	Set $LicensePool$ = "p_" + $ProductId$
+
+;Does the installation require a license?
+	Set $LicenseRequired$ = "false"
+
+;GUID of the installed MSI (Can be found in either HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall or HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall or determined by the opsi-setup-detector)
+	Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+
+;Name of the uninstaller executable
+	Set $Uninstaller$ = $InstallDir$ + "\uninstall.exe"
+; ----------------------------------------------------------------
+----
+
+====== Customizing setup-local.opsiinc
+The file `setup-local.opsiinc` contains the handling of the installation and the license management, as well as examples for the copying of files and folders and the creation of registry entries and desktop shortcuts.
+The example sections are commented out by default. These can be safely deleted, remain commented out or used, depending on your needs.
+
+====== Customizing sections-local.opsiinc
+This file contains all the sections that are needed for the installation.
+You need to uncomment the appropriate function to evaluate the exit codes of your installer type in the section `[Sub_Check_ExitCode]`.
+The exit codes of the following installer types can be evaluated:
+
+* Inno Setup
+* InstallShield
+* MSI
+* Nullsoft Scriptable Install System (NSIS)
+
+[TIP]
+====
+The installer type can be determined using the tool `opsi-setup-detector`.
+====
+
+In this example the function `isMsiExitcodeFatal` is used:
+
+[source,opsiscript]
+----
+[Sub_Check_ExitCode]
+Set $ExitCode$ = getlastexitcode
+;if stringtobool(isInnoExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+;if stringtobool(isInstallshieldExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+if stringtobool(isMsiExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+;if stringtobool(isNsisExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+  Set $ErrorFlag$ = $ErrorString$
+  Registry_Save_Fatal_Flag /32Bit
+  ExitWindows /ImmediateReboot
+else
+  Comment $ErrorString$
+endif
+----
+The sections `Winbatch_Install` and `Winbatch_Uninstall` contain commented out examples for the installation and deinstallation commands used by the different installer types.
+Uncomment and customize the appropriate commands for the installer type that your software uses.
+
+[source,opsiscript]
+----
+[Winbatch_Install]
+;Choose one of the following examples as basis for your installation
+;You can use the variable $LicenseKey$ to pass a license key to the installer
+
+;========= Inno Setup =========
+;"%ScriptPath%\localsetup\files\setup.exe" /sp- /silent /norestart
+
+;========= InstallShield =========
+;Create an setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
+;"%ScriptPath%\localsetup\files\setup.exe" /s /sms /f1"%ScriptPath%\localsetup\files\setup.iss" /f2"$LogDir$\$ProductId$.install_log.txt"
+
+;========= MSI package =========
+;msiexec /i "%ScriptPath%\localsetup\files\setup.msi" /qb! /l* "$LogDir$\$ProductId$.install_log.txt" ALLUSERS=1 REBOOT=ReallySuppress
+
+;========= Nullsoft Scriptable Install System (NSIS) =========
+;"%ScriptPath%\localsetup\files\setup.exe" /S <additional_parameters>
+
+[Winbatch_Uninstall]
+;Choose one of the following examples as basis for your uninstallation
+
+;========= Inno Setup =========
+;"$Uninstaller$" /silent /norestart
+
+;========= InstallShield =========
+;Create an uninstall.iss answer file by running: setup.exe /uninst /r /f1"c:\uninstall.iss"
+;"%ScriptPath%\localsetup\files\setup.exe" /uninst /s /f1"%ScriptPath%\localsetup\files\uninstall.iss" /f2"$LogDir$\$ProductId$.uninstall_log.txt"
+
+;========= MSI =========
+;msiexec /x $MsiId$ /qb! /l* "$LogDir$\$ProductId$.uninstall_log.txt" REBOOT=ReallySuppress
+
+;========= Nullsoft Scriptable Install System (NSIS) =========
+;"$Uninstaller$" /S
+----
+
+====== Customizing delsub-local.opsiinc
+The handling of the uninstallation consists of either looking for an already installed executable, or a present MSI GUID in the registry.
+Uncomment the appropriate line for your installer type and comment out the other line. In the following example the line for MSI is uncommented:
+
+[source,opsiscript]
+----
+Comment "Searching for already installed version"
+;if FileExists($InstalledExecutable$)
+if NOT(GetRegistryStringValue("[HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ + "] DisplayName") = "")
+  Comment "Starting the uninstallation"
+    Winbatch_Uninstall /SysNative
+    Sub_Check_ExitCode
+
+    Comment "License handling"
+      if NOT($LicenseRequired$ = "false")
+        Comment "Licensing required, free license used"
+          Sub_Free_License
+      endif
+
+    ;Comment "Deleting files"
+    ;	Files_Delete /SysNative
+
+    ;Comment "Deleting registry entries"
+    ;	Registry_Delete /SysNative
+
+    ;Comment "Deleting links"
+    ;	LinkFolder_Delete
+endif
+----
+
+The file `delsub-local.opsiinc` contains the handling of the uninstallation and the license management, as well as examples for the deletion of files and folders, registry entries and desktop shortcuts.
+The example sections are commented out by default. These can be safely deleted, remain commented out or used, depending on your needs.
+
+[NOTE]
+====
+The uninstallation does not run in the context of the logged in local user, since this is usually not required.
+====
+
+===== Error handling
+[IMPORTANT]
+====
+If you customize the scripts you need to make sure not to use the function `isFatalError`!
+The function `isFatalError` cancels the execution of the script *immediately*, which means that the cleanup phase the re-enables keyboard and mouse inputs, restores the former settings and removes the opsiSetupUser will *never* be executed! This means the installation will stop with the logged in opsiSetupUser and it leads to an infinite Auto Logon loop after each reboot.
+To avoid this use the following code for the handling of errors. This stores the error message in the variable `$ErrorFlag$`, which will be saved in the registry. After that the client will be restarted via `ExitWindows /ImmediateReboot` immediately. After the reboot the cleanup phase will be executed and the value stored in the variable `$ErrorFlag$` will be evalutated.
+
+[source,opsiscript]
+----
+Set $ErrorFlag$ = "Installation not successful"
+Registry_Save_Fatal_Flag /32Bit
+ExitWindows /ImmediateReboot
+----
+====
+
+[[opsi-script-cookbook-patchxml]]
+=== XML File Patching: Setting Template Path for OpenOffice.org 2
+
+Setting the template path can be done by the following script extracts
+
+[source,opsiscript]
+----
+[Actions]
+; ....
+
+DefVar $oooTemplateDirectory$
+;--------------------------------------------------------
+;set path here:
+
+Set $oooTemplateDirectory$ = "file://server/share/verzeichnis"
+;--------------------------------------------------------
+;...
+
+DefVar $sofficePath$
+Set $sofficePath$= GetRegistryStringValue ("[HKEY_LOCAL_MACHINE\SOFTWARE\OpenOffice.org\OpenOffice.org\2.0] Path")
+DefVar $oooDirectory$
+Set $oooDirectory$= SubstringBefore ($sofficePath$, "\program\soffice.exe")
+DefVar $oooShareDirectory$
+Set $oooShareDirectory$ = $oooDirectory$ + "\share"
+
+XMLPatch_paths_xcu $oooShareDirectory$+"\registry\data\org\openoffice\Office\Paths.xcu"
+; ...
+
+
+[XMLPatch_paths_xcu]
+OpenNodeSet
+- error_when_no_node_existing false
+- warning_when_no_node_existing true
+- error_when_nodecount_greater_1 false
+- warning_when_nodecount_greater_1 true
+- create_when_node_not_existing true
+- attributes_strict false
+
+documentroot
+all_childelements_with:
+elementname: "node"
+attribute:"oor:name" value="Paths"
+all_childelements_with:
+elementname: "node"
+attribute: "oor:name" value="Template"
+all_childelements_with:
+elementname: "node"
+attribute: "oor:name" value="InternalPaths"
+all_childelements_with:
+elementname: "node"
+
+end
+
+SetAttribute "oor:name" value="$oooTemplateDirectory$"
+----
+
+[[opsi-script-cookbook-xml-patch-complex-attributes]]
+=== Patching a XML configuration file for a MsSql application: An example with misleadingly named attributes
+
+The file which is to be patched has e.g. the following form; the values of DataSource and InitialCatalog will be filled using the
+variables $source$ and $catalog$.
+
+[source,xml]
+----
+<?xml version="1.0"?>
+<configuration>
+  <startup>
+    <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.5"/>
+  </startup>
+  <appSettings>
+    <add key="Database.DatabaseType" value="MsSqlServer"/>
+    <add key="Database.DataSource" value="[db-servername]\[db-instance]"/>
+    <add key="Database.InitialCatalog" value="TrustedData"/>
+    <add key="ActiveDirectory.Enabled" value="false"/>
+    <add key="ActiveDirectory.LdapRoot" value=""/>
+  </appSettings>
+</configuration>
+----
+
+Then the following XMLPatch section can be used:
+
+[source,opsiscript]
+----
+
+[XMLPatch_db_config]
+openNodeSet
+	documentroot
+	all_childelements_with:
+		elementname:"appSettings"
+	all_childelements_with:
+		elementname:"add"
+		attribute: "key" value ="Database.DataSource"
+end
+SetAttribute "value" value="$source$"
+
+openNodeSet
+	documentroot
+	all_childelements_with:
+		elementname:"appSettings"
+	all_childelements_with:
+		elementname:"add"
+		attribute: "key" value ="Database.InitialCatalog"
+end
+SetAttribute "value" value="$catalog$"
+
+----
+
+[[opsi-script-cookbook-readxml]]
+=== Retrieving Values From a XML File
+
+As treated in <<opsi-script-cookbook-patchxml>> , _{opsi-script}_ can evaluate and modify XML files.
+
+An example shall demonstrate how a value can be retrieved from a XML file. We assume that the following XML file is:
+[source,opsiscript]
+----
+<?xml version="1.0" encoding="utf-16" ?>
+<Collector xmlns="http://schemas.microsoft.com/appx/2004/04/Collector" xmlns:xs="http://www.w3.org/2001/XMLSchema-instance" xs:schemaLocation="Collector.xsd" UtcDate="04/06/2006 12:28:17" LogId="{693B0A32-76A2-4FA0-979C-611DEE852C2C}"  Version="4.1.3790.1641" >
+   <Options>
+      <Department></Department>
+      <IniPath></IniPath>
+      <CustomValues>
+      </CustomValues>
+   </Options>
+   <SystemList>
+      <ChassisInfo Vendor="Chassis Manufacture" AssetTag="System Enclosure 0" SerialNumber="EVAL"/>
+      <DirectxInfo Major="9" Minor="0"/>
+   </SystemList>
+   <SoftwareList>
+      <Application Name="Windows XP-Hotfix - KB873333" ComponentType="Hotfix" EvidenceId="256" RootDirPath="C:\WINDOWS\$NtUninstallKB873333$\spuninst" OsComponent="true" Vendor="Microsoft Corporation" Crc32="0x4235b909">
+         <Evidence>
+            <AddRemoveProgram DisplayName="Windows XP-Hotfix - KB873333" CompanyName="Microsoft Corporation" Path="C:\WINDOWS\$NtUninstallKB873333$\spuninst" RegistryPath="HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\KB873333" UninstallString="C:\WINDOWS\$NtUninstallKB873333$\spuninst\spuninst.exe" OsComponent="true" UniqueId="256"/>
+         </Evidence>
+      </Application>
+      <Application Name="Windows XP-Hotfix - KB873339" ComponentType="Hotfix" EvidenceId="257" RootDirPath="C:\WINDOWS\$NtUninstallKB873339$\spuninst" OsComponent="true" Vendor="Microsoft Corporation" Crc32="0x9c550c9c">
+         <Evidence>
+            <AddRemoveProgram DisplayName="Windows XP-Hotfix - KB873339" CompanyName="Microsoft Corporation" Path="C:\WINDOWS\$NtUninstallKB873339$\spuninst" RegistryPath="HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Uninstall\KB873339" UninstallString="C:\WINDOWS\$NtUninstallKB873339$\spuninst\spuninst.exe" OsComponent="true" UniqueId="257"/>
+         </Evidence>
+      </Application>
+   </SoftwareList>
+</Collector>
+----
+
+To read the elements and get the values of all „Application“ nodes we may use these extracts of code:
+[source,opsiscript]
+----
+[Actions]
+DefStringList $list$
+
+...
+
+set $list$ = getReturnListFromSection ('XMLPatch_findProducts '+$TEMP$+'\test.xml')
+for $line$ in $list$ do Sub_doSomething
+
+[XMLPatch_findProducts]
+openNodeSet
+	; Node „Collector“ is  documentroot
+	documentroot
+	all_childelements_with:
+	  elementname:"SoftwareList"
+	all_childelements_with:
+	  elementname:"Application"
+end
+return elements
+
+[Sub_doSomething]
+set $escLine$ = EscapeString:$line$
+; now we can work on the content of $escLine$
+----
+We encapsulate the retrieved Strings by setting their values as a whole into an variable via an EscapeString call. Since the loop variable %line% is not a common variable but behaves like a constant all special characters in it ( as < > $ % “ \' ) may cause difficulties.
+
+'
+[[opsi-script-cookbook-xmlnamespace]]
+=== Inserting a Name Space Definition Into a XML File
+
+The _{opsi-script}_ XMLPatch section requires fully declared XML name spaces (as is postulated in the XML RFC). But there are XML configuration files which do not declare „obvious“ elements (and the interpreting programs insist that the file looks this way). Especially patching the lots of XML/XCU configuration files of OpenOffice.org proved to be a hard job. For solving this task, A. Pohl (many thanks!) the functions XMLaddNamespace and XMLremoveNamespace. Its usage is demonstrated by the following example:
+[source,opsiscript]
+----
+DefVar $XMLFile$
+DefVar $XMLElement$
+DefVar $XMLNameSpace$
+set $XMLFile$ = "D:\Entwicklung\OPSI\winst\Common.xcu3"
+set $XMLElement$ = 'oor:component-data'
+set $XMLNameSpace$ = 'xmlns:xml="http://www.w3.org/XML/1998/namespace"'
+
+if XMLAddNamespace($XMLFile$,$XMLElement$, $XMLNameSpace$)
+  set $NSMustRemove$="1"
+endif
+;
+; now the XML Patch should work
+; (commented out since not integrated in this example)
+;
+; XMLPatch_Common $XMLFile$
+;
+; when finished we rebuild the original format
+if $NSMustRemove$="1"
+  if not (XMLRemoveNamespace($XMLFile$,$XMLElement$,$XMLNameSpace$))
+    LogError "XML-Datei konnte nicht korrekt wiederhergestellt werden"
+    isFatalError
+  endif
+endif
+----
+
+Please observe that the XML file must be formatted such that the element tags do not contain line breaks.
+
+[[opsi-script-cookbook-whicheventrunning]]
+=== Finds out if a script is currently running in the context of a particular event
+
+The opsiclientd determines and knows which event is currently active. `opsi-script` can be used by means of an _opsiservicecall_
+And thus connect with the _opsiclientd_ querying the corresponding events:
+
+[source,opsiscript]
+----
+[actions]
+setLogLevel=5
+DefVar $queryEvent$
+DefVar $result$
+
+;==================================
+set $queryEvent$ = "gui_startup"
+
+set serviceInfo = getReturnListFromSection('opsiservicecall_event_on_demand_is_running /opsiclientd')
+set $result$ = takestring(0, serviceInfo)
+if $result$ = "true"
+	comment "event " + $queryEvent$ + " is running"
+else
+	comment "NOT running event " + $queryEvent$
+endif
+
+;==================================
+set $queryEvent$ = "on_demand"
+
+set serviceInfo = getReturnListFromSection('opsiservicecall_event_on_demand_is_running /opsiclientd')
+set $result$ = takestring(0, serviceInfo)
+if $result$ = "true"
+	comment "event " + $queryEvent$ + " is running"
+else
+	comment "NOT running event " + $queryEvent$
+endif
+
+;==================================
+set $queryEvent$ = "on_demand{user_logged_in}"
+
+set serviceInfo = getReturnListFromSection('opsiservicecall_event_on_demand_is_running /opsiclientd')
+set $result$ = takestring(0, serviceInfo)
+if $result$ = "true"
+	comment "event " + $queryEvent$ + " is running"
+else
+	comment "NOT running event " + $queryEvent$
+endif
+
+----
