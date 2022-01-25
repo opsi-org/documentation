@@ -1,0 +1,221 @@
+[[opsi-script-exercises]]
+== opsi-script Übungen
+
+
+[[opsi-script-exercises-introduction]]
+=== Einführung
+Dieses Tutorial soll Funktionen der Winst-Scripte durch einfache Übungen aufzeigen.
+Wenn möglich sollen Konstanten und Variablen verwendet werden, wie zB. '%system%' für den Aufruf 'c:\windows\system32'.
+
+Zur Erstellung der Scripte sei auf folgende Dokumentationen verwiesen:
+
+* `opsi-script Handbuch`
+* `opsi-script reference card`
+
+Außerdem gibt es unter download.uib.de im Bereich Testing oder Stable das Produkt opsi-script-test<Version>, indem ein setup.ins mit nahezu allen Winst-Befehlen enthalten ist.
+
+[[opsi-script-exercises-lections]]
+=== Erstellung von Winst-Scripten
+Die winst-Scripte lassen sich mit einem normalen Texteditor erstellen, deutlich übersichtlicher wird es jedoch wenn der verwendete Editor über ein Syntax-Highlighting verfügt.
+Die Scripte können aus einem manuel aufgerufenen Winst gestartet werden.
+
+[[opsi-script-exercises-lection1]]
+==== 1. Übung
+In der ersten Übung sollen alle Dateien aus dem Verzeichnis `c:\windows\system32` aufgelistet werden.
+
+Verwenden Sie hierzu die Funktion "DosInAnIcon" mit der Sie Befehle wie in einer Dos-Box absetzen können.
+
+Folgende opsi-script Funktionen können Sie verwenden:
+
+* `DosInAnIcon`
+
+[[opsi-script-exercises-lection2]]
+==== 2. Übung
+Erweitern Sie das Script aus Übung 1, indem sie die Liste aller Dateien aus dem System32-Verzeichnis in eine Stringliste übergeben.
+
+Zur Erstellung einer solchen Liste kann der Funktion "getOutStreamFromSection" der Aufruf von "DosInAnIcon" übergeben werden.
+
+Folgende opsi-script Funktionen können Sie verwenden:
+
+* `DefStringlist`
+* `getOutStreamFromSection`
+* `setloglevel = 7`
+
+[[opsi-script-exercises-lection3]]
+==== 3. Übung
+In einer Kommentarzeile soll die Anzahl der DDL-Files unter `c:\windows\system32` ausgegeben werden.
+
+Erweitern Sie das Script aus Übung 2, indem Sie aus der Liste der Dateien mit Hilfe der Funktionen "getListContaining" die DDL-Files separieren. Mit Hifle von "count" können Sie die Anzahl auslesen.
+
+Folgende opsi-script Funktionen können Sie verwenden:
+
+* `getListContaining`
+* `count`
+* `comment`
+
+[[opsi-script-exercises-lection4]]
+==== 4. Übung
+Gibt es eine `kernel32.dll` in `c:\windows\system32` und wenn ja welche Größe hat sie?
+
+Aufbauend auf dem Script aus Übung 3 können Sie mit Hifle der Funktionen "TakeFirstStringContaining" den Eintrag mit Kernel32.dll gewinnen. Denken Sie dabei daran, dass das Ergebnis keine Liste ist.
+Mit der Funktion "SplitStringOnWhiteSpace" läßt sich die Ausgabe in eine String-Liste überführen, aus der mit Hilfe von "TakeString" die Größe der Datei ausgelesen werden kann.
+
+Folgende opsi-script Funktionen können Sie verwenden:
+
+* `TakeFirstStringContaining`
+* `SplitStringOnWhiteSpace`
+* `TakeString`
+
+[[opsi-script-exercises-lection5]]
+==== 5. Übung
+Welche `kernel32.dll` auf einem 64Bit-System ist größer, die 32Bit- oder die 64Bit-Version?
+
+Erweitern Sie das Script aus Übung 4 entsprechend. Die 64Bit-Version der kernel32.dll erhalten Sie, indem die Dos-Box in der 64Bit-Version aufgerufen wird.
+
+Folgende opsi-script Funktionen können Sie verwenden:
+
+* `DosInAnIcon winst /64bit`
+
+[[opsi-script-exercises-solutions]]
+=== Lösungen
+
+[[opsi-script-exercises-solutions1]]
+==== Lösung Übung 1
+[source,opsiscript]
+----
+[Actions]
+comment "Show all Systemfiles"
+DosInAnIcon_Dir
+
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir
+----
+
+[[opsi-script-exercises-solutions2]]
+==== Lösung Übung 2
+[source,opsiscript]
+----
+[Actions]
+setloglevel = 7
+
+DefStringList $list1$
+
+comment "Show all Systemfiles"
+;DosInAnIcon_Dir
+comment "Output from DosInAnIcon is setting to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir
+----
+
+[[opsi-script-exercises-solutions3]]
+==== Lösung Übung 3
+[source,opsiscript]
+----
+[Actions]
+DefVar $DLLAnzahl$
+DefStringList $list1$
+
+
+	comment "Show all Systemfiles"
+	;DosInAnIcon_Dir
+	comment "Output from DosInAnIcon is setting to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+	;getListContaining(<list>,<search string>)
+	;get a partial list with all strings that match <search string>
+	comment "list with only DDL-Files"
+set $list1$ = getlistContaining ($list1$,".dll")
+	comment "Number of DDL-Files"
+set $DLLAnzahl$ = count ($list1$)
+	comment "Number of DLL-Files: " + $DLLAnzahl$
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+----
+
+[[opsi-script-exercises-solutions4]]
+==== Lösung Übung 4
+[source,opsiscript]
+----
+[Actions]
+DefVar $DLLAnzahl$
+DefVar $dirline$
+
+DefStringList $list1$
+
+comment "Show all Systemfiles"
+;DosInAnIcon_Dir
+comment "Output from DosInAnIcon is setting to a list"
+set $list1$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+;set $list64$ = getOutStreamFromSection ("DosInAnIcon_Dir winst /64bit")
+comment "get string kernel32.dll"
+set $dirline$ = takeFirstStringContaining ($list1$,"kernel32.dll")
+if $dirline$ = ""
+comment "Kernel32.dll not exist"
+else
+	set $list1$ = splitStringOnWhiteSpace($dirline$)
+	set $dirline$ = takeString (2,$list1$)
+	comment "Size of Kernel32.dll: "+$dirline$+" B"
+endif
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+----
+
+[[opsi-script-exercises-solutions5]]
+==== Lösung Übung 5
+[source,opsiscript]
+----
+[Actions]
+DefVar $dirline$
+DefVar $dirline64$
+DefStringList $list32$
+DefStringList $list64$
+
+;search for 32 Bit-Version
+comment "Output from DosInAnIcon is setting to a list"
+set $list32$ = getOutStreamFromSection ("DosInAnIcon_Dir")
+	comment "get string kernel32.dll"
+set $dirline$ = takeFirstStringContaining ($list32$,"kernel32.dll")
+if $dirline$ = ""
+	comment "Kernel32.dll not exist"
+else
+	set $list32$ = splitStringOnWhiteSpace($dirline$)
+	set $dirline$ = takeString (2,$list32$)
+		comment "Size of 32Bit Kernel32.dll: "+$dirline$+" B"
+endif
+
+;search for 64 Bit-Version
+set $list64$ = getOutStreamFromSection ("DosInAnIcon_Dir winst /64bit")
+comment "get string kernel32.dll"
+set $dirline64$ = takeFirstStringContaining ($list64$,"kernel32.dll")
+if $dirline64$ = ""
+	comment "Kernel32.dll not exist"
+else
+	set $list64$ = splitStringOnWhiteSpace($dirline64$)
+	set $dirline64$ = takeString (2,$list64$)
+		comment "Size of 64 Bit Kernel32.dll: "+$dirline64$+" B"
+endif
+
+if $dirline64$ > $dirline$
+	Comment "The 64Bit-Version is " +$dirline64$+ " Byte is greater than the 32Bit-Version with " +$dirline$+" Byte"
+else
+	Comment "The 32Bit-Version ist " +$dirline$+ " Byte is greater than the 64Bit-Version with " +$dirline64$+" Byte"
+endif
+
+[DosInAnIcon_Dir]
+%systemdrive%
+cd %system%
+dir *.*
+----
+

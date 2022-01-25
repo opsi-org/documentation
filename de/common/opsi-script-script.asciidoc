@@ -1,0 +1,118 @@
+[[opsi-script-script]]
+== Das _{opsi-script}_ Skript
+
+Wie schon erwähnt, interpretiert das Programm _{opsi-script}_ eine eigene, einfache Skriptsprache, die speziell auf die Anforderungen von Softwareinstallationen zugeschnitten ist. Jede Installation wird durch ein spezifisches Skript beschrieben und gesteuert.
+
+In diesem Abschnitt ist der Aufbau eines _{opsi-script}_ Skripts im Überblick skizziert – etwa so, wie man es braucht, um die Funktionsweise eines Skripts in etwas nachvollziehen zu können.
+
+Sämtliche Elemente werden in den nachfolgenden Abschnitten genauer beschrieben, so dass auch deutlich wird, wie Skripte entwickelt und abgeändert werden können.
+
+[[opsi-script-script-first-example]]
+=== Ein Beispiel
+
+In ihren äußeren Form ähneln die _{opsi-script}_ Skripte .INI-Dateien. Sie setzen sich aus einzelnen Abschnitten (Sektionen) zusammen, die jeweils durch eine Überschrift (den Sektionsnamen) in eckigen Klammern [] gekennzeichnet sind.
+Ein beispielhaftes, schematisches _{opsi-script}_ Skript (hier mit einer Fallunterscheidung für verschiedene Betriebssystem-Varianten) könnte etwas so aussehen:
+
+[source,opsiscript]
+----
+[Actions]
+Message "Installation von Mozilla"
+SetLogLevel=6
+
+;Welche Windows-Version?
+DefVar $MSVersion$
+
+Set $MSVersion$ = GetMsVersionInfo
+if CompareDotSeparatedNumbers($MSVersion$,">=","6")
+  sub_install_winnt6
+else
+  stop "not a supported OS-Version"
+endif
+
+
+[sub_install_winnt6]
+Files_copy_winnt6
+WinBatch_Setup
+
+[Files_copy_winnt6]
+copy "%scriptpath%\files_win10\*.*" "c:\temp\installation"
+
+[WinBatch_Setup]
+c:\temp\installation\setup.exe
+----
+
+Wie lassen sich die Sektionen oder Abschnitte dieses Skripts lesen?
+
+[[opsi-script-kinds-of-sections]]
+=== Primäre und sekundäre Unterprogramme des _{opsi-script}_ Skripts
+
+Dass das Skript insgesamt als die Vorschrift zur Ausführung einer Installation anzusehen ist, d.h. als eine Art von Programm, kann jeder seiner Sektionen als Teil- oder Unterprogramm (auch als "Prozedur" oder "Methode" bezeichnet) aufgefasst werden.
+
+Das Skript besteht demnach aus einer Sammlung von Teilprogrammen. Damit ein Mensch oder ein Interpreter-Programm es richtig liest, muss bekannt sein, welches der Teilprogramme Priorität hat, mit welchem also in der Abarbeitung angefangen werden soll.
+
+Für die _{opsi-script}_ Skripte ist festgelegt, dass die primäre Sektion mit dem Titel [Actions] abgearbeitet wird. Alle anderen Sektionen fungieren als Unterprogramme und können von dieser Sektion aufgerufen werden. Nur in den Sub-Sektionen können dann wiederum Unterprogramme aufgerufen werden.
+
+NOTE: Wird ein Script als 'userLoginScript' aufgerufen, und enthält eine Sektion [ProfileActions] so wird das Script ab dieser Sektion abgearbeitet.
+
+Dies liefert die Grundlage für die Unterscheidung zwischen primären und sekundären Unterprogrammen:
+
+Die primären oder Steuerungssektionen umfassen:
+
+* die *Actions*-Sektion
+
+* die *Sub*-Sektionen (Unterprogramme der Actions-Sektion, die auch deren Syntax und Funktionslogik erben).
+
+* die *ProfileActions*-Sektion die je nach script mode (Machine/Login) unterschiedlich interpretiert wird.
+
+In diesen Sektionsarten können andere Sektionstypen aufgerufen werden, so dass der Ablauf des Skripts "im Großen" geregelt wird.
+
+Dagegen weisen die  sekundären, aufgabenspezifischen Sektionen eine eng an die jeweilige Funktion gebundene Syntax auf, die keinen Verweis auf andere Sektionen erlaubt. Derzeit existieren die folgenden Typen sekundärer Sektionen:
+
+* Files-Sektionen,
+* WinBatch-Sektionen,
+* DosBatch/DosInAnIcon/ShellInAnIcon-Sektionen,
+* Registry-Sektionen
+* Patches-Sektionen,
+* PatchHosts-Sektionen,
+* PatchTextFile-Sektionen,
+* XMLPatch-Sektionen (nicht mehr empfohlen),
+* XML2-Sektionen,
+* LinkFolder-Sektionen,
+* opsiServiceCall-Sektionen,
+* ExecPython-Sektionen,
+* ExecWith-Sektionen,
+* LDAPsearch-Sektionen.
+
+Im Detail wird Bedeutung und Syntax der unterschiedlichen Sektionstypen in den Abschnitten
+<<opsi-script-prim-section, Syntax und Bedeutung der primären Sektionen eines _{opsi-script}_ Skripts>>
+und
+<<opsi-script-secsections, Sekundäre Sektionen>>
+behandelt.
+
+[[opsi-script-stringvalues]]
+=== String-Ausdrücke im _{opsi-script}_ Skript
+
+In den primären Sektionen können textuelle Angaben (String-Werte) auf verschiedene Weisen bestimmt werden:
+
+* Durch die direkte Nennung des Inhalts, in der Regel in (doppelten) Anführungszeichen, Beispiele: +
+'"Installation von Mozilla"' +
+'"n:\home\user name"'
+
+* Durch die Anführung einer String-Variable oder String-Konstante, die einen Wert "enthält" oder "trägt": +
+'$MsVersion$' +
+kann – sofern der Variable zuvor ein entsprechender Wert zugewiesen wurde -  für "6.1" stehen .
+
+* Durch Aufruf einer Funktion, die einen String-Wert ermittelt: +
+'EnvVar ("Username")' +
+holt z.B. einen Wert aus der Systemumgebung, in diesem Fall den Wert der Umgebungsvariable Username. Funktionen können auch parameterlos sein, z.B. +
+'GetMsVersionInfo' +
+Dies liefert auf einem Win7-System wieder den Wert "6.1" (anders als bei einer Variablen wird der Wert aber bei jeder Verwendung des Funktionsnamens neu bestimmt).
+
+Durch einen additiven Ausdruck, der einfache String-Werte bzw. -Ausdrücke zu einem längeren String verkettet (wer unbedingt will, kann dies als Anwendung der Plus-Funktion auf zwei Parameter ansehen ...). +
+'$Home$ + "\mail"'
+
+(Mehr zu diesem Thema in Kapitel <<opsi-script-string, String-Werte, String-Ausdrücke und String-Funktionen>>).
+
+In den sekundären Sektionen gilt die jeweils spezifische Syntax, die z.B. beim Kopieren weitgehend der des "normalen" DOS-copy-Befehls entspricht. Daher können dort keine beliebigen String-Ausdrücke verwendet werden. Zum "Transport" von String-Werten aus den primären in die sekundären Sektionen eignen sich ausschließlich einfache Werte-Träger, also die Variablen und Konstanten.
+
+Im nächsten Kapitel folgt Genaueres zu Definition und Verwendung von Variablen und Konstanten.
