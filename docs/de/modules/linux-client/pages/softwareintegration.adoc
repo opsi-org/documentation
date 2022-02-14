@@ -1,0 +1,389 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.2
+:doctype: book
+:linclientmanual: opsi-linux-client-manual
+
+include::common:partial$opsi_terms.adoc[]
+
+
+
+[[opsi-linclient-softwintegration]]
+= Einbindung eigener Software in die Softwareverteilung von opsi
+
+Die Installation von Software erfolgt bei opsi durch den {opsi-client-agent} und insbesondere durch das Script gesteuerte Setup Programm {opsi-script}. Daher muss zu jedem opsi-Produkt ein {opsi-script}-Script erstellt werden. Danach werden dieses Script, die Installationsdateien und die Metadaten zu einem opsi-Produkt gepackt, welches sich schließlich auf dem {opsi-Server} installieren lässt.
+
+[[opsi-linclient-softwintegration-tutorial]]
+== Ein kleines Tutorial zur Erstellung eines {opsi-script} Scriptes
+
+
+include::common:partial$softwintegration-tutorial-introduction.adoc[leveloffset=-1]
+
+[[opsi-linclient-softwintegration-tutorial-general]]
+=== Methoden der nicht interaktiven Softwareinstallation bei Linux
+
+Linux hat (im Gegensatz zu Windows) vergleichsweise stark standadisierte Paketformate und Installationsmetoden. Die Problematik liegt bei Linux in der Vielzahl von Distributionen, die sich wiederum in den Paketformaten und Installationsbefehlen unterscheiden.
+Im Kern gibt es folgende Varianten:
+
+* Installation eines Paketes aus einem Repository
+* Installation eines Paketes aus einer Datei (*.rpm, *.deb)
+* Installation mit einem Third-Party Installer
+* Installation aus dem Quellcode (make install)
+
+
+In den ersten beiden Fällen ist eine `unattended` (also nicht interaktive) Installation kein Problem.
+
+Häufig wird Linux Software in gepackten Formaten angeboten wie *.zip oder auch *.tgz.
+
+Alle bisher genannten Varianten können per opsi-script direkt installiert werden, außer *.tgz welches vorher ausgepackt werden muß.
+
+include::common:partial$softwintegration-tutorial-script-structure-opsi-script-basics.adoc[]
+//
+[[opsi-linclient-softwintegration-tutorial-Linux-special-commands]]
+==== Spezielle Kommandos für Linux
+
+siehe auch: https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#opsi-winst-rc-linux-specific
+
+* GetOS   // liefert: Linux or Windows_NT or MacOS [W/L/M]
+
+* getLinuxDistroType // liefert: debian or redhat or suse [L] +
+https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#getLinuxDistroType
+
+* getLinuxVersionMap [L] +
+https://download.uib.de/opsi_stable/doc/html/opsi-winst-manual/opsi-winst-manual.html#getLinuxVersionMap
+
+Siehe auch: +
+http://bonifax.uib.local/opsidoc/git-stable/html/opsi-winst-manual/opsi-winst-manual.html#opsi-script-rc-linux-specific
+
+In den folgenden Kapiteln werden spezielle opsi Linux Befehle zur Installation von Software vorgestellt welche aus der opsi-script Library `uib_lin_install` stammen. Diese Dokumentation ist in Englisch, da sie direkt aus dem Quellcode automatisch generiert wurde.
+
+Zum Verständnis zunächst ein Überblick über die unterschiedlichen Ansätze der Methoden:
+
+* Distributionsunabhängige Methoden:
+
+** `cleanupPackageSystem`
+
+** `installupdates`
+
+* Installation von einem oder mehreren Paketen aus online Repos für eine spezifische Distribution +
+Soll nur ein Paket installiert werden, so ist in dem Aufrufen statt $packagelist$, zu verwenden: `createStringList(<package name>)` +
+Die Paketnamen in der Liste müssen zur Distribution / Version passen.
+
+** debinstall($packagelist$ : stringlist) : string //since 4.12.4 [L]
+
+** redinstall($packagelist$ : stringlist) : string //since 4.12.4 [L]
+
+** suseinstall($packagelist$ : stringlist) : string //since 4.12.4 [L]
+
+** ucsinstall($packagelist$ : stringlist) : string //since 4.12.4 [L]
+
+* Installation / Deinstallation von einem oder mehren Paketen für eine bekannte Distribution / Version (d.h. Paketnamen müssen passen). +
+Der notwendige Befehl wird anhand der Distribution ermittelt.
+
+** genericLinInstall($packagelist$ : stringlist) : string
+
+** linuxRemoveOnePackage($packagename$ : string) : string
+
+** linuxInstallOneFile($packagefile$ : string) : string
+
+
+* Installation / check / deinstallation von einem Paket aus online Repos für unterschiedliche Distributionen / Versionen, weswegen das Paket auch unterschiedliche Namen haben kann. +
+D.h. es wird davon ausgegangen, das die Paketnamen in der Liste alles pseudonyme für das selbe Paket sind aber für unterschiedliche Versionen bzw. Distributionen.
+Der notwendige Befehl wird anhand der Distribution ermittelt.
+
+** linuxInstallOneOf($packagelist$ : stringlist) : string
+
+** isOneInstalled($packagelist$ : stringlist) : string
+
+** linuxRemoveOneOf($packagelist$ : stringlist) : string
+
+// http://www.methods.co.nz/asciidoc/userguide.html#X90
+:leveloffset: 4
+
+// Include os-lib_uib_Linuxinstalllib.asciidoc
+include::opsi-docs-en:common:partial$os-lib-uib-lin-install.adoc[]
+
+:leveloffset: 0
+
+[[opsi-linclient-softwintegration-tutorial-template]]
+=== Drittes Beispiel: Linux-Template 'l-opsi-template'
+
+Dieses Template können Sie sich mit dem `opsi-setup-detector` erstellen.
+
+.define_vars_multi.opsiscript: Variablen deklaration
+[source,winst]
+----
+; -------------------------------------
+; include file for opsi-setup-detector products
+; Define all variables here
+;---------------------------
+DefVar $ProductId$
+DefVar $InstallDir$
+DefVar $InstallDir1$
+DefVar $InstallDir2$
+DefVar $MinimumSpace$
+DefVar $ExitCode$
+DefVar $ErrorString$
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+DefVar $OS$
+DefVar $OSshort$
+DefVar $oldProgFound$
+DefVar $installSuccess$
+DefVar $installCommand$
+DefVar $MsiId$
+DefVar $UninstallProgram$
+DefVar $installerfile$
+DefVar $distrotype$
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $arch$
+DefVar $tmpstr$
+DefVar $targetfile$
+DefVar $iconfile$
+
+DefStringlist $ListOfPackageNames$
+DefStringList $osinfomap$
+
+----
+
+.setup.opsiscript: Installationsscript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the General Public License.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+importlib "uib_lin_install.opsiscript"
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "l-opsi-template"
+Set $MinimumSpace$	 = "1 MB"
+; the path were we find the product after the installation
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; enter here names of the package at the supported Distributions / Versions
+Set $ListOfPackageNames$ = CreateStringList("<packagename>")
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "linux"))
+	logError "Installation aborted: wrong OS version: only linux"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+Message "Installing " + $ProductId$ + " ..."
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, reserve license and get license key"
+	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
+endif
+
+comment "Start setup "
+ChangeDirectory "%SCRIPTPATH%\files1"
+;----------------------------------------------
+cleanupPackageSystem()
+;----------------------------------------------
+; To create a new repo: described in the opsi-script manual (Linux)
+;
+; install a package from a existing repo:
+; set $installSuccess$ = linuxInstallOneOf($ListOfPackageNames$)
+; set $exitcode$ = boolToGenericExitcode($installSuccess$)
+;
+; install a deb/rpm file:
+; Belongs on the distribution. tyr to analyze with opsi-setup-detector
+;----------------------------------------------
+cleanupPackageSystem()
+;----------------------------------------------
+if "true" = isGenericExitcodeFatal($exitcode$, "true", $ErrorString$ )
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+
+comment "Copy files"
+Files_install
+
+[Files_install]
+; Example of recursively copying some files into the installation directory:
+;
+; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+----
+
+
+.uninstall.opsiscript: Deinstallations-Skript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+importlib "uib_lin_install.opsiscript"
+
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "l-opsi-template"
+; the path were we find the product after the installation
+Set $InstallDir$	= "<none>"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; enter here names of the package at the supported Distributions / Versions
+Set $ListOfPackageNames$ = CreateStringList("<packagename>")
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "linux"))
+	logError "Installation aborted: wrong OS version: only linux"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+
+
+Message "Uninstalling " + $ProductId$ + " ..."
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, free license used"
+	Set $tmpstr$ = FreeLicense($LicensePool$)
+endif
+----
+
+.delsub.opsiscript: Deinstallations-SubSkript
+[source,winst]
+----
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib gmbh
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+comment "Start the Uninstall check:"
+set $oldProgFound$ = "false"
+if stringToBool(isOneInstalled(CreateStringlist('<packageId>')))
+	set $oldProgFound$ = "true"
+endif
+
+if $oldProgFound$ = "true"
+	Message "Uninstalling " + $ProductId$ + " ..."
+
+	comment "Start uninstall program"
+	ChangeDirectory "%SCRIPTPATH%\files1"
+	;----------------------------------------------
+	; Delete an installed  OS package out of a list of names:
+	; set $installSuccess$ = linuxRemoveOneOf('list of packageIDs')
+	; set $exitcode$ = boolToGenericExitcode($installSuccess$)
+	;
+	; Delete one installed  OS package with a known name:
+	; set $exitcode$ = linuxRemoveOnePackage('<packageId>')
+	;----------------------------------------------
+	if "true" = isGenericExitcodeFatal($exitcode$, "true", $ErrorString$ )
+		LogError $ErrorString$
+		isfatalerror $ErrorString$
+	else
+		Comment $ErrorString$
+	endif
+
+	endif
+endif
+----
+
+
+[[opsi-client-softwintegration-create-opsi-package]]
+== Erstellen eines opsi-Produkt-Pakets
+
+[[opsi-setup-detector-installation]]
+=== Installation des opsi-setup-detector, {opsi-package-builder} und opsi-logviewer
+
+// include docu: opsi-setup-detector installation
+include::common:partial$setup-detector-installation.adoc[]
+
+
+// include docu: opsi-logviewer installation
+include::common:partial$opsi-logviewer-installation.adoc[]
+
+
+
+[[opsi-linclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
+=== Das Programm opsi-setup-detector zum Erstellen eines Linux Scriptes
+
+// include docu: opsi-setup-detector
+include::common:partial$setup-detector-use-start.adoc[]
+
+// include docu: Linux specific tasks in opsi-setup-detector
+include::common:partial$osd-task-linux.adoc[]
+
+Die nun folgenden Screenshots zeigen zwar die Verwendung von Windows-Installer Dateien,
+sie sehen aber analog aus bei der Verwendung von Linux Installer Dateien wie *.deb, *.rpm.
+
+// include docu: how to use the opsi-setup-detector
+include::common:partial$osd-task-use-single-analyze-and-create.adoc[]
+
+Mehr Details zum `opsi-setup-detector` finden Sie im opsi-manual: +
+https://download.uib.de/opsi4.2/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-setup-detector
+
+// include docu: how to use the opsiPackagebuilder
+include::common:partial$softwintegration-tutorial-packagebuilder-use.adoc[]
+
+// include docu: The modify and test cycle
+include::common:partial$softwintegration-tutorial-modify-test-cycle.adoc[]

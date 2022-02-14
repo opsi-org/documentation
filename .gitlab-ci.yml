@@ -1,4 +1,5 @@
-image: docker.uib.gmbh/opsi/opsidoc-asciidoctor:latest
+# image: docker.uib.gmbh/opsi/opsidoc-asciidoctor:latest
+image: docker.uib.gmbh/fabian/opsidoc-antora:latest
 
 stages:
   - build
@@ -7,120 +8,274 @@ stages:
   - publish_ext
 
 # per document-type job templates
-.build_template_html: &build_template_html
+# .build_template_html: &build_template_html
+#   stage: build
+#   script:
+#     - python3 tools/create_docu.py -l=$LANGUAGE -o=html -s=opsi -f=$DOCUMENT
+#     - test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+#   artifacts:
+#     paths:
+#       - build/html/$LANGUAGE/$DOCUMENT/*
+#     expire_in: 2 days
+
+
+# .build_template_epub: &build_template_epub
+#   stage: build
+#   script:
+#     - python3 tools/create_docu.py -l=$LANGUAGE -o=epub -f=$DOCUMENT
+#     - test -f build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+#   artifacts:
+#     paths:
+#       - build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+#     expire_in: 2 days
+
+# .build_template_pdf: &build_template_pdf
+#   stage: build
+#   script:
+#     - python3 tools/create_docu.py -l=$LANGUAGE -o=pdf -t=opsi -f=$DOCUMENT
+#     - test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
+#   artifacts:
+#     paths:
+#       - build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
+#     expire_in: 2 days
+
+.build_template: &build_template
   stage: build
-  script:
-    - python3 tools/create_docu.py -l=$LANGUAGE -o=html -s=opsi -f=$DOCUMENT
-    - test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+  script: |
+    sudo apt update
+    sudo apt install -y curl git
+    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+    sudo apt update
+    sudo apt install -y nodejs
+    sudo apt install -y build-essential
+    pwd 
+    ls
+    git --version
+    npm i
+    npm install asciidoctor-interdoc-reftext
+    gem install asciidoctor-interdoc-reftext
+    ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
+       
+    echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi_$DOCUMENT.pdf"
+    test -f build/pdf/$LANGUAGE/$DOCUMENT/opsi_$DOCUMENT.pdf
+    test -f build/html/$LANGUAGE/$DOCUMENT/opsi_$DOCUMENT.html
   artifacts:
     paths:
-      - build/html/$LANGUAGE/$DOCUMENT/*
+      - build/pdf/$LANGUAGE/$DOCUMENT/opsi_$DOCUMENT.pdf
+      - build/html/$LANGUAGE/$DOCUMENT/opsi_$DOCUMENT.html
     expire_in: 2 days
 
-.build_template_epub: &build_template_epub
+
+build-antora:
   stage: build
-  script:
-    - python3 tools/create_docu.py -l=$LANGUAGE -o=epub -f=$DOCUMENT
-    - test -f build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+  script: | 
+    sudo apt update
+    sudo apt install -y curl git
+    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+    sudo apt update
+    sudo apt install -y nodejs
+    sudo apt install -y build-essential
+    pwd 
+    ls
+    git --version
+    npm i
+    npm install asciidoctor-interdoc-reftext
+    gem install asciidoctor-interdoc-reftext
+    npx antora -v
+    npx antora --log-level=debug antora-playbook.yml
   artifacts:
     paths:
-      - build/epub/$LANGUAGE/$DOCUMENT/$DOCUMENT.epub
+      - build/site
     expire_in: 2 days
 
-.build_template_pdf: &build_template_pdf
-  stage: build
-  script:
-    - python3 tools/create_docu.py -l=$LANGUAGE -o=pdf -t=opsi -f=$DOCUMENT
-    - test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-  artifacts:
-    paths:
-      - build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-    expire_in: 2 days
 
 
 # - HTML build jobs -
-de-html-getting-started-v4.2:
-  <<: *build_template_html
+de-getting-started:
+  <<: *build_template
   variables:
     LANGUAGE: de
-    DOCUMENT: opsi-getting-started-v4.2
+    DOCUMENT: getting-started
 
-en-html-getting-started-v4.2:
-  <<: *build_template_html
+en-getting-started:
+  <<: *build_template
   variables:
     LANGUAGE: en
-    DOCUMENT: opsi-getting-started-v4.2
+    DOCUMENT: getting-started
 
-de-html-manual-v4.2:
-  <<: *build_template_html
+de-manual:
+  <<: *build_template
   variables:
     LANGUAGE: de
-    DOCUMENT: opsi-manual-v4.2
+    DOCUMENT: manual
 
-en-html-manual-v4.2:
-  <<: *build_template_html
+en-manual:
+  <<: *build_template
   variables:
     LANGUAGE: en
-    DOCUMENT: opsi-manual-v4.2
+    DOCUMENT: manual
 
-de-html-script-manual:
-  <<: *build_template_html
+de-script-manual:
+  <<: *build_template
   variables:
     LANGUAGE: de
-    DOCUMENT: opsi-script-manual
+    DOCUMENT: opsi-script
 
-de-html-quickinstall-manual:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-quickinstall-manual
-
-en-html-script-manual:
-  <<: *build_template_html
+en-script-manual:
+  <<: *build_template
   variables:
     LANGUAGE: en
-    DOCUMENT: opsi-script-manual
+    DOCUMENT: opsi-script
 
-en-html-script-reference-card:
-  <<: *build_template_html
+de-script-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: releasenotes
+
+en-script-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: en
+    DOCUMENT: releasenotes
+
+de-macos-client-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: macos-client
+
+en-macos-client-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: en
+    DOCUMENT: macos-client
+
+de-windows-client-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: windows-client
+
+de-linux-client-manual:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: linux-client
+
+de-quickinstall:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: quickinstall
+
+en-quickinstall:
+  <<: *build_template
+  variables:
+    LANGUAGE: en
+    DOCUMENT: quickinstall
+
+de-supportmatrix:
+  <<: *build_template
+  variables:
+    LANGUAGE: de
+    DOCUMENT: supportmatrix
+
+en-supportmatrix:
+  <<: *build_template
+  variables:
+    LANGUAGE: en
+    DOCUMENT: supportmatrix
+
+en-opsi-script-reference-card:
+  <<: *build_template
   variables:
     LANGUAGE: en
     DOCUMENT: opsi-script-reference-card
 
-de-html-releasenotes-v4.2:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-v4.2-releasenotes
+# - HTML build jobs -
+# de-html-getting-started-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-getting-started-v4.2
 
-en-html-releasenotes-v4.2:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-v4.2-releasenotes
-de-html-supportmatrix:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-supportmatrix
+# en-html-getting-started-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-getting-started-v4.2
 
-en-html-supportmatrix:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-supportmatrix
+# de-html-manual-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-manual-v4.2
 
-de-html-mac-client-manual:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-mac-client-manual
+# en-html-manual-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-manual-v4.2
 
-en-html-mac-client-manual:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-mac-client-manual
+# de-html-script-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-script-manual
+
+# de-html-quickinstall-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-quickinstall-manual
+
+# en-html-script-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-manual
+
+# en-html-script-reference-card:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-reference-card
+
+# de-html-releasenotes-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-v4.2-releasenotes
+
+# en-html-releasenotes-v4.2:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-v4.2-releasenotes
+# de-html-supportmatrix:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-supportmatrix
+
+# en-html-supportmatrix:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-supportmatrix
+
+# de-html-mac-client-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-mac-client-manual
+
+# en-html-mac-client-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-mac-client-manual
 
 #de-html-linux-client-manual:
 #  <<: *build_template_html
@@ -146,96 +301,96 @@ en-html-mac-client-manual:
 #    LANGUAGE: en
 #    DOCUMENT: opsi-windows-client-manual
 
-de-html-quickinstall-manual:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-quickinstall-manual
+# de-html-quickinstall-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-quickinstall-manual
 
-en-html-quickinstall-manual:
-  <<: *build_template_html
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-quickinstall-manual
+# en-html-quickinstall-manual:
+#   <<: *build_template_html
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-quickinstall-manual
 
-# - epub build jobs -
-de-epub-getting-started-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-getting-started-v4.2
+# # - epub build jobs -
+# de-epub-getting-started-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-getting-started-v4.2
 
-en-epub-getting-started-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-getting-started-v4.2
+# en-epub-getting-started-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-getting-started-v4.2
 
-de-epub-manual-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-manual-v4.2
+# de-epub-manual-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-manual-v4.2
 
-en-epub-manual-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-manual-v4.2
+# en-epub-manual-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-manual-v4.2
 
-de-epub-script-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-script-manual
+# de-epub-script-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-script-manual
 
-en-epub-script-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-manual
+# en-epub-script-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-manual
 
-en-epub-script-reference-card:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-reference-card
+# en-epub-script-reference-card:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-reference-card
 
-de-epub-releasenotes-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-v4.2-releasenotes
+# de-epub-releasenotes-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-v4.2-releasenotes
 
-en-epub-releasenotes-v4.2:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-v4.2-releasenotes
+# en-epub-releasenotes-v4.2:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-v4.2-releasenotes
 
-de-epub-supportmatrix:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-supportmatrix
+# de-epub-supportmatrix:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-supportmatrix
 
-en-epub-supportmatrix:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-supportmatrix
+# en-epub-supportmatrix:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-supportmatrix
 
-de-epub-mac-client-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-mac-client-manual
+# de-epub-mac-client-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-mac-client-manual
 
-en-epub-mac-client-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-mac-client-manual
+# en-epub-mac-client-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-mac-client-manual
 
 #de-epub-linux-client-manual:
 #  <<: *build_template_epub
@@ -261,96 +416,96 @@ en-epub-mac-client-manual:
 #    LANGUAGE: en
 #    DOCUMENT: opsi-windows-client-manual
 
-de-epub-quickinstall-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-quickinstall-manual
+# de-epub-quickinstall-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-quickinstall-manual
 
-en-epub-quickinstall-manual:
-  <<: *build_template_epub
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-quickinstall-manual
+# en-epub-quickinstall-manual:
+#   <<: *build_template_epub
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-quickinstall-manual
 
-# - pdf build jobs -
-de-pdf-getting-started-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-getting-started-v4.2
+# # - pdf build jobs -
+# de-pdf-getting-started-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-getting-started-v4.2
 
-en-pdf-getting-started-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-getting-started-v4.2
+# en-pdf-getting-started-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-getting-started-v4.2
 
-de-pdf-manual-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-manual-v4.2
+# de-pdf-manual-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-manual-v4.2
 
-en-pdf-manual-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-manual-v4.2
+# en-pdf-manual-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-manual-v4.2
 
-de-pdf-script-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-script-manual
+# de-pdf-script-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-script-manual
 
-en-pdf-script-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-manual
+# en-pdf-script-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-manual
 
-en-pdf-script-reference-card:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-reference-card
+# en-pdf-script-reference-card:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-script-reference-card
 
-de-pdf-releasenotes-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-v4.2-releasenotes
+# de-pdf-releasenotes-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-v4.2-releasenotes
 
-en-pdf-releasenotes-v4.2:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-v4.2-releasenotes
+# en-pdf-releasenotes-v4.2:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-v4.2-releasenotes
 
-de-pdf-supportmatrix:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-supportmatrix
+# de-pdf-supportmatrix:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-supportmatrix
 
-en-pdf-supportmatrix:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-supportmatrix
+# en-pdf-supportmatrix:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-supportmatrix
 
-de-pdf-mac-client-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-mac-client-manual
+# de-pdf-mac-client-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-mac-client-manual
 
-en-pdf-mac-client-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-mac-client-manual
+# en-pdf-mac-client-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-mac-client-manual
 
 #de-pdf-linux-client-manual:
 #  <<: *build_template_pdf
@@ -376,31 +531,44 @@ en-pdf-mac-client-manual:
 #    LANGUAGE: en
 #    DOCUMENT: opsi-windows-client-manual
 
-de-pdf-quickinstall-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-quickinstall-manual
+# de-pdf-quickinstall-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: de
+#     DOCUMENT: opsi-quickinstall-manual
 
-en-pdf-quickinstall-manual:
-  <<: *build_template_pdf
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-quickinstall-manual
+# en-pdf-quickinstall-manual:
+#   <<: *build_template_pdf
+#   variables:
+#     LANGUAGE: en
+#     DOCUMENT: opsi-quickinstall-manual
 
 # Packaging and renaming of documents
 package_docs:
   stage: package
   before_script:
-    - apk add --no-cache python2
+    - apt update
+    - apt install -y python2
   script:
     - make publish
   artifacts:
     paths:
       - pub/
     expire_in: 7 days
-  only:
-    - stable
+
+
+
+publish_antora_docs:
+  stage: publish
+  before_script:
+    - which ssh-agent
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
+  script:
+    - scp -o StrictHostKeyChecking=no -r build/site/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/antora/"
+  # only:
+  #   - stable
 
 
 # Publishing documentation to internal server

@@ -1,0 +1,613 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-dircon]]
+= opsi directory connector
+
+
+[[opsi-manual-dircon-introduction]]
+== Introduction
+
+The opsi directory connector is a tool to transfer data from a directory service to an opsi installation.
+This avoids the need of maintaining data in different systems.
+
+
+[[opsi-manual-dircon-preconditions]]
+== Prerequisites
+
+This module is currently a link:https://www.opsi.org/product/extensions-of-opsi/[co-funded opsi extension]. +
+There are a number of prerequisites for using this module. This means that you need an activation file. You will receive this activation when you buy the extension. For evaluation purposes, we also provide you with a temporary activation free of charge (mail to info@uib.de). +
+
+ifdef::manual[]
+More details can be found in <<opsi-manual-modules>>.
+endif::manual[]
+
+
+[[opsi-manual-dircon-preconditions-general]]
+=== General Requirements
+
+The source directory service must implement the LDAP protocol.
+
+The target opsi server should run at least opsi 4.0.7. Older versions may work, but have not been tested.
+
+The machine running the connector must have access to the directory and opsi server via the network.
+It is possible to run all components on the same machine, but it is assumed that separate machines are used for each component.
+
+
+[[opsi-manual-dircon-requirements-hardware]]
+=== Hardware Requirements
+
+These requirements are intended for basic use in a small environment with up to 500 clients.
+These requirements may be greater in large environments, which is why adjustments may be necessary.
+
+* 256 MB of free memory
+* Network connections
+
+
+[[opsi-manual-dircon-requirements-software]]
+=== Software Requirements
+
+The installation and operation is only supported on Linux.
+Support for Windows is not planned.
+
+By using standardized protocols for communication, no additional opsi- or directory service-specific components are required.
+
+
+[[opsi-manual-dircon-installation]]
+== Installation
+
+To install the connector please add the opsi repository as described in the `Getting Started` document.
+
+Then use the package manager of the operating system to install the package `opsi-directory-connector`.
+
+On a Debian-based machine the installation can be done as follows:
+
+[source,prompt]
+----
+apt-get install opsi-directory-connector
+----
+
+
+[[opsi-manual-dircon-configuration]]
+== Configuration
+
+The connector uses a number of configuration options and can be adapted to a wide variety of environments.
+
+The configuration is done via a configuration file in JSON format, which must contain valid JSON.
+To specify Boolean values, please use `true` or `false`.
+Text has to be entered with double quotation marks, for example `"this is text"`.
+
+An example configuration is provided as `/user/share/opsi-directoy-connector/opsi-directory-connector.example.conf.conf`
+This file can be used as a template for your own configuration.
+
+[source,prompt]
+----
+cp `/user/share/opsi-directoy-connector/opsi-directory-connector.example.conf.conf /etc/opsi/opsi-directory-connector-custom.conf
+----
+
+[[opsi-manual-dircon-conf-dir]]
+=== Directory settings
+
+These settings are required to establish a connection to the directory service and to limit the search scope to specific areas and objects.
+
+[source,json]
+----
+{
+    "directory": {
+        "address": "ldap://192.168.12.34",
+        "user": "DOMAIN\\opsiconnector",
+        "password": "insertpasswordhere",
+        "passwordFile": "",
+        "search_base": "dc=testcompany,dc=local",
+        "search_query_computers": "(objectClass=computer)",
+        "identifying_attribute": "dn",
+        "connection_options": {
+            "paged_search_limit": 768
+        }
+    },
+    …
+}
+----
+
+Under `address` you have to specify at which address the server can be contacted.
+If the protocol `ldaps` or the port `636` is used a SSl connection to the directory is opened. Example:
+
+[source,json]
+----
+        "address": "192.168.12.34:636",
+----
+
+`User` and `password` are used for authentication to the directory.
+If a value is given for `passwordFile`, this is interpreted as the path to a file that contains the password.
+The content of this file will be used as the password.
+This means that the password does not have to be stored in plain text in the configuration file.
+This will override the value set for `password`, if the file can be read.
+
+TIP: We recommend using a dedicated user account.
+
+NOTE: Depending on the directory software used and its configuration, the format for the username can be different. +
+Besides _Down-Level Logon Name_ in the style of `DOMAIN\\username`, the format can also be _User Principal Name_ in the style of `user@domain`, or a _Distinguished Name_ (DN) like `uid=opsiconnect,cn=users,dc=test,dc=intranet`.
+
+With `search_base` you specify from which point the connector looks for matching entries.
+The filter used to search for clients can be configured via `search_query_computers`.
+
+Through the optional parameter `identifying_attribute` it is possible to set which attribute should be used for the unique identification of a client. This is possible since version 23.
+The standard used here is `dn`.
+A common alternative to `dn` is the value `distinguishedName`, this variant is often used in Microsoft Active Directory.
+
+The `connection_options` parameter contains additional options for configuring the connection.
+The `verify` parameter determines whether or not the certificate should be verified for an SSL connection. In addition, the path to a CA file can be specified. If a file is specified, verification is performed via this file.
+With `start_tls` it can be controlled whether a secured connection is started after logging in to the directory.
+
+If the optional parameter `paged_search_limit` is present and if its value is an integer, multiple queries are used to read the elements from the directory. The maximum number of elements an answer contains is controlled by this value.
+This behavior has been supported since version 20.
+
+NOTE: Additional connection options will be implemented on request.
+
+Since version 14 it is possible to test the connection to the directory via the parameter `--check-directory`, without establishing a connection to the opsi server.
+
+
+[[opsi-manual-dircon-conf-dir-ucs]]
+=== Connection to Univention Corporate Server
+
+A complete _Distinguished Name_ must be used as the user name for a connection to Univention Corporate Server (UCS).
+This has the form `uid=<username>,cn=users,dc=company,dc=mydomain`.
+
+On UCS, LDAP can be reached via ports 7389 (unsecured) or 7636 (SSL-secured).
+If Samba is also installed on the server and set up as an AD-compatible domain controller, it listens on ports 389 (unsecured) or 636 (SSL-secured).
+To use the SSL-secured ports, the connection option `start_tls` must be set to `true`.
+
+These two possible connections also differ in the type of login name. With LDAP, `uid=…` is used, whereas with Samba, `dn=…` is used.
+
+Generally, you will search for computer objects in the `computers` container.
+The following command outputs the appropriate value for `search_base`:
+[source,prompt]
+----
+echo "cn=computers,$(ucr get ldap/base)"
+----
+
+To search for Windows clients you can set `search_query_computers` to `(objectClass=univentionWindows)`.
+
+How to create a user with read-only access can be found in the Univention Wiki: link:https://wiki.univention.de/index.php?title=Cool_Solution_-_LDAP_search_user[Cool Solution - LDAP search user]
+
+
+[[opsi-manual-dircon-conf-work]]
+=== Behaviour settings
+
+These settings control the behaviour of the connector.
+
+[source,json]
+----
+{
+    …
+    "behaviour": {
+        "write_changes_to_opsi": true,
+        "root_dir_in_opsi": "clientdirectory",
+        "update_existing_clients": true,
+        "prefer_location_from_directory": true,
+        "group_handling": "dn",
+        "group_description": "dn",
+        "override_root_dir": true
+    },
+    …
+}
+----
+
+If `write_changes_to_opsi` is set to `false`, no data will be written to opsi.
+This setting can be used to check the settings before they are applied.
+
+`root_dir_in_opsi` specifies which group should be used as the root group in opsi.
+You have to ensure that this group exists.
+
+NOTE: The group _clientdirectory_ is shown in configed as _DIRECTORY_.
+So if clients or groups should appear directly in _DIRECTORY_, the value `clientdirectory` must be entered as the value for `root_dir_in_opsi`.
+
+If `update_existing_clients` is set to `false`, clients already existing in opsi will not be changed.
+If this is set to `true`, any manually entered data will be overwritten with the values ​​from the directory.
+
+If `prefer_location_from_directory` is set to `true`, clients in opsi are moved to the position they have in the directory.
+To deactivate this behavior, this value must be set to `false`.
+
+Since version 31, group handling can be controlled via the optional key `group_handling`.
+The default is `cn`. Groups are derived from the DN of a computer and created accordingly as part of the opsi directory. A client can only be member of one group.
+
+If the group handling is set to `ucsatschool`, the behavior is adapted for use in link:https://www.univention.de/produkte/ucsschool/[UCS@School] environments.
+The opsi-directory-connector will automatically search for schools and find their rooms, which are then synchronized to opsi.
+For every school a group will be created in opsi.
+In UCS@School a computer can be a member of multiple rooms. To follow this behaviour, the groups are not created as a group within the opsi directory, but as a normal group, so that a client can also be found in multiple groups.
+
+If the groups in OPSI should be created under _DIRECTORY_ after all, the switch `override_root_dir` can be set to `false`. `override_root_dir` is only available for `group_handling` `ucsatschool` and the default value is `true`.
+If `override_root_dir` is set to `false` and the groups are thus stored in OPSI under `DIRECTORY`, it should be ensured that each school computer has only been assigned to one room.
+
+With `group_description` the description of the OPSI groups can be customized. The following values are possible:
+
+* `dn`: The dn of the group is stored in OPSI as the group description.
+* `directory`: The group description is read from the `description` field of the directory group.
+* If the value is not set or is set differently, the description is filled with the name of the group.
+
+[source,json]
+----
+...
+ "behaviour": {
+        "group_handling": "ucsatschool",
+        ...
+        "group_not_in_directory": true,
+        "opsi_clients_to_ignore": {
+            "clients": ["win1.uib.local","win2.uib.local","win3.uib.local"],
+            "groups": ["server"]
+        }
+ }
+ ...
+----
+
+If `group_not_in_directory` is set to `true`, all clients that are not in the directory are added to the `not_in_directory` group. This option is only available with `group_handling` `uscatschool`. With the `opsi_clients_to_ignore` parameter clients or whole groups can be excluded from this rule.
+
+
+[[opsi-manual-dircon-conf-mapping]]
+=== Mappings
+
+With a system as flexible as a directory service, the connector needs information about which attributes in the directory should be matched to which attributes in opsi.
+
+[source,json]
+----
+{
+    …
+    "mapping": {
+        "client": {
+            "id": "name",
+            "description": "description",
+            "notes": "",
+            "hardwareAddress": "",
+            "ipAddress": "",
+            "inventoryNumber": "",
+            "oneTimePassword": ""
+        }
+    },
+    …
+}
+----
+
+There is a mapping for client attributes.
+The key of the mapping is the attribute in opsi and the value is the attribute from the directory service. If the value (in the mapping) is empty, no mapping will be done.
+
+NOTE: If the value read from the directory for the ID of the client is not recognizable as a FQDN, a corresponding FQDN will be created.
+The domain part for this is formed from the DC values of the element.
+
+TIP: On Univention Corporate Server (UCS), the value for `hardwareAddress` can be set to `macAddress` if the connection is established via LDAP (port 7389 or 7636).
+
+In the "mapping" area, the assignment of clients to depots can be defined. Currently there is only the mapping type "network"..
+With the "network" type, a client is assigned to a depot if the ip address of the client matches the network address range ("networkAddress") of the depot.
+Alternatively, a list of network ranges can be assigned to a depot.
+
+[source,json]
+----
+{
+    ...
+    "mapping": {
+        ...
+        "depot": {
+            "type": "network",
+            "test-depot1.test.local": ["192.168.24.0/24","192.168.25.0/24"],
+            "test-depot1.test.local": ["192.168.27.0/24","192.168.28.0/24"]
+        }
+    },
+    ...
+}
+----
+
+
+
+[[opsi-manual-dircon-conf-mapping-groupnames]]
+=== Manual assignment of group names
+
+Group names can usually abe used without any major adjustments.
+However, it can happen that group names exist which are invalid in opsi.
+
+For these special cases, a manual assignment of group names can be made, which allows these cases to be handled.
+
+To configure this, an entry `group_name` is created in `mapping`, which holds the mapping from the directory service to opsi.
+The name is not changed for groups that do not appear in this assignment.
+Group names are always processed in lower case letters, which is why the entries here must be made in lower case letters.
+This is possible since version 23.
+
+The following example maps the group `_server` originating from the directory service to the group `server` in opsi.
+
+[source,json]
+----
+{
+    ...
+    "mapping": {
+        "client": {
+            ...
+        },
+        "group_name": {
+            "_server": "server"
+        }
+    },
+    ...
+}
+----
+
+WARNING: Please be careful with this feature as it may introduce undesirable side effects. Therefore, this option should only be used for special cases.
+
+
+[[opsi-manual-dircon-conf-conect]]
+=== opsi connection settings
+
+This controls how the connector connects to opsi.
+
+[source,json]
+----
+{
+    …
+    "opsi": {
+        "address": "https://localhost:4447",
+        "username": "syncuser",
+        "password": "secret",
+        "exit_on_error": false,
+        "passwordFile": "",
+        "connection_options": {
+            "verify_certificate": true
+        }
+    }
+}
+----
+
+Enter the address of the opsi server under `address`.
+Do not forget to specify the port!
+
+NOTE: A proxy for the connection can be set via the environment variable 'HTTPS_PROXY'.
+
+`User` and `password` are used for authentication to the opsi server.
+If a value is given for `passwordFile`, this is interpreted as the path to a file that contains the password.
+The content of this file will be used as the password.
+This means that the password does not have to be stored in plain text in the configuration file.
+This will override the value set for `password`, if the file can be read.
+
+TIP: We recommend using a dedicated user account. The creation of additional users is described in the _Getting Started_ manual.
+
+If the parameter `exit_on_error` is set to `true`, then any problem when updating the data in opsi - this can also be triggered by submitting values that are invalid in opsi - results in a break.
+If this is set to `false`, errors are logged, but the execution is not terminated.
+
+Under `connection_options` options for the connection to the opsi server can be set.
+The verification of the server certificate is controlled by means of `verify_certificate`.
+This value should be set to `false` when using self-signed certificates.
+
+Since version 14 it is possible to test the connection to the opsi server via the parameter `--check-opsi`, without establishing a connection to the directory service.
+
+
+[[opsi-manual-dircon-run]]
+== Running the connector
+
+After the installation a binary called `opsi-directory-connector` will be present on the system.
+
+It is required to pass an argument `--config` together with the path to the configuration file.
+
+[source,prompt]
+----
+opsi-directory-connector --config /etc/opsi/opsi-directory-connector-custom.conf
+----
+
+NOTE: The user running the binary does not require any access to opsi as this is all stored in the configuration file.
+
+
+[[opsi-manual-dircon-run-systemd]]
+=== Example: recurring runs with systemd
+
+The connector currently does one synchronisation run when executed, but the chances are good that you want to have a constant synchronisation of data.
+
+It's easy to automate the execution of repetitive runs.
+
+We will be using systemd for this.
+In contrast to cronjobs, systemd will prevent simultaneous runs from occurring, which is why systemd is a good choice.
+
+The following example will set up the connector to run five minutes after the machine starts, and every hour thereafter.
+
+The following two files must be stored under `/etc/systemd/system/`, the directory for user-defined units.
+One file is the timer, which calls our job repeatedly and the other is for the job itself.
+
+Please fill the file `opsi-directory-connector.timer` with the following content:
+
+[source,configfile]
+----
+[Unit]
+Description=Start the opsi-directory-connector in regular intervals
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1hour
+
+[Install]
+WantedBy=timers.target
+----
+
+And this is the content of `opsi-directory-connector.service`:
+
+[source,configfile]
+----
+[Unit]
+Description=Sync clients from AD to opsi.
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+To enable the timer and start it right away, the following commands can be used:
+
+[source,prompt]
+----
+systemctl enable opsi-directory-connector.timer
+systemctl start opsi-directory-connector.timer
+----
+
+If the timer does not get started, it will start to run the next time the machine is restarted.
+
+
+[[opsi-manual-dircon-run-cronjob]]
+=== Example: recurring runs as cronjob
+
+It is easy to automate the execution of recurring runs through a crobjob.
+
+Please note that simultaneous runs can take place, which is why it is best to choose a larger synchronization interval.
+To avoid this problem, it is recommended to use *systemd* instead of *cron*!
+
+The cronjob file can usually be edited through `crontab -e`.
+For a synchronisation that happens every hour the following can be used:
+
+[source,prompt]
+----
+0 * * * * /usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
+----
+
+=== command line arguments
+
+[source,prompt]
+----
+Usage: __main__.py [-h] [--version] [--log-level {0,1,2,3,4,5,6,7,8,9}]
+                   [--log-level-stderr {0,1,2,3,4,5,6,7,8,9}]
+                   [--log-level-file {0,1,2,3,4,5,6,7,8,9}]
+                   [--log-file LOG_FILE]
+                   [--max-log-size MAX_LOG_SIZE]
+                   [--keep-rotated-logs KEEP_ROTATED_LOGS]
+                   [--check-directory | --check-opsi | --delete-clients DELETE_CLIENTS [DELETE_CLIENTS ...]]
+                   [--dry-run] --config
+                   CONFIG
+
+If an arg is specified in more than one place, then commandline values override environment
+variables which override defaults.
+
+optional arguments:
+  -h, --help
+                              show this help message and exit
+  --version
+                              show program's version number and exit
+  --log-level {0,1,2,3,4,5,6,7,8,9}
+                              Sets how much information will be logged. [env var: OPDC_LOG_LEVEL]
+                              (default: 4)
+  --log-level-stderr {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                              Sets how much information will be logged. [env var:
+                              ODC_LOG_LEVEL_STDERR] (default: 4)
+  --log-level-file {0,1,2,3,4,5,6,7,8,9}
+                              Sets how much information will be logged to the log file. [env var:
+                              ODC_LOG_LEVEL_FILE] (default: 5)
+  --log-file LOG_FILE
+                              Sets log file path. [env var: ODC_LOG_FILE] (default:
+                              /var/log/opsi/directory-connector.log)
+  --max-log-size MAX_LOG_SIZE
+                              Limit the size of logfiles to SIZE megabytes.Setting this to 0 will
+                              disable any limiting. [env var: ODC_MAX_LOG_SIZE] (default: 5.0)
+  --keep-rotated-logs KEEP_ROTATED_LOGS
+                              Number of rotated log files to keep. [env var: ODC_KEEP_ROTATED_LOGS]
+                              (default: 1)
+  --check-directory
+                              Check if a connection to the directory can be established and if items
+                              will be received. (default: False)
+  --check-opsi
+                              Check if a connection to the opsi server can be established. (default:
+                              False)
+  --delete-clients DELETE_CLIENTS [DELETE_CLIENTS ...]
+                              Delete list of clients from directory. (default: None)
+  --dry-run
+                              Print what would be done. (default: False)
+  --config CONFIG
+                              Path to the config. (default: None)
+----
+
+Starting with version 39 the opsi-directory-connector uses the OPSI logger with loglevel 0-9. By default logs are written to `/var/log/opsi-directory-connector` and to `stderr`. With the parameters `--log-level-stderr`, `--log-level-file` the log level of the respective log can be set. `--log-file` defines the log file.
+
+The log file is rotated after a specified size (default 5 MB) and by default one of these rotated log files is kept. The parameters `--max-log-size` and `--keep-rotated-logs` can be used to override the default values.
+
+In addition to the command line parameters, the values can also be set in the configuration file or via environment variables. The following applies here:
+
+- Parameters overwrite everything
+- Environment variables overwrite configuration and default
+- Configuration overwrites default
+
+Example configuration:
+
+[source,prompt]
+----
+{
+...
+    "log-level-stderr": 6,
+    "log-level-file": 3,
+    "keep-rotated-logs": 4
+...
+}
+----
+
+If the directory connector is started with the `--dry-run` option, the individual steps are output without making any changes in OPSI.
+With `dry-run`, in contrast to the configuration parameter `write_changes_to_opsi: false`, the output is adjusted,
+to give a better overview of the actions. Example output:
+
+[source,prompt]
+----
+---------- opsi actions ----------
+Creating client client1.opsidc.intranet.
+Creating client ds-win-client-2.opsidc.intranet.
+Creating client ds-win-client-1.opsidc.intranet.
+Creating client mac-client-1.opsidc.intranet.
+Creating client windows-client-1.opsidc.intranet.
+Creating client raspberrypi-1.opsidc.intranet.
+Adding mac-client-1.opsidc.intranet to opsitestschool-mac pool.
+Adding windows-client-1.opsidc.intranet to opsitestschool-pc pool og1.
+Adding ds-win-client-2.opsidc.intranet to depotschule-pool-1.
+Adding ds-win-client-1.opsidc.intranet to depotschule-pool-1.
+----------------------------------
+---------- summary ---------------
+Create  6 clients and 0 groups.
+0 clients removed from group.
+Adding 4 clients to a new group.
+----------------------------------
+----
+
+== Delete Clients from the directory
+
+In the standard case the opsi-directory-connector has only read access to the directory. With the start parameter `--delete-clients` an independent run is started, which tries to delete the given objects from the directory.
+For example:
+
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients client1
+----
+
+The objects can be specified more precisely:
+
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients computers/test-clients/client1
+----
+
+This call would fit on object `cn=client1,ou=test-clients,ou=computers,dc=example,dc=org`, but not
+`cn=client1,ou=clients,ou=computers,dc=example,dc=org`. So the first object will be deleted.
+
+Multiple clients can also be specified:
+
+[source,prompt]
+----
+opsi-directory-connector --config config.conf --delete-clients computers/clients/client1 client2 client3
+----
+
+WARNING: The `delete-clients` function should be used with caution.
+
+TIP: The `dry-run` function can also be used with `delete-clients`.

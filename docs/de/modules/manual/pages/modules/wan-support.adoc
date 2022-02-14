@@ -1,0 +1,426 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      25.03.2011
+:Revision:  4.0.1
+:toclevels: 6
+
+
+ifeval::["{mode}" == "antora"]
+include::common:partial$opsi_terms.adoc[]
+endif::[]
+
+[[opsi-manual-wansupport]]
+== opsi WAN/VPN-Erweiterung
+
+Die WAN/VPN-Erweiterung bietet opsi-Administratoren die
+Möglichkeit, auch Clients hinter langsamen Leitungen in opsi einzubinden.
+Diese Dokumentation soll die Funktionsweise dieser Erweiterung
+von opsi erläutern und einen Leitfaden bieten, wie man diese
+Erweiterung konfigurieren und pflegen kann.
+Beachten Sie bitte, dass zur Zeit die gleichzeitige Nutzung von WAN-Erweiterung und Installation bei Shutdown auf einem Client noch nicht freigegeben ist. Auf einem opsi-Server auf verschiedenen Clients können Sie beide Erweiterungen natürlich nutzen.
+
+[[opsi-manual-wansupport-preconditions]]
+=== Vorbedingungen für die WAN/VPN-Erweiterung
+
+Als Erstes sei an dieser Stelle erwähnt, dass dieses Modul momentan eine
+http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung] ist. +
+Weitere Details hierzu finden Sie in xref:modules/modules#opsi-manual-modules[Freischaltung kostenpflichtiger Module].
+
+Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
+zu können. Zunächst werden '{product-groups}' benötigt, diese stehen erst
+ab opsi 4.0 zur Verfügung. Weiterhin werden die Pakete
+'{opsi-client-agent}' und '{opsi-configed}' ab Version 4.0.1 benötigt.
+
+.Benötigte Pakete
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-client-agent|>=4.0.1-1
+|opsi-winst|>=4.10.8.12
+|python-opsi|>=4.0.1-7
+|opsi-configed|>=4.0.1.6-1
+|==========================
+
+[[opsi-manual-wansupport-overview]]
+=== Überblick über die WAN/VPN-Erweiterung
+Grob betrachtet verläuft die Softwareverteilung per opsi in der Regel folgendermaßen ab:
+
+* Der '{opsi-login-blocker}' blockiert beim Systemstart die Anmeldung von Benutzern am System.
+* Der '{opsiclientd}' nimmt Kontakt zum '{opsi-configserver}' auf.
+* Sind '{product-actions}' für den Client gesetzt, verbindet dieser ein Netzlaufwerk mit dem '{opsi-depot}'.
+* Der '{opsi-winst}' wird gestartet und nimmt ebenfalls Kontakt zum '{opsi-configserver}' auf.
+* Der '{opsi-winst}' bearbeitet die gesetzten '{product-actions}', wobei er direkt auf das Netzlaufwerk zugreift.
+* Benötigte Reboots werden ausgeführt und der Prozess beginnt erneut.
+* Nach dem Abschluss aller '{product-actions}' werden Log-Dateien an den '{opsi-configserver}' übertragen
+und die Anmeldung für den Anwender freigegeben.
+
+Betrachten wir nun den Fall eines Clients in einer Außenstelle, die über eine 'WAN'-Leitung an das 'LAN' angebunden ist,
+in dem sich '{opsi-configserver}' und '{opsi-depotserver}' befinden:
+
+* Bei der Kommunikation mit dem '{opsi-configserver}' werden nur geringe Datenmengen übertragen,
+hier tritt keine problematische Verzögerung des Softwareverteilungs-Prozesses auf.
+* Das Bearbeiten der '{product-actions}', dauert jedoch je nach Paket-Größe, Bandbreite und Latenz der 'WAN'-Verbindung, sehr lange.
+Auch kann es bei Dateizugriffen zu Timeouts kommen.
+* Der Rechner ist dementsprechend lange für den Anwender blockiert.
+
+Sollte sich das Aufstellen eines eigenen '{opsi-depotserver}' in der Außenstelle nicht rentieren,
+kann das Problem über die Verwendung der WAN/VPN-Erweiterung gelöst werden. +
+Der '{opsi-client-agent}' kann hierbei folgendermaßen konfiguriert werden:
+
+* Beim Systemstart findet bei einem ungefülltem Produkt-Cache keine Softwareverteilung statt. Der Login wird nicht weiter blockiert.
+* Bei gesetzten '{product-actions}' beginnt der '{opsiclientd}' mit der Übertragung der benötigten Dateien vom '{opsi-depot}' auf den lokalen Rechner.
+Die Übertragung kann hierbei in der Bandbreite beschränkt und auch je nach aktueller Netz-Auslastung dynamisch angepasst werden.
+* Nach abgeschlossener Synchronisation der Produkt-Pakete mit dem lokalen Cache wird eine Reboot-Anforderung ausgelöst.
+* Der angemeldete Benutzer stimmt dem geforderten Reboot zu oder der Rechner wird später aus einem anderen Grund neu gestartet.
+* Beim Systemstart wird ein gefüllter Produkt-Cache festgestellt und die Softwareverteilung findet wie gewohnt statt.
+Hierbei wird jedoch mit den lokalen Dateien gearbeitet. Die Installation läuft somit sogar schneller als im 'LAN'.
+
+
+Betrachten wir nun den Fall eines Notebooks, das in vielen Fällen beim Systemstart
+überhaupt keinen Kontakt zum '{opsi-configserver}' herstellen kann:
+
+* Ein Kontakt-Aufbau zum '{opsi-configserver}' beim Systemstart läuft in den meisten Fällen in einen Timeout.
+* Unter Umständen kann der Kontakt zum '{opsi-configserver}' erst dann hergestellt werden, wenn sich
+ein Benutzer am System anmeldet und über einen 'VPN'-Adapter eine Verbindung zum Unternehmens-Netzwerk herstellt.
+* Ohne Verbindung zum '{opsi-configserver}' kann keine Softwareverteilung stattfinden.
+
+Auch dieses Problem kann über die Verwendung der WAN/VPN-Erweiterung gelöst werden. +
+Der '{opsi-client-agent}' kann hierbei folgendermaßen konfiguriert werden:
+
+* Beim Systemstart findet bei einem ungefülltem Produkt- oder Config-Cache keine Softwareverteilung statt. Der Login wird nicht weiter blockiert.
+* Bei Aktivierung eines Netzwerk-Adapters und/oder in regelmäßigen Zeitabständen wird im Hintergrund versucht, eine Verbindung zum '{opsi-configserver}' herzustellen.
+* Ist der '{opsi-configserver}' erreichbar, beginnt der '{opsiclientd}' mit:
+  - Der Synchronisation der Konfigurationen.
+  - Der Übertragung der benötigten Dateien vom '{opsi-depot}' auf den lokalen Rechner. +
+    In Verbindung mit der opsi-Erweiterung 'Dynamische Depot-Auswahl' findet die Datei-Übertragung immer von dem '{opsi-depot}' statt, zu dem die beste Netzwerkverbindung besteht.
+* Nach abgeschlossener Synchronisation der Produkt-Pakete und der Konfigurationen mit dem lokalen Cache wird eine Reboot-Anforderung ausgelöst.
+* Der angemeldete Benutzer stimmt dem geforderten Reboot zu oder der Rechner wird später aus einem anderen Grund neu gestartet.
+* Beim Systemstart wird ein gefüllter Produkt- und Config-Cache festgestellt. Die Softwareverteilung findet wie gewohnt statt.
+Hierbei wird jedoch mit den lokalen Dateien und den lokalen Konfigurationen gearbeitet. Der '{opsiclientd}' übernimmt hierfür die Funktionen
+des '{opsi-configserver}s' und des '{opsi-depotserver}s'.
+* Beim nächsten Verbindungsaufbau zum '{opsi-configserver}' werden die Ergebnisse (die Änderungen an den Konfigurationen, Log-Dateien ...) synchronisiert.
+
+Der Mechanismus zur Produkt-Synchronisation kann hierbei mehrfach unterbrochen werden.
+Die Datei-Synchronisation setzt immer wieder am Punkt der Unterbrechung an.
+Bereits übertragene Daten müssen nicht erneut übertragen werden.
+
+Da die WAN/VPN-Erweiterung die Möglichkeit eröffnet, auch Clients an opsi anzubinden, die sich außerhalb eines geschützten Firmen-Netzwerks befinden, sind zusätzliche Sicherheitsmaßnahmen bei der Kommunikation zwischen Clients und Servern zu empfehlen. +
+So bietet der '{opsiclientd}' nun die Möglichkeit, die Identität eines '{opsi-server}s' zu verifizieren.
+Hierfür wird das Keypair des SSL-Zertifikats des '{opsiconfd}' verwendet. +
+Über diesen Mechanismus können sowohl '{opsi-configserver}' als auch '{opsi-depotserver}' verifiziert werden,
+jedoch nur wenn die Kommunikation über den '{opsiconfd}' und per 'SSL' erfolgt.
+Im Falle eines '{opsi-depot}s' muss der Datei-Zugriff also über den '{opsiconfd}' per 'HTTPS'/'WEBDAVS' erfolgen.
+Der Zugriff per 'CIFS'/'SMB' wird nicht überprüft.
+
+[[opsi-manual-wansupport-product-sync]]
+=== Caching von {opsi-products}n
+
+Das Cachen von '{opsi-products}n' übernimmt der 'ProductCacheService', der Bestandteil des '{opsiclientd}' ist. +
+Der 'ProductCacheService' synchronisiert die lokalen Kopien der in einem '{opsi-product}' enthaltenen Dateien mit
+den Dateien des '{opsi-product}s' auf einem '{opsi-depot}'.
+Das Basis-Verzeichnis des Produkt-Caches ist konfigurierbar und standardmäßig auf `%SystemDrive%\opsi.org\cache\depot` gesetzt.
+
+[[opsi-manual-wansupport-depot-protocol]]
+==== Protokoll zum Zugriff auf ein {opsi-depot}
+
+Bei der Übertragung von Produkt-Dateien werden zwei Protokolle unterstützt.
+
+* 'CIFS'/'SMB'
+* 'HTTP(S)'/'WEBDAV(S)'
+
+Bei der Verwendung von 'CIFS'/'SMB' wird eine Verbindung zu der 'depotRemoteUrl' hergestellt, die in den Eigenschaften eines '{opsi-depot}s' konfiguriert ist.
+Im Falle von 'HTTP(S)'/'WEBDAV(S)' wird die ebenfalls am Depot konfigurierte 'depotWebdavUrl' verwendet.
+
+Welches Protokoll verwendet wird, kann über das '{opsi-config-object}' +clientconfig.depot.protocol+ Client-spezifisch konfiguriert werden.
+Die möglichen Werte sind +cifs+ und +webdav+.
+
+NOTE: Auch das {opsi-linux-bootimage} wertet diese Konfiguration aus und verwendet das angegebenen Protokoll.
+
+NOTE: Beim opsiclientd kann für einzelne Events über das Attribut +depot_protocol+ ein anderes Protokoll verwendet werden.
+
+[[opsi-manual-wansupport-product-sync-package-content-file]]
+==== Die .files-Datei
+Basis für die Synchronisation ist die Datei `<product-id>.files`, die im Basis-Verzeichnis eines '{opsi-product}s' auf dem '{opsi-depot}' zu finden ist.
+Die Datei enthält Informationen zu allen in einem '{opsi-product}' enthaltenen Dateien, Verzeichnissen und symbolischen Links.
+Jede Zeile in der Datei entspricht einer solchen Information. Die einzelnen Informations-Typen werden durch ein Leerzeichen voneinander getrennt. +
+Das erste Zeichen in einer Zeile gibt den Typ des Eintrags an, mögliche Werte sind:
+
+* +d+ für ein Verzeichnis
+* +f+ für eine Datei
+* +l+ für einen symbolischen Link
+
+Abgetrennt durch ein Leerzeichen folgt der relative Pfad in einfachen Anführungszeichen. +
+Der nächste Eintrag entspricht der Dateigröße (bei Verzeichnissen und Links steht hier eine 0). +
+Im Falle einer Datei folgt noch die MD5-Summe der Datei, bei einem symbolischen Link das Ziel des Links.
+
+Auszug einer '.files'-Datei:
+[source,opsifiles]
+----
+d 'utils' 0
+f 'utils/patch_config_file.py' 2506 d3007628addf6d9f688eb4c2e219dc18
+l 'utils/link_to_patch_config_file.py' 0 '/utils/patch_config_file.py'
+----
+
+Die '.files'-Datei wird beim Einspielen von '{opsi-product-packages}n' (nach dem Lauf des postinst-Skriptes) automatisch erzeugt.
+
+WARNING: Bei Verwendung der WAN/VPN-Erweiterung sollten die Dateien auf einem '{opsi-depot}' nicht manuell bearbeitet werden,
+da sonst die in der '.files'-Datei enthalten Informationen nicht mehr zutreffen und dies zu Fehlern bei der Synchronisation führt.
+
+[[opsi-manual-wansupport-product-sync-flow]]
+==== Ablauf des {opsi-product}-Cachings
+Die Synchronisation einer lokalen Kopie eines '{opsi-product}s' läuft folgendermaßen ab:
+
+* Die '.files'-Datei des '{opsi-product}s' wird auf den lokalen Rechner übertragen.
+* Es wird geprüft ob genügend freier Speicherplatz für das Caching vorhanden ist.
+Sollte der verfügbare Speicherplatz nicht ausreichen wird durch das Löschen von '{opsi-products}n' Platz geschaffen.
+Hierbei werden bevorzugt '{opsi-products}' gelöscht, die seit längerem nicht mehr benötigten (synchronisiert) wurden.
+* Das Cache-Verzeichnis, das die lokale Kopie enthält, wird angelegt sofern es noch nicht existiert.
+* Anhand der Einträge in der '.files'-Datei werden nicht mehr benötigte Dateien und Verzeichnisse aus dem Cache-Verzeichnis entfernt.
+* Die '.files'-Datei wird nun der Reihe nach durchgearbeitet.
+  - Ein fehlendes Verzeichnis wird angelegt.
+  - Eine fehlende Datei wird übertragen.
+  - Vorhandene Dateien werden anhand der Größe und MD5-Summe überprüft und bei Abweichungen (teilweise) neu übertragen.
+
+Das Ergebnis der Synchronisation ist eine exakte Kopie des Produkt-Verzeichnisses auf dem '{opsi-depot}'. +
+
+NOTE: Unter Windows werden keine Symbolischen Links erzeugt, statt eines Links wird eine Kopie des Link-Ziels angelegt.
+
+Ein erfolgreich abgeschlossenes {opsi-product}-Caching hat zur Folge, dass:
+
+* Der Zustand +products_cached+ den Wert +true+ annimmt und dieser auch über einen Neustart hinweg erhalten bleibt (siehe: xref:client/opsi-client-agent#opsi-manual-clientagent-configuration-events[Konfiguration unterschiedlicher Events]).
+* Ein Event vom Typ +sync completed+ ausgelöst wird.
+
+[[opsi-manual-wansupport-product-sync-config]]
+==== Konfiguration des {opsi-product}-Cachings
+Die allgemeine Konfiguration des {opsi-product}-Cachings wird in der `opsiclientd.conf` innerhalb der Sektion +[cache_service]+ vorgenommen.
+
+* +product_cache_max_size+ (integer): Die maximale Größe des {opsi-product}-Caches in Bytes.
+Hiermit wird sichergestellt, dass der durch das {opsi-product}-Caching belegte Speicherplatz die konfigurierte Größe nicht überschreitet.
+* +storage_dir+ (string): Der Pfad zum Verzeichnis, in dem das Basis-Verzeichnis `depot` für das {opsi-product}-Caching angelegt wird.
+
+Weitere Konfigurationen erfolgen Event-spezifisch. +
+Innerhalb einer Event-Konfigurations-Sektion +[event_<event-config-id>]+ existieren folgende Optionen:
+
+* +cache_products+ (boolean): Steht der Wert dieser Option auf +true+ beginnt der 'ProductCacheService' beim Auftreten des Events mit
+dem Cachen von '{opsi-products}n', für die eine '{product-action}' gesetzt ist.
+Ist zusätzlich der Wert der Option +use_cached_products+ auf +true+ gesetzt, wird die weitere Bearbeitung des Events solange verzögert,
+bis das Cachen der '{opsi-products}' abgeschlossen ist.
+* +cache_max_bandwidth+ (integer): Die maximale Bandbreite in Byte/s, die beim Cachen verwendet werden soll.
+Bei einem Wert kleiner oder gleich 0 wird keine Bandbreiten-Begrenzung vorgenommen.
+* +cache_dynamic_bandwidth+ (boolean): Steht der Wert dieser Option auf +true+, wird die für die Übertragung verwendete Bandbreite dynamisch angepasst.
+Hierbei wird der Netzwerk-Verkehr auf der Netzwerkschnittstelle zum '{opsi-depot}' kontinuierlich überwacht.
+Wird dabei Netzwerk-Verkehr festgestellt, der nicht durch das {opsi-product}-Caching entsteht, wird die Bandbreite der Übertragung stark reduziert,
+um andere Anwendungen möglichst wenig zu beeinflussen.
+Ist die Bandbreite dynamisch reduziert und der Netzwerk-Verkehr im Wesentlichen auf das {opsi-product}-Caching zurückzuführen,
+wird die dynamische Begrenzung wieder aufgehoben.
+Der Wert von +cache_max_bandwidth+ wird auch bei Verwendung der dynamischen Bandbreiten-Begrenzung weiterhin berücksichtigt.
+* +use_cached_products+ (boolean): Ist dieser Wert auf +true+ gesetzt, wird beim Bearbeiten der '{product-actions}' der lokale {opsi-product}-Cache verwendet.
+Ist das Caching der '{opsi-products}' zu diesem Zeitpunkt noch nicht abgeschlossen, wird die Bearbeitung des Events mit einem Fehler beendet.
+
+
+[[opsi-manual-wansupport-config-sync]]
+=== Caching von Konfigurationen
+
+Das Cachen von Konfigurationen übernimmt der 'ConfigCacheService', der Bestandteil des '{opsiclientd}' ist. +
+Der 'ConfigCacheService' synchronisiert ein lokales '{client-cache-backend}' mit dem '{config-backend}' des '{opsi-configserver}s'. +
+Der '{opsiclientd}' bietet per 'WebService' einen Zugriff auf das Backend und stellt somit eine ähnliche Funktionalität wie der '{opsiconfd}' bereit.
+
+[[opsi-manual-wansupport-config-sync-client-cache-backend]]
+==== Das lokale '{client-cache-backend}'
+Das lokale '{client-cache-backend}' basiert auf 'SQLite' und besteht im Wesentlichen aus einer Arbeitskopie,
+einem Snapshot und einem Modification-Tracker, der über Änderungen an der Arbeitskopie Buch führt. +
+Das Basis-Verzeichnis des Config-Caches ist konfigurierbar und standardmäßig auf `%SystemDrive%\opsi.org\cache\config` gesetzt.
+Der Snapshot entspricht dem Stand der Konfigurationen auf dem '{opsi-configserver}' zum Zeitpunkt der letzten Synchronisation. +
+Die Arbeitskopie entspricht zu Beginn dem Snapshot und wird im Laufe der Aktionen modifiziert.
+
+[[opsi-manual-wansupport-config-sync-flow]]
+==== Ablauf der Synchronisation von Konfigurationen
+Die Synchronisation der lokalen Änderungen im '{client-cache-backend}' mit dem '{config-backend}' des '{opsi-configserver}s' läuft folgendermaßen ab:
+
+* Die im Modification-Tracker registrierten Änderungen an der Arbeitskopie werden auf den '{opsi-configserver}' übertragen.
+Änderungen an den Konfigurationen auf dem '{opsi-configserver}' seit der letzten Synchronisation werden durch Vergleich mit dem Snapshot erkannt.
+Kommt es bei der Rückübertragung der Modifikationen zu Konflikten greifen folgende Regeln:
+  - Im Fall von Inventarisierungsdaten besitzen die Daten des Clients Priorität
+  - Bei '{action-requests}' gilt der Wert des Clients, es sei denn die Version des entsprechenden Paketes hat sich in der Zwischenzeit Server-seitig geändert. Dann wird der Server-Wert bevorzugt.
+  - Im Fall von '{installation-status}' und '{action-result}' wird der Client-Wert bevorzugt.
+  Bei Action-Requests gilt der Wert des Clients, es sei denn die Version des entsprechenden Paketes hat sich in der Zwischenzeit Server-seitig geändert. Dann wird der Server-Wert bevorzugt.
+  - Ist die Verwendung des opsi-Lizenzmanagement eingeschaltet (config: 'license-management.use=true'), so wird versucht über die Kopplung 'opsi-Produkt' zu 'opsi-Lizenzpool' eine freie Lizenz zu reservieren. Diese verwendeten Software-Lizenzen wird mit repliziert. Bei der Replikation reservierte, ungenutzte Lizenzen werden wieder freigegeben.
+  - Der neue Zustand von '{opsi-config-objects}n' und '{product-properties}' wird nur dann auf den Server übertragen, wenn diese in der Zwischenzeit nicht Server-seitig geändert worden sind.
+* Der Modification-Tracker wird geleert.
+* Die Log-Dateien werden übertragen.
+
+Die Replikation des '{config-backend}' des '{opsi-configserver}s' in das '{client-cache-backend}' läuft folgendermaßen ab:
+
+* Die Replikation findet nur statt, wenn auf dem '{opsi-configserver}' '{action-requests}' gesetzt sind,
+die '{product-action}' +always+ gilt hierbei als nicht gesetzt.
+Ist der Zustand der '{action-requests}' seit dem letzten Replikations-Lauf unverändert, findet ebenfalls keine Replikation statt.
+* Der Modification-Tracker die Arbeitskopie und der Snapshot werden geleert.
+* Die zum autarken Arbeiten benötigten Konfigurationen werden repliziert.
+* Sind '{action-requests}' für '{opsi-products}' gesetzt die als lizenzpflichtig markiert wurden,
+wird eine Software-Lizenz aus einem, dem '{opsi-product}' zugeordneten, '{license-pool}' reserviert.
+* Zusätzlich benötigte Daten, wie +auditHardwareConfig+ und +modules+ werden übertragen.
+* Der Snapshot und die Arbeitskopie werden auf den gleichen Stand gebracht.
+
+Eine erfolgreiche Replikation vom Server zum Client hat zur Folge, dass:
+
+* Der Zustand +config_cached+ den Wert +true+ annimmt und dieser auch über einen Neustart hinweg erhalten bleibt (siehe: xref:client/opsi-client-agent#opsi-manual-clientagent-configuration-events[Konfiguration unterschiedlicher Events]).
+* Ein Event vom Typ +sync completed+ ausgelöst wird.
+
+[[opsi-manual-wansupport-config-sync-config]]
+==== Konfiguration des Config-Cachings
+
+Die Konfiguration des Config-Cachings erfolgt hauptsächlich Event-spezifisch. +
+Innerhalb einer Event-Konfigurations-Sektion +[event_<event-config-id>]+ existieren folgende Optionen:
+
+* +sync_config_to_server+ (boolean): Steht der Wert dieser Option auf +true+, beginnt der 'ConfigCacheService' beim Auftreten des Events
+die im Modification-Tracker registrierten Änderungen zum '{opsi-configserver}' zu übertragen.
+Das Ergebnis dieser Aktion wird in jedem Fall abgewartet.
+* +sync_config_from_server+ (boolean): Ist dieser Wert auf +true+ gesetzt, beginnt der 'ConfigCacheService' mit der Replikation.
+Ist zusätzlich der Wert der Option +use_cached_config+ auf +true+ gesetzt wird die weitere Bearbeitung des Events solange verzögert,
+bis die Replikation abgeschlossen ist.
+* +use_cached_config+  (boolean): Steht der Wert dieser Option auf +true+, wird beim Bearbeiten der '{product-actions}' das '{client-cache-backend}' verwendet.
+Ist die Synchronisation zu diesem Zeitpunkt noch nicht abgeschlossen wird die Bearbeitung des Events mit einem Fehler beendet.
+* +post_sync_config_to_server+ (boolean): Entspricht +sync_config_to_server+, wird jedoch nach Abschluss der '{product-actions}' ausgewertet.
+* +post_sync_config_from_server+ (boolean): Entspricht +sync_config_from_server+, wird jedoch nach Abschluss der '{product-actions}' ausgewertet.
+
+
+[[opsi-manual-wansupport-recommended-config]]
+=== Empfohlene Konfiguration bei Verwendung der WAN/VPN-Erweiterung
+
+Das '{opsi-client-agent}'-Paket bringt eine, für die WAN/VPN-Erweiterung, vorbereitete `opsiclientd.conf` mit. +
+Um die WAN/VPN-Erweiterung zu aktivieren ist es lediglich notwendig, einige Events zu aktivieren und andere zu deaktivieren. +
+Da die Konfiguration des '{opsi-client-agent}s' auch zentral über den Webservice erfolgen kann (siehe: xref:client/opsi-client-agent-webapi#opsi-manual-clientagent-configuration-webservice[opsi-client-agent web service]),
+ist zu empfehlen die folgenden '{opsi-config-objects}' anzulegen.
+
+* +opsiclientd.event_gui_startup.active+ (boolean, default: +true+)
+* +opsiclientd.event_gui_startup\{user_logged_in\}.active+ (boolean, default: +true+)
+* +opsiclientd.event_net_connection.active+ (boolean, default: +false+)
+* +opsiclientd.event_timer.active+ (boolean, default: +false+)
+
+Über diese '{opsi-config-objects}' können dann Events Client-spezifisch aktiviert bzw. deaktiviert werden.
+Die '{opsi-config-objects}' können über den '{opsi-configed}' oder '{opsi-admin}' angelegt werden.
+
+Zum Anlegen der '{opsi-config-objects}' über '{opsi-admin}' sind die folgenden Befehle auf dem '{opsi-configserver}' auszuführen:
+
+[source,prompt]
+----
+opsi-admin -d method config_createBool opsiclientd.event_gui_startup.active "gui_startup active" true
+opsi-admin -d method config_createBool opsiclientd.event_gui_startup{user_logged_in}.active "gui_startup{user_logged_in} active" true
+opsi-admin -d method config_createBool opsiclientd.event_net_connection.active "event_net_connection active" false
+opsi-admin -d method config_createBool opsiclientd.event_timer.active "event_timer active" false
+----
+
+Die gesetzten Standard-Werte entsprechen hierbei den Standard-Werten der mitgelieferten `opsiclientd.conf`.
+
+CAUTION: Wenn Sie vorgenannten Operation zum setzen der defaults *nicht* ausführen und nur die nachfolgenden, dann stellen Sie *alle* Clients auf WAN um !
+
+Für einen WAN/VPN-Client, der Konfigurationen und {opsi-products} cachen soll, werden die '{opsi-config-objects}' wie folgt konfiguriert:
+
+* +opsiclientd.event_gui_startup.active+: +false+
+* +opsiclientd.event_gui_startup\{user_logged_in\}.active+: +false+
+* +opsiclientd.event_net_connection.active+: +true+
+* +opsiclientd.event_timer.active+: +true+
+
+Die Client-spezifischen '{opsi-config-objects}' können über den '{opsi-configed}' oder '{opsi-admin}' gesetzt werden.
+
+Zum Setzen der '{opsi-config-objects}' über '{opsi-admin}' sind die folgenden Befehle auf dem '{opsi-configserver}' auszuführen
+(im Beispiel für einen Client mit der {opsi-host-id} +vpnclient.domain.de+):
+
+[source,prompt]
+----
+opsi-admin -d method configState_create opsiclientd.event_gui_startup.active vpnclient.domain.de false
+opsi-admin -d method configState_create opsiclientd.event_gui_startup{user_logged_in}.active vpnclient.domain.de false
+opsi-admin -d method configState_create opsiclientd.event_net_connection.active vpnclient.domain.de true
+opsi-admin -d method configState_create opsiclientd.event_timer.active vpnclient.domain.de true
+----
+
+Diese Konfiguration hat zur Folge, dass:
+
+* Beim Start des Rechners kein Verbindungsaufbau zum '{opsi-configserver}' stattfindet.
+* Beim Aktivieren einer beliebigen Netzwerk-Schnittstelle ein Verbindungsaufbau zum '{opsi-configserver}' versucht
+und mit der Synchronisation im Hintergrund begonnen wird.
+* Ein +timer+-Event aktiviert wird, dass in regelmäßigen Abständen aktiv wird und ebenso einen Synchronisation-Versuch unternimmt.
+
+
+[[opsi-manual-wansupport-recommended-config-depot-protocol]]
+==== Wahl des Protokolls für das Caching der '{opsi-products}'
+
+Das Caching der '{opsi-products}' kann über die Protokolle 'HTTPS'/'WEBDAVS' oder 'CIFS'/'SMB' erfolgen.
+
+Bei Verwendung von 'webdav' erfolgt der Zugriff auf das '{opsi-depot}' über den '{opsiconfd}'.
+
+* Vorteile:
+  - Einfache Firewall-Konfiguration, lediglich Zugriff auf Port 4447 notwendig.
+  - Prüfung des SSL-Zertifikats des '{opsi-depot}s' möglich.
+
+* Nachteile:
+  - Der 'opsiconfd' erzeugt höhere Lasten auf dem {opsi-depot}.
+
+Bei Verwendung von 'cifs' erfolgt der Zugriff auf das '{opsi-depot}' über 'SAMBA'.
+
+* Vorteile:
+  - Der 'SAMBA'-Server ist performant, ressourcenschonend und gut skalierbar.
+
+* Nachteile:
+  - Aufwändigere Firewall-Konfiguration, Zugriff auf SAMBA-Ports notwendig.
+  - Prüfung des SSL-Zertifikats des '{opsi-depot}s' nicht möglich.
+
+Eine Anleitung zur Konfiguration des Protokolls finden sich im Kapitel <<opsi-manual-wansupport-depot-protocol>>.
+
+.Ablauf einer Installation mit der WAN-Erweiterung in der opsiclientd-infopage
+image::ospclientd-infopage-wan-cached.png["ospclientd-infopage-wan-cached",width=400]
+
+[[opsi-manual-wansupport-recommended-config-verify-server-cert]]
+==== Prüfung der Server-Zertifikate
+Um die Prüfung von SSL-Zertifikaten zu aktivieren, ist in der `opsiclientd.conf` innerhalb der Sektion +[global]+ die Option +verify_server_cert+ auf +true+ zu setzen.
+Dies hat zur Folge, dass bei einem Verbindungsaufbau zu einem `opsiconfd` der {opsi-server} anhand des SSL-Zertifikats überprüft wird.
+Die Server-Zertifikate werden auf dem Client im Verzeichnis `c:\opsi.org\opsiclientd\server-certs` abgelegt.
+Der Dateiname des Zertifikats setzt sich aus der Server-Adresse (IP oder Name) und der Dateiendung +.pem+ zusammen.
+Sollte beim Verbindungsaufbau kein gespeichertes Zertifikat gefunden werden, findet keine Überprüfung statt.
+
+TIP: Um ein geändertes Zertifikat neu zu publizieren, muss das auf den Clients vorhandene Zertifikat gelöscht werden.
+Hierfür steht auch die RPC-Methode +deleteServerCerts+ bereit, die über das Control-Interface des {opsiclientd} aufgerufen werden kann.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

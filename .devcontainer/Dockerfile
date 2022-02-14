@@ -24,7 +24,14 @@ RUN apt update && apt install -y asciidoctor \
 	make \
 	python2 \
 	python3 \
-	&& gem install sass \
+	build-essential \
+	curl \
+	vim
+
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+	&& sudo apt install -y nodejs
+
+RUN gem install sass \
 	&& gem install compass \
 	&& gem install prawn-gmagick \
 	&& gem install zurb-foundation \

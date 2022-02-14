@@ -1,0 +1,357 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.2
+:doctype: book
+:macosclientmanual: opsi-macos-client-manual
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[opsi-macclient-softwintegration]]
+= Einbindung eigener Software in die Softwareverteilung von opsi
+
+Die Installation von Software erfolgt bei opsi durch den {opsi-client-agent} und insbesondere durch das Script gesteuerte Setup Programm {opsi-script}. Daher muss zu jedem opsi-Produkt ein {opsi-script}-Script erstellt werden. Danach werden dieses Script, die Installationsdateien und die Metadaten zu einem opsi-Produkt gepackt, welches sich schließlich auf dem {opsi-Server} installieren lässt.
+
+[[opsi-macclient-softwintegration-tutorial]]
+== Ein kleines Tutorial zur Erstellung eines {opsi-script} Scriptes
+
+
+include::common:partial$softwintegration-tutorial-introduction.adoc[leveloffset=-1]
+
+[[opsi-macclient-softwintegration-tutorial-general]]
+=== Methoden der nicht interaktiven Softwareinstallation bei MacOS
+
+Apple hat (im Gegensatz zu Microsoft) sehr früh die Methoden zur Software Installation standardisiert. Im Kern gibt es zwei Methoden:
+
+* *application Directory*: +
+Es handelt sich um ein Verzeichnis nach dem Muster:
+`<Application name>.app` Ein solches Verzeichnis wird aber im `Finder` nicht als Verzeichnis angezeigt, sondern als 'Anwendung'. Innerhalb dieses Verzeichnisses müssen sich nach einem bestimmten Muster die Dateien der Anwendung befinden. Ein typischer Aufbau wäre:
+
+----
+opsi-script-gui.app
+  |--Contents
+       |-Info.plist
+       |-PkgInfo
+       |-MacOS
+       |  |-opsi-script-gui
+       |
+       |-Resources
+          |- (....)
+----
+
+Ein solches Verzeichnis muß zur Installation nur in das Verzeichnis `/Applications` kopiert werden. Evtl. müssen noch Dateien im Verzeichnis `MacOS` ausführbar gemacht werden. +
+Solche *.app Verzeichnisse werden zum Download zumeist gepackt angeboten.
+
+* *PKG file*: +
+Diese Dateien enthalten Software die über einen speziellen Befehl installiert werden müssen.
+
+In beiden Fällen ist eine `unattended` (also nicht interaktive) Installation kein Problem.
+
+Häufig wird MacOS Software in gepackten Formaten angeboten wie *.zip, *.dmg
+oder auch *.tgz.
+
+Alle bisher genannten Varianten können per opsi-script direkt installiert werden, außer *.tgz welches vorher ausgepackt werden muß.
+
+include::common:partial$softwintegration-tutorial-script-structure-opsi-script-basics.adoc[leveloffset=-1]
+
+
+
+//
+[[opsi-macclient-softwintegration-tutorial-macos-special-commands]]
+==== Spezielle Kommandos für MacOS
+
+* GetOS   // liefert: Linux or Windows_NT or macos [W/L/M]
+
+* getMacosVersionInfo [M]
+
+* getMacosVersionMap [M]
+
+Siehe auch: +
+http://bonifax.uib.local/opsidoc/git-stable/html/opsi-winst-manual/opsi-winst-manual.html#opsi-winst-macos-functions
+
+In den folgenden Kapiteln werden spezielle opsi MacOS Befehle zur Installation von Software vorgestellt welche aus der opsi-script Library `uib_macosinstalllib` stammen. Diese Dokumentation ist in Englisch, da sie direkt aus dem Quellcode automatisch generiert wurde.
+
+// http://www.methods.co.nz/asciidoc/userguide.html#X90
+:leveloffset: 4
+
+// Include os-lib_uib_macosinstalllib.asciidoc
+include::opsi-docs-en:common:partial$os-lib-uib-macosinstalllib.adoc[leveloffset=-1]
+
+:leveloffset: 0
+
+[[opsi-macclient-softwintegration-tutorial-template]]
+== Drittes Beispiel: MacOS-Template 'm-opsi-template'
+
+Dieses Template können Sie sich mit dem `opsi-setup-detector` erstellen.
+
+
+.setup.opsiscript: Installationsscript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the General Public License.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+DefVar $ProductId$
+DefVar $InstallDir$
+DefVar $MinimumSpace$
+DefVar $ExitCode$
+DefVar $ErrorString$
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+DefVar $OS$
+DefVar $oldProgFound$
+DefVar $installSuccess$
+
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "%scriptpath%\osd-lib.opsiscript"
+importlib "%scriptpath%\uib_macosinstalllib.opsiscript"
+
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "m-opsi-template"
+Set $MinimumSpace$	 = "1 MB"
+; the path were we find the product after the installation
+;Set $InstallDir$		= "/Applications/<path to the product>"
+Set $InstallDir$		= "/Applications/<productid.app>"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "macos"))
+	logError "Installation aborted: wrong OS version: only MacOS"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+Message "Installing " + $ProductId$ + " ..."
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, reserve license and get license key"
+	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
+endif
+
+
+comment "Start setup "
+ChangeDirectory "%SCRIPTPATH%/files1"
+;----------------------------------------------
+set $installSuccess$ = install_macos_generic("%SCRIPTPATH%/files1/<my macos install file>")
+;----------------------------------------------
+Sub_check_installSuccess
+
+
+comment "Copy files"
+Files_install
+
+[Sub_check_installSuccess]
+if $installSuccess$  = "false"
+	LogError "Installation failed"
+	isfatalerror "Installation failed"
+else
+	Comment "Installation success"
+endif
+
+
+[Files_install]
+; Example of recursively copying some files into the installation directory:
+;
+; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
+----
+
+.delsub.opsiscript: Ausgelagerte Deinstallations-Sub-Sektion
+[source,winst]
+----
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib gmbh
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+Message "Check for existing installation of " + $ProductId$ + " ..."
+
+comment "Start the Uninstall check:"
+set $oldProgFound$ = "false"
+if directoryExists($InstallDir$)
+	set $oldProgFound$ = "true"
+endif
+
+if $oldProgFound$ = "true"
+	Message "Uninstalling " + $ProductId$ + " ..."
+	if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown') or ($InstallDir$ = '/Applications/'))
+		Files_uninstall
+	endif
+endif
+
+
+[Files_uninstall]
+del -sf "$InstallDir$\"
+
+;-----------------------------------------------------
+
+[Linkfolder_remove_desktop_icon]
+; check delete_element
+set_basefolder common_desktopdirectory
+set_subfolder ""
+delete_element $productId$
+
+;-----------------------------------------------------
+----
+
+.uninstall.opsiscript: Deinstallations-Skript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+DefVar $ProductId$
+DefVar $InstallDir$
+DefVar $MinimumSpace$
+DefVar $ExitCode$
+DefVar $ErrorString$
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+DefVar $OS$
+DefVar $oldProgFound$
+
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "%scriptpath%\osd-lib.opsiscript"
+
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "m-opsi-template"
+; the path were we find the product after the installation
+;Set $InstallDir$	= "/Applications/<product.app>"
+Set $InstallDir$	= "unknown"
+Set $LicenseRequired$ = "False"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "macos"))
+	logError "Installation aborted: wrong OS version: only macos"
+	isFatalError "wrong OS"
+endif
+
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+
+
+Message "Uninstalling " + $ProductId$ + " ..."
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, free license used"
+	Sub_free_license
+endif
+
+[Sub_free_license]
+comment "License management is enabled and will be used"
+
+comment "Trying to free license used for the product"
+DefVar $result$
+Set $result$ = FreeLicense($LicensePool$)
+; If there is an assignment of a license pool to the product, it is possible to use
+; Set $result$ = FreeLicense("", $ProductId$)
+;
+; If there is an assignment of a license pool to a windows software id, it is possible to use
+; DefVar $WindowsSoftwareId$
+; $WindowsSoftwareId$ = "..."
+; set $result$ = FreeLicense("", "", $WindowsSoftwareId$)
+----
+
+[[opsi-client-softwintegration-create-opsi-package]]
+== Erstellen eines opsi-Produkt-Pakets
+
+[[opsi-setup-detector-installation]]
+== Installation des opsi-setup-detector, {opsi-package-builder} und opsi-logviewer
+
+// include docu: opsi-setup-detector installation
+include::common:partial$setup-detector-installation.adoc[leveloffset=-1]
+
+
+// include docu: opsi-logviewer installation
+include::common:partial$opsi-logviewer-installation.adoc[leveloffset=-1]
+
+
+
+[[opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
+== Das Programm opsi-setup-detector zum Erstellen eines MacOS Scriptes
+
+// include docu: opsi-setup-detector
+include::common:partial$setup-detector-use-start.adoc[leveloffset=-1]
+
+// include docu: macos specific tasks in opsi-setup-detector
+include::common:partial$osd-task-macos.adoc[leveloffset=-1]
+
+Die nun folgenden Screenshots zeigen zwar die Verwendung von Windows-Installer Dateien,
+sie sehen aber analog aus bei der Verwendung von MacOS Installer Dateien wie *.app, *.dmg, *.zip.
+
+// include docu: how to use the opsi-setup-detector
+include::common:partial$osd-task-use-single-analyze-and-create.adoc[leveloffset=-1]
+
+Mehr Details zum `opsi-setup-detector` finden Sie im opsi-manual: +
+https://download.uib.de/opsi4.2/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-setup-detector
+
+// include docu: how to use the opsiPackagebuilder
+include::common:partial$softwintegration-tutorial-packagebuilder-use.adoc[leveloffset=-1]
+
+// include docu: The modify and test cycle
+include::common:partial$softwintegration-tutorial-modify-test-cycle.adoc[leveloffset=-1]
+
+
