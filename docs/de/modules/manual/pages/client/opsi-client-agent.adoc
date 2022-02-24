@@ -1247,13 +1247,13 @@ Siehe aus Kapitel xref:modules/software-on-demand#software-on-demand[opsi Softwa
 Der opsi-client-agent kann in vielen unterschiedlichen Modi installiert werden:
 
 * Im Rahmen einer Betriebssysteminstallation
-* Manuell aus einem (Depot-)Verzeichnis (Start von oca-installation-helper.exe / service_setup.cmd / silent_setup.cmd)
+* Manuell aus einem (Depot-)Verzeichnis (Start von oca-installation-helper.exe / service_setup.cmd / silent_setup.cmd, bzw oca-installation-helper / service_setup.sh für linux und macos)
 * Per Push vom Server aus (opsi-deploy-client-agent)
-* Über den neuen Installer (opsi-client-agent-installer.exe)
-* Über das neue MSI-Paket (opsi-client-agent.msi)
+* Über den Installer (opsi-client-agent-installer.exe, opsi-linux-client-agent-installer.sh, opsi-mac-client-agent-installer.sh)
+* Über das MSI-Paket (opsi-client-agent.msi - nur windows)
 * Im opsi-Service-Kontext (opsi-client-agent aktualisiert sich selbst)
 
-Außer beim Upgrade im opsi-Service-Kontext kommt hierbei immer die neue oca-installation-helper.exe zum Einsatz.
+Außer beim Upgrade im opsi-Service-Kontext kommt hierbei immer die neue oca-installation-helper[.exe] zum Einsatz.
 Diese erfüllt im wesentlichen die folgenden Zwecke:
 
 * Die Installationsdateien werden, wenn notwendig, in ein lokales Temp-Verzeichnis kopiert (z.B. Aufruf per UNC-Pfad).
@@ -1264,18 +1264,19 @@ Diese erfüllt im wesentlichen die folgenden Zwecke:
 Die Installation erfolgt in jedem Fall mit einer funktionierenden Service-Verbindung.
 Das heißt, dass, unabhängig vom Installations-Modus, auch immer die Product-Properties vom Server verwendet werden.
 
-Die oca-installation-helper.exe kennt die folgenden Parameter (--help): 
+Die oca-installation-helper[.exe] kennt die folgenden Parameter (--help):
 
 [source,bash]
 ----
-usage: oca-installation-helper.exe [-h] [--version] [--log-file LOG_FILE]
-                                   [--log-level {none,debug,info,warning,error,critical}]
-                                   [--service-address SERVICE_ADDRESS]
-                                   [--service-username SERVICE_USERNAME]
-                                   [--service-password SERVICE_PASSWORD]
-                                   [--client-id CLIENT_ID] [--non-interactive]
-                                   [--no-gui] [--gui]
-                                   [--encode-password PASSWORD]
+usage: oca-installation-helper [-h] [--version] [--log-file LOG_FILE]
+                               [--log-level {none,debug,info,warning,error,critical}]
+                               [--service-address SERVICE_ADDRESS]
+                               [--service-username SERVICE_USERNAME]
+                               [--service-password SERVICE_PASSWORD] [--client-id CLIENT_ID]
+                               [--non-interactive] [--no-gui] [--gui] [--encode-password PASSWORD]
+                               [--depot DEPOT] [--group HOSTGROUP] [--force-recreate-client]
+                               [--finalize {noreboot,reboot,shutdown}] [--dns-domain DNS_DOMAIN]
+                               [--read-conf-files [FILE [FILE ...]]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -1295,17 +1296,29 @@ optional arguments:
   --gui                 Use gui.
   --encode-password PASSWORD
                         Encode PASSWORD.
+  --depot DEPOT         Assign client to specified depot.
+  --group HOSTGROUP     Insert client into specified host group.
+  --force-recreate-client
+                        Always call host_createOpsiClient, even if it exists.
+  --finalize {noreboot,reboot,shutdown}
+                        Action to perform after successfull installation.
+  --dns-domain DNS_DOMAIN
+                        DNS domain for assembling client id (ignored if client id is given).
+  --read-conf-files [FILE [FILE ...]]
+                        config files to scan for informations, if empty no files are read (default:
+                        install.conf config.ini opsiclientd.conf)
 ----
 
 Mittels dieser Parameter kann die Installation auch automatisiert werden:
 
 [source,bash]
 ----
-oca-installation-helper.exe --service-address 10.1.2.3 --service-username adminuser --service-password secret --non-interactive
+oca-installation-helper.exe --service-address https://10.1.2.3:4447 --service-username adminuser --service-password secret --non-interactive
 ----
 
-Auch die opsi-client-agent-installer.exe nimmt die gleichen Parameter entgegen.
-Der Installer kann von einem opsi 4.2 Server ohne Authentifizierung über die folgende Adresse heruntergeladen werden:
+Auch die opsi-client-agent-installer[.exe] nimmt die gleichen Parameter entgegen.
+Der Installer kann von einem opsi 4.2 Server ohne Authentifizierung über die folgende Adresse heruntergeladen werden +
+(analog für opsi-linux-client-agent-installer.sh und opsi-mac-client-agent-installer.sh):
 
 https://<opsi-server>:4447/public/opsi-client-agent/opsi-client-agent-installer.exe
 
@@ -1343,6 +1356,10 @@ Kommandozeilen-Parameter haben immer Vorrang.
 
 Sollte keine opsi-Service-URL angegeben werden, wird versucht diese über Zeroconf zu ermitteln.
 
+Über die Parameter --depot und --group kann der client einem Depot und einer Hostgruppe zugeordnet werden (geht nur mit admin credentials).
+
+Mit dem Parameter --finalize kann festgelegt werden, wie die Installation abgeschlossen wird (default ist "noreboot" wobei der opsiclientd gestartet wird, ohne ein Event auszulösen).
+
 Hier noch ein Beispiel für eine install.conf zur Automatisierung der Installation:
 
 [source,bash]
@@ -1351,12 +1368,13 @@ client_id =
 service_address = opsiserver.domain.tld
 service_username = adminuser
 service_password = {crypt}w5TDjcOQw5PDjsOr
+dns_domain = subdomain.domain.tld
 interactive = false
 ----
 
-Standardmäßig erstellt die oca-installation-helper.exe immer eine Log-Datei (oca-installation-helper.log) im Temp-Verzeichnis des Benutzers.
+Standardmäßig erstellt die oca-installation-helper[.exe] immer eine Log-Datei (oca-installation-helper.log) im Temp-Verzeichnis des Benutzers.
 
-Die Dateien service_setup.cmd / silent_setup.cmd dienen nur noch zur Abwärtskompatibilität.
+Die Dateien service_setup.cmd / silent_setup.cmd / service_setup.sh dienen nur noch zur Abwärtskompatibilität.
 
 [[opsi-manual-clientagent-systray-program]]
 === Das Systray Programm des opsi-client-agents
