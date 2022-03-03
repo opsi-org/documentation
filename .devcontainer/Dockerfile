@@ -35,9 +35,9 @@ RUN gem install sass \
 	&& gem install compass \
 	&& gem install prawn-gmagick \
 	&& gem install zurb-foundation \
-	&& gem install asciidoctor-epub3 \
 	&& gem install asciidoctor-pdf \
-	&& gem install rouge
+	&& gem install rouge \
+	&& gem install asciidoctor-interdoc-reftext
 
 RUN if [ -z ${USER+x} ]; then \
 	echo "var USER is unset"; \
