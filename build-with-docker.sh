@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # User command
-# docker run --rm -it -u $(id -u ${USER}):$(id -g ${USER}) -v ~/Develop/OPSI/opsidoc:/opsidoc docker.uib.gmbh/fabian/opsidoc-antora:latest /opsidoc/build-with-docker.sh de manual
+# docker run --rm -it -u $(id -u ${USER}):$(id -g ${USER}) -v ${pwd}:/opsidoc docker.uib.gmbh/fabian/opsidoc-antora:latest /opsidoc/build-with-docker.sh de manual
 
 LANG=$1
 DOC=$2
