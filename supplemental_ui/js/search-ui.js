@@ -97,7 +97,7 @@
     return hits
   }
 
-  function createSearchResult (result, store, searchResultDataset) {
+  function createSearchResult (result, store, searchResultDataset, text) {
     result.forEach(function (item) {
       var url = item.ref
       var hash
@@ -108,11 +108,11 @@
       var doc = store[url]
       var metadata = item.matchData.metadata
       var hits = highlightHit(metadata, hash, doc)
-      searchResultDataset.appendChild(createSearchResultItem(doc, item, hits))
+      searchResultDataset.appendChild(createSearchResultItem(doc, item, hits, text))
     })
   }
 
-  function createSearchResultItem (doc, item, hits) {
+  function createSearchResultItem (doc, item, hits, text) {
     var documentTitle = document.createElement('div')
     documentTitle.classList.add('search-result-document-title')
     documentTitle.innerText = doc.title
@@ -120,7 +120,7 @@
     documentHit.classList.add('search-result-document-hit')
     var documentHitLink = document.createElement('a')
     let searchStr = Object.keys(item.matchData.metadata)[0]
-    documentHitLink.href = siteRootPath + item.ref + "?search=" + searchStr
+    documentHitLink.href = siteRootPath + item.ref + "?search=" + text
     documentHit.appendChild(documentHitLink)
     hits.forEach(function (hit) {
       documentHitLink.appendChild(hit)
@@ -176,7 +176,7 @@
     searchResultDataset.classList.add('search-result-dataset')
     searchResult.appendChild(searchResultDataset)
     if (result.length > 0) {
-      createSearchResult(result, store, searchResultDataset)
+      createSearchResult(result, store, searchResultDataset, text)
     } else {
       searchResultDataset.appendChild(createNoResult(text))
     }
