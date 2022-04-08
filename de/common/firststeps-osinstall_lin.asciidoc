@@ -12,8 +12,8 @@
 ////
 
 [[firststeps-osinstall]]
-== Installation of a new Linux PC with opsi (OS Installation)
-
+== Installation eines neuen Linux PC über opsi (OS-Installation)
+////
 [[firststeps-osinstall-linux-netboot-intro]]
 === Linux Netboot Produkte: Einführung und technische Hintergründe
 
@@ -140,9 +140,10 @@ WICHTIG: Verwenden Sie die Standard Installations-DVD's der Distribution. Modifi
 * Beim Produkt `ubuntu22-04` muss die .iso Datei im Produktverzeichnis im UNterverzeichnis `iso` hinterlegt werden.
 
 ////
+////
 Die Pakete debian8 und ubuntu16-04 können auch auf ein lokales http-Repository zugreifen. +
 ////
-
+////
 Siehe auch Kapitel <<firststeps-osinstall-linux-debproxy>>
 
 // Siehe auch Kapitel <<firststeps-osinstall-local-http-deb-repo>>
@@ -180,31 +181,160 @@ Export list for localhost:
 ----
 
 ===================================================
+////
 
 [[firststeps-osinstall-netboot-distro]]
-=== opsi Linux Netboot Produkte mit distributions Installer: Properties
+=== Linux Netboot Produkte auf Basis des Distributionseigenen Installers
+
+
+* Ähnlich wie bei der Windows-Installation wird für den Installer eine Antwortdatei bereit gestellt, welche vom Installer zur nichtinteraktiven Installation genutzt wird.
+
+* Der distributionseigene Installer ist nicht wie bei Windows ein Programm das aufgerufen wird, sondern in einer Kombination aus distributionseigenem Kernel und initrd implementiert.
+
+* Die gesamte Grundinstallation - inklusive Partitionierung, LVM, Basissoftware, etc. - liegt in der Hand des Installers und wird nicht mehr durch das bootimage durchgeführt.
+
+* Bei den Suse- und RedHat-artigen Distributionen werden die Installationsquellen von Ihnen bereitgestellt, in dem Sie die Installations-DVD als ISO-Datei auf dem Depotshare ablegen. Dieses Verfahren ähnelt der Situation unter Windows, nur dass der Ablageort ein anderer ist und dass Sie bei Windows den Inhalt der Installations-DVD ablegen anstatt einer ISO-Datei.
+
+* Für eine Linux Mint Installation wird der Inhalt der offiziellen Installations Medien über einen NFS Server benötigt.
+
+* Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert. +
+Ab opsi 4.0.7 können für bestimmte Netbootprodukte hier auch lokale http Repositories bereitgestellt werden.
+
+* Zur weiteren Pflege der Installation kann der opsi-linux-client-agent im Rahmen der Basisinstallation mit installiert werden.
+
+Abläufe der neuen Installationsmimik:
+
+. Das opsi-linux-bootimage wird gebootet, löscht die Partitionstabelle und erstellt eine kleine temporäre Hilfsparition.
+
+. Das opsi-linux-bootimage holt sich das distributionseigene initrd und entpackt es auf der Hilfspartition.
+
+. Das opsi-linux-bootimage holt sich die generische Vorlage für die Antwortdatei, patcht (personalisiert) diese und legt sie dann in das initrd Verzeichnis.
+
+. Das opsi-linux-bootimage erstellt weitere Hilfscripte und Konfigurationsdateien (z.B. zur Installation des opsi-linux-client-agent) und legt sie dann in das initrd Verzeichnis.
+
+. Das opsi-linux-bootimage packt das gepatchte initrd Verzeichnis wieder zusammen.
+
+. Das opsi-linux-bootimage bootet den Distributions-Kernel mit dem gepatchten initrd per kexec.
+
+. Das so geladene System installiert das Zielsystem unattended und installiert abschließend den opsi-linux-client-agent.
+
+Die Vorteile dieses Vorgehens sind:
+
+* Die Installation findet exakt gemäß den Anforderungen des Distributors statt. Dies ist immer ein Vorteil, aber natürlich im Unternehmensumfeld als Ausgangsbedingung für Supportverträge besonders wichtig.
+
+* Die Integration neuer Releases in opsi wird einfacher und dadurch schneller.
+
+* Bei den Suse- und RedHat-artigen und Linux Mint Distributionen findet die Installation aus auf dem opsi-Server liegenden Installationsquellen statt und ist damit schneller und unempfindlicher gegen Störungen als beim Zugriff auf Repositories aus dem Internet.
+
+[[firststeps-osinstall-netboot-distro-prepare]]
+==== Bereitstellung und der Installationsmedien auf dem Server
+
+Die Bereitstellung der Installationsmedien für die Suse-, RedHat und Linux Mint-artigen Distributionen erfolgt auf einem nfs share: `opsi_nfs_share`.
+
+Zur Einrichtung des shares muss ein NFS-Server auf dem opsi-server installiert und konfiguriert sein.
+
+Seit opsi v4.0.6 wird dies über ein gesondertes Paket `opsi-linux-support` erfolgen. Dieses Paket wird nicht per default installiert und muss einmalig nachinstalliert werden.
+
+Auf Debian-artigen Betriebssystemen kann das durch den folgenden Befehl erreicht werden:
+
+[source,prompt]
+----
+apt install opsi-linux-support
+----
+
+Beim Einsatz einer Firewall auf Ihrem Server muss diese noch so konfiguriert
+werden, dass TCP-Verbindungen auf Port 80 akzeptiert werden.
+Bitte konsultieren Sie hierzu das entsprechende Handbuch.
+
+Was dieses Paket macht, ist (als händige Anleitung) im Folgenden beschrieben:
+
+* Auf dem opsi-server muss das entsprechende NFS-Server-Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: `nfs-kernel-server`. Auf Centos, Redhat ist es das Paket `nfs-utils`.
+
+* Der Export `opsi_nfs_share` muss angelegt und exportiert werden:
+
+** Verzeichnis erzeugen: +
+`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
+
+** In der Datei `/etc/exports` den Eintrag: +
+`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
+erzeugen.
+
+** Das Aktivieren des Exports wird mit dem folgenden Befehl ausgelöst: +
+`exportfs -r`
+
+** Zur Kontrolle des erfolgreichen Exports den folgenden Befehl aufrufen: +
+`showmount -e localhost` +
+Die Ausgabe sollte sein: +
+`Export list for localhost: +
+/var/lib/opsi/depot/opsi_nfs_share *`
+
+* Der share `opsi_nfs_share` hat folgenden Verzeichnisaufbau: +
+`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
+zum Beispiel: +
+`opsi_nfs_share/opensuse53-2/64/openSUSE-15.2-DVD-x86_64.iso` +
+Die Installationsdatei muss als Dateiendung `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert welche verwendet wird. +
+Eine Ausnahme hierzu bildet das Netboot Produkt mint20-X. Hierfür ist es nötig den gesamten Inhalt, auch versteckte Verzeichnisse, in den entsprechenden `opsi_nfs_share` Unterordner zu kopieren.
+
+* Kopieren Sie die Installations-DVD an den entsprechenden Platz im `opsi_nfs_share` und führen Sie aus: +
+`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
+WICHTIG: Verwenden Sie die Standard Installations-DVD's der Distribution. Modifizierte Installations DVD's haben eventuell einen anderen Aufbau und funktionieren nicht.
+
+* Sollten Sie aus irgendwelchen Gründen das Verzeichnis `/var/lib/opsi/depot/opsi_nfs_share` nicht vom opsi-server aus per NFS exportieren können (z.B. weil der Depotshare vom opsiserver per NFS von einem NAS eingebunden ist), so kann der zu verwendende NFS-share über ein Serverweites config angegeben werden. Z.B. `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
+
+* Beim Produkt `ubuntu22-04` muss die .iso Datei im Produktverzeichnis im UNterverzeichnis `iso` hinterlegt werden.
+
+[NOTE]
+.Startreihenfolge beteiligter Dienste unter SLES 11
+===================================================
+
+Es kann vorkommen, dass der `showmount`-Befehl mit einer Fehlermeldung wie nachfolgend abbricht:
+
+[source,prompt]
+----
+# showmount -e localhost
+clnt_create: RPC: Program not registered
+----
+
+Bitte stellen Sie sicher, dass nach der Installation des NFS-Servers ein
+Neustart stattgefunden hat.
+Anschließend müssen die Dienste 'rpcbind' und 'nfs-server' in genau dieser Reihenfolge gestartet werden.
+
+Ein Neustart der Dienste kann wie folgt durchgeführt werden:
+[source,prompt]
+----
+# systemctl restart rpcbind.service
+# systemctl restart nfs-server.service
+----
+
+Anschließend liefert showmount das gewünschte Ergebnis:
+
+[source,prompt]
+----
+# showmount -e localhost
+Export list for localhost:
+/var/lib/opsi/depot/opsi_nfs_share *
+----
+
+===================================================
 
 
 [[firststeps-osinstall-netboot-distro-generalproperties]]
 ==== Allgemeine Properties der opsi Linux Netboot Produkte mit distributions Installer
 
-Die folgenden Properties finden Sie zur Steuerung der Linuxinstallation in allen Netbootprodukten mit distributions Installer:
+Die folgenden Properties finden Sie zur Steuerung der Linuxinstallation in allen v406 Netbootprodukten:
 
 * `askbeforeinst`: +
 Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='true')
 
-* `architecture` (nur wenn es noch einen 32Bit Installer gibt): +
+* `architecture`: +
 Mit welcher Architektur soll das Zielsystem installiert werden? +
 Beeinflusst außerdem das verwendete Bootimage.  (Default='64bit')
 
-* `console_keymap`: +
-Zu installierendes Tastaturlayout.  (Default=Distributionsabhängig / 'de')
-
-* `install_opsi-client-agent`: +
-Installiere den opsi-client-agent für Linux (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules). (Default='true')
-
 * `language` oder `locale`: +
 Welche Sprache / locale soll installiert werden.  (Default=Distributionsabhängig / 'de')
+
+* `console_keymap`: (nicht unter ubuntu22-04!)+
+Zu installierendes Tastaturlayout.  (Default=Distributionsabhängig / 'de')
 
 * `timezone`: +
 Welche Zeitzone soll verwendet werden?. (Default='Europe/Berlin')
@@ -218,14 +348,17 @@ Passwort für user.  (Default='linux123')
 * `proxy`: +
 Proxystring (wenn benötigt) in der Form: `http://<ip>:<port>`. (Default=pass:[''])
 
+* `install_opsi-client-agent`: +
+Installiere den opsi-client-agent für Linux (Kofinanzierungsprojekt: Sie benötigen eine Aktivierung durch die /etc/opsi/modules). (Default='true')
+
 * `setup_after_install`: +
 Welche opsi-Produkte sollen zum Abschluss der Betriebssysteminstallation auf *setup* gestellt werden. (Default='')
 
 
 [[firststeps-osinstall-netboot-distro-special-ubuntu14-04]]
-==== Die Produkte: debian9 , debian10 und ubuntu18-04, ubuntu20-04
+==== Die Produkte: debian9, debian10, debian11 und ubuntu18-04, ubuntu20-04, ubuntu22-04 und mint20-1, mint20-2, mint20-3
 
-Die Basis-Installation erfolgt direkt aus dem Netz, mit Ausnahme vom Netboot Paket ubuntu22-04. Hier muss zusätzlich im Produktverzeichnis im Unterverzeichnis iso ein ISO abbild hinterlegt werden.
+Die Basis-Installation erfolgt direkt aus dem Netz, mit Ausnahme vom Netboot Paket ubuntu22-04. Hier muss zusätzlich im Produktverzeichnis im Unterverzeichnis iso ein ISO abbild hinterlegt werden. Bei ubuntu16-04 ist auch eine Installation von einem lokalen Repository möglich.
 
 Bedingt durch den Wechsel des verwendeten Installers sind nicht alle aufgeführten Properties im Netboot Paket ubuntu22-04 (und neuer) enthalten. Die entsprechenden Properties haben jeweils einen Hinweis auf das Fehlen im Netboot Paket ubunut22-04
 
@@ -259,7 +392,7 @@ Default: `auto`
 * `partition_method`: +
 Methode zur Partitionierung der Festplatte: +
 `regular`: Standard Partionierung (unter ubuntu22-04: `direct`)/ `lvm`: LVM's anlegen / `crypto`: In einer verschlüsselten Partition LVM's anlegen (nicht unter ubuntu22-04!)
-Possible: "regular", "lvm", "crypto" +
+Possible: "regular" oder "direct", "lvm", "crypto" +
 Default: `lvm`
 
 * `partition_recipe`: (nicht unter ubuntu22-04!)+
@@ -277,19 +410,16 @@ Default: `standard`
 Possible: "ar", "bg", "by", "cf", "de", "dk", "en", "es", "et", "fa", "fi", "fr", "gr", "il", "it", "kg", "kk", "lt", "mk", "nl", "no", "pl", "ro", "ru", "sg","sr", "ua", "uk", "us", "wo" +
 Default: `de`
 
+
 .Videos (Zeitraffer)
 
 Folgende Videos zeigen jeweils eine Installation. +
 Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen als die Installation eigentlich dauert.
 
-* link:http://download.uib.de/press-infos/videos/opsi-linux/debian7_406_1fps.mp4[Debian 7]
-
 * link:http://download.uib.de/press-infos/videos/opsi-linux/debian8_406_1fps.mp4[Debian 8]
 
-* link:http://download.uib.de/press-infos/videos/opsi-linux/ubuntu14-04_406_1fps.mp4[Ubuntu 14.04]
-
 [[firststeps-osinstall-netboot-distro-special-ucs]]
-==== Die netboot Produkte: ucs*
+==== Das Produkt ucs44
 
 Die Basis-Installation bezieht ihre Pakete von den offiziellen UCS Repositories. Eine Installation mit lokalen Paketquellen ist ebenfalls möglich.
 
@@ -338,145 +468,9 @@ Welche UCS Rolle soll installiert werden ? +
 Possible: "domaincontroller_master", "domaincontroller_backup", "domaincontroller_slave", "memberserver", "base" +
 Default: `domaincontroller_master`
 
-////
-[[opsi-manual-linux-netboot-v406-local-http-deb-repo]]
-===== Einrichtung eines lokalen deb http Repository
-
-Mit dem debian8, ubuntu16-04 und ucs41 Paket ist es nun möglich, von einem lokalen Apache2 Repository zu installieren. +
-Dazu müssen bei dem Produkt im Property 'online_repository' die entsprechende Adresse angeben nach dem Muster `http://<opsi-server>/opsi/<productId>` z.B `http://opsiserver/opsi/debian8` +
-Weiterhin muss das lokale Repository natürlich erstellt werden. +
-Stellen Sie dazu sicher, dass das Produkt `opsi-linux-support` auf Ihrem opsi-server installiert ist. Dieses Paket installiert die
-hierfür benötigten Distributions-Pakete (apache2) und erstellt auch die benötigten Ordner. Dieser muss danach mit einem passenden Distributions-Repository gefüllt werden. +
-Hierfür gibt es zwei Möglichkeiten:
-
-. Einfach: Sie laden sich ein von uns gebautes und getestetes Repository herunter und packen aus
-. Aufwendiger: Sie bauen es sich selbst.
-
-
-Einfach: +
-Führen Sie das nachfolgende Script als 'root' aus. +
-Beachten Sie das der Pfad zum Apache2 `DocumentRoot` zum einen Distributiontypisch unterschiedliche Defaults hat und darüberhinaus abweichend vom Default konfiguriert sein kann. +
-Daher müssen Sie evtl. die zweite Zeile des Scriptes anpassen !
-
-===== debian8
-
-[source,prompt]
-----
-#! /bin/bash
-DOCUMENTROOT=/var/www/html
-URL=http://download.uib.de/opsi4.0/products/opsi-linux
-FILE=debian8.tgz
-mkdir -p ${DOCUMENTROOT}/opsi
-cd ${DOCUMENTROOT}/opsi
-wget ${URL}/${FILE}
-tar xzf ${FILE}
-opsi-set-rights .
-----
-
-
-===== ubuntu16-04
-
-[source,prompt]
-----
-#! /bin/bash
-DOCUMENTROOT=/var/www/html
-URL=http://download.uib.de/opsi4.0/products/opsi-linux
-FILE=ubuntu16-04.tgz
-mkdir -p ${DOCUMENTROOT}/opsi
-cd ${DOCUMENTROOT}/opsi
-wget ${URL}/${FILE}
-tar xzf ${FILE}
-opsi-set-rights .
-----
-
-===== ucs41
-
-[source,prompt]
-----
-#! /bin/bash
-DOCUMENTROOT=/var/www/html
-URL=http://download.uib.de/opsi4.0/products/opsi-linux/univention-repository/
-FILE=univention-repository-4.1.tgz
-mkdir -p ${DOCUMENTROOT}/opsi
-cd ${DOCUMENTROOT}/opsi
-wget ${URL}/${FILE}
-tar xzf ${FILE}
-opsi-set-rights .
-----
-
-===== ucs42
-
-[source,prompt]
-----
-#! /bin/bash
-DOCUMENTROOT=/var/www/html
-URL=http://download.uib.de/opsi4.0/products/opsi-linux/univention-repository/
-FILE=univention-repository-4.2.tgz
-mkdir -p ${DOCUMENTROOT}/opsi
-cd ${DOCUMENTROOT}/opsi
-wget ${URL}/${FILE}
-tar xzf ${FILE}
-opsi-set-rights .
-----
-
-Beachten Sie die link:http://download.uib.de/opsi4.0/products/opsi-linux/univention-repository/opsi-ucs-repository-readme.txt[Readme]!
-
-Aufwendiger: +
-Sie können das Repository auch selbst erstellen:
-
-CAUTION: Ein selbst erstelltes Repo auf Basis einer UCS 4.2-0 DVD führt zu einem uvollständigem Repository. Hierbei ist das Paket `debootstrap` nicht fähig ein UCS 4.2-0 zu installieren. Das von uns bereitgestellte Repository ist hiervon nicht betroffen.
-
-[source,prompt]
-----
-#! /bin/bash
-set -x
-BASE_DIR=/var/www/opsi
-DVD_PATH=UCSISOMOUNTPOINT
-UCS_VERSION=4.1
-UCS_SUBVERSION=4
-UCS_REPODIR=univention-repository/mirror
-UCS_REPODIR2=${UCS_VERSION}/maintained/${UCS_VERSION}-${UCS_SUBVERSION}
-UCS_RELEASE_PATH=dists/ucs414/main/binary-amd64/Release
-
-cd ${BASE_DIR}
-mkdir -p ${UCS_REPODIR}
-cd ${UCS_REPODIR}
-pwd
-ln -s . univention-repository
-mkdir -p ${UCS_REPODIR2}
-cd ${UCS_REPODIR2}
-pwd
-cp -r ${DVD_PATH}/all .
-cp -r ${DVD_PATH}/amd64 .
-cp -r ${DVD_PATH}/dists .
-mkdir -p i386
-cd all
-dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-dpkg-scanpackages . /dev/null > Packages.gz
-cd ..
-cd amd64
-dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-dpkg-scanpackages . /dev/null > Packages.gz
-cd ..
-cd i386
-dpkg-scanpackages . /dev/null | gzip -9c > Packages.gz
-dpkg-scanpackages . /dev/null > Packages.gz
-cd ..
-echo "Archive: stable" > ${UCS_RELEASE_PATH}
-echo "Origin: Univention" >> ${UCS_RELEASE_PATH}
-echo "Label: Univention" >> ${UCS_RELEASE_PATH}
-echo "Version: ${UCS_VERSION}.${UCS_SUBVERSION}" >> ${UCS_RELEASE_PATH}
-echo "Component: main" >> ${UCS_RELEASE_PATH}
-echo "Architecture: amd64" >> ${UCS_RELEASE_PATH}
-cat  ${UCS_RELEASE_PATH}
-cd ${BASE_DIR}
-chown -R www-data:www-data univention-repository
-echo "all done"
-----
-////
 
 [[firststeps-osinstall-netboot-distro-special-sles]]
-==== Die Produkte sles11sp4, sles12, sles12sp1
+==== Die Produkte sles12, sles12sp1, sles12sp2, sles12sp3, sles12sp4, sles15, sles15-1
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -523,7 +517,7 @@ Es ist mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen a
 
 
 [[firststeps-osinstall-netboot-distro-special-redhat70]]
-==== Die Produkte redhat70 und centos70
+==== Die Produkte redhat70, redhat8 und centos70, centos8, rocky8, alma8
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -559,15 +553,15 @@ default: True
 ----
 
 .Installationsquelle CentOS
-Installations DVD hier herunterladen, beispielsweise von link:http://isoredirect.centos.org/centos/7/isos/x86_64/[hier].
-ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/centos70/64/`
+Installations DVD hier herunterladen, beispielsweise von link:http://isoredirect.centos.org/centos/8/isos/x86_64/[hier].
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/centos8/64/`
 Ausführung von `opsi-set-rights` nicht vergessen.
 
 .Installationsquelle RedHat
 Zum Herunterladen der Installations DVD brauchen Sie einen Account bei RedHat.
 Installations DVD sollte heißen (mit einer Datei dieses Namens haben wir getestet): +
 rhel-server-7.0-x86_64-dvd.iso
-ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/redhat70/64/`
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/redhat8/64/`
 Ausführung von `opsi-set-rights` nicht vergessen.
 
 
@@ -581,7 +575,6 @@ Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen
 * link:http://download.uib.de/press-infos/videos/opsi-linux/redhat70_406_1fps.mp4[RedHat 7]
 
 
-
 [[firststeps-osinstall-netboot-gen]]
 === Linux Netboot Produkte mit generischem  (also ohne distributionseigenen) Installer
 
@@ -590,8 +583,7 @@ Sie sind mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen
 Für die Installation eines Linux Basissystems wird zunächst per Netboot das Standard opsi-linux-bootimage gebootet (welches auch für die Windows-Installationen zum Einsatz kommt). +
 Von diesem Bootimage aus wird die Ziel-Festplatte partitioniert (/ und swap) und formatiert. Nun folgt die Installation des Grundsystems (mit Netzwerkkonfiguration und ssh aber ohne X11). Die Abläufe dieser Grundinstallation unterscheiden sich naturgemäß zwischen den unterschiedlichen Distributionen erheblich. Gemeinsam ist, dass die Installation direkt aus den Originalpaketen der Distribution erfolgt.
 
-Auf diese Basisinstallation können optional die opsi-Pakete installiert werden, um aus dem System einen opsi-Server (z.B. neuen Depotserver) zu machen. +
-Ebenfalls optional kann nun der opsi-client-agent für Linux installiert werden. Dieser ist dann für die Installation und Konfiguration weiterer Software zuständig.
+Optional kann nun der opsi-client-agent für Linux installiert werden. Dieser ist dann für die Installation und Konfiguration weiterer Software zuständig.
 
 Die opsi-Netboot-Produkte zur Linuxinstallation sind bereits als Open Source freigegeben.
 
@@ -639,14 +631,8 @@ Passwort für root.  (Default='linux123')
 * `user_password`: +
 Passwort für user.  (Default='linux123')
 
-* `install_opsi_server`: +
-Installiere die opsi-server Pakete. (Default='false')
-
 * `online_repository`: +
 Repository der Distribution für die Installation. (Nicht bei SLES) (Default=Distributionsabhängig)
-
-* `opsi_online_repository`: +
-Repository der opsi-server Pakete. (Default=Distributionsabhängig)
 
 * `proxy`: +
 Proxystring (wenn benötigt) in der Form: `http://<ip>:<port>`. (Default=pass:[''])
@@ -669,24 +655,24 @@ Welche opsi Produkte sollen zum Abschluss der Betriebssysteminstallation auf set
 
 
 [[firststeps-osinstall-netboot-special-ubuntu]]
-===== ubuntu
+==== Ubuntu
 
 Die Basis Installation erfolgt per debootstrap direkt aus dem Netz.
 
 Das Produkt hat produktiven Status.
 
-Das Produkt ist UEFI/GPT kompatibel (getestet für release=trusty).
+Das Produkt ist UEFI/GPT kompatibel.
 
 Es gibt für diese Produkt passende opsi-server Pakete, welche über 'install_opsi_server=true' installiert werden können.
 
 [[firststeps-osinstall-netboot-special-debian]]
-===== debian
+==== Debian
 
 Die Basis Installation erfolgt per debootstrap direkt aus dem Netz.
 
 Das Produkt hat produktiven Status.
 
-Das Produkt ist UEFI/GPT kompatibel (getestet für release=wheezy).
+Das Produkt ist UEFI/GPT kompatibel.
 
 Es gibt für diese Produkt passende opsi-server Pakete, welche über 'install_opsi_server=true' installiert werden können.
 
@@ -700,6 +686,7 @@ Anleitungen zur Erstellung eines eigenen Proxy zum Zwischenspeichern von '.deb'-
 * link:http://www.gambaru.de/blog/2011/10/26/apt-cacher-ng-ein-proxy-server-fur-debian-und-ubuntu/[Gambaru.de: Apt-Cacher-NG: Ein Proxy-Server für Debian und Ubuntu]
 
 
+////
 [[firststeps-osinstall-linux-netboot-clients]]
 === Linux Installation: Clients
 
@@ -711,4 +698,6 @@ Der Netzwerkboot ist ggf. im BIOS-Menü zu aktivieren bzw. an die erste Stelle d
 
 Für die nachfolgenden Kapitel sollten Sie einen entsprechenden Client in opsi <<firststeps-osinstall-create-client,aufgenommen haben>>.
 Einfach geht dies <<firststeps-osinstall-create-client,mittels {opsi-configed}>>.
+
+////
 
