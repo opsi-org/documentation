@@ -4480,6 +4480,57 @@ else
 endif
 ----
 
+anchor:cidrToNetmask[]
+
+* `cidrToNetmask (<string>) : string`     //since 4.12.4.37  +
+Liefert die Netzmaske (dotted decimal notation) zum gegebene IPv4 CIDR-Suffix. +
+cidr <= 0 ergibt "0.0.0.0" +
+cidr >= 32 ergibt "255.255.255.255" +
+Leere oder üngültige Eingabe ergibt Leerstring +
+siehe auch : <<netmaskToCidr>> +
+siehe auch : <<getDefaultNetmaskByIP4adr>> +
+siehe auch : <<getIP4NetworkByAdrAndMask>>
+
+
+Beispiel:
+[source,opsiscript]
+----
+set $netmask$ = cidrToNetmask("24")
+comment "expected: 255.255.255.0"
+set $netmask$ = cidrToNetmask("16")
+comment "expected: 255.255.0.0"
+set $netmask$ = cidrToNetmask("-1")
+comment "expected: 0.0.0.0"
+set $netmask$ = cidrToNetmask("55")
+comment "expected: 255.255.255.255"
+set $netmask$ = cidrToNetmask("")
+comment "expected: "
+----
+
+anchor:netmaskToCidr[]
+
+* `netmaskToCidr (<string>) : string`     //since 4.12.4.37  +
+Liefert das IPv4 CIDR-Suffix zur gegebenen Netzmaske (dotted decimal notation). +
+Leere oder üngültige Eingabe ergibt Leerstring. +
+siehe auch : <<cidrToNetmask>> +
+siehe auch : <<getDefaultNetmaskByIP4adr>> +
+siehe auch : <<getIP4NetworkByAdrAndMask>>
+
+
+
+Beispiel:
+[source,opsiscript]
+----
+set $cidr$ = netmaskToCidr("255.255.255.0")
+comment "expected: 24"
+set $cidr$ = netmaskToCidr("255.255.0.0")
+comment "expected: 16"
+set $cidr$ = netmaskToCidr("255.255.10.0")
+comment "(invalid input) expected: "
+set $cidr$ = netmaskToCidr("")
+comment "(empty input) expected: "
+----
+
 anchor:isValidFQDN[]
 
 * `isValidFQDN (<domainName>) : boolean`   +
@@ -4796,9 +4847,62 @@ Zeichnet die vergangene Zeit seit der letzten aufgezeichneten Zeit (`marktime`) 
 anchor:runningInWanMode[]
 
 * `runningInWanMode` //since 4.12.4.17 [W/L/M] +
-Returns `true` if the script is running in the 'WAN mode'. This means that the constant `%opsiserviceurl%` points not to the opsi server but to localhost. +
-siehe auch: https://download.uib.de/opsi4.1/documentation/html/en/opsi-manual-v4.1/opsi-manual-v4.1.html#opsi-manual-wansupport
+Gibt `true` zurück, wenn das Script im 'WAN mode' läuft. Dies ist der Fall wenn die Konstante `%opsiserviceurl%` nicht den opsi-server angibet sondern localhost adressiert. +
+siehe auch: https://download.uib.de/opsi4.2/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-manual-wansupport
 
+anchor:isCertInstalledInSystem[]
+
+* `isCertInstalledInSystem(`<label>`) : boolstring` [W/L/M] //since 4.12.4.37 +
+Gibt `true` zurück, wenn ein CA certificate mit der Bezeichnung <label> im certificatsstore des Betriebssystems gefunden wurde. +
+siehe auch: <<importCertToSystem>> +
+siehe auch: <<removeCertFromSystem>> +
+siehe auch: <<listCertificatesFromSystem>> +
+Beispiel siehe <<listCertificatesFromSystem>>
+
+anchor:importCertToSystem[]
+
+* `importCertToSystem(`<filename>`) : noresult` [W/L/M] //since 4.12.4.37 +
+Importiert das in <filename> enthaltene CA certificat in den certificatsstore des Betriebssystems. +
+siehe auch: <<isCertInstalledInSystem>> +
+siehe auch: <<removeCertFromSystem>> +
+siehe auch: <<listCertificatesFromSystem>> +
+Beispiel siehe <<listCertificatesFromSystem>>
+
+
+anchor:removeCertFromSystem[]
+
+* `removeCertFromSystem(`<label>`) : noresult` [W/L/M] //since 4.12.4.37 +
+Entfernt das CA certificate mit der Bezeichnung <label> aus dem certificatsstore des Betriebssystems. +
+siehe auch: <<isCertInstalledInSystem>> +
+siehe auch: <<importCertToSystem>> +
+siehe auch: <<listCertificatesFromSystem>> +
+Beispiel siehe <<listCertificatesFromSystem>>
+
+
+anchor:listCertificatesFromSystem[]
+
+* `listCertificatesFromSystem` : stringlist` [W/L/M] //since 4.12.4.37 +
+Gibt eine List aller CA certificate aus dem certificatsstore des Betriebssystems zurück. +
+see also : <<isCertInstalledInSystem>> +
+see also : <<importCertToSystem>> +
+see also : <<removeCertFromSystem>> 
+
+Beispiel:
+[source,opsiscript]
+----
+set $list$ = listCertificatesFromSystem
+if "" = takeFirstStringContaining($list$,"opsi-script-test test CA")
+	comment "not found"
+endif
+ImportCertToSystem('opsi-script-test-CA.pem')
+if isCertInstalledInSystem("opsi-script-test test CA")
+	comment "found"
+	removeCertFromSystem("opsi-script-test test CA")
+	if not(isCertInstalledInSystem("opsi-script-test test CA"))
+		comment "CA succesful removed"
+	endif
+endif
+----
 
 [[opsi-script-commands-logging]]
 === Steuerung des Logging [W/L/M]
@@ -5105,14 +5209,20 @@ anchor:SwitchCase[]
 
 Syntax:
 
-`Switch` <string expression> +
-  `Case` <string const> +
-      <statement(s)> +
-   `EndCase` +
-   [`DefaultCase` +
-      <statement(s)> +
-   `EndCase` ] +
-`EndSwitch`
+----
+Switch <string expression>
+  Case <string const>
+    <statement(s)>
+  EndCase
+  [DefaultCase
+    <statement(s)>
+   EndCase]
+EndSwitch
+----
+
+Switch / Case Ausdrücke können nicht geschachtelt werden (innerhalb eines Case darf es kein weiteres Switch geben). +
+Eine Möglichkeit etwa das selbe wie Switch / Case zu erreichen, sind die seit 4.12.4.37 verfügbaren `if-elseif-else` Ausdrücke, welche auch schachtelbar sind. +
+siehe: <<IfElseEndif>>
 
 Examples:
 
@@ -5218,17 +5328,39 @@ else
 endif
 ----
 
+Ab Version 4.12.4.37 kennt opsi-script auch eine `elseif` Anweisung.
+
+Beispiel: +
+[source,opsiscript]
+----
+Defvar $OS$
+set $OS$ = GetOS
+
+if $OS$ = "Windows_NT"
+	comment "We are on Windows"
+elseif $OS$ = "Linux"
+	comment "We are on Linux"
+elseif $OS$ = "macos"
+	comment "We are on macOS"
+else
+	LogWarning "Unsupported OS"
+endif
+----
+
 [[opsi-script-commands-if-else-syntax]]
 ==== Allgemeine Syntaxregeln [W/L/M]
 Folgendes Schema der if-Anweisung ist ersichtlich: +
 `if` <Bedingung> +
+  ;eine oder mehrere Anweisungszeilen +
+`elseif` <Bedingung> +
   ;eine oder mehrere Anweisungszeilen +
 `else` +
   ;eine oder mehrere Anweisungszeilen +
 `endif`
 
 Der `else`-Teil der Anweisung darf fehlen. +
-if-Anweisungen können geschachtelt werden. Das bedeutet, dass in der Anweisung nach einem `if` Satz (sowohl in dem `if` als auch im `else` Teil) eine weitere if-Anweisung folgen darf.
+Der `elseif`-Teil der Anweisung darf fehlen. +
+if-Anweisungen können geschachtelt werden. Das bedeutet, dass in der Anweisung nach einem `if` Satz (sowohl in dem `if` als auch im `else` oder `elseif` Teil) eine weitere if-Anweisung folgen darf.
 
 <Bedingungen> sind boolesche Ausdrücke, das heißt logische Ausdrücke, die entweder den Wert 'wahr' oder den Wert 'falsch' tragen können.
 
