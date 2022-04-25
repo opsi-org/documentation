@@ -1,0 +1,961 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.2
+:doctype: book
+
+[[opsi-winclient-softwintegration]]
+== Integration of New Software Packages into the opsi Server
+
+The primary objective of software distribution is to accomplish automatic software installation without user interaction. Software installation and user activity should be strictly separated. In most cases, the installation process requires administrative privileges which the user usually doesn't have. So the installation process has to be done independently from the user. This way, the user can neither interfere nor be affected by the software installation process.
+
+In order to do this, you have to write a script for the script driven installer, which is called an '{opsi-script}' script. This script in addition to the installfiles and some metadata can be packed as a opsi-product, which in turn can be installed on a {opsi-Server}.
+////
+== Integration of new software packages into the opsi software deployment
+
+The installation of software is carried out in opsi via the {opsi-client-agent} and in particular by the script-controlled setup program {opsi-script}. Therefore, an {opsi-script} script must be created for each opsi product. Afterwards, this script, the installation files, and the metadata are packed for an opsi product, which are finally installed on the {opsi-Server}.
+////
+
+[[opsi-winclient-softwintegration-tutorial]]
+=== A Brief Tutorial: How to write a {opsi-script} Script
+
+
+include::./softwintegration-tutorial-introduction.asciidoc[]
+
+[[opsi-winclient-softwintegration-tutorial-general]]
+==== Methods of Non-Interactive Installation for Windows
+
+Regardless of whether or not you are using opsi or another management solution, there are three different ways to install software without user interaction:
+
+. *Unattended or Silent Installation* +
+The original setup binary from the software manufacturer can be executed with command line arguments which enable a 'silent' or 'unattended' mode. It depends on whether or not the program supports a silent installation mode. A special case of this method is the unattended installation of MSI packages.
+*"silent" Installation of a MSI-Package*:+
+A MSI-Package can be installed using the "quiet" Option.
+
+. *Interactive Setup with recorded Answers* +
+The actions executed by the administrator while running the manufacturer's setup program during a manual installation are automatically recorded using the free tools 'Autoit' or 'Autohotkey'. This generates an autoIt script which in turn can be used for an unattended installation.
+
+. *Recreate the setup-routine with opsi-script*: +
+The actions executed by the setup-routine when installing manually are recorded and the opsi-script is used to reproduce them.
+
+NOTE: opsi supports all of these variants. +
+Usually a combination of these methods in one script provides the best result. For example, performing the basic installation using the original setup if available, and then doing some customizing by patching the registry or the file based configuration.
+
+////
+==== Methods of non-interactive software installation for Windows
+
+Essentially, there are three methods of integrating a software package into the automatic software distribution for Windows, plus there is also a variant for packages for the Microsoft Installer Service.
+
+. *Unattended / Silent Setup*: +
+The original setup program is used and used in a non-interactive mode via command line arguments.
+The most important special case of this is the +
+*„silent“ call of a MSI package*: +
+A package for the Microsoft Installer Service is available and is executed with a „quiet“ option.
+
+. *Interactive setup with an automated response*: +
+In preparation, the original setup program is used to determine which window titles the program shows
+and which questions and answers occur during setup. This is written down in a script.
+During the process of software distribution, the setup program then runs under the control of an automation program
+such as AutoIt or Autohotkey, which controls the setup program according to the script.
+
+. *Reproduction of the setup routine with opsi-scriptt*: +
+When the original setup program is run, any system changes are also logged, e.g. with procmon and replayed with the help of opsi-winst.
+
+NOTE: Opsi supports all three variants. In practice, they are frequently used together. 
+
+////
+
+include::./softwintegration-tutorial-script-structure-opsi-script-basics.asciidoc[]
+
+
+[[opsi-winclient-softwintegration-tutorial-windows-special-commands]]
+===== Special commands for Windows
+
+* `getOS : string` // returns: Linux or Windows_NT or MacOS [W/L/M] +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#GetOS +
+#####################
+
+* `getMsVersionInfo : string` // Windows Version Information [W] +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#GetMsVersionInfo +
+#####################
+
+* `GetMsVersionName` //Windows _marketing_ Version //since 4.12.4.35 [W] +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#GetMsVersionName +
+#####################
+
+* `getMSVersionMap : stringlist` [W] +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#GetMSVersionMap +
+#####################
+
+
+[[opsi-winclient-softwintegration-tutorial-template]]
+==== Example: Windows-Template 'opsi-template'
+
+This template can be created with `opsi-setup-detector`.
+
+// include docu: actual template for windows
+include::./firststeps_opsi-template-win.asciidoc[]
+
+
+////
+.define_vars_multi.opsiscript: Declaration of variables
+[source,winst]
+----
+; -------------------------------------
+; include file for opsi-setup-detector products
+; Define all variables here
+;---------------------------
+DefVar $ProductId$
+DefVar $InstallDir$
+DefVar $InstallDir1$
+DefVar $InstallDir2$
+DefVar $MinimumSpace$
+DefVar $ExitCode$
+DefVar $ErrorString$
+DefVar $LicenseRequired$
+DefVar $LicenseKey$
+DefVar $LicensePool$
+DefVar $OS$
+DefVar $OSshort$
+DefVar $oldProgFound$
+DefVar $installSuccess$
+DefVar $installCommand$
+DefVar $MsiId$
+DefVar $UninstallProgram$
+DefVar $installerfile$
+DefVar $distrotype$
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $arch$
+DefVar $tmpstr$
+DefVar $targetfile$
+DefVar $iconfile$
+
+DefStringlist $ListOfPackageNames$
+DefStringList $osinfomap$
+----
+
+.setup.opsiscript: Installation script
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "opsi-template"
+Set $MinimumSpace$	 = "1 MB"
+; the path were we find the product after the installation
+;Set $InstallDir$		= "%ProgramFiles32Dir%\<path to the product>"
+Set $InstallDir$		= "unknown"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "Windows_NT"))
+	logError "Installation aborted: wrong OS version: only Windows"
+	isFatalError "wrong OS"
+endif
+
+if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
+	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
+	isFatalError "No Space"
+	; Stop process and set installation status to failed
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+Message "Installing " + $ProductId$ + " ..."
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, reserve license and get license key"
+	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
+endif
+
+
+comment "Start setup program"
+ChangeDirectory "%SCRIPTPATH%"
+;----------------------------------------------
+Winbatch_install
+;----------------------------------------------
+set $ExitCode$ = getlastexitcode
+if "true" = isMsiExitcodeFatal_short($exitcode$, "true", $ErrorString$ )
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+
+comment "Copy files"
+Files_install /32Bit
+
+comment "Patch Registry"
+Registry_install /32Bit
+
+comment "Create shortcuts"
+LinkFolder_install
+
+[Winbatch_install]
+; Choose one of the following examples as basis for your installation
+; You can use $LicenseKey$ var to pass a license key to the installer
+;
+; === Nullsoft Scriptable Install System ================================================================
+; "%ScriptPath%\Setup.exe" /S
+;
+; === MSI package =======================================================================================
+; You may use the parameter PIDKEY=$Licensekey$
+; msiexec /i "%ScriptPath%\some.msi" /l* "%opsiLogDir%\$ProductId$.install_log.txt" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
+;
+; === InstallShield + MSI=====================================================================================
+; Attention: The path to the log file should not contain any whitespaces
+; "%ScriptPath%\setup.exe" /s /v" /l* %opsiLogDir%\$ProductId$.install_log.txt /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
+; "%ScriptPath%\setup.exe" /s /v" /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
+;
+; === InstallShield =====================================================================================
+; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
+; You may use an answer file by the parameter /f1"c:\setup.iss"
+; "%ScriptPath%\setup.exe" /s /sms /f2"%opsiLogDir%\$ProductId$.install_log.txt"
+;
+; === Inno Setup ========================================================================================
+; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
+; You may create setup answer file by: setup.exe /SAVEINF="filename"
+; You may use an answer file by the parameter /LOADINF="filename"
+; "%ScriptPath%\setup.exe" /sp- /silent /norestart /nocancel /SUPPRESSMSGBOXES
+
+[Files_install]
+; Example of recursively copying some files into the installation directory:
+;
+; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
+
+[Registry_install]
+; Example of setting some values of an registry key:
+;
+; openkey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
+; set "name1" = "some string value"
+; set "name2" = REG_DWORD:0001
+; set "name3" = REG_BINARY:00 af 99 cd
+
+[LinkFolder_install]
+; Example of deleting a folder from AllUsers startmenu:
+;
+; set_basefolder common_programs
+; delete_subfolder $ProductId$
+;
+; Example of creating a shortcut to the installed exe in AllUsers startmenu:
+;
+; set_basefolder common_programs
+; set_subfolder $ProductId$
+;
+; set_link
+; 	name: $ProductId$
+; 	target: <path to the program>
+; 	parameters:
+; 	working_dir: $InstallDir$
+; 	icon_file:
+; 	icon_index:
+; end_link
+;
+; Example of creating a shortcut to the installed exe on AllUsers desktop:
+;
+; set_basefolder common_desktopdirectory
+; set_subfolder ""
+;
+; set_link
+; 	name: $ProductId$
+; 	target: <path to the program>
+; 	parameters: <some_param>
+; 	working_dir: $InstallDir$
+; 	icon_file: <path to icon file>
+; 	icon_index: 2
+; end_link
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+----
+
+
+.delsub.opsiscript: Uninstallation subscript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib gmbh
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+Message "Check for existing installation of " + $ProductId$ + " ..."
+
+Set $MsiId$ = '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+Set $UninstallProgram$ = $InstallDir$ + "\uninstall.exe"
+
+if FileExists($UninstallProgram$)
+
+	comment "Uninstall program found, starting uninstall"
+	Winbatch_uninstall
+	Sub_check_exitcode_del
+
+endif
+if not (getRegistryValue("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $MsiId$ , "DisplayName","32bit") = "")
+
+	comment "MSI id " + $MsiId$ + " found in registry, starting msiexec to uninstall"
+	Winbatch_uninstall_msi
+	Sub_check_exitcode_del
+
+endif
+
+
+comment "Delete files"
+if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown'))
+	Files_uninstall
+endif
+
+comment "Cleanup registry"
+Registry_uninstall
+
+comment "Delete program shortcuts"
+LinkFolder_uninstall
+
+[Winbatch_uninstall]
+; Choose one of the following examples as basis for program uninstall
+;
+; === Nullsoft Scriptable Install System ================================================================
+; maybe better called as
+; Winbatch_uninstall /WaitforProcessending "Au_.exe" /Timeoutseconds 10
+; "$UninstallProgram$" /S
+;
+; === Inno Setup ========================================================================================
+; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
+
+[Winbatch_uninstall_msi]
+msiexec /x $MsiId$ /qb-! REBOOT=ReallySuppress
+
+[Files_uninstall]
+; Example for recursively deleting the installation directory:
+;
+; del -sf "$InstallDir$\"
+
+[Registry_uninstall]
+; Example of deleting a registry key:
+;
+; deletekey [HKEY_LOCAL_MACHINE\Software\$ProductId$]
+
+[LinkFolder_uninstall]
+; Example of deleting a folder from AllUsers startmenu:
+;
+; set_basefolder common_programs
+; delete_subfolder $ProductId$
+;
+; Example of deleting a shortcut from AllUsers desktop:
+;
+; set_basefolder common_desktopdirectory
+; set_subfolder ""
+; delete_element $ProductId$
+
+[Sub_check_exitcode_del]
+set $ExitCode$ = getlastexitcode
+if "true" = isMsiExitcodeFatal_short($exitcode$, "true", $ErrorString$ )
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+
+;-----------------------------------------------------
+----
+
+
+.uninstall.opsiscript: Uninstallation script
+[source,winst]
+----
+; ----------------------------------------------------------------
+; Copyright (c) uib gmbh (www.uib.de)
+; This sourcecode is owned by uib
+; and published under the Terms of the Affero General Public License v3.
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredWinstVersion >= "4.12.0.28"
+ScriptErrorMessages = false
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; import complete file !
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "opsi-template"
+; the path were we find the product after the installation
+;Set $InstallDir$	= "%ProgramFiles32Dir%\<path to the product>"
+Set $InstallDir$	= "unknown"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "Windows_NT"))
+	logError "Installation aborted: wrong OS version: only Windows"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+Message "Uninstalling " + $ProductId$ + " ..."
+
+if FileExists("%ScriptPath%\delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%\delsub.opsiscript"
+endif
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, free license used"
+	Set $tmpstr$ = FreeLicense($LicensePool$)
+endif
+----
+
+////
+
+
+[[opsi-client-softwintegration-create-opsi-package]]
+=== Creating an opsi product
+
+[[opsi-setup-detector-installation]]
+==== Installation of opsi-setup-detector, {opsi-package-builder} and opsi-logviewer
+
+// include docu: opsi-setup-detector installation
+include::./setup-detector-installation.asciidoc[]
+
+
+// include docu: opsi-logviewer installation
+include::./opsi-logviewer-installation.asciidoc[]
+
+
+
+[[opsi-winclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
+==== The opsi-setup-detector program for creating a Windows script
+
+// include docu: opsi-setup-detector
+include::./setup-detector-use-start.asciidoc[]
+
+// include docu: Linux specific tasks in opsi-setup-detector
+include::./osd_tasks_windows.asciidoc[]
+
+// include docu: how to use the opsi-setup-detector
+include::./osd-task-use-single-analyze-and-create.asciidoc[]
+
+More details about `opsi-setup-detector` can be found in the opsi manual: +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-setup-detector
+
+// include docu: how to use the opsiPackagebuilder
+include::./softwintegration-tutorial-packagebuilder-use.asciidoc[]
+
+// include docu: The modify and test cycle
+include::./softwintegration-tutorial-modify-test-cycle.asciidoc[]
+
+[[opsi-winclient-softwintegration-tutorial-template-details]]
+=== Suggestions on How to Solve Problems with {opsi-script} Scripts
+
+////
+[[opsi-winclient-softwintegration-tutorial-find-switches]]
+==== Search for Unattend or Silent Switches
+
+For an unattended or silent setup, the original setup will be switched to an unattended non-interactive mode using the proper command line arguments.
+
+The problem is to find the correct arguments
+
+.Look on the internet:
+Before you start integrating a new package, you'd better first have a look online to see if somebody has already done that job for you:
+
+Ready to run {opsi-script} scripts, built by the community, can be found at the link:https://forum.opsi.org/wiki/[opsi wiki].
+
+A collection of links to web sites with switch collections can be found at link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi wiki: Software integration web-links].
+
+.Search the software producer's site:
+Many software manufacturers are aware of the needs of unattended software distribution, so there are often some hints and instructions in the product documentation or on the software producer's website.
+
+.Identify the manufacturer of the setup program:
+Most setup programs are built using frameworks like 'Inno', 'NSIS', 'Installshield' or 'Wise'. Each one of these setup frameworks has their own switch.  The following method can be used to determine the framework and other necessary information:  The input strings can be determined using the command line program 'strings' given the setup program 'setup.exe', and the output framework names can be found using 'grep' or 'findstr'.
+
+The Linux commands looks like this (change <mysetup.exe> to the name of your setup.exe):
+
+[source,prompt]
+----
+strings <mysetup.exe> | grep -i -E "(inno|nsis|installshield|wise)"
+----
+
+Windows does not have a native `strings` command, so you will have to install it. You can download a `strings.exe` program from here: http://technet.microsoft.com/en-us/sysinternals/bb897439
+
+To use this program, enter these commands at the command line interface (change <mysetup.exe> to the name of your setup.exe):
+[source,prompt]
+----
+strings.exe <mysetup.exe> | findstr /i /r "inno installshield nsis wise"
+----
+
+The same method is used in the `opsi-setup-detector`.  See the example below:
+
+.opsi setup detector
+image::opsi-setup-detector.png[pdfwidth=70%]
+
+This GUI program can be called from the Windows context menu Explore.
+
+.opsi setup detector in Windows Explore context menu
+image::opsi-setup-detector-context-small-en.png[pdfwidth=50%]
+
+The 'opsi setup detector' is part of the Windows package repositories and can be obtained through them.
+
+At the link:https://forum.opsi.org/wiki/doku.php?id=userspace:software_integration_web_links[opsi wiki: Software integration web-links
+] you will find links to websites that give hints on how to detect the manufacturer of the setup program.
+
+
+[[opsi-winclient-softwintegration-tutorial-winst-commands]]
+===== Some Important {opsi-script} Commands
+
+A short overview of the {opsi-script} commands can be found in the link:https://download.uib.de/opsi_stable/docopsi-script-reference-card-en.pdf[opsi-script reference card].
+
+All syntax details are described in the link:https://download.uib.de/opsi_stable/docopsi-script-manual-en.pdf[opsi-script manual].
+
+Here are some hints regarding important methods:
+
+.Stringlisten
+String lists can be powerful tools to review the output from other programs. Read the {opsi-script} manual for details.
+
+.ExitWindows
+* `ExitWindows /Reboot` +
+Reboot after the script is finished
+
+* `ExitWindows /ImmediateReboot` +
+Reboot now
+
+* `ExitWindows /ImmediateLogout`
+Exit the {opsi-script} now
+
+.Product Properties
+For some products it is important to know which product properties can modify the installation in order to make a client-specific installation. Creating these properties is described below in <<opsi-getting-started-softwintegration-create-opsi-package,"Creating an opsi package">>.
+
+To evaluate these properties, {opsi-script} provides the function `GetProductProperty`
+
+[source,winst]
+----
+if GetProductProperty("example-property", "no") = "yes"
+	Files_copy_extra_files
+endif
+----
+
+////
+
+[[opsi-winclient-softwintegration-tutorial-opsiadmin]]
+==== Installation When the User is Logged on
+
+Before we begin, we assume that you have tried an unattended installation using an {opsi-script} script, and the installation worked OK when the user had administrative privileges.
+However with some software products, you will see that the installation fails when started from within the opsi deployment software (opsi-client-agent). A possible reason for that difference might be that the installation process requires knowledge about the user environment or profile.
+
+In the case of a MSI package, the option 'ALLUSERS=1' might help.
+Example:
+
+[source,winst]
+----
+[Actions]
+DefVar $MsiLogFile$
+Set $MsiLogFile$ = %opsiLogDir% + "\myproduct.log"
+winbatch_install_myproduct
+
+[winbatch_install_myproduct]
+msiexec /qb-! /l* $MsiLogFile$ /i "%ScriptPath%\files\myproduct.msi" ALLUSERS=1
+----
+
+Another possibility is that the installation starts a second process and stops before the second process is finished. So from the point of view of the {opsi-script} script, the task is finished while in fact the second process is still working (installing / uninstalling). +
+In this case, you may use the modifier +/WaitSeconds <seconds>+ , or
++/WaitForProcessEnding "program.exe" /TimeOutSeconds "<seconds>"+, in the WinBatch section so that the script waits for the end of the second process.
+
+Another more complex way to solve the problem is to create a temporary administrative user account and use this account for the program installation. For a detailed description on how to do this, please refer to the {opsi-script} manual chapter 8.3 'Script for installation in the context of a local administrator' : +
+https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#opsi-script-cookbook-local-admin
+
+////
+[[opsi-winclient-softwintegration-tutorial-msi]]
+==== Working with MSI-packages
+
+With Windows 2000, Microsoft launched its own installation concept based on the Microsoft Installer Service "MSI". Since then, many setup programs have become MSI compliant.
+
+To be MSI compliant means to provide a package with installation instructions for the MSI. Usually this is a file named 'product.msi'.
+
+In practice, the setup.exe of a product contains a 'product.msi' file and an additional control program for the installation. The control program unpacks the 'product.msi' and pops up a window that asks if it is allowed to start the installation. If installation has been approved, then the control program checks whether or not MSI is installed, and if so passes 'product.msi' to MSI. If no MSI is found, then the control program tries to install MSI.
+
+If you were to interrupt the installation at that point, you will often find the unpacked MSI-package in a temporary directory.
+
+For example, this package can be used for an unattended installation with the statement:
+[source,winst]
+----
+msiexec /i "%ScriptPath%\Product.msi" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
+----
+////
+
+[[opsi-winclient-softwintegration-tutorial-customizing]]
+==== Customization after a silent/unattended Installation
+
+After a successful silent installation, some customizing might be useful. The {opsi-script} is a powerful tool to do that job. First, find out what patches have to be applied. For example, that could mean analyzing which registry settings are affected by the GUI customizing tools.
+
+You can use the tools shown in <<opsi-getting-started-softwintegration-tutorial-analyse-and-repackage>>. Some other tools can be found here:
+
+Some other often used tools are:
+
+* link:http://www.sysinternals.com/[sysinternals]
+* link:https://sourceforge.net/projects/regshot/[regshot]
+
+
+[[opsi-winclient-softwintegration-tutorial-autoit]]
+==== Integration with Automated Answers for the setup Program
+
+Another fast way of integration is to provide an automated answer file for the setup process. The answer file contains pre-defined answers.  To be more precise, the answer file is used by a control tool, which waits for the setup to come up with the interactive windows.  The control tool then passes input to these windows as defined in the answer file. As a control tool we recommend 'AutoIt'. The AutoIt program and the documentation can be found at: http://www.hiddensoft.com/autoit3.
+
+AutoIt provides a lot of commands to control the setup process. Also, several error states can be handled (if known in advance) with the '[ADLIB]' section in the script.
+
+There is, however, a fundamental challenge in using AutoIt: +
+The AutoIt script must provide input for every window that might pop up during installation. So if any unexpected window pops up, which isn't handled in the [ADLIB] section, AutoIt provides no input for this window and the installation stops at that point while waiting for input. This input could be done interactively by a user, and then the script can take over again and handle the next windows.
+
+Another situation that may cause failure of an AutoIt installation: +
+The user can interfere with the installation if the mouse and keyboard are not disabled. Therefore we regard 'unattended' or 'silent' setup as a more stable solution.
+
+A combination of both might do a good job: +
+The 'silent'-setup does the main installation and the AutoIt script handles special conditions that might occur.
+
+If you use the opsi option of running the installation on another desktop than the current desktop, or if the current desktop is locked, then you will find that some autoit functions do not work properly under these conditions.
+
+Therefore you should avoid using the following autoit commands in '{opsi-script}' scripts:
+
+* winwait()
+
+* winactivate()
+
+* Send()
+
+These are the most widly used commands.
+
+We recommend to use  the `opsi-autoit-lib.au3` library, that provides replacements for this commands. You lill find this file at  `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`. +
+
+
+This library provide substitutes:
+
+*winwait()* +
+should be replaced by the function +
+`opsiwinwait($title, $text, $maxseconds, $logname)` +
+
+////
+which is defined as:
+[source,configfile]
+----
+Func opsiwinwait($title, $text, $maxseconds, $logname)
+	Local $exists = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($exists = 0)
+		$exists = WinExists($title , $text)
+		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
+		$seconds = $seconds + 1
+		sleep(1000)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+----
+The parameters are:
+
+* `$title` the title of the window
+
+* `$text` a part of the readable text in the window
+
+* `$maxseconds` the timeout in seconds
+
+* `$logname` the name of the log file
+////
+
+*Send()* +
+should be replaced by the function +
+`opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
+respectively by +
+`opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
+
+////
+which are defined as:
+[source,configfile]
+----
+Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlClick($title , $text,$id)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlSetText ($title , $text,$id, $sendtext)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+----
+The parameters are:
+
+* `$title` the title of the window
+
+* `$text` a part of the readable text in the window
+
+* `$id` the numerical ControlId of the button or edit field
+
+* `$sendtext` the text to insert to a edit field
+
+* `$maxseconds` the timeout in seconds
+
+* `$logname` the name of the log file
+
+Therefore, you should use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly:
+
+Below is an example from a script. +
+In this script we produce a log file from the autoit activities, which may be integrated in the '{opsi-script}' log file with the following commands:
+[source,winst]
+----
+includelog %opsiLogDir% + "\au3.log" "500"
+----
+
+Example:
+[source,configfile]
+----
+[ExecWith_autoit_confirm]
+Func opsiwinwait($title, $text, $maxseconds, $logname)
+	Local $exists = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($exists = 0)
+		$exists = WinExists($title , $text)
+		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
+		$seconds = $seconds + 1
+		sleep(1000)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlClick($title packet
+	FileClose($mylog)
+EndFunc
+
+Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
+	Local $result = 0
+	Local $seconds = 0
+	Local $mylog
+	$mylog = FileOpen($logname, 1)
+	While ($seconds <= $maxseconds) and ($result = 0)
+		$result = ControlSetText ($title , $text,$id, $sendtext)
+		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
+		$seconds = $seconds + 1
+		sleep(500)
+	WEnd
+	FileClose($mylog)
+EndFunc
+
+; exact title match
+Opt("WinTitleMatchMode", 3)
+$mylog = FileOpen("%opsiLogDir%\au3.log", 2)
+FileWriteLine($mylog,"auto-it started - waiting for the window")
+FileClose($mylog)
+
+opsiwinwait("InstallShield Wizard" , "Wollen Sie wirklich", 200, "%opsiLogDir%\au3.log")
+	opsiControlClick("InstallShield Wizard" , "Wollen Sie wirklich", 6, 5, "%opsiLogDir%\au3.log")
+opsiwinwait("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 400, "%opsiLogDir%\au3.log")
+	opsiControlClick("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 1, 5, "%opsiLogDir%\au3.log")
+
+Sleep(500)
+;and good bye
+Exit
+----
+////
+
+It is always a good idea for the identification of controls to use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly.
+
+Example you will find in: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\` in den Dateien `autoit_example_1.txt` and `autoit_example_1.txt`.
+
+see also: +
+http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
+http://www.autoitscript.com/autoit3/docs/ +
+http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
+http://www.autoitscript.com/autoit3/docs/functions.htm
+
+
+[[opsi-winclient-softwintegration-tutorial-analyse-and-repackage]]
+==== Analyze and Repackage
+
+When a software developer builds a setup for deployment, the developer usually knows about the required components of the software that have to be installed. But if somebody has a black box as a setup, then they need first to analyze what the setup does. This can be done by monitoring the setup activities with the appropriate tools (e.g. monitoring files and registry access) or by comparing the system states before and after installation.
+
+To analyze the before or after states, there are several tools. For Example:
+
+////
+ (outdated - not win10 compatible)
+
+* link:http://download.fyxm.net/download-now-InstallWatch-Pro-OS-OS-Info-83813.html[InstallWatch Pro]
+
+////
+
+* link:https://sourceforge.net/projects/regshot/files/regshot/[regshot]
+
+* link:http://www.itninja.com/media/downloads/appdeploy-repackager.msi[appdeploy-repackager]
+
+
+[[opsi-winclient-softwintegration-tutorial-deinstall]]
+==== How to uninstall Products
+
+To uninstall a software product from a computer, you need an 'uninstall' script to perform the deletion. The fundamental difficulty in software deletion is deciding what exactly has to be removed. Not all of the files that came with a software package can be deleted afterwards. Sometimes a package comes with standard modules that are also referred to by other programs. Often only the software manufacturer himself knows what parts have to be removed. The manufacturer's setup might offer an unattended uninstall option which can be embedded in the opsi uninstall script. Otherwise {opsi-script} provides several commands for software deletion:
+
+.Using an uninstall routine
+If the product manufacturer provides an option for software deletion, you must checked whether or not it can be run unattended (or in silent mode). If it requires some user interaction, an AutoIt script combined with the uninstall routine might do the job. The uninstall statement can be embedded in a [WinBatch] section of the {opsi-script} script:
+[source,winst]
+----
+[WinBatch_start_ThunderbirdUninstall]
+"%SystemRoot%\UninstallThunderbird.exe" /ma
+----
+
+When using an uninstall program, always run a test to see if all of the files have been deleted and the computer is still in a stable state.
+
+Products that are installed by MSI normally come with an uninstall option, which is usually the program `msiexec.exe` combined with the parameter `/x`. The parameter `/qb-!` is for the unattended mode (or without user interaction). So here is an example of an unattended uninstall command:
+
+[source,winst]
+----
+msiexec.exe /x some.msi /qb-! REBOOT=ReallySuppress
+----
+
+Instead of the package name, you could also use the GUID (Global Unique ID) with `msiexec.exe`. This GUID identifies the product in the system, which can be found in the registry directory
+'HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+
+A request using the GUID looks like this:
+[source,winst]
+----
+msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
+----
+
+If none of these methods are available or sufficient, the uninstall can be done using a {opsi-script} script as described below:
+
+.Useful {opsi-script} commands for uninstall
+
+If a product has been installed by {opsi-script} functions, or if there is no uninstall routine for the product, the complete uninstall has to be done by a {opsi-script} script. {opsi-script} comes with some powerful uninstall functions. This chapter provides a brief overview of the uninstall functions, and more detailed information can be found in the {opsi-script} handbook.
+
+Basic uninstall means deleting one or more files from the file system. This command can be executed from a {opsi-script} files section:
+[source,winst]
+----
+delete -f <file name>
+----
+
+or to delete a directory including sub directories:
+
+[source,winst]
+----
+delete -sf <dir name>\
+----
+
+The parameter 'f' means 'force' or to delete the files even if they are marked as 'read only' and the parameter 's' means including the 'subdirectories'. A file or directory can be deleted from all user profiles using the option '/AllNTUserProfiles' (see {opsi-script} manual for details).
+
+Directories containing files with the attribute 'hidden' or 'system' can be deleted by using a 'DosInAnIcon'-section:
+
+[source,winst]
+----
+[DosInAnIcon_deleteDir]
+rmdir /S /Q "<List>"
+----
+
+To stop a running process before deletion use the `killtask` command with the process' name (look at the task manager for process name):
+
+[source,winst]
+----
+KillTask "thunderbird.exe"
+----
+
+If the product or part of it, runs as a service, you will have to stop the service before deleting the files. One way to do so, is to set the service state to inactive in the registry and restart the computer. Or to stop the service by using the command 'net stop', which doesn't need a reboot:
+[source,winst]
+----
+net stop <servicename>
+----
+
+Deleting DLL files also requires special attention, since DLLs could also be used by other products. There is no general way of handling this.
+
+To delete registry entries with {opsi-script} you can use the command DeleteVar. This command deletes entries from the currently open key:
+
+[source,winst]
+----
+DeleteVar <VarName>
+----
+
+To delete a registry key with all sub keys and registry variables, you can use the {opsi-script} command DeleteKey:
+[source,winst]
+----
+DeleteKey [HKLM\Software\Macromedia]
+----
+
+
+[[opsi-winclient-softwintegration-tutorial-64bit]]
+==== Known Issues with the 64 Bit Support
+
+The opsi installer {opsi-script} is a 32 bit program. There are no known problems when installing 32 bit software on a 64 bit system using {opsi-script}. For the installation of 64 bit software, some constants (like '%ProgramFilesDir%') give wrong values.
+
+{opsi-script} have special commands to handle these problems. So read the link:https://download.uib.de/opsi_stable/doc/html/en/opsi-script-manual/opsi-script-manual.html#opsi-script-64bit[opsi-script manual] for these issues.
