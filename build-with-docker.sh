@@ -1,11 +1,24 @@
 #!/usr/bin/env bash
 
 # User command
-# docker run --rm -it -u $(id -u ${USER}):$(id -g ${USER}) -v $(pwd):/opsidoc docker.uib.gmbh/opsi/opsidoc-asciidoctor:latest /opsidoc/build-with-docker.sh de pdf opsi-manual-v4.2
+# docker run --rm -it -u $(id -u ${USER}):$(id -g ${USER}) -v ${pwd}:/opsidoc docker.uib.gmbh/fabian/opsidoc-antora:latest /opsidoc/build-with-docker.sh de manual
 
 LANG=$1
-FORMAT=$2
-DOC=$3
+DOC=$2
 
-cd /opsidoc
-python3 ./tools/create_docu.py -l=$LANG -o=$FORMAT -f=$DOC
+cd  /opsidoc
+sudo apt update
+sudo apt install -y curl git
+curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
+sudo apt update
+sudo apt install -y nodejs
+sudo apt install -y build-essential
+pwd 
+ls
+git --version
+sudo npm i
+sudo npm install asciidoctor-interdoc-reftext
+sudo gem install asciidoctor-interdoc-reftext
+sudo gem install rouge
+/opsidoc/tools/make-books.sh -l $LANG -m -n $DOC
+

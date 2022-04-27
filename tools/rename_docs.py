@@ -7,8 +7,13 @@ import sys
 
 def rename_docs(path, documenttype, dest):
 
+	print("###")
+	print(path)
 	print(documenttype)
-	assert documenttype in ("pdf", "epub", "xhtml")
+	print(dest)
+	print("###")
+	assert documenttype in ("pdf", "xhtml")
+	print("?")
 
 	if not dest.endswith(documenttype):
 		dest = os.path.join(dest, documenttype)
@@ -18,9 +23,15 @@ def rename_docs(path, documenttype, dest):
 	except OSError:
 		pass
 
+
 	for root, dirs, files in os.walk(path):
+		print(dirs)
+		if "site" in dirs:
+			dirs.remove("site")
 		for entry in files:
+			
 			if entry.endswith(documenttype):
+				print(root)
 				d = root.split("/")
 				lang = d[d.index(documenttype)+1]
 
@@ -33,11 +44,12 @@ def rename_docs(path, documenttype, dest):
 
 if __name__ == "__main__":
 	if not len(sys.argv) > 3:
-		print "Usage: python rename_docs.py [path] [type] [dest]"
+		print("Usage: python rename_docs.py [path] [type] [dest]")
 		sys.exit(1)
 
 	try:
 		rename_docs(os.path.abspath(sys.argv[1]), sys.argv[2], sys.argv[3])
 	except Exception as e:
-		print >> sys.stderr, e
+		print(e)
+		print(e.tr)
 		sys.exit(1)
