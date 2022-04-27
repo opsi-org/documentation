@@ -31,7 +31,7 @@ REFERENCE_LANG := de
 LANG := de en
 DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
-FORMATS := html pdf epub
+FORMATS := html pdf
 
 .PHONY: clean disclean check spell test install build all $(FORMATS)
 
@@ -60,15 +60,11 @@ rename:
 	$(foreach F,$(FORMAT), \
 		$(PYTHON2) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
 	)
+	
 
 publish: rename
 	cp $(PUB_DIR)/pdf/* $(PUB_DIR); \
 	rm -rf $(PUB_DIR)/pdf/
-	mkdir -p $(PUB_DIR)/epub/en/
-	mkdir -p $(PUB_DIR)/epub/de/
-	cp $(PUB_DIR)/epub/*-en.epub $(PUB_DIR)/epub/en/
-	cp $(PUB_DIR)/epub/*-de.epub $(PUB_DIR)/epub/de/
-	rm $(PUB_DIR)/epub/*.epub
 	mkdir -p $(PUB_DIR)/html/
 	cp -r $(DEST_DIR)/html/de/* $(PUB_DIR)/html/
 	mkdir -p $(PUB_DIR)/html/en/

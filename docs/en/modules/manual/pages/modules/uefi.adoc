@@ -1,0 +1,508 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-uefi]]
+= opsi with UEFI / GPT
+
+include::common:partial$supportmatrix-uefi.adoc[leveloffset=-2]
+
+
+[[opsi-manual-uefi-preconditions]]
+== Preconditions for working with UEFI / GPT
+
+This module currently is a
+link:https://www.opsi.org/product/extensions-of-opsi/[co-funded opsi extension]. +
+Some preconditions are required to work with that module, which is to get a suitable modules file to unlock the feature. You can get this unlock file by purchasing the extension module. For evaluation you can get a time limited modules unlock file without charge. ( -> mail to info@uib.de). +
+
+
+Technical requirements are opsi 4.1 with package versions:
+
+.required packages
+[options="header"]
+|==========================
+|opsi package|version
+|Netboot products|>=4.1
+|opsi server packages|>=4.1
+|opsipxeconfd |>=4.1.1.20-3
+|opsi-linux-bootimage|>=20200506
+|==========================
+
+[[opsi-manual-uefi-weitere-hinweise]]
+== Furher remarks regarding the pxe-installation with the opsi-Moduls UEFI / GPT
+
+* opsi supports only 64-Bit UEFI-Installations
+
+* PXE-boot installs require a winpe that is capable of booting in UEFI mode. Often, an existing winpe will be capable of doing so, check by verifying there is a folder named `EFI`, as well as a file named `bootmgr.efi` inside your winpe folder.
+If that is not the case, create a recent winpe as explained in our opsi-getting-started Manual, Chapter "Creating a PE". A winpe, that is UEFI capable, needs to reside in the winpe_uefi folder of the opsi netboot product.
+Provided your winpe is already capable of booting UEFI and MBR modes, you could simply place a softlink `winpe_uefi` > `winpe`.
+
+* you have to configure your external DHCP server with the bootfile +
+`linux/pxelinux.cfg/shimx64.efi.signed`
+
+* Activate in the {opsi-configed} the checkbox "Uefi-Boot" for uefi-clients (since version 4.0.5.8.1) or set hostparameter +clientconfig.dhcpd.filename=linux/pxelinux.cfg/shimx64.efi.signed+
+This setting can also be made via the following command line call:
++
+[source,prompt]
+----
+opsi-admin -d method configState_create "clientconfig.dhcpd.filename" "here.host.id" "linux/pxelinux.cfg/shimx64.efi.signed"
+----
+
+CAUTION: If your opsi server had earlier versions of the package requirements installed you might need to edit the file `/etc/opsi/opsipxeconfd.conf`. The change involves the line `uefi netboot config template x64 = /tftpboot/linux/pxelinux.cfg/install-elilo-x64`.
+This line has to be changed to `uefi netboot config template x64 = /tftpboot/linux/pxelinux.cfg/install-grub-x64` to ensure a compatability between the UEFI bootloader and the named pipe.
+
+* BIOS settings: +
+Since the BIOS menus are very different and use different terminology, you need to consider here what is the best fit for your BIOS.
+
+** Secure Boot disabled +
+This entry is usually in the 'Boot' or 'Startup' but it can also be found in the 'Security' area.
+Information about using secureboot can be found in a xref:modules/secureboot.adoc#opsi-manual-secureboot[different chapter].
+
+** Turn the BIOS on in the UEFI-Mode. +
+If you have the choice between 'UEFI only', 'Legacy only' or 'Both' you should select 'UEFI only'.
+If the selected option is 'Both' this is not the best practice but it can eventually work.
+If the 'Legacy Support' it is present, it should be disabled.
+'CSM Support' in conjunction with 'UEFI only' can remain enabled.
+Otherwise just disable it.
+'UEFI Network Boot' must be enabled.
+It could happened that the entry is also named 'Network Stack' and also can be found under the 'UEFI' category.
+If there are two categories for 'IPv4' and 'IPv6' here the right choice is 'IPv4'.
+
+
+[[opsi-manual-uefi-introduction]]
+== Introduction
+
+Recent PCs, tablets and server often are equpped with an UEFI BIOS. Often there is a legacy mode available to support the old features including PXE boot. But more and more devices come with an UEFI only BIOS (especially tablets). So they cannot be managed with the previous opsi environment.
+
+To integrate these devices into opsi and to be able to use the advantages of UEFI, the uib gmbh developed the opsi extension for UEFI support.
+
+[[opsi-manual-uefi-whatisuefi]]
+== What is UEFI and what is different about it?
+
+UEFI is the abbreviation of 'Unified Extensible Firmware Interface' and is the follow-up to the classic PC-BIOS (MBR-BIOS).
+
+For detailled information on UEFI there are some links listed below.
+
+UEFI has much more features than the old BIOS. Basically UEFI is a small operating system by itself. But in this place, we just consider some features, that are of special interes to the system administrator:
+
+* The recent (by January 2014) implementations of UEFI by the hardware manufacturers have not developed any clear standards yet. As soon as the system is to be booted from any other device but the hard disc, you face the utter chaos. Often UEFI and classic BIOS are implemented both, sometimes they can be deactivated individually, or sometimes not. UEFI can be implemented with the Compatibility Support Module (CSM), or without. Netboot might work, or might not. +
+Especially the availability of netboot is essential for structurd client management.
+
+* With the classic PC-BIOS the BIOS and its configuration usually are separated from the operating system. So BIOS configurations like the boot sequence cannot be changed by the operating system. +
+This is different with UEFI. The operating system can change the boot sequence (and usually it does). This has consequences for a client management that relies on netboot.
+
+* UEFI comes with its own boot manager, which not only can be used by the operating systems to change the boot sequence, but also contains the start entries for the operating systems themselves. This is to support the parallel installation of different operating systems, so that there is no conflict with the different boot loaders.
+
+* UEFI can be implemented for 32 or 64 bit, which has to match a 32 or 64 bit operating system. A 32bit OS can not be installed on a 64 bit UEFI system.
+
+* <<opsi-manual-secureboot,Secureboot>> allows only authorized systems to boot.
+
+* partitioning with GPT and additional partitions for the bootloader:
+
+** 1. partition: EFI system partition (ESP) 100 - 260 MByte ; VFAT
+** 2. partition: Microsoft reserved (MSR) 32 - 128 MB; NTFS
+** following the actual OS partitions
+
+
+
+Links :
+
+http://de.wikipedia.org/wiki/Unified_Extensible_Firmware_Interface
+
+[[opsi-manual-uefi-whatisgpt]]
+== What is different about GPT
+
+GPT (GUID Partition Table) id the follow-up for the previous MBR partition tables. GPT is part of the UEFI specification.
+
+The main features for the sysadmin are::
+
+* overriding the 2 Terabyte limit (now it is 8 Zebibyte)
+
+* almost unlimited number of primary partitions
+
+* changed partition types / GUIDs
+
+* new: partition GUIDs
+
+* new: partition attributes (hidden, read only, ...)
+
+* different tools: gdisk
+
+Basically GPT can be used without UEFI. But UEFI depends on GPT. With UEFI there are up to two additional partitions:
+
+. the EFI system partition (ESP) with the bootloaders
+
+. Microsoft reserved (MSR)
+
+Links :
+
+http://de.wikipedia.org/wiki/GUID_Partition_Table
+
+[[opsi-manual-uefi-uefiboot]]
+== UEFI Boot
+
+In contrary to the old BIOS the boot sequence not only can be defined for devices, but also can be set for different bootloaders on the EFI system partition. Furthermore the sequence can be changed by a running operating system. So if you set netboot as the first boot priority, this setting will not survive the first OS installation.
+
+[[opsi-manual-uefi-uefinetboot]]
+== UEFI Netboot
+
+Unfortunately early UEFI implementations do not support netboot at all, but netboot support is increasing.
+
+With the UEFI support extension module uib gmbh has developed a succesfull UEFI netboot support for integrating UEFI clients into opsi. Because the UEFI standard is still under development and changing, in future the opsi UEFI module will continue to adapt to the technical changes, which might require structural redesigns of the module.
+
+[[opsi-manual-uefi-opsiuefinetboot]]
+== opsi support for UEFI netboot
+
+The opsi support for UEFI is based on several components:
+
+* adaption of the netboot UEFI bootloader GRUB2 to the opsi / client-management requirements.
+
+* new opsipxeconfd, which also supports config files for the opsi-GRUB2 (in addition to the PXE config).
+
+* new (64 bit) opsi-linux-bootimage with the tools for UEFI- and GPT management
+
+* redesigned netboot products for OS installation (Windows/Linux) with additional support of UEFI/GPT (of course only for OS that support UEFI).
+
+* client setting on the opsi-server whether to be treated as UEFI client or not.  (clientconfig.dhcpd.filename=linux/pxelinux.cfg/shimx64.efi.signed)
+
+* support of a software-controlled switch to UEFI netboot. +
+The label of the UEFI netboot entry of the firmware can be saved on the opsi-server (`clientconfig.uefinetbootlabel`), as far as the firmware supports it (there is an activatable netboot entry in the EFI). This allows opsi-products to use netboot for the next reboot. This technique is implemented in several opsi products. An important example is the product `opsi-uefi-netboot`: +
+This product tries to configure the UEFI for netboot and then triggers a reboot. If there is no `uefinetbootlabel` or the client is not an UEFI client only a reboot is triggered. +
+This product is available for Windows and for Linux.
+
+
+[[opsi-manual-uefi-install]]
+== Installation
+
+All packages required are installed automatically with opsi version 4.0.5.
+
+[[opsi-manual-uefi-dhcpd]]
+== Configuration of a Linux DHCP server
+
+Configuration example of a Linux isc-dhcp-server:
+
+----
+filename "linux/pxelinux.0";
+
+# this is the UEFI detection:
+if substring (option vendor-class-identifier , 19,1 ) = "0" {
+        log (info, "pxe client");
+        filename "linux/pxelinux.0";
+}
+else if substring (option vendor-class-identifier , 19,1 ) = "6" {
+        log (info, "efi32 client");
+        filename "linux/pxelinux.cfg/elilo-x86.efi";
+}
+else if substring (option vendor-class-identifier , 19,1 ) = "7" {
+        log (info, "efi64 client");
+        filename "linux/pxelinux.cfg/shimx64.efi.signed";
+}
+else {
+        log (info, concat ( "Unhandled vendor class Arch: ", substring (option
+        vendor-class-identifier , 19,1 )));
+}
+----
+
+See also: link:http://docs.fedoraproject.org/en-US/Fedora/17/html/Installation_Guide/s1-netboot-pxe-config.html[Fedora: PXE Boot Configuration]
+
+
+[[opsi-manual-uefi-dhcpd-winsrv]]
+=== Example for the configuration of a Windows DHCP server 2012 R2
+
+* As standard for this variant the PXE boot file for x64 Uefi installations is entered as default. DHCP options 66 and 67 are adjusted as it follows: +
+066 Host name of the start server: <IP of the opsi server> +
+067 Name of the start file: linux/pxelinux.cfg/shimx64.efi.signed
+
+* To distinguish the Bios clients, a manufacturer class identifier (PXEClient:Arch:00000:UNDI:002001) must be defined on the DHCP server: +
+
+----
+  Define manufacturer class
+  Add new manufacturer class
+  Edit class
+    Display name: Legacy BIOS
+    Asci: PXEClient:Arch:00000:UNDI:002001
+
+----
+* The predefine options must be order under the manufacturer class:
+----
+  Set predefined options
+  Options
+    Option class: Legacy BIOS
+    Add
+  Adjust the option type
+    Name: Legacy BIOS
+    Data Type: String
+    Code: 60
+    Description: PXEClient Class Legacy BIOS
+  Predefined options and values
+    String: PXEClient
+----
+* Define the DHCP policy that is assigned to the boot file for the PXE boot (BIOS) of the manufacturer class:
+----
+  New policy
+    Policy Name: PXE BootFile Legacy BIOS
+    continue
+  Add conditions
+    Criteria: Manufacturer class
+    Operator: equals
+    Value: Legacy BIOS
+    add
+  Would you like to configure an IP address range for the following policy: No
+  Manufacturer class: DHCP Standard Options
+    067 Name of the start file
+    file input
+      String value: linux/pxelinux.0
+----
+* In the range options, there are two entries for the start file, which is linked to a policy in case a bios client is detected:
+----
+067 Name of the Start file: linux/pxelinux.cfg/shimx64.efi.signed	Policy: None
+067 Name of the Start file: linux/pxelinux.0	   Policy: PXE BootFile Legacy BIOS
+----
+
+Reference: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
+
+[[opsi-manual-uefi-dhcpd-ucs]]
+=== Configuration of a UCS Dhcp-Server
+
+The following information comes from Univention itself: +
+https://help.univention.com/t/how-to-configure-a-dhcp-switch-for-uefi-and-non-uefi-boot/9931
+
+
+[[opsi-manual-uefi-opsipxeconfd-config]]
+== opsipxeconfd configuration
+
+Since opsipxeconfd 4.0.7.7 it is possible to configure the path of the files used as templates for UEFI netboot in the configuration file `opsipxeconfd.conf`.
+
+This is possible through the options `uefi netboot config template x86`
+and `uefi netboot config template x64`.
+
+[[opsi-manual-uefi-goodbios]]
+== Criteria for a 'good' BIOS
+
+Whether an UEFI BIOS meets the requirements of a client management system like opsi depends on several criteria. These criteria do not estimate the qualitiy of the device, but only whether it can be managed by using netboot. This requires BIOS functions for UEFI netboot. Hier an example comparison:
+
+.Example for UEFI BIOS differences
+[options="header"]
+|==========================
+||Lenovo Twist|MS-Surface|Dell Venue 11
+|UEFI pure|√|√|√
+|UEFI + CSM|√|x|√
+|Legacy|√|x|√
+|Both|√|x|x
+|UEFI Netboot|√|√|√
+|activatable entry|√|x|√
+|netboot without interaction|√|x|√
+|==========================
+
+In this case 'activatable entry' means, that for the next reboot a netboot can be activated by standard software. 'netboot without interaction' means, that an activated netboot will be executed at the next reboot without any require4d interaction (like pressing any key combinations, F12 key, ...). If these preconditions are met, special opsi products can trigger a netboot. This feature is very important for automated processing. A product using this feature is for instance the localboot product for Windows and Linux `opsi-uefi-netboot`.
+
+[[opsi-manual-uefi-technical]]
+== Technical details
+
+The following sub chapters provide some information for scripted or manual handling of UEFI / GPT. For understanding how opsi works with UEFI/GPT, knowing these details is not required.
+
+[[opsi-manual-uefi-technical-uefi]]
+=== Technichal details about UEFI
+
+UEFI Bootloader entries can be managed on Linux with the program `efibootmgr`. +
+List of boot entries:
+
+[source,prompt]
+----
+efibootmgr -v
+BootCurrent: 000D
+Timeout: 0 seconds
+BootOrder: 0012,0011,000D,0010,000B,0009,0007,0008,000A,000C
+Boot0000  Setup
+Boot0001  Boot Menu
+(..)
+Boot0007* USB CD	030a2400d23878bc820f604d8316c068ee79d25b86701296aa5a7848b66cd49dd3ba6a55
+Boot0008* USB FDD	030a2400d23878bc820f604d8316c068ee79d25b6ff015a28830b543a8b8641009461e49
+Boot0009* ATA HDD0	030a2500d23878bc820f604d8316c068ee79d25b91af625956449f41a7b91f4f892ab0f600
+Boot000D* PCI LAN	030a2400d23878bc820f604d8316c068ee79d25b78a84aaf2b2afc4ea79cf5cc8f3d3803
+Boot0010* ubuntu	HD(1,800,31801,faffb7b9-bdf9-4767-b475-0b8aee68d3ac)File(\EFI\ubuntu\grubx64.efi)
+Boot0011* opsitempwinpe	HD(4,3c72800,7cf801,dc1cea68-a296-4fb8-a97a-263227ed86f4)File(\EFI\boot\bootx64.efi)
+Boot0012* Windows Boot Manager	HD(1,800,31801,5e4ffde2-3e25-42dd-b0f7-fcb7ee5d2b20)File(\EFI\Microsoft\Boot\bootmgfw.efi)WINDOWS.........x...B.C.D.O.B.J.E.C.T.=.{.9.d.e.a.8.6.2.c.-.5.c.d.d.-.4.e.7.0.-.a.c.c.1.-.f.3.2.b.3.4.4.d.4.7.9.5.}...a................
+----
+
+On Windows UEFI boot loader entries can be managed with the program `bcdedit`. +
+List of boot entries:
+
+
+[source,prompt]
+----
+bcdedit /enum firmware
+
+Start-Manager für Firmware
+- - - - - - - - - - - - - - -
+Bezeichner              {fwbootmgr}
+displayorder            {bootmgr}
+                        {99a9f9be-9a98-11e3-b22f-806e6f6e6963}
+                        {11a8b97e-99df-11e3-ae5c-b888e3e3cbb4}
+                        {11a8b986-99df-11e3-ae5c-b888e3e3cbb4}
+Windows-Start-Manager
+- - - - - - - - - - - - - - -
+Bezeichner              {bootmgr}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\Microsoft\Boot\bootmgfw.efi
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b971-99df-11e3-ae5c-b888e3e3cbb4}
+description             Setup
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b972-99df-11e3-ae5c-b888e3e3cbb4}
+description             Boot Menu
+(...)
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b978-99df-11e3-ae5c-b888e3e3cbb4}
+description             USB CD
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b979-99df-11e3-ae5c-b888e3e3cbb4}
+description             USB FDD
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b97a-99df-11e3-ae5c-b888e3e3cbb4}
+description             ATA HDD0
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {11a8b97e-99df-11e3-ae5c-b888e3e3cbb4}
+description             PCI LAN
+Firmwareanwendung (101fffff)
+- - - - - - - - - - - - - - -
+Bezeichner              {99a9f9be-9a98-11e3-b22f-806e6f6e6963}
+device                  partition=X:
+path                    \EFI\boot\bootx64.efi
+description             opsitempwinpe
+----
+
+Both programs can be used to create or delete entries, setting 'netxtboot' or change the boot order.
+
+Example: Setting the entry for the next boot:
+
+* Linux: +
+[source,prompt]
+----
+efibootmgr /bootnext <hexId>
+----
+
+* Windows: +
+[source,prompt]
+----
+bcdedit /set {fwbootmgr} bootsequence <GUID>
+----
+
+[[opsi-manual-uefi-technical-gpt]]
+=== Technichal details about GPT
+
+GPT partitions know some 'new' partition types. These are derived from the standard types. So the partition type for NTFS `07` becomes GPT `0700`. The Linux partition types `82` and `83` become `8200` and `8300`.
+
+The list of known partition types can be shown:
+[source,prompt]
+----
+# sgdisk -L
+0700 Microsoft basic data  0c01 Microsoft reserved    2700 Windows RE
+4100 PowerPC PReP boot     4200 Windows LDM data      4201 Windows LDM metadata
+7501 IBM GPFS              7f00 ChromeOS kernel       7f01 ChromeOS root
+7f02 ChromeOS reserved     8200 Linux swap            8300 Linux filesystem
+8301 Linux reserved        8302 Linux /home           8400 Intel Rapid Start
+8e00 Linux LVM             a500 FreeBSD disklabel     a501 FreeBSD boot
+a502 FreeBSD swap          a503 FreeBSD UFS           a504 FreeBSD ZFS
+a505 FreeBSD Vinum/RAID    a580 Midnight BSD data     a581 Midnight BSD boot
+a582 Midnight BSD swap     a583 Midnight BSD UFS      a584 Midnight BSD ZFS
+a585 Midnight BSD Vinum    a800 Apple UFS             a901 NetBSD swap
+a902 NetBSD FFS            a903 NetBSD LFS            a904 NetBSD concatenated
+a905 NetBSD encrypted      a906 NetBSD RAID           ab00 Apple boot
+af00 Apple HFS/HFS+        af01 Apple RAID            af02 Apple RAID offline
+af03 Apple label           af04 AppleTV recovery      af05 Apple Core Storage
+be00 Solaris boot          bf00 Solaris root          bf01 Solaris /usr & Mac Z
+bf02 Solaris swap          bf03 Solaris backup        bf04 Solaris /var
+bf05 Solaris /home         bf06 Solaris alternate se  bf07 Solaris Reserved 1
+bf08 Solaris Reserved 2    bf09 Solaris Reserved 3    bf0a Solaris Reserved 4
+bf0b Solaris Reserved 5    c001 HP-UX data            c002 HP-UX service
+ea00 Freedesktop $BOOT     eb00 Haiku BFS             ed00 Sony system partitio
+ef00 EFI System            ef01 MBR partition scheme  ef02 BIOS boot partition
+fb00 VMWare VMFS           fb01 VMWare reserved       fc00 VMWare kcore crash p
+fd00 Linux RAID
+----
+
+Actually the partition types shown in this list are just short forms for the actual GUIDs that are used. The partition schema is named after that.
+
+So:
+`0700` stands for `Microsoft basic data` and for the GUID `EBD0A0A2-B9E5-4433-87C0-68B6B72699C7`
+
+A list of GUIDs can be found at Wikipedia:
+
+https://de.wikipedia.org/wiki/GUID_Partition_Table#Partitionstyp-GUIDs
+
+https://en.wikipedia.org/wiki/GUID_Partition_Table#Partition_type_GUIDs
+
+Furtheron the tool gdisk (and sgdisk, ...) has an internal substitution table for unknown partition types. For the 'old' partion type for vfat32 `0b` there is no corresponding `0b00`. By passing the type `0b00` to sgdisk, it will be translated to `0700` without any message. Perhaps because of the consideration: vfat32 - this must be some Microsoft data partition ...
+
+GPT partitionen can have attributes.
+
+List of the currently known attributes
+
+|==========================
+|Value|Description|Attribute value (sgdisk --info / diskpart gpt attribute)
+|nix|nix																						|0000000000000000
+|0 	|system partition             |0000000000000001
+|1 	|partition hidden from EFI |0000000000000002
+|2 	|legacy boot flag (legacy BIOS bootable)         |0000000000000004
+|60 |read-only                          |1000000000000000
+|62 |hidden                             |4000000000000000
+|63 |do not automount             |8000000000000000
+|==========================
+
+On Linux the attributes can be set with sgdisk by the option `-A, --attributes` and using the short form. On Windows they can be set with diskpart by the command `gpt attributes` and using the long form.
+
+Examples:
+[source,prompt]
+----
+select disk 0
+select partition 1
+gpt attributes=0x0000000000000000
+----
+
+[source,prompt]
+----
+sgdisk -t 1:0700 --attributes 1:clear:63 --attributes 1:set:62 -p /dev/sda
+----
+
+show the partition table with `-p , --print`:
+[source,prompt]
+----
+sgdisk -p /dev/sda
+----
+
+show detailled infos for a partition (1) with `--info=`:
+[source,prompt]
+----
+sgdisk --info=1 /dev/sda
+----
+
+[[opsi-manual-uefi-roadmap]]
+=== opsi UEFI/GPT Roadmap
+
+* UEFI 32 Bit support
+
+* other netboot capable UEFI boot loader (grub2)
