@@ -30,7 +30,7 @@ RELEASE_DATE=$(date +'%B %d, %Y')
 STYLE="opsi"
 STYLES_DIRECTORY="resources/themes"
 BUILD_BASE_DIR="build"
-AVAILABLE_MANUALS=(manual getting-started releasenotes windows-client linux-client macos-client opsi-script-manual quickinstall opsi-script-reference-card supportmatrix)
+AVAILABLE_MANUALS=(manual getting-started releasenotes windows-client-manual linux-client-manual macos-client-manual opsi-script-manual quickinstall opsi-script-reference-card supportmatrix)
 
 ERR_UNSUPPORTED_MANUAL=21
 ERR_UNSUPPORTED_ACTION=22
