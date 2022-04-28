@@ -157,14 +157,16 @@ function build_html_manual()
     local manual="$1"
     local release_date="$2"
     local revision="$3"
-    local build_directory="$(pwd)/${BUILD_BASE_DIR}/html/${LANGUAGE}/${manual}"
+    local build_directory=""
     # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
     local manual_infix=$manual
     local out_file=""
     if  [[ ${manual} == "opsi"* ]]; then
         echo "manual string contains 'opsi'"
+        build_directory="$(pwd)/${BUILD_BASE_DIR}/html/${LANGUAGE}/${manual}"
         out_file="${build_directory}/${manual_infix}.html"
     else 
+        build_directory="$(pwd)/${BUILD_BASE_DIR}/html/${LANGUAGE}/opsi-${manual}"
         out_file="${build_directory}/opsi-${manual_infix}.html"
     fi
     echo "output file: ${out_file}"
@@ -236,14 +238,16 @@ function build_pdf_manual()
     local manual="$1"
     local release_date="$2"
     local revision="$3"
-    local build_directory="$(pwd)/${BUILD_BASE_DIR}/pdf/${LANGUAGE}/${manual}"
+    local build_directory=""
     local out_file=""
     # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
     local manual_infix=$manual
-    if  [[ ${manual} == "opsi"* ]]; then
+     if  [[ ${manual} == "opsi"* ]]; then
         echo "manual string contains 'opsi'"
+        build_directory="$(pwd)/${BUILD_BASE_DIR}/pdf/${LANGUAGE}/${manual}"
         out_file="${build_directory}/${manual_infix}.pdf"
     else 
+        build_directory="$(pwd)/${BUILD_BASE_DIR}/pdf/${LANGUAGE}/opsi-${manual}"
         out_file="${build_directory}/opsi-${manual_infix}.pdf"
     fi
     echo "output file: ${out_file}"
