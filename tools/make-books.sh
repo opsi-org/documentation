@@ -157,9 +157,17 @@ function build_html_manual()
     local manual="$1"
     local release_date="$2"
     local revision="$3"
-    local build_directory="$(pwd)/${BUILD_BASE_DIR}/html/${LANGUAGE}/${manual}/"
+    local build_directory="$(pwd)/${BUILD_BASE_DIR}/html/${LANGUAGE}/${manual}"
     # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
     local manual_infix=$manual
+    local out_file=""
+    if  [[ ${manual} == "opsi"* ]]; then
+        echo "manual string contains 'opsi'"
+        out_file="${build_directory}/${manual_infix}.html"
+    else 
+        out_file="${build_directory}/opsi-${manual_infix}.html"
+    fi
+    echo "output file: ${out_file}"
     local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
     local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
     local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
@@ -212,7 +220,7 @@ function build_html_manual()
     param+='-r ./tools/ChangeXref.rb '
     param+='-r asciidoctor-interdoc-reftext '
     param+='--trace '
-    param+='--out-file '${build_directory}/opsi-${manual_infix}.html' '
+    param+='--out-file '${out_file}' '
     # param+='--out-file '$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/opsi_${manual_infix}.html' '
 
     pwd
@@ -228,9 +236,17 @@ function build_pdf_manual()
     local manual="$1"
     local release_date="$2"
     local revision="$3"
-    local build_directory="$(pwd)/${BUILD_BASE_DIR}/pdf/${LANGUAGE}/${manual}/"
+    local build_directory="$(pwd)/${BUILD_BASE_DIR}/pdf/${LANGUAGE}/${manual}"
+    local out_file=""
     # local manual_infix="$(tr '[:lower:]' '[:upper:]' <<< ${manual:0:1})${manual:1}"
     local manual_infix=$manual
+    if  [[ ${manual} == "opsi"* ]]; then
+        echo "manual string contains 'opsi'"
+        out_file="${build_directory}/${manual_infix}.pdf"
+    else 
+        out_file="${build_directory}/opsi-${manual_infix}.pdf"
+    fi
+    echo "output file: ${out_file}"
     local book_file="books/${manual_infix}-${LANGUAGE}.adoc"
     local nav_file="docs/${LANGUAGE}/modules/${manual}/nav.adoc"
     local module_base_path="docs/${LANGUAGE}/modules/${manual}/pages/"
@@ -293,7 +309,7 @@ function build_pdf_manual()
     param+='-r ./tools/IncludeProcessor.rb '
     param+='-r ./tools/ChangeXref.rb '
     param+='-r asciidoctor-interdoc-reftext '
-    param+='--out-file '${build_directory}/opsi-${manual_infix}.pdf' '
+    param+='--out-file '${out_file}' '
     param+='--trace '
     param+='--verbose '
 
