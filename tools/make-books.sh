@@ -212,7 +212,7 @@ function build_html_manual()
     param+='-r ./tools/ChangeXref.rb '
     param+='-r asciidoctor-interdoc-reftext '
     param+='--trace '
-    param+='--out-file '${build_directory}/opsi_${manual_infix}.html' '
+    param+='--out-file '${build_directory}/opsi-${manual_infix}.html' '
     # param+='--out-file '$(pwd)/${BUILD_BASE_DIR}/${revision}/${manual}/opsi_${manual_infix}.html' '
 
     pwd
@@ -293,7 +293,7 @@ function build_pdf_manual()
     param+='-r ./tools/IncludeProcessor.rb '
     param+='-r ./tools/ChangeXref.rb '
     param+='-r asciidoctor-interdoc-reftext '
-    param+='--out-file '${build_directory}/opsi_${manual_infix}.pdf' '
+    param+='--out-file '${build_directory}/opsi-${manual_infix}.pdf' '
     param+='--trace '
     param+='--verbose '
 
