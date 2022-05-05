@@ -43,16 +43,74 @@ Advantages:
 
 * The opsi integration of new releases is easier and faster available.
 
-* For Suse, RedHat and Linux Mint like distributions, the installation is done from the sources on the opsi-server, and therefore is faster and more stable than installing from the internet repositories.
+* For Suse, RedHat, Linux Mint like distributions and Ubuntu 22-04, the installation is done from the sources on the opsi-server, and therefore is faster and more stable than installing from the internet repositories.
 
 [[firststeps-osinstall-netboot-distro-prepare]]
-==== Providing the installation media on the server
+==== Providing the installation media on the server via NFS
 
-For Suse. RedHat, Ubuntu 22-04 and upwards and Linux Mint like distributions, the installation media is provided within the `iso` and `isocontent` subdirectory within the package.
+This affects SUSE like product prior to version 4.2.0.2-1, Redhat like distributions prior to version 4.2.0.3-1 and Linux Mint packages prior to version 4.2.0.2-1.
+Later on the new variant is explained.
 
-In the `iso` directory the ISO file has to be placed. The `isocontent` directory should contain the file contents of the ISO file.
+For Suse. RedHat and Linux Mint like distributions, the installation media is provided by an additional nfs-share: `opsi_nfs_share`.
 
-Here is an example how to place the ISO file content for the SLES 15-3 product.
+To configure this share, there must be a NFS server installed and configured on the opsi-server:
+
+Since opsi v4.0.6 stable this is done by the special package `opsi-linux-support`. This package is not installed by default and must be installed manually once, e.g.
+
+[source,prompt]
+----
+apt install opsi-linux-support
+----
+
+If a firewall is running on your system you need to configure it to accept
+TCP connections at port 80.
+Please consult the appropriate manual on how to do this.
+
+The `opsi-linux-support` package performs the following tasks:
+
+* Installation of the applicable nfs-server package on the opsi-server. For Debian, Ubuntu, Suse this is the package: nfs-kernel-server. For Centos, Redhat it is the package nfs-utils.
+
+* The share `opsi_nfs_share` is created and exported:
+
+** Create directory: +
+`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
+
+** Add the share entry to /etc/exports: +
+`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
+
+** Activate the export: +
+`exportfs -r`
+
+** Check the successful export: +
+`showmount -e localhost` +
+The output should be: +
+`Export list for localhost: +
+/var/lib/opsi/depot/opsi_nfs_share *`
+
+* The share `opsi_nfs_share` has the following directory structure: +
+`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
+example: +
+`opsi_nfs_share/opensuse15-2/64/openSUSE-15.2-DVD-x86_64.iso` +
+The installation file must have an extension `.iso`, the name of the file does not matter. If there are several `.iso` files in the same directory, it is not specified which one to use. +
+However the Linux Mint installation requires the installation media content, including hodden directories, to be copied into the specific `opsi_nfs_share` subdirectory.
+
+* Copy the installation DVD to the `opsi_nfs_share` and execute: +
+`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
+IMPORTANT: use the standard installation DVDs of the distribution. Modified installation DVDs might have a different structure and therefore cannot be used in this context.
+
+* If for any reasons the directory `/var/lib/opsi/depot/opsi_nfs_share` cannot be exported by the opsi-server per NFS (for instance because the depot share is already a NAS NFS share), so the NFS share to be used can be specified by a server config. Like `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
+
+* The product `ubuntu22-04` a .iso file has to be placed in the `iso` directory within the package directory in the depot.
+
+==== Providing the installation media on the server via opsiconfd WebDAV
+
+This affects SUSE like product after to version 4.2.0.2-1, Redhat like distributions after to version 4.2.0.3-1 and Linux Mint packages after to version 4.2.0.2-1.
+
+RedHat and SUSE like distributions along with Linux Mint and Ubunut 22-04 in the above mentioned versions do not use the NFS method anymore. Instead the opsiconfd WebDAV server is used to distribute the installation media. For this case each of those netboot packages contains a `iso` or `isocontent` subdirectory.
+
+The `iso` subdirectory shall contain an ISO image of the specific distribution. On the other hand the `isocontent` directory shall contain the contents of an ISO image, including files starting with a dot.
+
+Here is an example how to fill the `isocontent` directory.
 
 [source,prompt]
 ----
@@ -63,8 +121,7 @@ cp /mnt/.discinfo /var/lib/opsi/depot/sles15-3/isocontent/
 umount /mnt
 ----
 
-Please note that the `.discinfo` file is not present on all ISO images. This depends on the distribution.
-
+Please note: the file `.discinfo` is not present on all distribution installation media and might be missing.
 
 [[firststeps-osinstall-netboot-distro-generalproperties]]
 ==== Common properties of the Linux netboot products based on the distibution installer
@@ -374,11 +431,10 @@ default: True
 
 .Source of installation
 To download the installation DVD you need an account on SUSE.
-Installation DVD should have the name (we've made tests with files with these names):
-sles15-1 SLE-15-SP1-Full-x86_64-GM-Media1.iso
-sles15-2 SLE-15-SP2-Full-x86_64-GM-Media1.iso
-sles15-3 SLE-15-SP3-Full-x86_64-GM-Media1.iso
-Copy the ISO-File content to `/var/lib/opsi/depot/sles15-3/isocontent/`
+Prior to version 4.2.0.2-1:
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/sles15-3/64/`
+After version 4.2.0.2-1
+Copy the ISO image content to `/var/lib/opsi/depot/sles15-3/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 .Videos (time lapse)
@@ -389,7 +445,7 @@ It is made with one frame per second and because of that, the installation that 
 * http://download.uib.de/press-infos/videos/opsi-linux/sles12_406_1fps.mp4
 
 [[firststeps-osinstall-netboot-distro-special-redhat70]]
-==== The products redhat8, alma8 and rocky8
+==== The products redhat70, redhat8 and centos70, centos8, alma8, rocky8
 
 This product has the following additional properties:
 
@@ -425,19 +481,26 @@ default: True
 ----
 .Source of installation AlmaLinux
 Download the installation DVD here, e.g. from link:https://repo.almalinux.org/almalinux/8/isos/x86_64/[here].
-Copy the ISO-File content to `/var/lib/opsi/depot/alma8/isocontent/`
-Please don't forget to execute `opsi-set-rights`.
-
-.Source of installation RockyLinux
-Download the installation DVD here, e.g. from link:https://rockylinux.org/download/[here].
-Copy the ISO-File content to `/var/lib/opsi/depot/rocky8/isocontent/`
+Prior to version 4.2.0.3-1
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/alma8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/alma8/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 .Source of installation RedHat
 To download the installation DVD you need an account on RedHat.
-Installation DVD should be named ((we've made tests with a file with these name)): +
-rhel-server-8.5-x86_64-dvd.iso
-Copy the ISO-File content to `/var/lib/opsi/depot/redhat8/isocontent/`
+Prior to version 4.2.0.3-1
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/redhat8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/redhat8/isocontent/`
+Please don't forget to execute `opsi-set-rights`.
+
+.Source of installation RockyLinux
+Download the installation DVD here, e.g. from link:https://rockylinux.org/download/[here].
+Prior to version 4.2.0.3-1
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/rocky8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/rocky8/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 

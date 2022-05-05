@@ -30,10 +30,10 @@ include::common:partial$opsi_terms.adoc[]
 
 * Bei den Suse- und RedHat-artigen Distributionen werden die Installationsquellen von Ihnen bereitgestellt, in dem Sie die Installations-DVD als ISO-Datei auf dem Depotshare ablegen. Dieses Verfahren ähnelt der Situation unter Windows, nur dass der Ablageort ein anderer ist und dass Sie bei Windows den Inhalt der Installations-DVD ablegen anstatt einer ISO-Datei.
 
-* Für eine Linux Mint Installation wird der Inhalt der offiziellen Installations Medien über einen NFS Server benötigt.
+* Für eine Linux Mint Installation in Version 4.2.0.1-6 und früher wird der Inhalt der offiziellen Installations Medien über einen NFS Server benötigt. Ab Version 4.2.0.2-1 wird ein ISO Image in das Produktunterverzeichnis `iso` gespeichert.
 
 * Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert. +
-Ab opsi 4.0.7 können für bestimmte Netbootprodukte hier auch lokale http Repositories bereitgestellt werden.
+Das Paket `ubuntu22-04` erwartet ein ISO Image im Produktunterverzeichnis `iso` und liefert selbst keinen Distributionskernel und dazugehöriges Initrd mehr mit.
 
 * Zur weiteren Pflege der Installation kann der opsi-linux-client-agent im Rahmen der Basisinstallation mit installiert werden.
 
@@ -59,16 +59,76 @@ Die Vorteile dieses Vorgehens sind:
 
 * Die Integration neuer Releases in opsi wird einfacher und dadurch schneller.
 
-* Bei den Suse- und RedHat-artigen, Linux Mint Distributionen und Ubuntu ab 22-04 findet die Installation aus auf dem opsi-Server liegenden Installationsquellen statt und ist damit schneller und unempfindlicher gegen Störungen als beim Zugriff auf Repositories aus dem Internet.
+* Bei den Suse- und RedHat-artigen, Linux Mint Distributionen und Ubuntu 22-04 findet die Installation aus auf dem opsi-Server liegenden Installationsquellen statt und ist damit schneller und unempfindlicher gegen Störungen als beim Zugriff auf Repositories aus dem Internet.
 
 [[firststeps-osinstall-netboot-distro-prepare]]
-==== Bereitstellung und der Installationsmedien auf dem Server
+==== Bereitstellung und der Installationsmedien auf dem Server per NFS
 
-Die Bereitstellung der Installationsmedien für die Suse-, RedHat und Linux Mint-artigen Distributionen erfolgt im Produktunterverzeichnis `iso` bzw. `isocontent`.
+Dies betrifft die RedHar-artigen Distributionen vor Version 4.2.0.3-1, die SLES-artigen Distributionen vor Version 4.2.0.2-1 und Linux Mint vor 4.2.0.2-1. Im Anschluss an die NFS-Server Variante, wird die neuartige Variante erklärt.
 
-Beim Unterverzeichnis `iso` muss lediglich das ISO Abbild des Installationsdatenträgers abgelegt werden. Im Unterverzeichnis `isocontent` soll sich der Inhalt eines solchen ISO Abbildes befinden.
+Die Bereitstellung der Installationsmedien für die Suse-, RedHat und Linux Mint-artigen Distributionen erfolgt auf einem nfs share: `opsi_nfs_share`.
 
-Beispielhaft wird dies hier für ein ISO Abbild von SLES 15-3 gemacht:
+Zur Einrichtung des shares muss ein NFS-Server auf dem opsi-server installiert und konfiguriert sein.
+
+Seit opsi v4.0.6 wird dies über ein gesondertes Paket `opsi-linux-support` erfolgen. Dieses Paket wird nicht per default installiert und muss einmalig nachinstalliert werden.
+
+Auf Debian-artigen Betriebssystemen kann das durch den folgenden Befehl erreicht werden:
+
+[source,prompt]
+----
+apt install opsi-linux-support
+----
+
+Beim Einsatz einer Firewall auf Ihrem Server muss diese noch so konfiguriert
+werden, dass TCP-Verbindungen auf Port 80 akzeptiert werden.
+Bitte konsultieren Sie hierzu das entsprechende Handbuch.
+
+Was dieses Paket macht, ist (als händige Anleitung) im Folgenden beschrieben:
+
+* Auf dem opsi-server muss das entsprechende NFS-Server-Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: `nfs-kernel-server`. Auf Centos, Redhat ist es das Paket `nfs-utils`.
+
+* Der Export `opsi_nfs_share` muss angelegt und exportiert werden:
+
+** Verzeichnis erzeugen: +
+`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
+
+** In der Datei `/etc/exports` den Eintrag: +
+`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
+erzeugen.
+
+** Das Aktivieren des Exports wird mit dem folgenden Befehl ausgelöst: +
+`exportfs -r`
+
+** Zur Kontrolle des erfolgreichen Exports den folgenden Befehl aufrufen: +
+`showmount -e localhost` +
+Die Ausgabe sollte sein: +
+`Export list for localhost: +
+/var/lib/opsi/depot/opsi_nfs_share *`
+
+* Der share `opsi_nfs_share` hat folgenden Verzeichnisaufbau: +
+`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
+zum Beispiel: +
+`opsi_nfs_share/opensuse53-2/64/openSUSE-15.2-DVD-x86_64.iso` +
+Die Installationsdatei muss als Dateiendung `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert welche verwendet wird. +
+Eine Ausnahme hierzu bildet das Netboot Produkt mint20-X. Hierfür ist es nötig den gesamten Inhalt, auch versteckte Verzeichnisse, in den entsprechenden `opsi_nfs_share` Unterordner zu kopieren.
+
+* Kopieren Sie die Installations-DVD an den entsprechenden Platz im `opsi_nfs_share` und führen Sie aus: +
+`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
+WICHTIG: Verwenden Sie die Standard Installations-DVD's der Distribution. Modifizierte Installations DVD's haben eventuell einen anderen Aufbau und funktionieren nicht.
+
+* Sollten Sie aus irgendwelchen Gründen das Verzeichnis `/var/lib/opsi/depot/opsi_nfs_share` nicht vom opsi-server aus per NFS exportieren können (z.B. weil der Depotshare vom opsiserver per NFS von einem NAS eingebunden ist), so kann der zu verwendende NFS-share über ein Serverweites config angegeben werden. Z.B. `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
+
+* Beim Produkt `ubuntu22-04` muss die .iso Datei im Produktverzeichnis im Unterverzeichnis `iso` hinterlegt werden.
+
+==== Bereitstellung und der Installationsmedien auf dem Server per opsifond WebDAV
+
+Dies betrifft die RedHar-artigen Distributionen ab Version 4.2.0.3-1, die SLES-artigen Distributionen ab Version 4.2.0.2-1 und Linux Mint ab 4.2.0.2-1.
+
+Die RedHat- und SUSE-artigen Distributionen, sowie Linux Mint und Ubuntu22-04 nutzen seit den oben genannten Versionen keinen NFS-Server mehr zur Verteilung der Installationsmedien. Vielmehr gibt es in den jeweiligen Produktverzeichnissen ein Unterverzeichnis `iso` bzw. `isocontent`.
+
+In das `iso` Verzeichnis wird das ISO Image abgelegt. Das `isocontent` Verzeichnis beinhaltet den Inhalt eines ISO Images, analog zum `installfiles` Verzeichnis eines Windows Netboot Pakets.
+
+Hier ein Beispiel anhand des SLES15-3 Produktes.
 
 [source,prompt]
 ----
@@ -79,7 +139,7 @@ cp /mnt/.discinfo /var/lib/opsi/depot/sles15-3/isocontent/
 umount /mnt
 ----
 
-Der vorletzte Schritt ist nur nötog, falls die Datei `.discinfo` im ISO Abbild existiert.
+Hinweis: Die Datei `.discinfo` ist nicht bei allen Distributionen vorhanden und kann dementsprechend fehlen.
 
 
 [[firststeps-osinstall-netboot-distro-generalproperties]]
@@ -234,7 +294,7 @@ Default: `domaincontroller_master`
 
 
 [[firststeps-osinstall-netboot-distro-special-sles]]
-==== Die Produkte sles12sp3, sles12sp4, sles12sp5, sles15-1, sles15-2, sles15-3
+==== Die Produkte sles12sp3, sles12sp4, sles12sp5, sles15-1, sles15-2, sles15-3, opensusel15-3
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -264,11 +324,10 @@ default: True
 
 .Installationsquelle
 Zum herunterladen der Installations DVD brauchen Sie einen Account bei SUSE.
-Installations DVD sollte heißen (mit einer Datei dieses Namens haben wir getestet):
-sles15-1 SLE-15-SP1-Full-x86_64-GM-Media1.iso
-sles15-2 SLE-15-SP2-Full-x86_64-GM-Media1.iso
-sles15-3 SLE-15-SP3-Full-x86_64-GM-Media1.iso
-ISO-Inhalt kopieren nach `/var/lib/opsi/depot/sles15-3/isocontent/`
+Vor Version 4.2.0.2-1:
+ISO-File kopieren nach `/var/lib/opsi/depot/opsi_nfs_share/sles15-3/64/`
+Nach Version 4.2.0.2-1
+ISO Inhalt kopieren nach `/var/lib/opsi/depot/sles15-3/isocontent/`
 Ausführung von `opsi-set-rights` nicht vergessen.
 
 
@@ -281,7 +340,7 @@ Es ist mit einem Frame pro Sekunde aufgenommen und dadurch schneller anzusehen a
 
 
 [[firststeps-osinstall-netboot-distro-special-redhat70]]
-==== Die Produkte redhat8, rocky8 and alma8
+==== Die Produkte redhat70, redhat8 und centos70, centos8, rocky8, alma8
 
 Das Produkt hat folgende zusätzliche Properties:
 
@@ -316,22 +375,29 @@ description: set to false, if you don't want to register your system online, if 
 default: True
 ----
 
-.Installationsquelle AlmaLinux
-Installations DVD hier herunterladen, beispielsweise von link:https://repo.almalinux.org/almalinux/8/isos/x86_64/[hier].
-ISO-Inhalt kopieren nach `/var/lib/opsi/depot/alma8/isocontent/`
-Ausführung von `opsi-set-rights` nicht vergessen.
+.Installationsquelle von AlmaLinux
+Laden sie das ISO Image bitte herunter, z.B. hier link:https://repo.almalinux.org/almalinux/8/isos/x86_64/[here].
+Vor Version 4.2.0.3-1
+ISO Datei hierhin kopieren `/var/lib/opsi/depot/opsi_nfs_share/alma8/64/`
+Nach Version 4.2.0.3-1
+Den Inhalt der ISO kopieren nach `/var/lib/opsi/depot/alma8/isocontent/`
+Bitte nicht vergessen `opsi-set-rights` auszuführen.
 
-.Installationsquelle RockyLinux
-Installations DVD hier herunterladen, beispielsweise von link:https://rockylinux.org/download/[hier].
-ISO-Inhalt kopieren nach `/var/lib/opsi/depot/rocky8/isocontent/`
-Ausführung von `opsi-set-rights` nicht vergessen.
+.Installationsquelle von RedHat
+Zum Download der ISO benötigen sie einen RedHat Account.
+Vor Version 4.2.0.3-1
+ISO Datei hierhin kopieren `/var/lib/opsi/depot/opsi_nfs_share/redhat8/64/`
+Nach Version 4.2.0.3-1
+Den Inhalt der ISO kopieren nach `/var/lib/opsi/depot/redhat8/isocontent/`
+Bitte nicht vergessen `opsi-set-rights` auszuführen.
 
-.Installationsquelle RedHat
-Zum Herunterladen der Installations DVD brauchen Sie einen Account bei RedHat.
-Installations DVD sollte heißen (mit einer Datei dieses Namens haben wir getestet): +
-rhel-server-8.5-x86_64-dvd.iso
-ISO-Inhalt, kopieren nach `/var/lib/opsi/depot/redhat8/isocontent/`
-Ausführung von `opsi-set-rights` nicht vergessen.
+.Instalaltionsquelle von RockyLinux
+Laden sie das ISO Image bitte herunter, z.B. hier link:https://rockylinux.org/download/[here].
+Vor Version 4.2.0.3-1
+ISO Datei hierhin kopieren `/var/lib/opsi/depot/opsi_nfs_share/rocky8/64/`
+Nach Version 4.2.0.3-1
+Den Inhalt der ISO kopieren nach `/var/lib/opsi/depot/rocky8/isocontent/`
+Bitte nicht vergessen `opsi-set-rights` auszuführen.
 
 
 .Videos (Zeitraffer)
