@@ -39,7 +39,7 @@ RUN gem install sass \
 	&& gem install rouge \
 	&& gem install asciidoctor-interdoc-reftext
 
-RUN if [ -z ${USER+x} ]; then \
+RUN if [ -z ${USER} ]; then \
 	echo "var USER is unset"; \
 	else \
 		useradd --create-home -s /bin/bash ${USER} \
