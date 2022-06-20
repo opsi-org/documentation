@@ -1,0 +1,723 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+:getstarted:  getting started
+
+include::common:partial$opsi_terms.adoc[]
+
+
+
+include::common:partial$firststeps-osinstall-win.adoc[leveloffset=-1]
+
+////
+[[opsi-getting-started-firststeps-osinstall]]
+= Installation of a new Windows PC with opsi (OS Installation)
+
+The following describes how a computer with no operating system can get a Windows OS installed with opsi.
+
+Suitable clients are real or virtual computers with at least 2048 MB RAM and a network card with network boot support:
+This means that they support the PXE protocol for booting systems via the network.
+The network boot has to be activated in the BIOS menu or moved to the first position of the bootorder options.
+
+Virtual hardware is usually well supported by the Windows standard drivers, which can be tried if perform a test installation of Windows.
+To install Windows on newer real-world machines, you may need to integrate additional drivers first.
+For an initial test, you can use a link:https://download.uib.de/vmware_pxeclient.zip[VMware Appliance] that contains an _empty_ machine and can run in _VMware Workstation Player_.
+
+For the following chapter you should create a corresponding client in opsi (xref:adding-clients.adoc#opsi-getting-started-firststeps-osinstall-create-client[Creation of a new opsi client]).
+This can be done easily xref:opsiconfiged.adoc#opsi-getting-started-firststeps-osinstall-create-client[through {opsi-configed}].
+
+NOTE: Some tools useful for deploying Windows with opsi are installed through the 'opsi-windows-support' package.
+
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages]]
+== OS-Installation: Complete the Base Package for Windows
+
+The opsi win-OS-packages contain only the files that are necessary to perform our automated OS installation, but not the operating system software itself.
+
+For an automatic installation of a Windows operating system, you have to copy your existing original Windows installation files (and if necessary, store the Windows license key on the server).
+
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6]]
+== NT6 family: Win7 / 2008R2 and up
+
+In order to perform an OS Installation, a so-called WinPE is being used as a 'Live OS'. You can create it using an opsi package (+opsi-winpe+), or manually if you so desire.
+Generally speaking, the Windows version of the PE is independent of the Windows OS version being installed. Above all, the availability of drivers for disk- and network devices is important.
+Microsoft recommends a 32-Bit PE for 32-bit installations, and a 64-Bit PE for 64-bit installations.
+
+'"To install a 64-bit version of Windows you must use a 64-bit version of Windows PE. Likewise, to install a 32-bit version of Windows, you must use a 32-bit version of Windows PE."' +
+https://technet.microsoft.com/en-us/library/cc766093.aspx
+
+Iny any case you will need an "Assessment and Deployment Kit" (ADK, Windows 8.1 or 10), or its predecessor "Windows Automated Installation Kit" (Windows AIK; until Windows 7), which you install on a supported (preferably 64-bit) Windows OS: +
+
+* link:https://docs.microsoft.com/en-us/windows-hardware/get-started/adk-install[Windows 10 / 8.1 ADK]
+
+Install the Windows PE Add-On for ADK (if possible on a 64-bit machine) in the suggested path under `Program Files (x86)`. Select only the "Windows Pre-Installation Environment (Windows PE)"; Dependencies are automatically selected. +
+
+* link: https://www.microsoft.com/downloads/details.aspx?displaylang=en&FamilyID=696dd665-9f76-4177-a811-39c26d3b3b34[WAIK Windows 7]
+
+This site provides you with an ISO file, which may then be burned to a CD or mounted, and then installed.
+
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-pe]]
+=== Creating a PE
+
+The simplest method requires a computer that has opsi-client-agent installed, as well as the Windows ADK (Win8.1, Win10).
+The manual method is described below in <<opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-pe-manual>>.
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-pe-opsi]]
+==== Automated PE creation using opsi
+
+* Using {opsi-configed} set the localboot-product `opsi-winpe` to `once` for the client you intend to use, if desired adjust the product property to `x86` instead of `x64` at the lower right side, and save (right click > save).
+* If the opsi-product `opsi-winpe` is missing, install it onto your {opsi-Server} with the command `opsi-package-updater -v install opsi-winpe`.
+* Launch an installation event for the client (right click > _on-demand_, or reboot).
+* After a successful completion of this action, move or copy the contents of the now existing folder on your client `C:\winpe_<ARCH>\media\` into the pre-existing folder within the OS folder you want to install: `\\opsiserver\opsi_depot_rw\<operating system>\winpe\`
+* Finally run the following command on the console of your opsi server. Finished.
+[source,prompt]
+----
+opsi-set-rights
+----
+
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-pe-manual]]
+==== Manual PE creation for Windows 10 & Windows 8 (ADK)
+
+The console commands are very similar in 32- or 64-bit versions, except for the *<ARCH>* entries. These have to be replaced with either *x86* , *amd64* or *ia64*.
+
+Run Start => "Windows Kits" => "Windows ADK" => "Deployment and Imaging Toolkits Environment" from the Start Menu. A command prompt will open which has the required environment variables set.
+
+* Copy the WinPE
+[source,prompt]
+----
+copype.cmd <ARCH> C:\winpe
+----
+
+* Mount the Image
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\media\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* replace startnet.cmd
+[source,prompt]
+----
+echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
+----
+(Note: The file `c:\opsi\startnet.cmd` will be created by the opsi linux bootimage after the script `setup.py` is executed. The `startnet.cmd` contains the call to wpeinit.)
+
+* Unmount the Image
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Copy the contents of `C:\winpe\ISO` to `/var/lib/opsi/depot/<productid>/winpe` . +
+Adjust the access rights by entering:
+[source,prompt]
+----
+opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
+----
+
+
+==== Manual PE creation for Windows 7 (WAIK)
+
+The console commands are very similar in 32- or 64-bit versions, except for the *<ARCH>* entries. These have to be replaced with either *x86* , *amd64* or *ia64*.
+
+Start a command prompt as Administrator with elevated rights (Start => Programs => Accessories => right click on "Command Prompt" => "Run as" => Administrator).
+
+* Copy the WinPE
+[source,prompt]
+----
+"%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
+----
+
+* Mount Image: +
+[source,prompt]
+----
+"%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
+----
+
+* replace startnet.cmd
+[source,prompt]
+----
+echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
+----
+(Note: The file `c:\opsi\startnet.cmd` will be created by the opsi linux bootimage after the script `setup.py` is executed. The `startnet.cmd` contains the call to wpeinit.)
+
+* Unmount the Image
+[source,prompt]
+----
+"%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
+----
+
+* Move the WinPE now (From this target dir more files will be moved to the server).
+[source,prompt]
+----
+move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
+----
+
+* Copy the contents of `C:\winpe\media` to `/var/lib/opsi/depot/<productid>/winpe`. +
+Adjust the access rights by entering:
+[source,prompt]
+----
+opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
+----
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-extendpe]]
+=== Extending a PE
+
+In some cases it is useful to extend a PE. Especially when using Dell-Hardware. Dell provides special network and storage drivers specially recommended for use in a PE. These instructions only work with Windows 7. (Windows Vista does not inherit the needed DISM- Deployment Image Servicing and Management.) These instructions assume that you have already completed the previous chapter and have created a PE.
+
+NOTE: The Windows Automated Installation Kit is not needed for following instructions.
+
+The first step is to download Dell-PE-drivers from the Dell-Website. For Windows 7, you will need the WINPE 3.0 Drivers from Dell. The downloaded CAB-File must be extracted to the local disk. This can be done with 7-zip or the command-line-tool Expand.exe. For simplicity, we recommend creating a directory called "dell-driver" on the local disk, and then extracting the CAB-File into this directory.
+
+* First dism is used to scan the image, in order to determine the required index number. Start a command prompt as administrator (Start => Programs => Accessories => right click on "Command Prompt" => "Run as" => (Administrator) and run the following command:
+[source,prompt]
+----
+dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
+----
+
+In the output of this command, you can see which images are included in the image file. Normally a PE-image is a one-image-file, so you can generally use the index 1, but it is better to check first.
+
+* The next command mounts the image for modification:
+[source,prompt]
+----
+dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
+----
+
+* To integrate the extracted drivers into the mounted image, you need to execute this command:
+[source,prompt]
+----
+dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
+----
+
+If the architecture is 32-bit, the `x64` must be replaced with `x86`. The Driver-CAB from Dell contains the drivers for both architectures.
+
+NOTE: If only one driver has to be integrated, then leave out the option `/Recurse`, and point directly to the driver-inf-File instead of the driver-directory. Furthermore, with the option `/ForceUnsigned` it is possible to integrate unsigned drivers to the image.
+
+* Finally the image is unmounted, and the changes are committed:
+[source,prompt]
+----
+dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
+----
+
+* Copy the contents of `C:\winpe\ISO` to `/var/lib/opsi/depot/<productid>/winpe`. +
+Adjust the access rights by entering:
+[source,prompt]
+----
+opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
+----
+
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-unattend]]
+=== unattend.xml
+
+The control file for the unattended installation is the XML file `unattend.xml`, which you can find under `/var/lib/opsi/depot/win7/custom`.
+Any modifications to this file should be made in this directory and not in the opsi directory.
+
+The file `unattend.xml` that comes with the opsi package, contains references to the netboot productproperties, which among other things is responsible for activating the Administrator account with the password 'nt123'.
+
+Documentation for `unattend.xml` can be found in the directory `C:\Program Files\Windows\Waik\docs\chms`, after installing the WAIK.
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-drivers]]
+=== Driver Integration
+
+The driver integration proceeds as described here: <<opsi-getting-started-firststeps-osinstall-driverintegration>>.
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-installfiles]]
+=== Providing the Installation Files
+
+Copy the complete installation DVD to +
+`/var/lib/opsi/depot/<productid>/installfiles`
+And adjust the rights and ownership:
+
+[source,prompt]
+----
+opsi-set-rights /var/lib/opsi/depot/<productid>/installfiles
+----
+
+[[opsi-getting-started-firststeps-osinstall-fill-base-packages-nt6-logfiles]]
+=== Installation Log files
+
+* `c:\Windows\Panther\setupact.log`: +
+Log until the end of setup phase 4 (running under WinPE)
+
+* `c:\Windows\Panther\setupact.err`: +
+Error log until the end of setup phase 4 (running under WinPE)
+
+* `c:\Windows\Panther\UnattendGC\setupact.log`: +
+Log from the specialize phase
+
+* `c:\Windows\Panther\UnattendGC\setupact.err`: +
+Error log from the specialize phase
+
+* `c:\Windows\System32\Winevt\Logs\*`
+
+* `c:\Windows\ntbtlog.txt` (only when startup logging is activated)
+
+[[opsi-getting-started-firststeps-osinstall-productkey]]
+== Windows Product Key
+
+If you have the opsi license management module, you can manage the Windows product keys using the license management module. Read the license management manual or the corresponding chapter in the opsi manual.
+
+If you do not have the license management module, or do not want to use it, proceed as follows.
+
+If you have already set up opsi clients, you can enter a Windows product key per client in the opsi configuration editor:
+
+* select a client
+* switch to the netboot products tab
+* select the product (e.g. {opsi-client-os})
+* change the product property productkey in the lower right corner
+* enter the key in the value field
+* save by clicking on the "red tick" and leave the field
+* save the changes in the backend ("red tick" at the top right).
+
+
+Or you can assign a default for the Windows product key for the complete opsi depot, which can also be done via the opsi configuration editor:
+
+* Select the depot properties in the configuration editor (tile top right)
+* Switch to the Product Default Properties tab
+* select the product (e.g. {opsi-client-os})
+* Go to the property line productkey in the switch list on the right
+* Enter the key in the value field and add it by clicking on "+"
+* save by clicking on the "red tick" and leave the field
+* save the changes in the backend ("red tick" at the top right).
+
+
+
+[[opsi-getting-started-firststeps-osinstall-start]]
+== Start the Windows Installation
+
+To start a Windows installation, select the relevant client in {opsi-configed}, set in the 'Netboot products' tab the action to 'setup' for the desired operating system (e.g. {opsi-client-os}). Click on the red checkmark (which turns green again).
+
+The client should now load the {opsi-linux-bootimage} via the network when booting, where you have to confirm the new OS installation again. Then everything should continue automatically until the logon prompt of the installed Windows is finally on the screen.
+
+NOTE: If the screen remains black after loading the boot image or the network card does not work correctly, the start parameters of the boot image may have to be adjusted for this specific hardware. +
+You can do this in '{opsi-configed}' in the 'Host parameters' tab at the entry 'opsi-linux-bootimage.append'. +
+You can find details on this in the opsi manual in the 'Netboot Products' chapter.
+
+CAUTION: Beware of clients with a hard disk larger than 2 TB. In a non-UEFI system, the maximum partition size is 2 terabytes. If a larger partition is to be created, the installation will fail. This a technical limitiation of the standard partition table. You need to split the hard drive into partitions. You can control this via the product properties. Or you can purchase the UEFI module, which eliminates this technical limitation.
+
+[[opsi-getting-started-firststeps-osinstall-structure]]
+== Structure of the Unattended Installation Products
+
+This chapter applies to the Windows netboot products.
+
+[[opsi-getting-started-firststeps-osinstall-structure-dirs]]
+=== Directory Tree Overview
+
+[source,configfile]
+----
+<productid>-
+           |-i386/				NT5 only: Installation files
+           |-installfiles/			NT6 only: Installation files
+           |-winpe/				NT6 only
+           |-opsi/				scripts and templates by opsi.org
+           |  |-$oem$/					NT5 only: $oem$ according to Microsoft
+           |  |-postinst.d/				scripts after OS-install by opsi.org
+           |  !-unattend.(txt/xml).template	  	Template by opsi.org
+           |-custom/				scripts and templates by customer
+           |  |-$oem$/					NT5 only: $oem$ according to Microsoft by customer
+           |  |-postinst.d/				scripts after OS-install by customer
+           |  !-unattend.(txt/xml)			unattend.txt by customer
+           |-drivers/				drivers directory
+           |  |-drivers/			drivers directory
+           |  |-pciids/				symbolic links to drivers
+           |  |-vendors/			symbolic links to drivers
+           |  |-classes/			symbolic links to drivers
+           |  |-usbids/				symbolic links to drivers
+           |  |-hdaudioids/			symbolic links to drivers
+           |  |-pci.ids				PCI-IDs DB
+           |  !-usb.ids				USB-IDs DB
+           |-setup.py				installation script
+           |-<productid>_<version>.control	meta data (only for info)
+           |-<productid>.files		    	file list (created automatically)
+           |-create_driver_links.py		driver management script
+           !-show_drivers.py			driver management script
+----
+
+[[opsi-getting-started-firststeps-osinstall-structure-files]]
+=== File Descriptions
+
+* `setup.py` +
+This is the installation script which is executed by the boot image.
+
+* `<productid>_<version>.control` +
+Contains the metadata of the product as prepared from the package maintainer. These files are here for information purposes only. Changes to this file have no effect on the system.
+
+* `<productid>.files` +
+This file is created automatically and should not be changed.
+
+* `create_driver_links.py` +
+`show_drivers.py` +
+These scripts are for driver integration, which is explained in more detail in the chapter <<opsi-getting-started-firststeps-osinstall-driverintegration,Simplified driver integration in the automatic Windows installation>>.
+
+[[opsi-getting-started-firststeps-osinstall-structure-i386]]
+=== Directory installfiles / winpe
+
+* `installfiles` +
+This directory contains all files from the installation CD/DVD.
+
+* `winpe` +
+Contains a bootable winpe image.
+
+[[opsi-getting-started-firststeps-osinstall-structure-opsicustom]]
+=== Directories opsi and custom
+
+These two directories contain scripts and configuration files for controlling the operating system installation. During installation, priority is given to files in the custom directories.
+
+The opsi directory contains files that can be overwritten without notice by updates. So no changes to these files should be made. For adjustments, you can make changes in the directory custom, which is preserved during updates.
+
+The subdirectory `postinst.d` contains scripts which are started via the` postinst.cmd` after the actual installation of the operating system, e.g. to install the opsi-client-agent. The scripts are processed in alphabetical order. To clarify the order of execution, the file names begin with a two-digit number (`10_dhcp.cmd`). If you want to make extensions here, you can store scripts in the custom/postinst.d directory with starting numbers between decades (`13_myscript.cmd`). The starting numbers 10, 20, 30,... are reserved for maintenance by opsi.org/uib. The script `99_cleanup.cmd` is the final script and ends with a reboot.
+
+[[opsi-getting-started-firststeps-osinstall-structure-drivers]]
+=== Directory drivers
+
+This directory is used for the integration of drivers and is described in the following chapter.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration]]
+== Simplified Driver Integration during the unattended Windows Installation
+
+When managing a group of PCs that have devices whose drivers are not included in the standard Windows installation, it usually makes sense to integrate these drivers directly into the installation. In the case of network devices, this can sometimes be unavoidable, because a Windows without a network card is not easily accessible for the administrator.
+
+Opsi supports the automatic integration of drivers into the installation, and therefore simplifies driver deployment. The drivers simply need to be placed into the correct directory. By executing a script, the driver directories are searched and a catalog is created, based on which the bootimage can automatically identify and integrate the correct drivers. Standard drivers, USB drivers, HD audio drivers as well as drivers for hard disk controllers (text mode drivers) can be stored and automatically integrated.
+
+In order for the drivers to be installed with the Windows installation, they must be stored in a specific form on the server. Suitable drivers contain a '\*.inf' file that describes the driver for the Windows Setup program. Any drivers in `setup.exe`, '*.zip' or packed any other way are not usable. If you have a computer that already has the drivers installed, then you can extract the drivers in the correct format with the program 'double driver' (http://www.boozet.org/dd.htm).
+
+There are multiple levels of driver integration:
+
+* General driver packages
+
+* Drivers that are suitable for your hardware but are not specially assigned
+
+* Drivers that are manually assigned to computers
+
+* Drivers that are automatically assigned to the computers via the <vendor>/<model> fields of the inventory.
+
+How these different levels can be used is described below:
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-generaldrivers]]
+=== General Driver Packages
+
+When the hardware configuration across the computers is very heterogeneous, then it can make sense to work with general driver packages. +
+General drivers can be placed under `./drivers/drivers`. +
+////
+You can find such general driver packages on http://driverpacks.net/ . +
+Download the appropriate driver package to a temporary directory, and then unpack the driver package using:
+[source,prompt]
+----
+./extract_driver_pack.py <path to the temporary directory with the compressed driverpacks>
+----
+This will unpack and store the drivers in the directory `./drivers/drivers/`. +
+The disadvantage of these packages is that there are also drivers that match the description of your hardware but do not necessarily work with your hardware. +
+////
+Drivers which are found in `./drivers/drivers/`, will be matched to the corresponding hardware using the PCI IDs (or USB- or HD_Audio-IDs) in the description file, and then integrated into the Windows setup if needed.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-preferred]]
+=== Drivers that suitable for your hardware but not specially assigned
+
+In case you have to support few different hardware configurations, you can use the drivers provided by the manufacturers. +
+Additional or tested drivers belong in their own directories (name and depth of the directory structure do not matter) below the directory +
+`./drivers/drivers/preferred`. +
+Drivers located in the directory `./drivers/drivers/preferred` are prioritised over the drivers in `./drivers/drivers/` by using the PCI IDs (or USB- or HD_Audio-IDs) in the description file, and then integrated into the Windows setup if needed. +
+Problems can occur when the same PCI ID can be found in the description file of different drivers in `preferred`. In this case a direct assignment of the drivers to the client is necessary.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-additional]]
+=== Drivers manually assigned to clients
+
+Additional drivers that are to be installed regardless of their assignment or detection via the PCI- or USB-IDs must be in their own directories (name and depth of the directory structure are irrelevant) below the directory `./drivers/drivers/additional`. Via the product property 'additional_drivers' you can assign one or more paths of driver directories within `./drivers/drivers/additional` to a client. Directories specified in the 'additional_drivers' product property are searched recursively and all included drivers will be integrated. Symbolic links are also followed. You can use this to create a directory for certain computer types (e.g. dell-optiplex-815).
+
+If a driver for a matching PCI device (or HD audio, USB) is found in the driver directories specified via 'additional_drivers', then no other driver from `drivers/preferred` or `drivers/` is integrated for this device ('additional_drivers' can be thought of as 'super-preferred'). This means that 'additional_drivers' has the function of adding drivers that would not be found via normal driver detection.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-byaudit]]
+=== Drivers automatically assigned to the clients using the inventory fields
+
+The mechanism of direct assignment of drivers to devices described in the previous section can be automated since opsi 4.0.2. The directory `./drivers/drivers/additional/byAudit` is searched for a directory name that corresponds to the 'vendor' found during hardware inventory. A search is now made in this 'vendor' directory for a directory name that corresponds to the 'model' found during hardware inventory. If such a directory is found, this directory is treated as if it were manually assigned via the product property 'additional_drivers'.
+The directory name 'byAudit' is case sensitive.  The directory names for 'Vendor' and 'Model' are not case sensitive ('Dell' and 'dELL' are treated the same way).
+
+Since opsi 4.0.5, the drivers for a {opsi-client} can be made available via {opsi-configed} in the Hardware Inventory tab (see: opsi manual "Automatic driver upload").
+
+The {opsi-linux-bootimage} looks for drivers in the order:
+
+* `<vendor>/<model> (<sku>)`
+* if in the previous no match is found `<system vendor>/<system model>` is checked.
+* if in the previous no match is found `<motherboard vendor>/<motherboard model>` is checked.
+
+Some manufacturers use model names, which are very unfavourable for this method, because you can not use some special characters such as / in file- or directory names. An example of this would be a model name like: "5000/6000/7000". A directory with this name is not permitted due to the special characters. Since opsi 4.0.3 the following special characters: < > ? " : | \ / * have therefore been replaced internally by a _. With this change you can create the directory for the example as: "5000_6000_7000" and the directory is automatically assigned, although the information in the hardware inventory does not correspond to the directory structure.
+
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-structure]]
+=== Structure of the Driver Directory and Driver Files
+
+[source,configfile]
+----
+/var/
+  !-lib/
+     !-opsi/depot/
+        !-<productid>/
+           !-drivers
+              |-classes/		(Links to driver device classes)
+              |-hdaudioids/		(Links to HD-Audio drivers)
+              |-pciids/			(Links to PCI-ID drivers)
+              |-pci.ids			(PCI database)
+              |-usbids/			(Links to USB-ID drivers)
+              |-usb.ids			(USB database)
+              |-vendors/		(Links to manufacturer drivers)
+              !-drivers			(place for general driver packages)
+                 |-additional/		(manually assigned drivers)
+                    |-byAudit/		Model-specific drivers that
+                       |-<vendor>		are assigned by
+                          |-<model>		 Hardware Inventory
+                 |-buildin/		(data for the i386 version)
+                 |-preferred/		(certified drivers)
+                 |-exclude/		(excluded drivers)
+                 !-mydriverpacks/	(example driver packages)
+----
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-processing]]
+=== Processing of the Different Levels of Driver Integration
+
+The top priority is to include all drivers that are found using the property 'additional_drivers' or using the inventory data in `./drivers/drivers/additional/byAudit`. As part of the integration of drivers, it is checked for which hardware of a device (based on the PCI-, USB-, HD-Audio IDs) a driver has been made available in this way. Only for devices that are not matched by a driver, the following methods are used in order to find a matching driver.
+
+For devices for which a driver has not been assigned via 'additional_drivers' (or 'byAudit'), a suitable driver is searched for and integrated using the PCI ID (or USB-, HD-Audio ID).
+
+'Integration' of drivers means the following:
+
+* The driver will be copied to the local hard drive at `c:\drv\<num>`.
+
+* The Windows Setup is told in the unattended file to search for matchin drivers in `c:\drv\`.
+
+[[opsi-getting-started-firststeps-osinstall-driverintegration-drivercheck]]
+=== Add and check drivers
+
+After adding a driver or any other change in the `./drivers/drivers` directory (or below), execute the following command in the root directory of the netboot product directory to set the rights correctly:
+[source,prompt]
+----
+opsi-set-rights ./drivers
+----
+
+After storing drivers in the directories `./drivers/drivers` or `./drivers/drivers/preferred`, then run the script `./create_driver_links.py`. The script searches the directories under './drivers/drivers' and generates a list of links that can be used to identify the assignment of the drivers to specific hardware (PCI-IDs, USB-IDs and HD-Audio-IDs). The script will prioritize the drivers in the preferred directories.
+
+The script `setup.py` of the bootimage examines the hardware of the computer to be installed and identifies the necessary drivers. These are then copied to the hard disk and the unattend.xml will be patched accordingly.
+////
+The script `create_driver_links.py` also searches the 'i386' tree for NT5 products and extracts the inf files of the drivers supplied by Windows to 'windows_builtin'. If you make a change to the i386 tree (e.g. by importing a service pack), delete this directory and execute `create_driver_links.py` again. For NT6 products, the drivers found in WinPE are recognized as 'windows_builtin'.
+////
+
+If a hardware inventory is available for a client, you can use the command:
+[source,prompt]
+----
+./show_drivers.py <clientname>
+----
+This will show which drivers the boot image would choose for installation via PCI-IDs, USB-IDs, HD-Audio-IDs and 'additional_drivers' (or 'byAudit') and for which hardware no driver is available yet.
+
+Use the output of `show_drivers.py` to check if the desired drivers will be integrated.
+
+It is possible that driver directories from manufacturers contain drivers for different operating system versions (e.g. {client-os}) or different configurations (SATA / SATA-Raid). This cannot be differentiated automatically. If you suspect that the wrong driver will be used, move this driver to the `drivers/exclude` directory and then run `create_driver_links.py` again.
+Drivers in the directory 'drivers/exclude' are not used during driver integration.
+
+Example output of `show_drivers.py` for a client:
+
+[source,prompt]
+----
+./show_drivers.py pcdummy
+
+PCI-Devices
+   [(Standardsystemgeräte), Standard PCI to PCI bridge]
+      No driver - device directory  /var/lib/opsi/depot/<productid>/drivers/pciids/1022/9602 not found
+   [ATI Technologies Inc., Rage Fury Pro (Microsoft Corporation)]
+      Using build-in windows driver
+   [(Standard-IDE-ATA/ATAPI-Controller), Standard-Dual-Channel-PCI-IDE-Controller]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/D/M/N/123
+   [Realtek Semiconductor Corp., Realtek RTL8168C(P)/8111C(P) PCI-E Gigabit Ethernet NIC]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/realtek_gigabit_net_8111_8168b
+   [IEEE 1394 OHCI-conform Hostcontroller-Manufacturer, OHCI-conform IEEE 1394-Hostcontroller]
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/197B/2380' not found
+   [Advanced Micro Devices, Inc., AMD AHCI Compatible RAID Controller]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ati_raid_sb7xx
+   [(Standard-USB-Hostcontroller), Standard OpenHCD USB-Hostcontroller]
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/1002/4397' not found
+   [ATI Technologies Inc, ATI SMBus]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ati_smbus
+
+USB-Devices
+   [(Standard-USB-Hostcontroller), USB-Connection device]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
+   [Microsoft, USB-Printersupport]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
+
+Additional drivers
+   [ati_hdaudio_azalia]
+     /var/lib/opsi/depot/<productid>/drivers/drivers/additional/ati_hdaudio_azalia
+----
+
+Example for a client with 'additional_drivers':
+[source,prompt]
+----
+ ./show_drivers.py e5800
+Manually selected drivers (additional)
+   [hp_e5800]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI3.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDX861A.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI1.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXCPC.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI2.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/autorun.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/ibxHDMI/IntcDAud.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/HDMI/IntcHdmi.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/Graphics/kit24890.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/IIPS/Impcd.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit/hp64win7.inf]
+
+PCI-Devices
+   [8086:27C8]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C8
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DA]  Intel : Intel(R) N10/ICH7 Family SMBus Controller - 27DA
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C9]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C9
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DF]  Intel : Intel(R) ICH7 Family Ultra ATA Storage Controllers - 27DF
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27CA]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CA
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E30]  Intel : Intel(R) 4 Series Chipset Processor to I/O Controller - 2E30
+      /var/lib/opsi/depot/<productid>/drivers/drivers/not_preferred/x64/C/Intel/1
+   [8086:27CB]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CB
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E32]  Intel Corporation : Intel(R) G41 Express Chipset
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/Graphics
+   [8086:27CC]  Intel : Intel(R) N10/ICH7 Family USB2 Enhanced Host Controller - 27CC
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:244E]  Intel : Intel(R) 82801 PCI Bridge - 244E
+      Using build-in windows driver
+      This driver will not be integrated, because same device already integrated in: '/var/lib/opsi/depot/<productid>/drivers/drivers/not_preferred/x64/C/Intel/1/dmi_pci.inf'
+   [8086:27D0]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D0
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27B8]  Intel : Intel(R) ICH7 Family LPC Interface Controller - 27B8
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D2]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D2
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C0]  Intel : Intel(R) N10/ICH7 Family Serial ATA Storage Controller - 27C0
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D8]  Microsoft : High Definition Audio-Controller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/8086/27D8' not found
+   [10EC:8136]  Realtek : Realtek RTL8102E/RTL8103E-Familie-PCI-E-Fast-Ethernet-NIC (NDIS 6.20)
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit
+
+USB-Devices
+   [0461:0010]  (StandardsystemgerÃ¤te) : USB-EingabegerÃ¤t
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+   [0461:4D20]  (StandardsystemgerÃ¤te) : USB-EingabegerÃ¤t
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+   [058F:6366]  Kompatibles USB-SpeichergerÃ¤t : USB-MassenspeichergerÃ¤t
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/058F' not found
+   [0461:0010]  (Standard-USB-Hostcontroller) : USB-VerbundgerÃ¤t
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+
+HD-Audio-Devices
+   [10EC:0662]  Realtek High Definition Audio
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64
+----
+
+Example for a client with 'byAudit':
+[source,prompt]
+----
+ ./show_drivers.py pctry5detlef
+Manually selected drivers (additional)
+   [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio/oem21.inf]
+
+PCI-Devices
+   [1002:5B70]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0053]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0053' not found
+   [10DE:005D]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005D' not found
+   [1022:1100]  AMD : K8 [Athlon64/Opteron] HyperTransport Technology Configuration
+      Using build-in windows driver
+   [10DE:0054]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1101]  AMD : K8 [Athlon64/Opteron] Address Map
+      Using build-in windows driver
+   [10DE:0055]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1102]  AMD : K8 [Athlon64/Opteron] DRAM Controller
+      Using build-in windows driver
+   [10DE:0057]  NVIDIA : CK804 Ethernet Controller
+      Using build-in windows driver
+   [1022:1103]  AMD : K8 [Athlon64/Opteron] Miscellaneous Control
+      Using build-in windows driver
+   [10DE:0059]  Realtek : Realtek AC'97 Audio
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio
+   [10DE:005E]  NVIDIA : CK804 Memory Controller
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ga-ma78-pcbon4/chipset_win7-64/SMBUS
+   [104C:8025]  Texas Instruments : OHCI-konformer Texas Instruments 1394-Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/104C/8025' not found
+   [10DE:005A]  (Standard-USB-Hostcontroller) : Standard OpenHCD USB-Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005A' not found
+   [10DE:0050]  (StandardsystemgerÃ¤te) : PCI Standard-ISA-Brücke
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0050' not found
+   [10DE:005B]  (Standard-USB-Hostcontroller) : Standard PCI-zu-USB erweiterter Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005B' not found
+   [1002:5B60]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series (Microsoft Corporation - WDDM)
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0052]  NVIDIA : CK804 SMBus
+      Using build-in windows driver
+   [10DE:005C]  (Standardsystemgeräte) : Standard PCI to PCI bridge
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005C' not found
+
+USB-Devices
+   [1241:1111]  (Standardsystemgeräte) : USB-EingabegerÃ¤t
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/1241' not found
+
+HD-Audio-Devices
+   No devices installed
+----
+
+TIPS::
+* Directory names such as `NDIS1` contain Vista drivers; `NDIS2` contain Win7 drivers
+
+* NDIS versions: +
+(https://en.wikipedia.org/wiki/Network_Driver_Interface_Specification)
+
+----
+NDIS 6.0: Windows Vista
+NDIS 6.1: Windows Vista SP1, Server 2008, Windows Embedded Compact 7, Windows Embedded Compact 2013
+NDIS 6.20: Windows 7, Server 2008 R2
+NDIS 6.30: Windows 8, Windows Server 2012
+NDIS 6.40: Windows 8.1, Windows Server 2012 R2
+NDIS 6.50: Windows 10, version 1507
+NDIS 6.60: Windows 10, version 1607 and Windows Server 2016
+NDIS 6.70: Windows 10, version 1703
+NDIS 6.80: Windows 10, version 1709
+NDIS 6.81: Windows 10, version 1803
+NDIS 6.82: Windows 10, version 1809 and Windows Server 2019
+NDIS 6.83: Windows 10, version 1903
+----
+
+* Some chipset drivers contain description files, which specify hardware without actually providing drivers. An example would be the `cougar.inf` or `ibexahci.inf` from Intel. If such a 'pseudo driver' directory is assigned via 'additional_drivers' (or 'byAudit'), this means that the hardware listed here is excluded from further searches for drivers in the 'preferred' directory.
+
+* SATA drivers and SATA-RAID drivers refer to the same PCI ID. However, a SATA RAID driver will not function with a single-disk system.
+
+* Check the output of `./show_drivers.py` carefully!
+
+////

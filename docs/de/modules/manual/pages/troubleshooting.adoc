@@ -1,0 +1,203 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      22.02.2019
+:Revision:  4.1
+:toclevels: 6
+
+
+ifeval::["{mode}" == "antora"]
+include::common:partial$opsi_terms.adoc[]
+endif::[]
+
+
+[[opsi-manual-troubleshooting]]
+= Problembehebung
+
+Die nachfolgende Kapitel enthalten Hinweise zum Finden und Beheben von Problemen.
+
+[[opsi-manual-troubleshooting-general]]
+== Allgemeine Problembehebung
+
+In der Regel sehen wir zuerst die Symptome des Problem, bevor wir feststellen, dass es falsch gelaufen ist.
+Unser nächster Schritt sollte sein heraus zu finden wo das Problem liegt.
+Sobald wir das wissen, können wir uns an die Behebung machen.
+
+Bei der Suche nach dem Problem ist es eine gute Idee nochmal die entsprechenden
+Kapitel zu lesen und die eigene Konfiguration zu überprüfen.
+Stundenlang einen Fehler suchen und dann fest zu stellen, dass es ein Schreibfehler war, kann sehr frustrierend sein.
+
+Wenn Sie durch die folgenden Vorschläge gehen, sollten Sie immer wieder versuchen
+den Fehler nachzustellen, um zu prüfen, ob er dadurch bereits verschwunden ist.
+
+
+[[opsi-manual-troubleshooting-general-updates]]
+=== Updates Installieren
+
+Normalerweise ist der einfachste erste Schritt bei der Fehlerbehebung sicher
+zu stellen, dass die neueste Software-Version verwendet wird.
+Mit dem Wechsel auf eine neuere Version erhöht sich die Chance,
+dass ein bestehendes Problem in der Zwischenzeit bereits behoben wurde.
+
+Wann immer Aktualisierungen für opsi veröffentlicht werden, wird die im link:https://forum.opsi.org/[Forum] bekannt gegeben.
+Mit der Veröffentlichungsinformation gibt es außerdem Changelogs, welche
+dabei helfen können mit welcher Version einer Komponente ein Fix für das eigene
+Problem veröffentlicht wurde.
+
+Auf einem Debian-basierten System können Betriebssytemupdates wie folgt eingespielt werden:
+[source,prompt]
+----
+apt update
+apt dist-upgrade
+----
+
+Anschließend sollten die opsi-Pakete aktualisiert werden	:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+
+[[opsi-manual-troubleshooting-general-opsi]]
+=== opsi-Konfiguration
+
+Sie sollten sicherstellen, dass die aktuelle Konfiguration angewendet
+und entsprechend Dateizugriffsrechte gesetzt sind.
+
+[source,prompt]
+----
+opsi-setup --set-rights
+opsi-setup --init-current-config
+----
+
+Falls Sie das MySQL-Backend verwenden, stellen Sie sicher, dass alle Migrationen
+angewendet sind:
+[source,prompt]
+----
+opsi-setup --update-mysql
+----
+
+Danach sollten die opsi-Dienste neu gestartet werden, damit diese
+auf jeden Fall mit der neuen Konfiguration arbeiten:
+[source,prompt]
+----
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
+----
+
+Prüfen Sie anschließend, ob die Dienste laufen:
+[source,prompt]
+----
+systemctl status opsiconfd.service
+systemctl status opsipxeconfd.service
+----
+
+In manchen Fällen kann auch ein Server-Neustart Wunder bewirken.
+
+
+[[opsi-manual-troubleshooting-general-logging]]
+=== Logging
+
+Um heraus zu finden was falsch läuft, ist ein Blick in Logdateien oftmals der
+zielführendste Weg.
+Standardmäßig loggen opsi-Komponenten Informationen, welche zur Laufzeit nützlich sindm
+aber für eine tiefergehende Fehleranalyse sollte das Loglevel erhöht werden.
+Danach sollte versucht werden das gleiche Fehlverhalten reproduziert zu werden
+und anschließend die Logs untersucht werden.
+
+Nach der Lösung des Problems sollten Sie nicht vergessen das Loglevel wieder
+auf den Standard zurück zu setzen, weil ein sehr hohes Loglevel Ihre Server
+verlangsam und ungewollt eine große Menge Speicherplatz belegen könnte.
+
+
+[[opsi-manual-troubleshooting-specific]]
+== Behandling spezifischer Probleme
+
+Die folgenden Kapitel behandeln spezifische Probleme und den Umgang mit diesen.
+
+
+[[opsi-manual-troubleshooting-specific-mysql-has-gone-away]]
+=== MySQL server has gone away
+
+Dieser Fehler wird in der Regel begleitet von Fehlermeldungen wie der folgenden:
+[source,prompt]
+----
+Execute error: (2006, 'MySQL server has gone away')
+----
+
+Dieser Fehler kann mehrere Ursachen haben, weshalb es wichtig ist durch die <<opsi-manual-troubleshooting-general-logging,Logs>> auf Ihrem Server zu schauen.
+
+[[opsi-manual-troubleshooting-specific-packet-size]]
+==== Paketgröße
+
+Eine mögliche Ursache dieses Fehler ist dass Teile der Abfrage größer als die maximal erlaubte Größe sind.
+Dies ist besonders dann der Fall, wenn diese Meldung über kurze Zeiträume sehr häufig auftritt.
+
+Eine Lösung kann hierbei sein die Einstellung link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet[max_allowed_packet] Ihres MySQL-Servers zu justieren.
+
+[[opsi-manual-troubleshooting-specific-connection-lifetime]]
+==== Lebensdauer von Verbindungen
+
+Eine mögliche Ursache dieses Fehler kann sein, dass Verbindungen aus dem Verbindungspool des MySQL-Backends nach einiger Zeit im Leerlauf den Server nicht mehr erreichen können.
+In solchen Fällen ist es möglich, dass der Server die Verbindung auf seiner Seite beendet hat.
+
+Eine Lösung kann hierbei sein, dass die Lebenszeit von Verbindungen begrenzt wird, indem der Wert für <<opsi-manual-backends-mysql-configuration,connectionPoolRecycling>> angepasst wird.
+Dies sollte normalerweise niedriger als der auf dem MySQL-Server konfigurierte Wert für Verbindungs-Timeouts sein (Variable link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_wait_timeout[wait_timeout]).
+Bei einem Standard-Wert von 28800 Sekunden in MySQL 8.0, könnten Sie die Lebenszeit in opsi bspw. auf 28500 setzen.
+
+
+[[opsi-manual-troubleshooting-specific-samba-access]]
+=== Zugriff auf Depot-Shares funktioniert nicht
+
+Prüfen Sie ob Samba läft.
+
+[source,prompt]
+----
+ps -ef | grep mbd
+----
+
+Es sollte mindestens ein `nmbd` und mindestens ein `smbd` prozess laufen.
+
+Eventuell müssen Sie Samba neustarten:
+
+[source,prompt]
+----
+systemctl restart smbd.service
+systemctl restart nmbd.service
+----
+
+Es kann auch helfen das Kennwort des _pcpatch_-Benutzers neu zu setzen.
+In einer Multidepot-Umgebung empfehlen wir diesen Wert auf allen Depots gleich zu setzen.
+
+[source,prompt]
+----
+opsi-admin -d task setPcpatchPassword
+----
+
+
+[[opsi-manual-troubleshooting-specific-opsiconfd]]
+=== Zugriff auf opsi Webservice funktioniert nicht
+
+Prüfen Sie die Erreichbarkeit und Auslastung des opsi-Services opsiconfd.
+
+Dazu können Sie `https://<server-adresse>:4447/info` per Browser aufrufen.
+Wenn dies nicht geht, prüfen Sie ob die <<opsi-manual-troubleshooting-general-opsi,benötigten Dienste laufen>> und kontrollieren die entsprechenden Logfiles.
+
+Wenn diese Seite angezeigt wird: Prüfen Sie, ob die Auslastung des Webservice zu hoch ist.
+Zur Anzeige der Auslastungsgrafiken wird 'rrdtool' mitsamt Python-Bindings benötigt.
+Bitte installieren Sie diese gegebenenfalls nach.
+
+Stellen Sie sicher, dass genügen Speicherplatz auf dem Server vorhanden ist.

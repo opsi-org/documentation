@@ -1,0 +1,3174 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Revision:  4.2
+:doctype: book
+:linclientmanual: opsi-linux-client-manual
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[opsi-script-secsections]]
+= Sekundäre Sektionen
+
+Sekundäre Sektionen können ebenso wie die primäre Sektion aufgerufen werden, haben aber eine andere Syntax. Die Syntax der verschiedenen Sektionstypen ist jeweils aufgabenbezogen und lehnt sich möglichst eng an bekannte Kommandoformen für den jeweiligen Aufgabentyp an.
+
+Sekundäre Sektionen sind spezifiziert für einen eingegrenzten Funktionsbereich. Dies bezieht sich auf das Objekt der Funktion z.B. das Dateisystem im Allgemeinen, die Windows Registry oder XML-Dateien. Einen spezielle Bedeutung haben die verschiedenen Varianten der Batch-Sektionen, die dazu dienen (beliebige) externe Programme oder Skripte aufzurufen.
+
+[[opsi-script-callsection]]
+== Calling secondary sections
+
+In den meisten Fällen wird eine sekundäre Sektion aufgerufen, indem der Sektions-Header als Statement aufgerufen wird. Als 'Statement' bedeutet hier, dass kein Rückgabewert erwartet wird.
+
+Beispiel:
+[source,opsiscript]
+----
+shellInAnIcon_say_hello
+
+[shellInAnIcon_say_hello]
+echo "Hello World"
+----
+
+Wenn die Sektion mit Aufrufparametern (Modifiern) aufgerufen werden soll, müssen diese Modifier hinter das Statement als Text geschrieben werden (Variablen sind hier nicht erlaubt):
+[source,opsiscript]
+----
+shellInAnIcon_say_hello /timeoutseconds 20
+
+[shellInAnIcon_say_hello]
+echo "Hello World"
+----
+
+Wenn Sie den Output oder Rückgabewerte einer Sektion untersuchen möchten, können Sie eine der folgenden Funktionen verwenden:
+
+* `getOutStreamFromSection(<section with params>)` +
+für Aufrufe von `DosInAnIcon` (`ShellInAnIcon`),`ExecWith` und `ExecPython`. Siehe auch <<getOutStreamFromSection>>
+
+* `getreturnListFromSection(<section with params>)` +
+für `XMLPatch`-Sektionen und `opsiServiceCall`-Sektionen. Siehe auch <<getReturnListFromSection>>
+
+[source,opsiscript]
+----
+set $list$ = getOutStreamFromSection("shellInAnIcon_say_hello /timeoutseconds 20")
+
+[shellInAnIcon_say_hello]
+echo "Hello World"
+----
+
+Wenn Sie diese Funktionen benutzen, muss der komplette Aufruf der Sektion (inklusive aller Parameter und Modifier) ein einziger String-Ausdruck sein. Das gibt Ihnen die Möglichkeit, Variablen und Funktionen als Teil des Sektionsaufrufs zu verwenden.
+
+Wenn Sie diese Vorteile nutzen möchten, ohne den Output zu bekommen, können Sie folgendes Statement benutzen:
+
+anchor:executeSection[]
+
+`executeSection(`<string expr with section call>`)` //seit 4.12.3.9 [W/L/M] +
+Innerhalb dieses Statements, können Sie folgende Sektions-Typen aufrufen:
+
+* winbatch
+* registry
+* DosBatch, DosInAnIcon, ShellBatch, ShellInAnIcon
+* ExecWith, ExecPython
+* Files
+
+
+[[opsi-script-files]]
+== Files-Sektionen [W/L/M]
+
+Files-Sektion dienen zum Dateihandling (Kopieren, Löschen). Anders als bei Ausführung der vergleichbaren Kommandozeilen-Befehle, werden die ausgeführten Operationen bei Bedarf genau protokolliert. Zusätzlich kann beim Kopieren von Bibliotheksdateien (z.B. dll-Dateien) auch die Dateiversion geprüft werden, so dass nicht neuere Versionen durch ältere Versionen überschrieben werden.
+
+[[opsi-script-files-example]]
+=== Beispiele
+
+Eine Files-Sektion könnte etwa lauten:
+[source,opsiscript]
+----
+[Files_do_some_copying]
+copy -sV "p:\install\instnsc\netscape\*.*" "C:\netscape"
+copy -sV "p:\install\instnsc\windows\*.*" "%SYSTEMROOT%"
+----
+
+Mit diesen Anweisungen werden alle Dateien des Verzeichnisses 'p:\install\instnsc\netscape' in das Verzeichnis 'C:\netscape' kopiert, sowie alle Dateien von 'p:\install\instnsc\windows' in das Windows-Systemverzeichnis (welches das jeweils Gültige ist, steht automatisch in der {opsi-script}-Konstante %SYSTEMROOT%).
+Die Option `-s` bedeutet dabei, das alle Subdirectories mit erfasst werden, `-V` steht für das Einschalten der Versionskontrolle von Bibliotheksdateien.
+
+[[opsi-script-files-params]]
+=== Aufrufparameter (Modifier) [W]
+
+In der Regel benötigt eine Files-Sektion beim Aufruf keinen Parameter.
+
+Es gibt jedoch eine spezielle Anwendung der Files-Sektion, bei der Zielpfad von Kopieraktionen automatisch bestimmt oder modifiziert wird, bei denen die  betreffende Files-Sektion mit dem Parameter
+
+*  `/AllUserProfiles` //seit 4.12.4.27 [W/L/M]
+
+*  `/AllNTUserProfiles` (veraltet)
+
+*  `/AllNTUserSendTo`  [W]
+
+aufgerufen wird. +
+Alle diese Varianten bedeuten: +
+Die betreffende Files-Sektion wird je einmal für jeden User ausgeführt.
+Bei Kopieraktionen in dieser Files-Sektion wird automatisch ein User-spezifisches Verzeichnis als Zielverzeichnis eingesetzt.
+
+Für alle anderen Aktionen steht eine Variable `%UserProfileDir%` oder seit  _{opsi-script}_ version 4.11.2 `%CurrentProfileDir%` zur Verfügung, mit der Verzeichnisnamen konstruiert werden können.
+
+Das User-spezifische Verzeichnis ist im Fall von `/AllUserProfiles` (bzw. `/AllNTUserProfiles`) das User-Profilverzeichnis. Im Fall von `/AllNTUserSendTo` wird der Pfad zum User-spezifischen SendTo-Ordner vorgegeben (der dazu dient, im Windows-Explorer Kontextmenü-Verknüpfungen vorzugeben).
+
+Die genaue Regel, nach der Zielpfade für copy-Anweisungen automatisch gebildet werden, ist dreiteilig:
+
+. Folgt auf die Angabe der zu kopierenden Quelldateien gar keine Zielverzeichnisangabe, so werden die Dateien direkt in das betreffende User-spezifische Verzeichnis kopiert. Der Befehl lautet einfach +
+`copy` <Quelldatei> +
+Dies ist gleichbedeutend mit +
+`copy` <Quelldatei> '"%UserProfileDir%"' +
+oder seit 4.11.2 +
+`copy <source file(s)> "%CurrentProfileDir%"`
+
+
+. Wenn außer den zu kopierenden Quelldateien ein Kopierziel 'targetdir' spezifiziert ist, dieses Ziel jedoch keinen absoluten Pfad (beginnend mit Laufwerksname oder mit "\") darstellt, dann wird die Zielangabe als Unterverzeichnisname des User-spezifischen Verzeichnisses interpretiert und der Zielverzeichnisname dementsprechend konstruiert. D.h. man schreibt +
+`copy` <Quelldateien> 'targetdir'
+und das wird interpretiert wie: +
+`copy` <Quelldatei> '"%UserProfileDir%\targetdir"' +
+oder seit 4.11.2 +
+`copy <source file(s)> "%CurrentProfileDir%\targetdir"`
+
+Die Verwendung von `%CurrentProfileDir%` hat den Vorteil, dass dieselbe 'Files' Sektion mit `/AllUserProfiles` verwendet werden kann, wenn das Script nicht als 'userLoginScript' (in 'Machine' script mode) läuft, und ohne `/AllUserProfiles`, wenn das Script als 'userLoginScript' läuft (in 'Login' script mode).
+
+. Enthält der copy-Befehl Quelldateien und einen absoluten Zielpfad targetdir, so wird dieser statische Zielpfad verwendet.
+
+Weiterhin gibt es die Aufrufparameter:
+
+*  `/32Bit` (Default)
+*  `/64Bit`
+*  `/SysNative`
+
+Welche die _file redirection_ auf 64 Bit-Systemen beeinflussen.
+siehe xref:64bit#opsi-script-64bit[Kapitel 64 Bit-Unterstützung]
+
+[[opsi-script-files-commands]]
+=== Kommandos [W/L/M]
+
+Innerhalb einer Files-Sektion sind die Anweisungen
+
+*  `Copy` [W/L/M]
+
+*  `Delete` / `Del` [W/L/M]
+
+*  `SourcePath`
+
+*  `CheckTargetPath` [W/L/M]
+
+*  `chmod` [L/M]
+
+* `hardlink`  [W/L/M]
+
+* `symlink`  [W/L/M]
+
+* `rename`  [W/L/M]
+
+* `move` [W/L/M]
+
+* `zipfile` [W/L/M]
+
+* `unzipfile` [W/L/M]
+
+definiert.
+
+Die Kommandos `Copy` und `Delete` entsprechen im Wesentlichen den Windows-Kommandozeilen-Befehlen xcopy bzw. del.
+
+`SourcePath` sowie `CheckTargetPath` legen Quell- bzw. Zielpfad einer Kopieraktion fest, ähnlich wie sie etwa im Windows-Explorer durch Öffnen von Quell- und Zieldirectory in je einem Fenster realisiert werden kann. Der Zielpfad wird, sofern er nicht existiert, erzeugt.
+
+Im Einzelnen:
+
+*  `Copy` [-svdunxwnr] <Quelldatei(maske)> <Zielpfad>
++
+Die Quelldateien können dabei mittels Joker (”* ” in der Dateimaske) oder auch nur mit einer Pfadangabe bezeichnet werden.
++
+CAUTION: Zielpfad wird in jedem Fall als Directory-Name interpretiert. Umbenennen beim Kopieren ist nicht möglich: Ziel ist immer ein Pfad, nicht ein (neuer) Dateinamen. Existiert der Pfad nicht, wird er (auch mit geschachtelten Directories) erzeugt.
++
+Die einzelnen (in beliebiger Reihenfolge aufführbaren) Optionen der Copy-Anweisung bedeuten:
+
+**  `s` -> Mit Rekursion in Subdirectories. [W/L/M]
+
+**  `e` -> Leere (Empty) Subdirectories.  [W] +
+Gibt es leere Subdirectories im Quellverzeichnis, werden sie im Zielverzeichnis ebenfalls leer ("empty") erzeugt.
+
+**  `V` -> Mit Versionskontrolle [W] +
+Mit Versionskontrolle: +
+Neuere Versionen von Windows-Bibliotheksdateien im Zielverzeichnis werden nicht durch ältere Versionen überschrieben (bei unklaren Verhältnissen wird in einem Log-Eintrag gewarnt).
+
+**  `v` -> (nicht Verwenden) [W] +
+Mit Versionskontrolle: +
+Veraltet; bitte nicht bei Betriebssystemversionen höher als Win2k verwenden, da hier nicht nur gegen das Zielverzeichnis, sondern auch gegen %SYSTEM% geprüft wird. Verwenden Sie stattdessen `-V`.
+
+**  `d` -> Mit Datumskontrolle: [W] +
+Jüngere *.EXE-Dateien werden nicht durch ältere überschrieben.
+
+**  `u` -> Datei-Update: [W] +
+Es werden Dateien nur kopiert, sofern sie nicht mit gleichem oder jüngerem Datum im Zielpfad existieren.
+
+**  `x` -> x-tract (nicht Verwenden) [W] +
+Statt `copy -x` das Kommando `unzip` verwenden. +
+Wenn eine Datei ein Zip-Archiv ist, wird es entpackt (x-tract). Vorsicht: Zip-Archive verbergen sich unter verschiedenen Dateinamen (z.B. sind Java jar-Dateien auch Zip-Archive), daher sollte man die Extract-Option nicht unbesehen auf alle Dateien anwenden. Achtung: Es werden keine Pfade entpackt. 
+
+**  `w` -> weak [W] +
+Dateien werden nur überschrieben, wenn sie keinen Schreibschutz haben (das Überschreiben ist "weak" (relativ schwach) im Vergleich zum Defaultverhalten, dem Ignorieren des Schreibschutzes).
+
+**  `n` ->  no over write [W] +
+Dateien werden nicht überschrieben.
+
+**  `c` ->  continue [W] +
+Wenn eine Systemdatei in Benutzung ist, kann sie erst nur nach einem Reboot überschrieben werden. Das _{opsi-script}_ default-Verhalten ist dabei, dass ein Datei in Benutzung zum Überschreiben beim nächsten Reboot markiert wird UND die _{opsi-script}_ Reboot Markierung gesetzt wird. Das Setzen der Option `-c` stellt den automatischen Reboot aus. Das Kopieren wird in diesem Fall erst dann vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
+
+**  `r` -> read-only Attribute [W] +
+Nur wenn diese Option gesetzt ist, bleibt ein eventuell vorhandenes read-only-Attribut erhalten (im Gegensatz zu dem default-Verhalten, welches read-only Attribute ausschaltet).
+
+** `h` -> follow symlinks [L]  //since 4.11.6.14 +
+Unter Linux wird symbolischen Links auf Dateien und Verzeichnissen gefolgt. Es wird also nicht der symbolische Link sondern dessen Ziel kopiert.
+
+
+*  `Delete` [-sfd[n]r[c]] <Pfad> [W/L/M]
+
+oder
+
+*  `Delete` [-sfd[n]r[c]] <Datei(maske)> [W/L/M]
++
+Löschen einer Datei bzw. eines Verzeichnisses. Mögliche Optionen (die in beliebiger Reihenfolge aufgeführt sein können) sind:
+
+**  `s` ->  subdirectories +
+Steht für die Rekursion in Subdirectories, das heißt, der ganze Pfad bzw. alle der Dateimaske entsprechenden Dateien im Verzeichnisbaum ab der angegebenen Stelle werden gelöscht.
++
+CAUTION: Der Befehl +
+`delete -s c:\opsi` +
+Bedeutet nicht lösche das Verzeichnis 'c:\opsi' rekursiv, sondern lösche ab 'c:\' rekursiv alle Dateien namens 'opsi' (und führt damit evtl. zum kompletten Durchsuchen der Festplatte). Zum rekursiven Löschen von 'c:\opsi' verwenden Sie das Kommando: +
+`delete -s c:\opsi\` +
+Durch den angehängen Backslash ist deutlich, dass Sie ein Verzeichnis meinen. +
+*Es ist sicherer das Kommando `del` stattdessen zu verwenden*
+
+**  `f` ->  force +
+Erzwingt ("force") das Löschen auch von read-only-Dateien.
+
+**  `r` ->  del on reboot [W] seit 4.12.4.3
+Wenn eine Datei in Benutzung ist, kann sie unter Windows nicht direkt gelöscht werden. Durch die Option `r` wird dafür gesorgt, das diese Datei in so einem Fall automatisch im Rahmen des nächsten Reboots gelöscht wird. Das _{opsi-script}_ default-Verhalten ist das dabei auch die _{opsi-script}_ Reboot Markierung gesetzt wird. D.h. das die Maschine nach Abschluß des Skriptes automatisch rebootet.
+siehe auch die Option: `c`
+
+**  `c` ->  continue with out reboot [W] +
+Wenn eine Datei in Benutzung ist, kann sie über die Option `r` im Rahmen eines Reboots gelöscht werden. Das _{opsi-script}_ default-Verhalten ist das dabei auch die _{opsi-script}_ Reboot Markierung gesetzt wird. Das Setzen der Option `-c` stellt den automatischen Reboot aus. Das Löschen wird in diesem Fall erst dann vervollständigt, wenn ein Reboot auf eine andere Weise ausgelöst wird.
+Die Option `c` hat ohne `r` keine Wirkung.
+
+**  `d [n]` ->  date +
+Dateien werden nur gelöscht, sofern sie mindestens n Tage alt sind. Default für n ist 1.
+
+* `del` [Options] <path[/mask]]   //since 4.11.2.1 [W/L/M] +
+Arbeitet wie `delete` aber bei +
+`del -s -f c:\not-exists` +
+wenn +c:\not-exists+ nicht existiert wird nicht das komplette +c:\+ nach +not-exits+  durchsucht.
+
+Beispiel (*Der anhängende Backslash darf weggelassen werden*): +
+`del -sf c:\delete_this_dir`
+
+NOTE: +
+Mit `del` oder `delete` lassen sich bestimmte Verzeichnisse aus Sicherheitsgründen nicht löschen: +
+`c:\`,`c:\windows`,`c:\windows\system32`,`\*`
+
+*  `SourcePath` = <Quelldirectory> +
+Festlegung des Verzeichnisses <Quelldirectory> als Vorgabe-Quelldirectory für in der betreffenden Sektion folgende Copy- sowie (!) Delete-Aktionen.
+
+*  `CheckTargetPath` = <Zieldirectory> [W/L/M] +
+Festlegung des Verzeichnisses <Zieldirectory> als Vorgabe-Zieldirectory für Copy-Aktionen. Wenn <Zieldirectory> nicht existiert, wird der Pfad auch mehrstufig erzeugt.
+
+anchor:chmod[]
+
+* `chmod` <mode> <path>   //since 4.11.4.1 [L] +
+Setzt die Rechte von <path> auf <mode>. <mode> ist dabei die Numerische (Octale) angabe der Rechte (z.B. "755").
+
+
+* `hardlink` <existing file> <new file> // since 4.11.5 [W/L/M] +
+Ein existierender <new file> wird überschrieben. +
+`hardlink` funktioniert nur auf Filesystemen die Hardlinks unterstützen
+wie NTFS und Standard Linux Filesysteme.
+
+
+* `symlink` <existing file> <new file> // since 4.11.5 [W/L/M] +
+Unter Windows ist `symlink` erst ab NT6 und aufwärts verfügbar ! +
+Ein existierender <new file> wird überschrieben. +
+
+* `rename` <old filename> <new filename> // since 4.11.5 [W/L/M] +
+`move` <old filename> <new filename> // since 4.11.5 [W/L/M] +
+Es gibt keine Unterschiede zwischen `rename` und `move`, es sind zwei Namen für die selbe Funktion +
+Ein existierender <new file> wird überschrieben. +
+Seit 4.12.4.31 können auch Verzeichnisse umbenannt / verschoben werden. +
+ +
+Windows: <new filename> darf in einem anderen Directory liegen oder auch in einem anderen Volume / Disk. Im zweiten Fall, wird die Datei kopiert und danach das Original gelöscht. +
+Läßt sich das Ziel nicht erstellen (Datei in Verwendung) so wird die Operation beim nächsten Reboot fertiggestellt. Das funktioniert natürlich nur wenn das Zielfilesystem zum Reboot-Zeitpunkt verfügbar ist, also nicht auf Netzwerkshares. In diesem Fall wird auch automatisch ein Reboot nach dem Ende des Scriptes ausgelöst. Dies läst sich aber mit der Option `-c` (continue) unterdrücken. +
+Die Erstellung von Junctions unter Windows wird noch nicht unterstützt. +
+ +
+Linux: <new filename> darf in einem anderen Directory liegen aber nicht in einem anderen Filesystem / Partition. Die Option `-c` wird unter Linux ignoriert.
+
+Example:
+[source,opsiscript]
+----
+[Files_link_move]
+hardlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\hardlink.txt"
+symlink "$HomeTestFiles$\files\dummy.txt" "$HomeTestFiles$\files\symlink.txt"
+rename "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\rename.txt"
+move "$HomeTestFiles$\files\temp\dummy2.txt" "$HomeTestFiles$\files\temp\move.txt"
+----
+
+`zipfile` <source dir> <zip file> // since 4.12.1 [W/L/M]
+
+`unzipfile` <zip file> <target dir>  // since 4.12.1 [W/L/M]
+
+Example:
+[source,opsiscript]
+----
+[Files_zip_unzip]
+zipfile "$HomeTestFiles$\" "%opsiTmpDir%\testdir.zip"
+zipfile "$HomeTestFiles$\dummy.msi" "%opsiTmpDir%\testfile.zip"
+Del -s -f "$HomeTestFiles$\"
+checktargetpath = "$HomeTestFiles$\"
+unzipfile "%opsiTmpDir%\testdir.zip" "$HomeTestFiles$\"
+unzipfile "%opsiTmpDir%\testfile.zip" "$HomeTestFiles$\"
+----
+
+[[opsi-script-patches]]
+== Patches-Sektionen [W/L/M]
+
+Eine Patches-Sektion dient der Modifikation (dem "Patchen") einer "*.INI-Datei", d.h. einer Datei, die Sektionen mit Einträgen der Form '<Variable> = <Wert>' besteht. Die Sektionen oder Abschnitte sind dabei gekennzeichnet durch Überschriften der Form '[Sektionsname]'.
+
+(Seitdem eine gepatchete INI-Datei auf die gleiche Weise wie die Sektionen vom _{opsi-script}_ Skript erstellt werden, muss man vorsichtig mit den Bezeichnungen umgehen, damit kein Durcheinander entsteht).
+
+[[opsi-script-patches-examples]]
+=== Beispiele
+
+[source,opsiscript]
+----
+Patches_DUMMY.INI $HomeTestFiles$+"\dummy.ini"
+
+[Patches_dummy.ini]
+add [secdummy] dummy1=add1
+; werden durch andere Funktionen ueberschrieben
+add [secdummy] dummy2=add2
+add [secdummy] dummy3=add3
+add [secdummy] dummy4=add4
+add [secdummy] dummy5=add5
+add [secdummy] dummy6=add6
+set [secdummy] dummy2=set1
+addnew [secdummy] dummy1=addnew1
+change [secdummy] dummy3=change1
+del [secdummy] dummy4
+Replace dummy6=add6 replace1=replace1
+----
+
+ergibt folgenden Log:
+[source,opsiscript]
+----
+Execution of Patches_DUMMY.INI
+      FILE C:\tmp\testFiles\dummy.ini
+      Info: This file does not exist and will be created
+  addEntry [secdummy] dummy1=add1
+    addSection [secdummy]
+      done
+      done
+  addEntry [secdummy] dummy2=add2
+      done
+  addEntry [secdummy] dummy3=add3
+      done
+  addEntry [secdummy] dummy4=add4
+      done
+  addEntry [secdummy] dummy5=add5
+      done
+  addEntry [secdummy] dummy6=add6
+      done
+  setEntry [secdummy] dummy2=set1
+    Entry      dummy2=add2
+    changed to dummy2=set1
+  addNewEntry [secdummy] dummy1=addnew1
+    appended entry
+  changeEntry [secdummy] dummy3=change1
+    entry      dummy3=add3
+    changed to dummy3=change1
+  delEntry [secdummy] dummy4
+    in section secdummy deleted  dummy4=add4
+  replaceEntrydummy6=add6 replace1=replace1
+    replaced in line 7
+  C:\tmp\testFiles\dummy.ini saved back
+----
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_patches$ = "on"'
+
+[[opsi-script-patches-params]]
+=== Aufrufparameter
+
+Der Name der zu patchenden Datei wird als Parameter übergeben.
+
+Als optionalen Modifier gibt es:
+
+* `/AllUserProfiles` (altes Synonym: `/AllNTUserProfiles`) +
+Wird eine `Patches` Sektion mit diesem Modifier aufgerufen und der Pfad zur zu patchenden Datei enthält die Konstante `%UserProfileDir%`, so wird diese Patchsektion für alle Profile ausgeführt. +
+Eine 'Patches' Sektion welche in einer `[ProfileActions]` Sektion aufgerufen wird hat im 'Machine' Modus den Modifier `/AllUserProfiles` implizit. Im Loginscript Modus wird dann `%UserProfileDir%` als `%CurrentProfileDir%` interpretiert. +
+(Seit Version 4.11.3.2)
+
+* `/encoding <encoding>` // seit 4.12.4.17 [W/L/M] +
+Die zum Patchen angegebene Datei wird per default im Systemencoding erwartet und auch so gelesen und geschrieben. +
+Soll eine Datei mit abweichenden Encoding gepatcht werden, so kann das zu verwendende Encoding über diesen Parameter  angegeben werden. +
+Beispiel: +
+[source,opsiscript]
+----
+Patches_my_win_ini "C:/my_file.ini" /encoding "utf16le"
+----
+Die erlaubten Strings für `<encoding>` finden sich unter: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
+
+[[opsi-script-patches-commands]]
+=== Kommandos
+
+In einer Patches-Sektion sind die Anweisungen
+
+*  `add`
+
+*  `set`
+
+*  `addnew`
+
+*  `change`
+
+*  `del`
+
+*  `delsec`
+
+*  `replace`
+
+definiert. Eine Anweisung bezieht sich jeweils auf eine Sektion der zu patchenden Datei. Der Name dieser Sektion steht in Klammern `[]`.
+
+Syntax und Funktion der Anweisungen im Einzelnen:
+
+*  `add [`<section name>`]` <variable1> `=` <value1> +
+Fügt einen Eintrag der Form <Variable1> = <value1> in die Sektion <section name> ein, falls dort noch kein Eintrag von <Variable1> (auch mit anderem Wert) existiert. Im anderen Fall wird nichts geschrieben. Existiert die Sektion noch nicht, wird sie zuerst erzeugt.
+
+*  `set [`<section name>`]`<variable1> `=` <value1> +
+Setzt einen vorhandenen Eintrag <variable1> = <value X> in der Sektion <section name>, um auf <variable1> = <value1> zu kommen. Existieren mehrere Einträge von <variable1>, wird der Erste umgesetzt. Falls kein Eintrag mit <variable1> existiert, wird <variable1> = <value1> in der Sektion <section name> erzeugt; existiert die Sektion noch nicht, wird sie zuerst erzeugt.
+
+*  `addnew [`<section name>`]`<variable1> `=` <value1> +
+Der Eintrag <variable1> = <value1> wird in der Sektion <section name> auf jeden Fall erzeugt, sofern er dort nicht bereits genau so existiert (gegebenenfalls zusätzlich zu anderen Einträgen von <variable1>). Existiert die Sektion noch nicht, wird sie zuerst erzeugt.
+
+*  `change [`<section name>`]`<variable1> `=` <value1> +
+Ändert einen vorhandenen Eintrag von <variable1> in der Sektion <section name> auf <variable1> = <value1>.  Falls <variable1> nicht vorhanden ist, wird nichts geschrieben.
+
+*  `del [`<section name>`]` <variable1> `=` <value1> +
+bzw. +
+`del [`<section name>`]` <variable1> +
+In der Sektion <section name> wird gemäß dem ersten Syntaxschema der Eintrag <variable1> = <value1> entfernt. Nach dem zweiten Syntaxschema wird der erste Eintrag von <variable1> aus der angesprochenen Sektion gelöscht, unabhängig vom Wert des Eintrags.
+
+*  `delsec [`<section name>`]` +
+Die Sektion <section name> der .INI-Datei wird mitsamt ihren Einträgen gelöscht.
+
+*  `replace` <variable1>`=`<value1> <variable2>`=`<value2> +
+In allen Sektionen der .INI-Datei wird der Eintrag <variable1>=<value1> durch <Variable2>=<value2> ersetzt. Zur Anwendung dieses Befehls dürfen Leerzeichen weder um die Gleichheitszeichen stehen noch in <value1> bzw. <value2> enthalten sein.
+
+[[opsi-script-patchhosts]]
+== PatchHosts-Sektionen  [W/L/M]
+
+Eine PatchHosts-Sektion dient der Modifikation einer 'hosts'-Datei, das heißt einer Datei, deren Zeilen nach dem Schema +
+'ipAdresse	  Hostname  Aliasname(n)   # Kommentar' +
+aufgebaut sind.
+
+Dabei sind 'Aliasname(n)' und 'Kommentar' optional. Eine Zeile kann auch mit dem Symbol '#' beginnen und ist dann insgesamt ein Kommentar.
+
+Die zu patchende Datei kann als Parameter des `PatchHosts`-Aufrufs angegeben sein. Fehlt der Parameter 'HOSTS', so wird in den Verzeichnissen (in dieser Reihenfolge) 'c:\nfs, c:\windows' sowie '%systemroot%\system32\drivers\etc' nach einer Datei mit dem Namen 'hosts' gesucht.
+
+Wird auf keine dieser Arten eine Datei mit dem Namen 'hosts' gefunden, bricht die Bearbeitung mit einem Fehler ab.
+
+In einer PatchHosts-Sektion existieren die Anweisungen
+
+*  `setAddr`
+
+*  `setName`
+
+*  `setAlias`
+
+*  `delAlias`
+
+*  `delHost`
+
+*  `setComment`
+
+
+Beispiel:
+[source,opsiscript]
+----
+PatchHosts_add $HomeTestFiles$+"\hosts"
+
+[PatchHosts_add]
+setAddr ServerNo1 111.111.111.111
+setName 222.222.222.222 ServerNo2
+setAlias ServerNo1 myServerNo1
+setAlias 222.222.222.222 myServerNo2
+setComment myServerNo2 Hallo Welt
+----
+
+ergibt folgenden Log:
+[source,opsiscript]
+----
+Execution of PatchHosts_add
+    FILE C:\tmp\testFiles\hosts
+  Set ipAddress 111.111.111.111 Hostname "ServerNo1"
+  Set Hostname "ServerNo2" for ipAddress 222.222.222.222
+  Alias "myServerNo1" set for entry "ServerNo1"
+  Alias "myServerNo2" set for entry "222.222.222.222"
+  SetComment of Host "myServerNo2" to "Hallo Welt"
+  C:\tmp\testFiles\hosts saved back
+----
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test' und dort den Bereich '$Flag_winst_patch_hosts$ = "on"'.
+
+Die Anweisungen im einzelnen:
+
+*  `setaddr`  <hostname> <ipaddresse> +
+Setzt die IP-Adresse für den Host <hostname> auf <ipadresse>.
+Falls noch kein Eintrag für den Host <hostname> besteht, wird er neu eingetragen.
+
+*  `setname` <ipaddresse> <hostname> +
+Setzt den Namen des Hosts mit der angegeben IP-Adresse <ipadresse> auf <hostname>. Falls noch kein Eintrag mit der IP-Adresse <ipadresse> existiert, wird er neu erzeugt.
+
+*  `setalias` <hostname> <alias> +
+Fügt für den Host mit dem IP-Namen <hostname> einen ALIAS-Namen <alias> ein.
+
+*  `setalias` <IPadresse> <alias> +
+Fügt für den Host mit der IP-Adresse <IPadresse> einen ALIAS-Namen <alias> ein.
+
+*  `delalias` <hostname> <alias> +
+Löscht aus dem Eintrag für den Host mit dem IP-Namen <hostname> den ALIAS-Namen <alias>.
+
+*  `delalias` <IPadresse> <alias> +
+Löscht aus dem Eintrag für den Host mit der IP-Adresse <IPadresse> den ALIAS-Namen <alias>.
+
+*  `delhost` <hostname>
+Löscht den Eintrag des Hosts mit dem IP- (oder Alias-) Namen <hostname>.
+
+*  `delhost` <IPadresse> +
+Löscht den Eintrag des Hosts mit der IP-Adresse <IPadresse>.
+
+*  `setComment` <ident> <comment> +
+Setzt für den Host mit dem IP-Namen, Alias-Namen oder Adresse <ident> den Kommentareintrag auf <comment>.
+
+[[opsi-script-idapi]]
+== IdapiConfig-Sektionen
+
+Eine IdapiConfig-Sektion waren dazu geeignet, in idapi*.cfg-Dateien, die von der Borland-Database-Engine verwendet werden, die benötigten Parameter einzufügen.
+
+IdapConfig-Sektionen werden vom aktuellen _{opsi-script}_ nicht mehr unterstützt.
+
+[[opsi-script-patchtextfile]]
+== PatchTextFile-Sektionen [W/L/M]
+
+PatchTextFile-Sektionen dienen zum Patchen allgemeiner Textdateien. Es gibt aber auch Spezialanweisungen zum Patchen von Mozilla Konfigurationsdateien.
+
+Wichtig für die Arbeit mit Textdateien ist das Überprüfen, ob eine bestimmte Zeile bereits in einer existierenden Datei vorhanden ist. Für diese Zweck gibt es die boolesche Funktionen `Line_ExistsIn` und `LineBeginning_ExistsIn` (vgl. xref:prim-section#opsi-script-commands-if-else-bool-functions[Kapitel "Boolesche Ausdrücke"]) zur Verfügung.
+
+[[opsi-script-patchtextfile-params]]
+=== Aufrufparameter
+
+Der Name der zu patchenden Datei wird als Parameter übergeben.
+
+Als optionalen Modifier gibt es:
+
+* `/AllUserProfiles` (altes Synonym: `/AllNTUserProfiles`) +
+Wird eine 'PatchTextFile' Sektion mit diesem Modifier aufgerufen und der Pfad zur zu patchenden Datei enthält die Konstante `%UserProfileDir%`, so wird diese Patchsektion für alle Profile ausgeführt. +
+Eine 'PatchTextFile' Sektion welche in einer `[ProfileActions]` Sektion aufgerufen wird hat im 'Machine' Modus den Modifier `/AllUserProfiles` implizit. Im Loginscript Modus wird dann `%UserProfileDir%` als `%CurrentProfileDir%` interpretiert. +
+(Seit Version 4.11.3.5)
+
+* `/encoding <encoding>` // seit 4.12.4.17 [W/L/M] +
+Die zum Patchen angegebene Datei wird per default im Systemencoding erwartet und auch so gelesen und geschrieben. +
+Soll eine Datei mit abweichenden Encoding gepatcht werden, so kann das zu verwendende Encoding über diesen Parameter  angegeben werden. +
+Beispiel: +
+[source,opsiscript]
+----
+PatchTextFile_my_txt_my_txt "C:/my_file.txt" /encoding "utf16le"
+----
+Die erlaubten Strings für `<encoding>` finden sich unter: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
+
+
+[[opsi-script-patchtextfile-commands]]
+=== Kommandos
+
+Zwei Anweisungen dienen speziell dem komfortablen Patchen von Mozilla-Präferenzdateien:
+
+*  `Set_Mozilla_Pref` ("<preference type>", "<preference key>", "<preference value>") +
+sorgt dafür, dass in die beim Sektionsaufruf spezifizierten Datei die Zeile <Präferenzvariable> nach <Wert> geschrieben wird. Die ASCII-alphabetische Anordnung der Datei wird beibehalten bzw. hergestellt. +
+'preference type' akzeptiert beliebige Werte. +
+In den momentanen Mozilla Präferenzdateien gibt es folgende Ausdrücke +
+'user_pref("<key>", "<value>") +
+pref("<key>", "<value>") +
+lock_pref("<key>", "<value>") +
+defaultPref("<key>", "<value>") +
+lock_pref("<key>", "<value>") +
+clearPref("<key>", "<value>")' +
+Jeder dieser Ausdrücke, sozusagen jede (javascript) Funktion, die auf diese Weise aufgerufen wird +
+'functionname (String1, String2)' +
+kann mit diesem Kommando gepatcht werden über das Setzen des entsprechenden Strings für <preference type> (das ist bspw. für 'functionname'). +
+Wenn der Starteintrag '"functionname (String1)"' in dem bearbeitenden File existiert, kann er gepatcht werden (und bleibt an seinem Platz). Andernfalls wird einen neue Zeile eingefügt. +
+Für den _{opsi-script}_ - ungewöhnlicherweise - sind alle Strings case sensitive.
+
+*  `Set_Netscape_User_Pref` ("<Präferenzvariable>", "<Wert>")
+ist die restriktivere, ältere Version des vorherigen Kommandos und sollte nicht mehr verwendet werden. +
+Setzen der Zeile mit den vom User vergebenen Präferenzen für die Variable <Präferenzvariable> und des Wertes <value>.(Abgekündigt!)
+
+*  `AddStringListElement_To_Mozilla_Pref` ("<Präferenztyp>", "<Präferenzvariable>", "<add value>") +
+fügt ein Element zu einem Listeneintrag der Präferenzdatei hinzu. Das Element wird überprüft, wenn der Wert, der hinzugefügt werden soll, bereits in der Liste existiert (dann wird er nicht hinzugefügt).
+
+*  `AddStringListElement_To_Netscape_User_Pref` ("<Präferenzvariable>", "<Werteliste>") +
+ist die restriktivere, ältere Version des vorherigen Kommandos und sollte nicht mehr verwendet werden. +
+Es fügt einer Werteliste ein Element hinzu (soweit nicht schon enthalten). Angewendet werden kann die Anweisung zur Ergänzung der No-Proxy-Einträge in der prefs.js. (Abgekündigt!)
+
+Alle übrigen Anweisungen von PatchTextFile-Sektionen sind nicht auf spezielle Dateiarten bzw. eine spezielle Syntax der Datei festgelegt:
+
+Die drei Suchanweisungen
+
+*  `FindLine` <Suchstring> +
+Findet eine Zeile die dem <Suchstring> komplett entspricht.
+*  `FindLine_StartingWith` <Suchstring> +
+Findet eine Zeile die mit <Suchstring> anfängt.
+*  `FindLine_Containing` <Suchstring> +
+Findet eine Zeile die <Suchstring> enthält.
+
+durchsuchen die Datei ab der Position, auf der der Zeilenzeiger steht. Sofern sie eine passende Zeile finden, setzen sie den Zeilenzeiger auf die erste Zeile, die <Suchstring> gleicht / mit ihm beginnt / ihn enthält. +
+Die Suche ist nicht case-sensitive.
+
+Wird <Suchstring> nicht gefunden, so bleibt der Zeilenzeiger an der Ausgangsposition stehen.
+
+*  `GoToTop` +
+setzt den Zeilenzeiger vor die erste Zeile setzt (werden Zeilen gezählt muss man berücksichtigen, dass dieses Kommando den Zeilenzeiger über die Anfangszeile setzt).
+Der Zeilenzeiger kann vor und zurück bewegt werden mit der <Anzahl Zeilen>.
+
+*  `AdvanceLine` [<Anzahl Zeilen>] +
+bewegt den Zeilenzeiger um <Anzahl Zeilen> vor oder zurück.
+
+*  `GoToBottom` +
+setzt den Zeilenzeiger auf die letzte Zeile.
+
+*  `DeleteTheLine` +
+löscht die Zeile auf der der Zeilenzeiger steht, sofern sich dort eine Zeile befindet (wenn der Zeilenzeiger oben platziert ist, wird nichts gelöscht).
+
+*  `AddLine` <Zeile> oder `Add_Line` <Zeile> +
+<Zeile> wird am Schluss der Datei angehängt.
+
+*  `InsertLine` <Zeile> oder `Insert_Line` <Zeile> +
+<Zeile> wird an der Stelle eingefügt, an der der Zeilenzeiger steht.
+
+*  `AppendLine` <Zeile> oder `Append_Line`  <Zeile> +
+<Zeile> wird nach der Zeile eingefügt, an der der Zeilenzeiger steht.
+
+*  `Append_File`  <Dateiname> +
+liest die Zeilen der Datei <Dateiname> ein und fügt sie an den Schluss der gerade bearbeiteten Datei an.
+
+*  `Subtract_File`  <Dateiname> +
+entfernt die Anfangszeilen der bearbeiteten Datei, so weit sie mit den Anfangszeilen der Datei <Dateiname> übereinstimmen.
+
+*  `SaveToFile` <Dateiname> +
+speichert die bearbeitete Datei als <Dateiname>.
+
+*  `Sorted` +
+bewirkt, dass die Zeilen alphabetisch (nach ASCII) geordnet sind.
+
+* `setKeyValueSeparator` <separator char> //since 4.11.4.4 +
+setzt für key/value Paare (Befehl `setValueByKey`) das Trennzeichen (Default ist '=')
+
+* `setValueByKey` <keystr> <valuestr> //since 4.11.4.4 +
+sucht ein key/value Paar mit dem key <keystr> und setzt als value <valuestr>. Wird <keystr> nicht gefunden, so wird der Eintrag an der Stelle erzeugt an der der Cursor sitzt.
+
+[[opsi-script-patchtextfile-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_patch_text_file$ = "on"'
+
+[[opsi-script-linkfolder]]
+== LinkFolder-Sektionen [W/L/M]
+
+Mit LinkFolder-Sektionen werden u.a. die Einträge im Startmenü, die Links auf dem Desktop u.ä. verwaltet.
+
+[[opsi-script-linkfolder-windows]]
+=== LinkFolder-Sektionen in Windows
+
+Zum Beispiel erzeugt folgende Sektion einen Folder (Ordner) namens 'acrobat' im Programme-Folder des allgemeinen Startmenüs (für alle Nutzer gemeinsam).
+[source,opsiscript]
+----
+[LinkFolder_Acrobat]
+set_basefolder common_programs
+
+set_subfolder "acrobat"
+set_link
+  name: Acrobat Reader
+  target: C:\Programme\adobe\Acrobat\reader\acrord32.exe
+  parameters:
+  working_dir: C:\Programme\adobe\Acrobat\reader
+  icon_file:
+  icon_index:
+  shortcut:
+end_link
+----
+
+In einer LinkFolder-Sektion muss zuerst bestimmt werden, in welchem virtuellen Systemfolder die nachfolgenden Anweisungen arbeiten sollen. Dafür existiert die Anweisung +
+`set_basefolder` '<virtueller Systemfolder>'
+
+Virtuelle Windows Systemfolder, die angesprochen werden können, sind:
+
+'desktop, sendto, startmenu, startup, programs, desktopdirectory, common_startmenu, common_programs, common_startup, common_desktopdirectory'
+
+Die Folder sind virtuell, weil erst durch das Betriebssystem(-Version) bestimmt wird, an welchem physikalischen Ort des Dateisystems sie real existieren.
+
+Im Rahmen einer normalen 'Maschinen' Installation sind nur die `common*` Systemfolder relevant.
+
+Die Windows-Systemfolder 'desktop, sendto, startmenu, startup, programs, desktopdirectory' können nur im Kontext eines eingloggten users bzw. in einem 'userLoginScript' im Rahmen der opsi-Erweiterung 'user Profile Management' verwendet werden.
+
+Im zweiten Schritt werden die Subfolder (bzw. Subfolder-Pfade), in denen Links angelegt werden, mit der Anweisung +
+`set_subfolder` <Folderpath> +
+bestimmt und zugleich geöffnet. Der Subfolder versteht sich absolut (mit Wurzel im gesetzten virtuellen Systemfolder). Wenn direkt im Systemfolder gearbeitet werden soll, wird dieser mit +
+`set_subfolder ""`
+geöffnet.
+
+Im dritten Schritt können die Links gesetzt werden. Der Befehl verwendet eine mehrzeilige Parameterliste. Sie startet mit +
+`set_link` +
+Abgeschlossen wird sie durch +
+`end_link.`
+
+Die Parameterliste insgesamt hat folgendes Format:
+
+`set_link` +
+  `name:` [Linkname] +
+  `target:` <Pfad und Name des Programms> +
+  `parameters:` [Aufrufparameter des Programms] +
+  `working_dir:` [Arbeitsverzeichnis für das Programm] +
+  `icon_file:` [Pfad und Name der Icon-Datei] +
+  `icon_index:` [Position des gewünschten Icons in der Icon-Datei] +
+  `shortcut:` [Tastatur Shortcut zur Aufruf des Programms] +
+`end_link`
+
+Die Angabe eines 'target' ist erforderlich. Alle andere Einträge haben Defaultwerte und können leer sein oder entfallen:
+
+*  'name' hat als Defaultwert den Programmnamen,
+*  'parameters' ist, wenn nichts anderes angegeben ist, ein Leerstring,
+*  'icon_file'  ist, wenn nichts anderes angegeben ist, 'target' und
+*  'icon_index' ist per Default 0.
+*  'shortcut' ist per Default leer. // since 4.11.6.7 +
+Als `shortcut` darf eine Kombination sein aus ['shift','alt','ctrl'] (nicht case sensitiv) getrennt durch '" "' (Leerzeichen), '"-"' (Minuszeichen),'"+"' (Pluszeichen) sowie einem 'Key' oder einem 'Virtual Key Code'. +
+Der 'Key' ist ein Buchstabe ('A' - 'Z') oder eine Zahl ('0' - '9'). Alle anderen Tasten müssen mit Ihrem 'Virtual Key Code' Bezeichner eingegeben werden. Diesen erhalten Sie am sichersten über folgendes Hilfsprogramm: +
+http://download.uib.de/opsi4.0/helper/showkeys.exe +
+Der `shortcut` bezieht sich auf die Tasten und nicht auf deren landesspezifische Belegung. Die Taste `VK_OEM_3` ist in einer deutschen Belegung ein 'Ö', bei einer englischen Belegung ';'. +
+Beispiele für erlaubte shurtcuts: +
+** 'O' (Die Taste 'O')
+** 'VK_O' (Die Taste 'O')
+** 'Ctrl-O' (Die Kombination 'Ctrl O')
+** 'Ctrl-Alt-Shift-O' (Die Kombination 'Ctrl Alt Shift O')
+** 'Ctrl+Alt+Shift+O' (Die Kombination 'Ctrl Alt Shift O')
+** 'Ctrl Alt Shift O' (Die Kombination 'Ctrl Alt Shift O')
+** 'Ctrl-Alt-Shift-VK_O' (Die Kombination 'Ctrl Alt Shift O')
+** 'Ctrl-Alt-Shift-VK_F12' (Die Kombination 'Ctrl Alt Shift F12')
+
+CAUTION: Windows: Wenn das referenzierte target auf einem, zum Zeitpunkt der Befehlsausführung nicht erreichbaren, Share liegt, werden alle Bestandteile des Pfades auf das Längenschema 8.3 gekürzt. +
+Workaround: +
+Manuelles Erzeugen einer korrekten Verknüpfung zu einem Zeitpunkt, in dem das Laufwerk verbunden ist. +
+Kopieren der korrekten Link-Datei an einen zur Skriptlaufzeit existenten Ort, z.B. C:\Programme. +
+Diese Datei ist dann das Link-'target'.
+
+*  `delete_element` <Linkname> +
+wird der angesprochene Link aus dem geöffneten Folder gelöscht.
+
+*  `delete_subfolder` <Folderpath> +
+löscht den bezeichneten Folder, wobei Folderpath als absolut bezüglich des gesetzten virtuellen Systemfolders zu verstehen ist.
+
+[[opsi-script-linkfolder-examples]]
+=== Beispiele
+
+[source,opsiscript]
+----
+set $list2$ = createStringList ('common_startmenu', 'common_programs', 'common_startup', 'common_desktopdirectory')
+for $var$ in $list2$ do LinkFolder_Dummy
+
+[LinkFolder_Dummy]
+set_basefolder $var$
+set_subfolder "Dummy"
+set_link
+	name: Dummy
+	target: C:\Programme\PuTTY\putty.exe
+	parameters:
+	working_dir: C:\Programme\PuTTY
+	icon_file:
+	icon_index:
+end_link
+----
+
+Ergibt folgenden Log:
+[source,opsiscript]
+----
+Set  $list2$ = createStringList ('common_startmenu', 'common_programs', 'common_startup', 'common_desktopdirectory')
+    retrieving strings from createStringList [switch to loglevel 7 for debugging]
+        (string   0)common_startmenu
+        (string   1)common_programs
+        (string   2)common_startup
+        (string   3)common_desktopdirectory
+
+    retrieving strings from $list2$ [switch to loglevel 7 for debugging]
+        (string   0)common_startmenu
+        (string   1)common_programs
+        (string   2)common_startup
+        (string   3)common_desktopdirectory
+
+
+~~~~~~ Looping through:  'common_startmenu', 'common_programs', 'common_startup', 'common_desktopdirectory'
+
+  Execution of LinkFolder_Dummy
+    Base folder is the COMMON STARTMENU folder
+    Created "Dummy" in the COMMON STARTMENU folder
+      ShellLink "Dummy" created
+
+  Execution of LinkFolder_Dummy
+    Base folder is the COMMON PROGRAMS folder
+    Created "Dummy" in the COMMON PROGRAMS folder
+      ShellLink "Dummy" created
+
+  Execution of LinkFolder_Dummy
+    Base folder is the COMMON STARTUP folder
+    Created "Dummy" in the COMMON STARTUP folder
+      ShellLink "Dummy" created
+
+  Execution of LinkFolder_Dummy
+    Base folder is the COMMON DESKTOPDIRECTORY folder
+    Created "Dummy" in the COMMON DESKTOPDIRECTORY folder
+      ShellLink "Dummy" created
+
+~~~~~~ End Loop
+----
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_link_folder$ = "on"'.
+
+[[opsi-script-linkfolder-linux]]
+=== LinkFolder-Sektionen in Linux
+
+LinkFolder Sektionen werden jetzt auch unter Linux unterstützt. +
+Erlaubte BaseFolder sind: `common_programs`,`common_autostart`,`desktop`, `autostart` +
+Subfolder ist immer "" (leer).
+Die Link Option `icon_index` wird ignoriert. +
+Als zusätzliche Link Option gibt es: `link_categories`. Hier sind folgende durch Semikolon getrennt und abgeschlossene Werte erlaubt: `AudioVideo`, `Audio`, `Video`, `Development`, `Education`, `Game`, `Graphics`, `Network`, `Office`, `Settings`, `System`, `Utility` +
+Die LinkFolder Sektion unter Linux funktioniert für unterschiedliche Desktopsysteme.
+
+
+[[opsi-script-xml2-sections]]
+== XML2 Sektion [W/L/M]
+
+
+Häufig werden Daten aller Art, insbesondere auch Konfigurationsdaten, als XML-Dokument gespeichert. Der Syntax von XML ist niedergelgt in der XML (oder "Extended Markup Language") Spezifikation (http://www.w3.org/TR/xml/)
+
+
+`opsi-script` bietet zwei unterschiedliche Möglichkeiten an mit XML Dateien umzugehen:
+
+* Die `xml2` Sektionen welche in diesem Kapitel beschriebn sind that are described in this chapter +
+Seit opsi-script version 4.12.1
+
+* Die veralteten aber immer noch (aber nur unter Windows) funktionierenden  `XMLPatch` Sektionen (<<opsi-script-xmlpatch>>) und Funktionen welche vollständiger aber auch etwas schwieriger in der Bedienung sind. +
+Wir emfehlen daher die 'xml2' Sektion und Funktionen zu verwenden.
+
+Die `xml2` Implemtierung ist aufgeteilt in die folgenden Teile:
+
+* die `xml2` Sektion, welche hier beschrieben ist und deren Hauptzweck die einfache Veränderung von bestehenden xml Dateinen ist
+
+* die `xml2` Funktionen welche dem Ziel der Analyse von bestehenden xml Daten dienen. +
+siehe auch : xref:reference-card#opsi-script-rc-xml2-functions[XML related functions (XML2)] +
+siehe auch : xref:prim-section#opsi-script-xml2-functions[XML2 Funktionen]
+
+[[opsi-script-xml2-xmlwording]]
+=== XML Struktur und Begriffe
+
+Betrachten wir hierfür eine einfache XML-Datei:
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<rootnode>
+    <node_level-1_number-1>
+        <node_level-2_A color="blue">Hello World</node_level-2_A>
+        <node_level-2_B color="green" count="65">
+        </node_level-2_B>
+        <node_level-2_C>
+        </node_level-2_C>
+    </node_level-1_number-1>
+    <node_level-1_number-2>
+    </node_level-1_number-2>
+</rootnode>
+----
+
+Um die Struktur dieser Datei zu beschreiben, verwenden wir die folgenden Begriffe:
+
+* `xml file` +
+Eine Datei welche xml Daten enthält.
+
+* `xml header` +
+XML Metadaten am Anfang einer xml Datei. In unserem Beispiel: +
+`<?xml version="1.0" encoding="UTF-8"?>`
+
+* `node` +
+Ein XML-Knoten oder `node` beginnt mit einem 'open element': Das Zeichen `<` gefolgt von einem Bezeichner und dem Zeichen `>`. Der `node` endet mit einem 'close element': Das Zeichen `<\` gefolgt von einem Bezeichner und dem Zeichen `>`. Beispiel: +
+`<mynode><\mynode>` +
+Wenn, wie in dem obigen Beispiel, es keine zusätzlichen Informationen gibt, kannn dieser `node` auch wie folgt geschrieben werden: +
+`<mynode\>` +
+Im 'open element' können auf den Bezeichner noch ein oder mehrere Attribute (`atributes`) folgen. +
+Zwischen dem 'open element' und dem 'close element' kann sich ein `nodetext` befinden.
+
+* `root node` +
+Der Basis oder Wurzel(=root) `node` von einem XML-Baum. In unserem Beispiel: +
+`<rootnode>`
+
+* `attribute`
+ist ein key/value (Schlüssel/Wert) Paar, welches ein Teil des 'open elements ist und auf den Bezeichner folgt. Wie z.B.: +
+`color="blue"` in `<node_level-2_A color="blue">`
+
+* `nodetext` +
+ist der Test welcher zwischen dem 'open element' und dem 'close element' stehen darf. Wie zum Beispiel : +
+`Hello World` in `<node_level-2_A color="blue">Hello World</node_level-2_A>`
+
+* `xml2path` +
+ist eine opsi `xml2` spezifische Art einen Pfad durch einen XML-Baum anzugeben. Wie zum Beispiel : +
+`<node_level-1_number-1> // </node_level-2_B>` +
+Es ist die Abfolge der `nodes` getrennt durch ` // `
+
+* `xml2stringlist` +
+Die opsi-script `xml2` Funktionen arbeiten nicht direkt mit XML-Dateien. Vielmehr müssen XML-Daten zunächst in eine spezielle Stringliste Repräsentation gewandelt werden, welche dann von weiteren Funktionen verwendet werden kann. +
+So liefert dei Funktion `getXml2DocumentFromFile(`<path to xml file>`)` den Inhalt der Datei als  `xml2stringlist`. Dieses Daten in einer Stringliste können jetzt zur weiteren Analyse mit `xml2` Funktionen verwendet werden. +
+The result of those functions may be also a stringlist from type `xml2stringlist` +
+Tatsächlich ist die `xml2stringlist` eine Stringliste welche den Inhalt der Datei enthält aber in einem speziellen Format und ohne `xml header`.Aber versuchen Sie nicht eine solche Stringlist ohne die entsprechenden Funktionen wie `getXml2DocumentFromFile` order `getXml2Document` zu bilden. +
+see : xref:prim-section#opsi-script-xml2-functions[XML2 Funktionen] +
+
+
+[[opsi-script-xml2-params]]
+=== Aufruf Parameter
+
+Der Name der zu bearbeitenden Datei wird beim Sektionsaufruf als Parameter übergeben. +
+Beispiel: +
+`xml2_test "%scriptpath%\dummy.xml"`
+
+Existiert die angegebene Datei nicht, so wird diese erzeugt unter Verwendung des Kommandos `rootNodeOnCreate = <node name>`. Ist das Kommando `rootNodeOnCreate` nicht vorhanden, so wird als Name des root nodes 'rootnode' verwendet. (seit 4.12.4.27)
+
+Als optionalen Modifier gibt es:
+
+* `/AllUserProfiles`  // seit 4.12.4.27 +
+Wird eine `XML2` Sektion mit diesem Modifier aufgerufen und der Pfad zur zu patchenden Datei enthält die Konstante `%UserProfileDir%`, so wird diese `XML2` Sektion für alle Profile ausgeführt. +
+Eine `XML2` Sektion welche in einer `[ProfileActions]` Sektion aufgerufen wird hat im 'Machine' Modus den Modifier `/AllUserProfiles` implizit. Im Loginscript Modus wird dann `%UserProfileDir%` als `%CurrentProfileDir%` interpretiert. +
+
+* `/encoding <encoding>` // seit 4.12.4.27 [W/L/M] +
+Die zum Patchen angegebene Datei wird per default im Encoding "UTF-8" erwartet und auch so gelesen und geschrieben. +
+Soll eine Datei mit abweichenden Encoding gepatcht werden, so kann das zu verwendende Encoding über diesen Parameter  angegeben werden. +
+Beispiel: +
+[source,opsiscript]
+----
+XML2_my_xml "C:/my_file.xml" /encoding "utf16le"
+----
+Die erlaubten Strings für `<encoding>` finden sich unter: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
+
+
+[[opsi-script-xml2-commands]]
+=== Kommandos
+
+Es gibt die folgenden Kommandos:
+
+* `strictMode =`  (true/false) ; Default: false
+
+* `openNode` <xml2 path>
+
+* `SetAttribute` <attr name> <attr value>
+
+* `AddAttribute` <attr name> <attr value>
+
+* `DeleteAttribute` <attr name>
+
+* `addNewNode` <node name>
+
+* `setNodeText` <string>
+
+* `DeleteNode` <xml2 path>
+
+* `gotoParentNode`
+
+* `rootNodeOnCreate` = <node name>  // since 4.12.4.27
+
+* `setNodePair` <keyNodeName> <keyNodeTextContent> <valueNodeName> <valueNodeTextContent> // since 4.12.4.28
+
+
+Im Detail:
+
+Der erste Schritt is zu dem `node` zu Navigieren an (oder ab) dem wir Veränderungen vornehmen wollen.
+
+* `strictMode =`  (true/false) ; Default: false
+
+* `openNode` <xml2 path> +
+Öffene den angegeben Pfad und mache den Ziel-`node` zu dem aktuellen `node`. +
+Sollte der Pfad nicht vollständig exitieren so wird er erzeugt.
+
+* `DeleteNode` <xml2 path>
+
+Der <xml2 path> ist der Pfad zu unserm Ziel-`node`. Dieser hat zwei verschiedene Formen, abhängig von dem Wert von 'strictMode': +
+
+* <xml2 path> `strictMode =false` (Default): +
+Eine Zeile mit einer Abfolge von XML-`node` *ohne* Attribute, getrennt durch `//`. +
+Beispiel: +
+`node_level-1_number-1 // node_level-2_B `
+
+* <xml2 path> `strictMode =true`: +
+Eine Zeile mit einer Abfolge von XML-`node` mit *allen* Attributen, getrennt durch `//`. +
+Beispiel: +
+`node_level-1_number-1 // node_level-2_B color="green" count="65"`
+
+
+Alle nachfolgenden Kommandos operieren auf dem geöffneten `node`
+
+* `SetAttribute` <attr name> <attr value> +
+Setze am aktuellen `node` für das Attribut <attr name> den Wert <attr value>. Sollte das Attribut noch nicht existieren, so wird es erzeugt.
+
+
+* `AddAttribute` <attr name> <attr value> +
+Wenn am aktuellen `node` das Attribut <attr name> noch nicht existiert, so erzeuge es und setze den Wert <attr value>. Existiert das Attribut bereits, so ändert sich nichts.
+
+* `DeleteAttribute` <attr name> +
+Wenn am aktuellen `node` das Attribut <attr name> existiert, so lösche es.
+
+* `addNewNode` <node name> +
+Erzeuge am aktuellen `node` einen neuen `node` mit dem Bezeichner <node name> und mache diesn neuen `node` zum aktuellen `node`.
+
+* `setNodeText` <string> +
+Setze am aktuellen `node` den `nodetext` auf <string>.
+
+* `gotoParentNode` +
+Mache den Eltern `node` zum aktuellen `node`.
+
+* * `setNodePair` <keyNodeName> <keyNodeTextContent> <valueNodeName> <valueNodeTextContent>  // since 4.12.4.28 +
+Kann zum Erzeugen eines <dict> Eintrags verwendet werden wie dies z.B. in den Apple info.plist Dateien verwendet wird: +
+----
+<dict>
+  <key>CFBundleExecutable</key>
+  <string>opsi-script</string>
+  <key>CFBundleIdentifier</key>
+  <string>org.opsi.opsi-script</string>
+  <key>CFBundleName</key>
+  <string>opsi-script</string>    
+  <key>CFBundleShortVersionString</key>
+  <string>4.12.4.35</string>  
+</dict>
+----
+Beispiel: +
+[source,opsiscript]
+----
+setNodePair "key" "CFBundleShortVersionString" "string" "4.12.4.35"
+----
+
+
+[[opsi-script-xml2-examples]]
+=== XML2 Beispiele
+Wir gehen der Datei `dummy.xml` mit folgendem Inhalt aus:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<rootnode>
+    <node_level-1_number-1>
+        <node_level-2_A color="blue">Hello World</node_level-2_A>
+        <node_level-2_B color="green" count="65">
+        </node_level-2_B>
+        <node_level-2_C>
+        </node_level-2_C>
+    </node_level-1_number-1>
+    <node_level-1_number-2>
+    </node_level-1_number-2>
+</rootnode>
+----
+
+Der folgende Code:
+
+[source,opsiscript]
+----
+comment "Testing: "
+message "opennode not existing node"
+set $xml2strictMode$ = 'false'
+set $xml2nodepath$ ='node_level-1_number-1 // node_level-2_B // node_level-3_A'
+set $xml2changeValue$ = '"color" "yellow"'
+set $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+set $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+set $xml2cmdLine3$ = "SetAttribute "+$xml2changeValue$
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+set $ConstTest$ = "yellow"
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+set $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+set $ConstTest$ = "yellow"
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[XML2_dummy_xml]
+$xml2cmdLine1$
+$xml2cmdLine2$
+$xml2cmdLine3$
+$xml2cmdLine4$
+$xml2cmdLine5$
+$xml2cmdLine6$
+$xml2cmdLine7$
+$xml2cmdLine8$
+$xml2cmdLine9$
+----
+
+[source,opsiscript]
+----
+message "opennode not existing node"
+
+; The call
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+
+; Test 1
+set $ConstTest$ = "yellow"
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+set $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+; Test 2
+set $ConstTest$ = "yellow"
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+[XML2_dummy_xml]
+strictMode = false
+openNode 'node_level-1_number-1 // node_level-2_B // node_level-3_A'
+SetAttribute "color" "yellow"
+----
+
+produziert z.B. folgendes Log:
+
+[source,opsiscript]
+----
+message opennode not existing node
+Set  $xml2nodepath$ ='node_level-1_number-1 // node_level-2_B // node_level-3_A'
+  The value of the variable "$xml2nodepath$" is now: "node_level-1_number-1 // node_level-2_B // node_level-3_A"
+Set  $xml2changeValue$ = '"color" "yellow"'
+  The value of the variable "$xml2changeValue$" is now: ""color" "yellow""
+Set  $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+  The value of the variable "$xml2cmdLine1$" is now: "strictMode = false"
+Set  $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+  The value of the variable "$xml2cmdLine2$" is now: "openNode 'node_level-1_number-1 // node_level-2_B // node_level-3_A'"
+Set  $xml2cmdLine3$ = "SetAttribute "+$xml2changeValue$
+  The value of the variable "$xml2cmdLine3$" is now: "SetAttribute "color" "yellow""
+
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  try to load File: c:\opsi.org\tmp\testFiles\dummy.xml
+  File: c:\opsi.org\tmp\testFiles\dummy.xml read
+  success: create xmldoc from file: c:\opsi.org\tmp\testFiles\dummy.xml
+  StrictMode is set to : False
+  We will OpenNode : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  -- pathes.Count: 3
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  Found node 1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_B
+  thisnodename
+  leavingPath node_level-2_B
+  node 2: nodename node_level-2_B
+  begin to get node  nodename: node_level-2_B with attributes:
+  Found node 2: nodename: node_level-2_B
+  path element 3 : node_level-3_A
+  thisnodename
+  leavingPath node_level-3_A
+  node 3: nodename node_level-3_A
+  begin to get node  nodename: node_level-3_A with attributes:
+  opennode: node not found 3: nodename: node_level-3_A
+  actNode=nil; opennode: node not found, maybe 3: nodename: node_level-3_A
+  nodepath does not exists - try to create: node_level-1_number-1 // node_level-2_B // node_level-3_A
+  begin to make node with path: node_level-1_number-1 // node_level-2_B // node_level-3_A and  TEXT_CONTENT:
+  actNodeSet <> nil
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_B // node_level-3_A
+  -- pathes.Count: 3
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  actnode: rootnode
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  node(s) found with name node_level-1_number-1: 1
+
+  1 -> find attributes for node node_level-1_number-1, number of attributes 0
+  all attributes have to fit, nodename node_level-1_number-1
+  actnodeset after retrieving key/value
+
+  actNodeSet:
+     node 0 elementname: "node_level-1_number-1"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-1_number-1
+  Found node 1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_B
+  thisnodename
+  leavingPath node_level-2_B
+  node 2: nodename node_level-2_B
+  actnode: node_level-1_number-1
+  begin to get node  nodename: node_level-2_B with attributes:
+  node(s) found with name node_level-2_B: 1
+
+  1 -> find attributes for node node_level-2_B, number of attributes 0
+  all attributes have to fit, nodename node_level-2_B
+  Attribute count mismatch: given by path: 0 but node has: 2
+  actnodeset after retrieving key/value
+
+  actNodeSet:
+  Non-null element(s) in act node set: 0
+  result false, actnode is nil, lenght of actNodeSet is 0
+  makeNodePathWithTextContent: node not found 2: nodename: node_level-2_B, Node will be created
+  begin to make node with nodename: node_level-2_B
+  path element 3 : node_level-3_A
+  thisnodename
+  leavingPath node_level-3_A
+  node 3: nodename node_level-3_A
+  actnode: node_level-2_B
+  makeNodePathWithTextContent: node not found 3: nodename: node_level-3_A, Node will be created
+  begin to make node with nodename: node_level-3_A
+  actNode know node 3: nodename: node_level-3_A
+  successfully created nodepath: node_level-1_number-1 // node_level-2_B // node_level-3_A
+  We will setAttribute : color : yellow
+  begin setAttribute name: color, value: yellow
+  setAttribute, create attribute with name: color value: yellow
+  successfully setAttribute : color : yellow
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  file saved: c:\opsi.org\tmp\testFiles\dummy.xml
+  successful written xmldoc to file: c:\opsi.org\tmp\testFiles\dummy.xml
+  Set  $ConstTest$ = "yellow"
+    The value of the variable "$ConstTest$" is now: "yellow"
+  Set  $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+    The value of the variable "$list1$" is now:
+    (string   0)<?xml version="1.0" encoding="utf-8"?>
+    (string   1)<rootnode>
+    (string   2)  <node_level-1_number-1>
+    (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+    (string   4)    <node_level-2_B color="green" count="65"/>
+    (string   5)    <node_level-2_C/>
+    (string   6)    <node_level-2_B>
+    (string   7)      <node_level-3_A color="yellow"/>
+    (string   8)    </node_level-2_B>
+    (string   9)  </node_level-1_number-1>
+    (string  10)  <node_level-1_number-2/>
+    (string  11)</rootnode>
+  Set  $tmp$ = takeFirstStringContaining($list1$,"node_level-3_A")
+    The value of the variable "$tmp$" is now: "      <node_level-3_A color="yellow"/>"
+  Set  $CompValue$ = takeString(1, splitString ($tmp$, '"'))
+    The value of the variable "$CompValue$" is now: "yellow"
+  If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+Set  $ConstTest$ = "yellow"
+  The value of the variable "$ConstTest$" is now: "yellow"
+Set  $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+  The value of the variable "$list1$" is now:
+  (string   0)
+  (string   1)<rootnode>
+  (string   2)  <node_level-1_number-1>
+  (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+  (string   4)    <node_level-2_B color="green" count="65"/>
+  (string   5)    <node_level-2_C/>
+  (string   6)    <node_level-2_B>
+  (string   7)      <node_level-3_A color="yellow"/>
+  (string   8)    </node_level-2_B>
+  (string   9)  </node_level-1_number-1>
+  (string  10)  <node_level-1_number-2/>
+  (string  11)</rootnode>
+Set  $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_A")
+  The value of the variable "$list2$" is now:
+  (string   0)
+  (string   1)<node_level-3_A color="yellow"/>
+Set  $CompValue$ = getXml2AttributeValueByKey($list2$,"color")
+  The value of the variable "$CompValue$" is now: "yellow"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+Der folgende Code:
+
+[source,opsiscript]
+----
+message "addNewNode"
+set $xml2strictMode$ = 'false'
+set $xml2nodepath$ ='node_level-1_number-1 // node_level-2_C'
+set $xml2changeValue$ = '"node_level-3_C"'
+set $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+set $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+set $xml2cmdLine3$ = "addNewNode "+$xml2changeValue$
+set $xml2cmdLine4$ = 'SetAttribute "node" "new"'
+XML2_dummy_xml $HomeTestFiles$+"\dummy.xml"
+set $ConstTest$ = '<node_level-3_C node="new"/>'
+set $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+set $tmp$ = takeFirstStringContaining($list1$,"node_level-3_C")
+set $CompValue$ = Trim($tmp$)
+if ($ConstTest$ = $CompValue$)
+	comment "addNewNode passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "addNewNode failed"
+endif
+set $ConstTest$ = "new"
+set $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+set $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_C")
+set $CompValue$ = getXml2AttributeValueByKey($list2$,"node")
+if ($ConstTest$ = $CompValue$)
+	comment "passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "failed"
+endif
+
+
+[XML2_dummy_xml]
+$xml2cmdLine1$
+$xml2cmdLine2$
+$xml2cmdLine3$
+$xml2cmdLine4$
+$xml2cmdLine5$
+$xml2cmdLine6$
+$xml2cmdLine7$
+$xml2cmdLine8$
+$xml2cmdLine9$
+----
+
+produziert z.B. folgendes Log:
+[source,opsiscript]
+----
+message addNewNode
+Set  $xml2nodepath$ ='node_level-1_number-1 // node_level-2_C'
+  The value of the variable "$xml2nodepath$" is now: "node_level-1_number-1 // node_level-2_C"
+Set  $xml2changeValue$ = '"node_level-3_C"'
+  The value of the variable "$xml2changeValue$" is now: ""node_level-3_C""
+Set  $xml2cmdLine1$ = "strictMode = "+$xml2strictMode$
+  The value of the variable "$xml2cmdLine1$" is now: "strictMode = true"
+Set  $xml2cmdLine2$ = "openNode '"+$xml2nodepath$+"'"
+  The value of the variable "$xml2cmdLine2$" is now: "openNode 'node_level-1_number-1 // node_level-2_C'"
+Set  $xml2cmdLine3$ = "addNewNode "+$xml2changeValue$
+  The value of the variable "$xml2cmdLine3$" is now: "addNewNode "node_level-3_C""
+Set  $xml2cmdLine4$ = 'SetAttribute "node" "new"'
+  The value of the variable "$xml2cmdLine4$" is now: "SetAttribute "node" "new""
+
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  try to load File: c:\opsi.org\tmp\testFiles\dummy.xml
+  File: c:\opsi.org\tmp\testFiles\dummy.xml read
+  success: create xmldoc from file: c:\opsi.org\tmp\testFiles\dummy.xml
+  StrictMode is set to : True
+  We will OpenNode : node_level-1_number-1 // node_level-2_C
+  begin to open nodepath  : node_level-1_number-1 // node_level-2_C
+  -- pathes.Count: 2
+  path element 1 : node_level-1_number-1
+  thisnodename
+  leavingPath node_level-1_number-1
+  node 1: nodename node_level-1_number-1
+  begin to get node  nodename: node_level-1_number-1 with attributes:
+  node(s) found with name node_level-1_number-1: 1
+
+  1 -> find attributes for node node_level-1_number-1, number of attributes 0
+  all attributes have to fit, nodename node_level-1_number-1
+  actnodeset after retrieving key/value
+
+  actNodeSet:
+     node 0 elementname: "node_level-1_number-1"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-1_number-1
+  Found node with attributes_strict1: nodename: node_level-1_number-1
+  path element 2 : node_level-2_C
+  thisnodename
+  leavingPath node_level-2_C
+  node 2: nodename node_level-2_C
+  begin to get node  nodename: node_level-2_C with attributes:
+  node(s) found with name node_level-2_C: 1
+
+  1 -> find attributes for node node_level-2_C, number of attributes 0
+  all attributes have to fit, nodename node_level-2_C
+  actnodeset after retrieving key/value
+
+  actNodeSet:
+     node 0 elementname: "node_level-2_C"
+  Non-null element(s) in act node set: 1
+  result true, actNode and newnode is node_level-2_C
+  Found node with attributes_strict2: nodename: node_level-2_C
+  actNode know node 2: nodename: node_level-2_C
+  successfully opend node: node_level-1_number-1 // node_level-2_C
+  We will addNewNode : node_level-3_C
+  begin to make node with nodename: node_level-3_C attributeName:  attributeValue:
+  successfully addNewNode: node_level-3_C
+  We will setAttribute : node : new
+  begin setAttribute name: node, value: new
+  setAttribute, create attribute with name: node value: new
+  successfully setAttribute : node : new
+  try to open File: c:\opsi.org\tmp\testFiles\dummy.xml
+  file saved: c:\opsi.org\tmp\testFiles\dummy.xml
+  successful written xmldoc to file: c:\opsi.org\tmp\testFiles\dummy.xml
+  Set  $ConstTest$ = '<node_level-3_C node="new"/>'
+    The value of the variable "$ConstTest$" is now: "<node_level-3_C node="new"/>"
+  Set  $list1$ = loadTextFile($HomeTestFiles$+"\dummy.xml")
+    The value of the variable "$list1$" is now:
+    (string   0)<?xml version="1.0" encoding="utf-8"?>
+    (string   1)<rootnode>
+    (string   2)  <node_level-1_number-1>
+    (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+    (string   4)    <node_level-2_B color="green" count="65"/>
+    (string   5)    <node_level-2_C>
+    (string   6)      <node_level-3_C node="new"/>
+    (string   7)    </node_level-2_C>
+    (string   8)  </node_level-1_number-1>
+    (string   9)  <node_level-1_number-2/>
+    (string  10)</rootnode>
+  Set  $tmp$ = takeFirstStringContaining($list1$,"node_level-3_C")
+    The value of the variable "$tmp$" is now: "      <node_level-3_C node="new"/>"
+  Set  $CompValue$ = Trim($tmp$)
+    The value of the variable "$CompValue$" is now: "<node_level-3_C node="new"/>"
+  If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: addNewNode passed
+Else
+EndIf
+Set  $ConstTest$ = "new"
+  The value of the variable "$ConstTest$" is now: "new"
+Set  $list1$ = getXml2DocumentFromFile($HomeTestFiles$+"\dummy.xml")
+  The value of the variable "$list1$" is now:
+  (string   0)
+  (string   1)<rootnode>
+  (string   2)  <node_level-1_number-1>
+  (string   3)    <node_level-2_A color="blue">Hello World</node_level-2_A>
+  (string   4)    <node_level-2_B color="green" count="65"/>
+  (string   5)    <node_level-2_C>
+  (string   6)      <node_level-3_C node="new"/>
+  (string   7)    </node_level-2_C>
+  (string   8)  </node_level-1_number-1>
+  (string   9)  <node_level-1_number-2/>
+  (string  10)</rootnode>
+Set  $list2$ = xml2GetFirstChildNodeByName($list1$,"node_level-3_C")
+  The value of the variable "$list2$" is now:
+  (string   0)
+  (string   1)<node_level-3_C node="new"/>
+Set  $CompValue$ = getXml2AttributeValueByKey($list2$,"node")
+  The value of the variable "$CompValue$" is now: "new"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: passed
+Else
+EndIf
+----
+
+Für weiter Beispiele schauen Sie im Produkt 'opsi-script-test' und dort speziell in der Datei `sub-scripts/xml2test.opsiscript`.
+
+[[opsi-script-xmlpatch]]
+== XMLPatch-Sektionen [W]
+
+Warnung: Dieser Sektionstyp ist veraltet. +
+Sie wird nicht entfernt werden und der Codes welche diese Sektion verwenden sind weiterhin lauffähig. Aber die Weiterentwicklung dieses Sektionstyps ist gestopt. +
+Weiterhin ist dieser Sektionstyp 'Windows only' und wird nie für andere Plattformen bereitstehen. +
+Wir emfehlen daher die Verwendung der +
+xml2-Sektion <<opsi-script-xml2-sections, XML2 Sektion>>
+und xml2 Funktionen: xref:prim-section#opsi-script-xml2-functions[XML2 Funktionen].
+
+
+Häufig werden Daten aller Art, insbesondere auch Konfigurationsdaten, als XML-Dokument gespeichert.
+
+Der _{opsi-script}_ bietet XMLPatch-Sektionen an, um XML-Dokumente zu bearbeiten.
+
+Ähnlich wie bei anderen Sektionen (Registry, Patches, LinkFolder) wird dazu zunächst mit bestimmten Befehlen an die Stelle navigiert, an der gearbeitet werden soll und dann dort Detailkommandos ausgeführt.
+
+Das bedeutet, die Aktionen, die _{opsi-script}_ ausführen kann, gliedern sich in:
+
+* *die Selektion* eines Sets von Elementen des XML-Dokuments, inklusive der Erzeugung nicht vorhandener Elemente,
+
+* *Patch-Aktionen*, die für alle Elemente eines Sets ausgeführt werden sowie
+
+* *die Ausgabe* von Namen und/Attributen der selektierten Elemente für die weitere Verarbeitung.
+
+[[opsi-script-xmlpatch-params]]
+=== Aufrufparameter
+
+Der Name der zu patchenden Datei wird als Parameter übergeben.
+
+Beispiel: +
+`XMLPatch_mozilla_mimetypes $mozillaprofilepath$ + "\mimetypes.rdf"`
+
+[[opsi-script-xmlpatch-xmldoc]]
+=== Struktur eines XML-Dokuments
+
+Ein XML-Dokument beschreibt die Logik eines „Baums“ (tree), der sich ausgehend von einer „Wurzel“ (root) – passenderweise  document root genannt  –  in die "Äste" (branches) verzweigt. Jede Verzweigungsstelle, wie auch jedes „Astende“, wird als „Knoten“ bezeichnet (englisch node). Die nachgeordneten Knoten eines Knotens heißen auch Kinderknoten ihres Elternknotens.
+
+In XML wird dieser Baum konstruiert durch Elemente. Der Anfang der Beschreibung eines Elements ist mit einem Tag gekennzeichnet (ähnlich wie in der Web-Auszeichnungssprache HTML), d.h. durch einen spezifischen Markierungstext, der durch „<“ und „>“ umrahmt ist. Das Ende der Beschreibung wird wieder durch ein Tag desselben Typnamens gekennzeichnet, jetzt aber durch „</“ und „>“ geklammert. Wenn es keine nachgeordneten Elemente gibt, kann die getrennte Endmarkierung entfallen, stattdessen wird das öffnende Tag mit „/>“ abgeschlossen.
+
+Einen „V“-Baum – mit einer einzigen Verzweigung in zwei Teiläste – könnte man so skizzieren (Wurzel nach oben gedreht):
+~~~~
+    |     Wurzelknoten
+   / \    Knoten 1 auf Ebene 1  bzw.  Knoten 2 auf Ebene 1
+  .   .   Implizit vorhandene Endknoten unterhalb von Ebene 1
+~~~~
+
+Er würde in XML folgendermaßen dargestellt:
+[source,xml]
+----
+<?xml version="1.0"?>
+<Wurzelknoten>
+    <Knoten_Ebene-1_Nummer-1>
+    </Knoten_Ebene-1_Nummer-1>
+    <Knoten_Ebene-1_Nummer-2>
+    </Knoten_Ebene-1_Nummer-2>
+</Wurzelknoten>
+----
+
+Die erste Zeile benennt nur die XML-Definition nach der sich das Dokument richtet. Die weiteren Zeilen beschreiben den Baum.
+
+Die insoweit noch nicht komplizierte Struktur wird dadurch verwickelt, dass bis jetzt nur „Hauptknoten“ vorkommen. Ein Hauptknoten definiert ein „Element“ des Baums und ist durch ein Tag gekennzeichnet. Einem solchen Hauptknoten können – wie bei der Skizze schon angedeutet – „Unterknoten“ und sogar mehrere Arten davon zugeordnet sein. (Befände sich der Baum in der normalen Lage mit Wurzel nach unten, müssten die Unterknoten „Überknoten“  heißen.) Folgende Arten von Unterknoten sind zu berücksichtigen:
+
+* Nachgeordnete Elemente, z.B. könnte der Knoten Nummer 1 sich in Subknoten A bis C verzweigen:
++
+[source,xml]
+----
+<Knoten_Ebene-1_Nummer-1>
+    <Knoten_Ebene-2_A>
+    </Knoten_Ebene-2_A>
+    <Knoten_Ebene-2_B>
+    </Knoten_Ebene-2_B>
+    <Knoten_Ebene-2_C>
+    </Knoten_Ebene-2_c>
+</Knoten_Ebene-1_Nummer-1>
+----
+
+* Nur wenn es KEINE nachgeordneten Elemente gibt, kann das Element Text enthalten. Dann heißt es, dass dem Element ein Textknoten untergeordnet ist. Beispiel:
++
+[source,xml]
+----
+<Knoten_Ebene-1_Nummer-2>Hallo Welt
+</Knoten_Ebene-1_Nummer-2>
+----
+
+* Der Zeilenumbruch, der zuvor nur Darstellungsmittel für die XML-Struktur war, zählt dabei jetzt auch als Teil des Textes! Wenn er nicht vorhanden sein soll, muss geschrieben werden
++
+[source,xml]
+----
+<Knoten_Ebene-1_Nummer-2>Hallo Welt</Knoten_Ebene-1_Nummer-2>
+----
+
+* Zum Element können außer dem Hauptknoten noch Attribute, sog. Attributknoten gehören. Es könnte z.B. Attribute „Farbe“ oder „Winkel“ geben, die den Knoten 1 in der Ebene 1 näher beschreiben.
++
+[source,xml]
+----
+<Knoten_Ebene-1_Nummer-1 Farbe="grün" Winkel="65">
+</Knoten_Ebene-1_Nummer-1>
+----
++
+Eine derartige nähere Beschreibung eines Elements ist mit beiden anderen Arten von Unterknoten vereinbar.
+
+Zur Auswahl einer bestimmten Menge von Elemente könnten im Prinzip alle denkbaren Informationen herangezogen werden, insbesondere
+
+. die Elementebene (Schachtelungstiefe im Baum),
+
+. der Name der Elemente, d.h. Name der entsprechenden Hauptknoten, in der Abfolge der durchlaufenen Ebenen (der „XML-Pfad“),
+
+. die Anzahl, Namen und Werte der zusätzlich gesetzten Attribute,
+
+. die Reihenfolge der Attribute,
+
+. die Reihenfolge der Elemente,
+
+. sonstige „Verwandtschaftsbeziehungen“ der Elemente und
+
+. Text-(Knoten-)Inhalte von Elementen.
+
+Im _{opsi-script}_ ist derzeit die Auswahl nach den Gesichtspunkten (1) bis (3) sowie (7) implementiert:
+
+[[opsi-script-xmlpatch-search-options]]
+=== Optionen zur Bestimmung eines Sets von Elementen
+
+Vor jeder weiteren Operation muss das Set von Elementen bzw. von Hauptknoten bestimmt werden, auf die sich die Operation beziehen soll. Das Set wird Schritt für Schritt ermittelt, indem ausgehend von der Dokumentenwurzel  Pfade gebildet werden, die jeweils über akzeptierte nachgeordnete Elemente laufen. Die letzten Elemente der Pfade bilden dann das ausgewählte Set.
+
+Der _{opsi-script}_ Befehl hierfür lautet
+
+*  `OpenNodeSet`
+
+Für die Festlegung der akzeptierten Pfade existiert eine ausführliche und eine Kurzsyntax.
+
+.Ausführliche Syntax
+
+Die ausführliche Syntax für die Beschreibung eines Elemente-Sets bzw. einer Knoten-Menge ist in der folgenden Variante eines Beispiels zu sehen (vgl. Kochbuch, xref:cook-book#opsi-script-cookbook-patchxml[Kapitel "XML-Datei patchen"]):
+[source,opsiscript]
+----
+openNodeSet
+  documentroot
+  all_childelements_with:
+   elementname:"define"
+  all_childelements_with:
+    elementname:"handler"
+    attribute: extension value="doc"
+  all_childelements_with:
+    elementname:"application"
+end
+----
+
+.Kurzsyntax
+
+Das gleiche Nodeset beschreibt folgende Kurzsyntax (muss in einer Zeile des Skripts untergebracht werden):
+[source,opsiscript]
+----
+openNodeSet 'define /handler value="doc"/application /'
+----
+
+In dieser Syntax separieren die Schrägstriche die Schritte innerhalb der Baumstruktur, welche in einer Syntax angegeben werden, die ausführlicher als eine eigene Beschreibung ist.
+
+.Selektion nach Text-Inhalten (nur ausführliche Syntax)
+
+Die ausführliche Syntax erlaubt auch die Selektion nach Text-Inhalten eines Tags:
+[source,opsiscript]
+----
+openNodeSet
+
+  documentroot
+  all_childelements_with:
+  all_childelements_with:
+    elementname:"description"
+    attribute:“type“ value=“browser“
+    attribute:“name“ value=“mozilla“
+  all_childelements_with:
+    elementname:"linkurl"
+    text:"http://www.mozilla.org"
+end
+----
+
+.Parametrisierung der Suchstrategie
+
+Bei den bislang aufgeführten Beschreibungen eines Elemente-Sets bleiben allerdings eine ganze Reihe von Fragen offen.
+
+* Soll ein Element akzeptiert werden, wenn der Elementname und die aufgeführten Attribute passen, aber weitere Attribute existieren?
+
+* Soll die Beschreibung im Ergebnis eindeutig sein, d.h. genau ein Element liefern? Und wenn doch die Beschreibung des Pfades auf mehrere Elemente passt, muss dann möglicherweise von einer nicht korrekten Konfigurationsdatei ausgegangen werden?
+
+* Soll umgekehrt auf jeden Fall ein passendes Element erzeugt werden, wenn keines existiert?
+
+Zur Regelung dieser Fragen kann die OpenNodeSet-Anweisung parametrisiert werden. Bei den nachfolgend genannten Parametern überdecken „stärkere“ Einstellungen „schwächere“, z.B. ersetzt eine Fehlermeldung eine ansonsten geforderte Warnung. Die angegebenen booleschen Werte sind die Default-Werte:
+[source,opsiscript]
+----
+  - error_when_no_node_existing false
+  - warning_when_no_node_existing true
+  - error_when_nodecount_greater_1 false
+  - warning_when_nodecount_greater_1 false
+  - create_when_node_not_existing false
+  - attributes_strict false
+----
+
+Bei Verwendung der Kurzsyntax der OpenNodeSet-Anweisung muss die Parametrisierung vorausgehen und gilt für alle Ebenen des XML-Baumes. In der ausführlichen Syntax kann sie auch direkt nach der OpenNodeSet-Anweisung erfolgen oder für jede Ebene neu gesetzt werden. Sinnvoll kann letzteres vor allem für die Einstellung der Option „create when node not existing“ (Erstellung von Knoten, wenn es keine gibt) sein.
+
+[[opsi-script-xmlpatch-actions]]
+=== Patch-Aktionen
+
+Auf der mit OpenNodeSet geöffneten bzw. erzeugten Knotenmenge arbeiten nachfolgende Patch-Anweisungen. Es existieren solche:
+
+* zum Setzen und Löschen von Attributen,
+
+* zum Entfernen von Elementen und
+
+* zum Setzen von Text.
+
+
+*  `SetAttribute` "Attributname" value="Attributwert" +
+setzt in jedem Element des aktuellen Knoten- bzw. Elementsets das Attribut auf den genannten Wert. Wenn das Attribut nicht vorhanden ist wird es erzeugt. +
+Beispiel: +
+`SetAttribute "name" value="OpenOffice Writer"`
+
+*  `AddAttribute` "Attributname" value="Attributwert" +
+setzt das Attribut dagegen nur auf Attributwert, wenn es vorher nicht existiert, ein vorhandenes Attribut behält seinen Wert. Z.B. würde die Anweisung +
+`AddAttribute "name" value="OpenOffice Writer"` +
+eine vorher vorhandene Festlegung auf ein anderes Programm nicht überschreiben.
+
+*  `DeleteAttribute` "Attributname" +
+wird das betreffende Attribut von jedem Element der aktuellen Knotenmenge entfernt.
+
+*  `DeleteElement` "Elementname" +
+entfernt das Element, dessen Hauptknoten den (Tag-) Namen "Elementname" hat, samt Unterknoten aus der aktuellen Knoten- oder Elementmenge.
+
+Schließlich existieren zwei Anweisungen zum Setzen bzw. Hinzufügen von Textinhalten eines Elements.
+Die beiden Anweisungen lauten
+
+*  `SetText` "Text"
+
+und
+
+*  `AddText` "Text"
+
+Z.B. wird, wenn das betreffende Element in der geöffneten Elementmenge liegt, durch die Anweisung +
+`SetText "rtf"` +
+aus +
+'<fileExtensions>doc<fileExtensions>' +
+das Element +
+'<fileExtensions>rtf<fileExtensions>'
+
+Mit +
+`SetText ""` +
+wird der Text komplett entfernt.
+
+`AddText "rtf"` +
+setzt analog wie bei anderen Add-Anweisungen den Text, sofern kein Text vorhanden ist -  existierender Text bleibt unberührt.
+
+[[opsi-script-xmlpatch-return]]
+=== Rückgaben an das aufrufende Programm
+
+Eine XMLPatch-Sektion kann angewiesen werden, String-Listen an das rufende Programm zurückzugeben.
+
+Dazu muss sie in einer primären Sektion mit der String-Listen-Anweisung `getReturnListFromSection` aufgerufen werden. Die Anweisung kann in einem String-Listen-Ausdruck verwendet werden, z.B. das Ergebnis einer String-Listen-Variable zugewiesen werden. So kann in der XMLPatch_mime-Sektion stehen:
+[source,opsiscript]
+----
+DefStringList $list1$
+set $list1$=getReturnListFromSection ('XMLPatch_mime "c:\mimetypes.rdf"')
+----
+
+Eine Return-Anweisung in der XMLPatch-Sektion regelt, welche Zeilen die XMLPatch-Sektion als Inhalt der String-Liste ermittelt:
+
+*  `return elements`+
+Bewirkt, dass die ausgewählten Elemente komplett (Elementname und Attribute) ausgegeben werden.
+
+*  `return attributes` +
+Erzeugt eine Liste der Attribute.
+
+*  `return elementnames` +
+Listet die Elementnamen.
+
+*  `return attributenames`
+Produziert eine Liste der Attributnamen.
+
+*  `return text` +
+Listet die textlichen Inhalte der selektierten Elemente.
+
+*  `return counting` +
+Liefert eine Listenstruktur mit summarischen Informationen: In Zeile 0 steht die Anzahl aller ausgewählten Elemente, in Zeile 1 die Zahl aller Attribute.
+
+[[opsi-script-xmlpatch-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_xml$ = "on"'
+
+
+[[opsi-script-progman]]
+== ProgmanGroups-Sektionen
+
+Dieser Sektionstyp ist abgekündigt.
+
+[[opsi-script-winbatch]]
+== WinBatch-Sektionen [W/L/M]
+
+In einer WinBatch-Sektion kann jedes Windows-Programm als Anweisung verwendet werden.
+
+Z.B kann mit folgender WinBatch-Sektion ein Setup-Programm gestartet werden:
+[source,opsiscript]
+----
+[winbatch_install]
+"%scriptpath%\setup.exe"
+----
+
+Winbatch Sektionen dienen dazu *Programme* (*.exe) aufzurufen. +
+Der Aufruf von anderen Dateien, die mit einem Programm verknüpft sind, direkt aufzurufen ist abgekündigt (aber noch unterstützt). Wenn Sie das tun bekommen Sie eine deprecated Warnung. Beispiel: +
+ok: `notepad.exe test.txt` +
+depricated (not ok): `test.txt`
+
+[[opsi-script-winbatch-params]]
+=== Aufrufparameter (Modifier)
+
+Durch die Parameter des WinBatch-Aufrufs wird festgelegt, wie sich _{opsi-script}_ gegenüber den in der WinBatch-Sektion gestarteten Programmen verhält.
+
+*  `/32Bit` //seit 4.11.3.5  [W] +
+Das ist der Default. Die in der Sektion angegebene Pfade werden als 32 Bit Pfade interpretiert. +
+Beispiel: `c:\windows\system32\regedit.exe` ruft (auch auf einem 64bit System) die 32 Bit 'regedit.exe' auf.
+
+*  `/64Bit` //seit 4.11.3.5  [W] +
+Die in der Sektion angegebene Pfade werden als 64 Bit Pfade interpretiert. +
+Beispiel: `c:\windows\system32\regedit.exe` ruft (auf einem 64bit System) die 64 Bit 'regedit.exe' auf.
+
+*  `/SysNative` //seit 4.11.3.5  [W] +
+Die in der Sektion angegebene Pfade werden gemäß der OS Architektur interpretiert. +
+Beispiel: `c:\windows\system32\regedit.exe` ruft auf einem 64bit System die 64 Bit 'regedit.exe' und auf einem 32bit System die 32 Bit 'regedit.exe'auf.
+
+Beispiel:
+[source,opsiscript]
+----
+Winbatch_add_reg /64Bit
+[Winbatch_add_reg]
+"c:\windows\system32\regedit.exe" /s "%scriptpath%\my64.reg"
+----
+
+*  `/WaitOnClose` +
+Default +
+{opsi-script} wartet die Selbstbeendigung des angestoßenen Prozesses ab. Dieses Verhalten kann mit dem Parameter auch explizit definiert werden.
+
+*  `/LetThemGo` +
+Verschiebt den aufgerufenen Prozess in den Hintergrund und wartet *nicht* auf dessen Beendigung;
+d.h. das sofort die nächste Zeile der WinBatch-Sektion bzw. die nächste Zeile des übergeordneten Programms abgearbeitet werden.
+
+*  `/WaitSeconds` [AnzahlSekunden] +
+Die Parametrisierung /WaitSeconds [AnzahlSekunden] modifiziert das Verhalten dahingehend, dass _{opsi-script}_ jeweils erst nach [AnzahlSekunden] die Skriptbearbeitung fortsetzt. Die angegebene Zeit stoppt _{opsi-script}_ auf jeden Fall. In der Default-Einstellung wird zusätzlich auf das Ende der angestoßenen Prozesse gewartet. Ist letzteres nicht gewünscht, so kann der Parameter mit dem Parameter /LetThemGo kombiniert werden.
+
+*  `/WaitForWindowAppearing` [Fenstertitel]  [W] +
+bzw. +
+`/WaitForWindowVanish` [Fenstertitel]  [W] +
+Abgekündigt. Verwenden Sie `/WaitForProcessEnding` +
+Im 1. Fall wartet _{opsi-script}_ solange, bis ein Prozess, der sich durch ein mit [Fenstertitel] benanntes Fenster kenntlich macht, gestartet ist. Im 2. Fall wartet _{opsi-script}_ bis ein, mit [Fenstertitel] benanntes, Fenster auf dem Desktop erst einmal erscheint und dann auch wieder geschlossen wird. Auf diese Weise kann unter geeigneten Umständen geprüft werden, ob sekundäre, indirekt gestartete Prozesse sich beendet haben.
++
+CAUTION: Diese Befehle erkennen nur Fenster von 32 Bit-Programmen.
+
+
+*  `/WaitForProcessEnding` <program name> +
+Wartet darauf, das sich der Prozess mit dem Namen <program name> beendet. +
+Kann und sollte mit `/TimeOutSeconds` kombiniert werden.
+
+Erläuterung: +
+Der _{opsi-script}_ wartet auf das Ende eines per `winbatch` gestarteten Prozesses bevor mit der nächsten Zeile des Scriptes forgefahren wird:
+
+.Sequentielle Abarbeitung des Scriptes mit Warten auf das Ende eines Prozesses
+image::waitforprocess_scheme_std.png["waitforprocess_scheme_std", pdfwidth=40%]
+
+Es gibt allerdings Prozesse, welche einen weiteren Prozess starten und sich Beenden ohne auf das Ende des Kindprozesses zu warten. Aus Sich des _{opsi-script}_ ist admit der Weg zur Ausführung des nächsten Befehls frei:
+
+.Ende eines Prozesses mit weiterlaufenden Kindprozess
+image::waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1", pdfwidth=50%]
+
+Werden z.B. hintereinander ein Uninstall und ein Setup Programm aufgerufen und das Uninstall Programm führt die eigentliche Deinstallation in einem Kindprozess aus, so ist das Ergebnis undefiniert, da deinstallation und Installation gleichzeitig laufen:
+
+.Überlappung von Kindprozess und nächstem gestarteten Prozess
+image::waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2", pdfwidth=50%]
+
+Mit dem Modifier `/WaitForProcessEnding` kann eine solche Situation vermieden werden.
+
+*  `/TimeOutSeconds` <seconds> +
+Bricht das Warten auf das Processende oder eine Wartebedingung (`/WaitForProcessEnding`) nach Ablauf von <seconds> ab, auch wenn das Prozessende oder die Wartebedingung noch nicht erfüllt ist. +
+Der Prozess auf dessen Ende gewartet werden sollte wird nicht gestopt. +
+Kann seit Version 4.11.3 auch alleine (z.B. ohne `/WaitForProcessEnding`) verwendet werden, aber nicht zusammen mit `/WaitSeconds`. +
+Seit 4.11.4.6 wird der Zeitablauf bis zum Timeout über den Fortschrittsbalken angegeben. +
+Beispiel:
++
+[source,opsiscript]
+----
+Winbatch_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
+[Winbatch_uninstall]
+"%ScriptPath%\uninstall_starter.exe"
+----
+
+* `/RunElevated`  [W] +
+Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten). Dieser Modifier hat folgende Einschränkungen: +
+** Unter NT5 hat er keine Auswirkungen
+** Ein Zugriff auf das Netz ist in dem Prozess nicht möglich. Daher müssen die aufzurufenden Programme von einem Netzlaufwerk in ein temporäres lokales Verzeichnis kopiert werden.
+** Evtl. kann es zu Problemen bei der Nutzung der grafischen Oberfläche kommen. Daher sind echte silent aufrufe hier zu bevorzugen.
+** Funktioniert nur im opsi-service Kontext
+
+* `/RunAsLoggedonUser` //seit 4.11.3.5  [W] +
+Nur im Kontext eines 'userLoginScripts' verfügbar. Startet das Programm als der user der sich gerade einlogt.
+Dieser Modifier hat folgende Einschränkungen: +
+** Unter NT6 wenig getestet und evtl. nur Eingeschränkt wirksam.
+
+
+*  `getLastExitCode` +
+Die String-Funktion getLastExitCode gibt den ExitCode des letzten Prozessaufrufs der vorausgehenden WinBatch / DosBatch / ExecWith Sektion aus.
+
+[[opsi-script-winbatch-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_winbatch$ = "on"'
+
+[[opsi-script-dosbatch]]
+== DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sektionen [W/L/M]
+
+DOSBatch-Sektionen (auch ShellBatch genannt) sollen in erster Linie dazu dienen, vorhandene Kommandozeilenroutinen für bestimmte Zwecke zu nutzen. _{opsi-script}_ wartet auf die Beendigung des DOS-Batch, bevor die nächste Sektion des Skripts abgearbeitet wird.
+
+Eine DosBatch-Sektion wird bei der Abarbeitung des Skripts in eine temporäre Batch-Datei '_winst_<random>.cmd' umgewandelt. Da die Datei in 'c:\opsi.org\tmp' angelegt wird, muss dieses Verzeichnis existieren und zugänglich sein. Die Batch-Datei wird dann in einem Kommando-Fenster mit cmd.exe als Kommando-Interpreter ausgeführt. Dies erklärt warum in einer DosBatch Sektion alle Windows Shell Kommandos verwendet werden können.
+
+Gegenüber dem Aufruf einer cmd-Datei per Winbatch-Sektion bietet die DosBatch Sektionen drei Vorteile:
+
+* In der Sektion vorhandene _{opsi-script}_ Variablen oder Konstanten werden vor der Ausführung durch Ihren Inhalt ersetzt und können so unkompliziert verwendet werden.
+
+* Die Ausgaben eines DosInAnIcon/ShellInAnIcon Aufrufs unter Windows werden in der Logdatei abgespeichert.
+
+* Die Ausgaben eines DosInAnIcon/ShellInAnIcon Aufrufs werden in einem gesonderten Fenster ausgegeben, enn die Sektion mit dem Parameter `/showoutput` aufgerufen wurde.
+
+* Die Ausgaben eines DosInAnIcon/ShellInAnIcon bzw. DosBatch/ShellBatch Aufrufs unter Linux werden in der Logdatei abgespeichert.
+
+* Die Ausgaben des Aufrufs können einer String-Liste übergeben und weiterverarbeitet werden.
+
+Der Sektionstyp DOSInAnIcon oder ShellInAnIcon ist identisch mit der betreffenden DOSBatch/ShellBatch Syntax und ausführenden Methoden. Allerdings wird das aufgerufenen Fenster minimiert dargestellt und die Ausgaben in die Logdatei übernommen.
+
+CAUTION: Verwenden Sie keine Kommandos, die auf Eingaben warten.
+
+[[opsi-script-dosbatch-params]]
+=== Aufrufparameter
+
+Zu unterscheiden ist zwischen Parametern die der aufgerufenen Batchdatei übergeben werden und denen die _{opsi-script}_-intern verwendet werden. Der Aufrufsyntax ist daher:
+
++Sektionsname [batch parameter] [winst [modifier]]+
+
+Erlaubte winst modifier sind (seit 4.11.1):
+
+* `/32bit`
+
+* `/64bit`
+
+* `/Sysnative`
+
+* `/showoutput` // since 4.11.4.6
+
+* `/encoding <encoding>` // seit 4.12.4.17 [W/L/M] +
+Der Inhalt der Sektion wird per default im Systemencoding in eine temporäre Datei gespeichert. Dies ist normalerweise eine gute Wahl. In Ausnahmefällen kann aber ein anderes Encoding gewünscht sein. +
+Soll die Datei mit abweichenden Encoding gespeichert werden, so kann das zu verwendende Encoding über diesen Parameter  angegeben werden. Dabei muss dieser Parameter nach dem Schlüsselwort `winst` angegeben werden. +
+Beispiel: +
+[source,opsiscript]
+----
+DosInAnIcon_do_encoding_example WINST /encoding "utf8"
+----
+Die erlaubten Strings für `<encoding>` finden sich unter: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
+
+
+*  `/WaitForProcessEnding` <program name> // since 4.12.4 [W/L/M] +
+Wartet darauf, das sich der Prozess mit dem Namen <program name> beendet. +
+Kann und sollte mit `/TimeOutSeconds` kombiniert werden.
+
+Erläuterung: +
+Der _{opsi-script}_ wartet auf das Ende eines per `dosbatch` gestarteten Prozesses bevor mit der nächsten Zeile des Scriptes forgefahren wird:
+
+.Sequentielle Abarbeitung des Scriptes mit Warten auf das Ende eines Prozesses
+image::waitforprocess_scheme_std.png["waitforprocess_scheme_std", pdfwidth=40%]
+
+Es gibt allerdings Prozesse, welche einen weiteren Prozess starten und sich Beenden ohne auf das Ende des Kindprozesses zu warten. Aus Sich des _{opsi-script}_ ist admit der Weg zur Ausführung des nächsten Befehls frei:
+
+.Ende eines Prozesses mit weiterlaufenden Kindprozess
+image::waitforprocess_scheme_fork1.png["waitforprocess_scheme_fork1", pdfwidth=50%]
+
+Werden z.B. hintereinander ein Uninstall und ein Setup Programm aufgerufen und das Uninstall Programm führt die eigentliche Deinstallation in einem Kindprozess aus, so ist das Ergebnis undefiniert, da deinstallation und Installation gleichzeitig laufen:
+
+.Überlappung von Kindprozess und nächstem gestarteten Prozess
+image::waitforprocess_scheme_fork2.png["waitforprocess_scheme_fork2", pdfwidth=50%]
+
+Mit dem Modifier `/WaitForProcessEnding` kann eine solche Situation vermieden werden.
+
+*  `/TimeOutSeconds` <seconds> // since 4.12.4 [W/L/M] +
+Bricht das Warten auf das Processende oder eine Wartebedingung (`/WaitForProcessEnding`) nach Ablauf von <seconds> ab, auch wenn das Prozessende oder die Wartebedingung noch nicht erfüllt ist. +
+Der Prozess auf dessen Ende gewartet werden sollte wird nicht gestopt. +
+Kann alleine (z.B. ohne `/WaitForProcessEnding`) verwendet werden.
+Der Zeitablauf bis zum Timeout über den Fortschrittsbalken angegeben. +
+Beispiel:
++
+[source,opsiscript]
+----
+shellInAnIcon_uninstall /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
+[shellInAnIcon_uninstall]
+"%ScriptPath%\uninstall_starter.exe"
+----
+
+* `/RunElevated`  // since 4.12.4 [W] +
+Started dem Prozeß mit einem höheren Security Token (d.h. mit höheren Rechten). Dieser Modifier hat folgende Einschränkungen: +
+** Unter NT5 hat er keine Auswirkungen
+** Ein Zugriff auf das Netz ist in dem Prozess nicht möglich. Daher müssen die aufzurufenden Programme von einem Netzlaufwerk in ein temporäres lokales Verzeichnis kopiert werden.
+** Evtl. kann es zu Problemen bei der Nutzung der grafischen Oberfläche kommen. Daher sind echte silent aufrufe hier zu bevorzugen.
+** Funktioniert nur im opsi-service Kontext
+
+
+Parameter des Aufrufs der DosBatch-Sektion in der Actions-Sektion werden unmittelbar als Parameter der Batch-Datei interpretiert.
+
+Zum Beispiel bewirken die Anweisungen in Actions-Sektionen bzw. der Sektion
+DosBatch_1 :
+[source,opsiscript]
+----
+[Actions]
+DefVar $para$
+DosBatch_1 today we say "Hello World"
+set $para$ = "today"
+DosBatch_1 $para$ we say "Hello World"
+
+[DosBatch_1]
+@echo off
+echo %1 %2 %3 %4
+pause
+----
+
+die Ausführung des Dos-Batch-Befehls echo mit Parametern 'today we say "Hello World"'.
+
+Das folgende Beispiel wird auf einem 64 Bit System mit einer 64 Bit cmd.exe gestartet und erzeugt die Ausgabe 'today we say':
+[source,opsiscript]
+----
+[Actions]
+DosBatch_1 today we say winst /64bit
+
+[DosBatch_1]
+@echo off
+echo %1 %2 %3 %4
+pause
+----
+
+Seit Version 4.11.5 sind als Parameter neben Stringkonstanten auch Stringvariablen erlaubt (aber keine String Funktionen).
+
+Example:
+
+Code from opsi-script-test:
+[source,opsiscript]
+----
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+
+comment "Testing parameters for ShellBatch"
+set $ConstTest$ = "Hello world"
+set $tmp$ = "world"
+set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+set $CompValue$ = takeString(2,$list$)
+if ($ConstTest$ = $CompValue$)
+	comment "ShellBatch parameter passed"
+else
+	set $TestResult$ = "not o.k."
+	LogWarning "ShellBatch parameter failed"
+endif
+----
+
+ergibt den Log:
+
+[source,opsiscript]
+----
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd world
+    ExitCode 0
+
+                output:
+                ------------
+
+                C:\Windows\system32>echo Hello world
+                Hello world
+
+    The file: c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world
+        (string   2)Hello world
+
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world
+        (string   2)Hello world
+
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+
+comment: Testing parameters for ShellBatch
+Set  $ConstTest$ = "Hello world"
+  The value of the variable "$ConstTest$" is now: "Hello world"
+Set  $tmp$ = "world"
+  The value of the variable "$tmp$" is now: "world"
+Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+
+  DosInAnIcon_with_parameter
+    c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd saved back
+    Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd world
+    ExitCode 0
+
+                output:
+                ------------
+
+                C:\Windows\system32>echo Hello world
+                Hello world
+
+    The file: c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd has been deleted
+    retrieving strings from getOutStreamFromSection [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world
+        (string   2)Hello world
+
+Set  $CompValue$ = takeString(2,$list$)
+    retrieving strings from $list$ [switch to loglevel 7 for debugging]
+        (string   0)
+        (string   1)C:\Windows\system32>echo Hello world
+        (string   2)Hello world
+
+  The value of the variable "$CompValue$" is now: "Hello world"
+If
+  $ConstTest$ = $CompValue$   <<< result true
+  ($ConstTest$ = $CompValue$)   <<< result true
+Then
+  comment: ShellBatch parameter passed
+Else
+EndIf
+----
+
+[[opsi-script-dosbatch-catchout]]
+=== Einfangen der Ausgaben
+
+Sollen die Ausgaben, die von Befehlen einer DosBatch-Sektion kommen, aufgefangen werden, so geschieht dies mittels `getOutStreamFromSection ()` aus der Haupt-Sektion des {opsi-script}-Skripts (siehe xref:prim-section#opsi-script-stringlist-getstring[Kapitel "(Wieder-) Gewinnen von Einzelstrings aus String-Listen"]).
+
+Sollen die zurückgegebenen Strings weiterverarbeitet werden, so wird dringend geraten, vor den Befehlszeilen ein '@'-Zeichen zu verwenden bzw. die Kommandos mit '@echo off' zu beginnen. Dies unterdrückt die Ausgabe der Befehlszeile selbst, die je nach System anders formatiert sein kann.
+
+[[opsi-script-dosbatch-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_dos$ = "on"'
+
+[[opsi-script-registry]]
+== Registry-Sektionen [W]
+
+Diese Funktion ist nur unter Windows verfügbar.
+
+Registry-Sektionen dienen dem Erzeugen und Patchen von Einträgen in der Windows-Registrierdatenbank, wobei die Eintragungen mit dem {opsi-script}-üblichen Detaillierungsgrad protokolliert werden.
+
+[[opsi-script-registry-examples]]
+=== Beispiele
+
+Man kann eine Registry-Variable setzen indem man die Sektion mit Registry_TestPatch aufruft, wo sie dann wie folgt angegeben ist
+[source,opsiscript]
+----
+[Registry_TestPatch]
+openkey [HKEY_Current_User\Environment\Test]
+set "Testvar1"  = "c:\rutils;%Systemroot%\hey"
+set "Testvar2" = REG_DWORD:0001
+----
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_subregistry$ = "on"'
+
+[[opsi-script-registry-params]]
+=== Aufrufparameter
+
+* Die Standardform der Registry-Sektionen ist unparametrisiert. Dies genügt, weil auf dem Windows-PC nur eine einzige Registrierdatenbank gibt und somit das globale Ziel der Bearbeitung feststeht.
+
+*  `/AllNTUserDats` +
+Es gibt jedoch die Möglichkeit, dass die Patches einer Registry-Sektion automatisch für "alle NT User", entsprechend den verschiedenen User-Zweigen der Registry, vorgenommen werden. Das entsprechende Verfahren bei der Abarbeitung der Sektion wird mit dem Parameter `/AllNTUserDats` aufgerufen.
+
+////
+* `/AllUsrClassDats` //since 4.12.0.27 +
+Dieser Parameter hat weitgehend die selbe Funktionalität wie `/AllNTUserDats`, dient aber dazu Registryeinträge unter `HKEY_CURRENT_USER\Software\Classes` zu patchen, was mit `/AllNTUserDats` nicht geht. Verwenden Sie diesen Parameter getrennt von `/AllNTUserDats`.
+////
+Außerdem kontrollieren Parameter mit welchen syntaktische Varianten Registry-Sektionen angefordert werden kann:
+
+*  `/regedit` +
+Wird das Registry-Kommando mit dem Parameter `/regedit` verwendet, so kann der Export eines Registry-Teilzweiges mit dem Programm, der mit dem gewöhnlichen Windows-Registry-Editor regedit erstellt wurde, direkt als Eingabedatei für Registry dienen (vgl. Abschnitt  <<opsi-script-registry-regedit,"Registry-Sektionen im Regedit-Format">>).
+
+*  `/addReg` +
+Eine weitere Variante des Registry-Aufrufs dient dazu, die Patch-Anweisungen für die Registry zu verarbeiten, die im inf-Datei-Standard erstellt sind. Zur Kennzeichnung dient der Parameter /addReg (in Anlehnung an die entsprechende Abschnittsbezeichnung in einer inf-Datei)(vgl. Abschnitt <<opsi-script-registry-addreg,"Registry-Sektionen im AddReg-Format">>).
+
+Diese nicht _{opsi-script}_ spezifischen syntaktischen Varianten sind im Handbuch nicht beschrieben, da sie normalerweise automatisch generiert werden.
+
+Weiterhin gibt es die Aufrufparameter,
+
+*  `/32Bit` +
+*  `/64Bit` +
+*  `/SysNative` +
+
+welche auf 64 Bit-Systemen das Schreiben in den 32 Bit- bzw. 64 Bit-Zweig der Registry beeinflusst (siehe xref:64bit#opsi-script-64bit[Kapitel 64 Bit-Unterstützung]).
+
+[[opsi-script-registry-commands]]
+=== Kommandos
+
+Die Syntax der Defaultform einer Registry-Sektion ist an der Kommandosyntax anderer Patchoperationen des _{opsi-script}_ orientiert.
+
+Es existieren die Anweisungen:
+
+*  `OpenKey`
+
+*  `Set`
+
+*  `Add`
+
+*  `Supp`
+
+*  `GetMultiSZFromFile`
+
+*  `SaveValueToFile`
+
+*  `DeleteVar`
+
+*  `DeleteKey`
+
+*  `ReconstructFrom`
+
+*  `Flushkey`
+
+
+Im Detail:
+
+*  `OpenKey` <Registryschlüssel> +
+Öffnet den bezeichneten Schlüssel in der Registry zum Lesen (und wenn der eingeloggte User über die erforderlichen Rechte verfügt zum Schreiben); existiert der Schlüssel noch nicht, wird er erzeugt.
+
+Registry-Schlüssel sind ja hierarchisch organisierte Einträge Registrierungsdatenbank. Die hierarchische Organisation drückt sich in der mehrstufigen Benennung aus: Für die oberste (Root-) Ebene können standardmäßig insbesondere die "high keys" 'HKEY_CLASSES_ROOT, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_USERS' und 'HKEY_CURRENT_CONFIG' verwendet werden. Gebräuchliche Abkürzungen sind 'HKCR, HKCU, HKLM' und 'HKU'.
+
+In der _{opsi-script}_ Syntax bei den Registry-Pfaden werden die weiteren folgenden Ebenen jeweils durch einen Backslash getrennt.
+
+Alle anderen Kommandos arbeiten mit einem geöffneten Registry-Key.
+
+*  `Set` <Varname> = <Value> +
+setzt die durch <Varname> bezeichnete Registry-Variable auf den Wert <Value>, wobei es sich sowohl bei <Varname> als auch bei <Value> um Strings handelt, die in Anführungszeichen eingeschlossen sind. Existiert die Variable noch nicht, wird sie erzeugt. Dabei wird als Default Datentyp 'REG_SZ' verwendet. Enthält allerdings <value> ein oder mehrere Prozentzeichen ('%') so wird als Datentyp 'REG_EXPAND_SZ' verwendet.
+
+Es gibt auch den Leerstring als Variablenname; dieser entspricht dem "(Standard)"-Eintrag im  Registry-Schlüssel.
+
+Soll eine Registry-Variable erzeugt oder gesetzt werden, bei der der Datentyp explizit angegeben werden soll, muss die erweiterte Form der Set-Anweisung verwendet werden:
+
+*  `Set` <Varname> = <Registrytyp>:<Value> +
+Setzt die durch <Varname> bezeichnete Registry-Variable auf den Wert <Value> des Typs <Registrytyp>. Es werden folgende Registry-Typen interpretiert:
+
+'REG_SZ'::: (String)
+
+'REG_EXPAND_SZ'::: (ein String, der vom System zu expandierende Teilstrings wie %Systemroot% enthält)
+
+'REG_DWORD'::: (ganzzahlige Werte; Dezimaldarstellung oder 0xHexadezimal)
+
+'REG_BINARY'::: (binäre Werte, in zweistelligen Hexadezimalen, d.h. 00 01 02 .. 0F  10 .., notiert)
+
+'REG_MULTI_SZ'::: (Arrays von String-Werten, die in {opsi-script}-Syntax durch das Zeichen "|" getrennt werden;
++
+Beispiel für REG_MULTI_SZ:
+[source,opsiscript]
+----
+set "myVariable" = REG_MULTI_SZ:"A|BC|de"
+----
+
+Wenn ein Multi-String zunächst zusammengestellt werden soll, kann dies zeilenweise in einer Datei geschehen, die man dann mit Hilfe der Anweisung GetMultiSZFromFile (s.u.) einliest.
+
+Beispiel für `set` mit unterschiedlichen Registrydatentypen:
+[source,opsiscript]
+----
+set "var1" = "my string"
+set "var2" = REG_SZ:"my string"
+set "var3" = REG_EXPAND_SZ:"%ProgramFiles%"
+set "var4" = REG_DWORD:123	(Decimal)
+set "var5" = REG_DWORD:0x7b	(Hexadecimal)
+set "var6" = REG_BINARY:00 01 02 0F 10
+set "var7" = REG_MULTI_SZ:"A|BC|de"
+----
+
+
+*  `Add` <Varname> = <Value>
++
+bzw.
++
+`Add` <Varname> = <Registrytyp> <Value> +
+arbeitet analog zu Set mit dem Unterschied, dass nur Variablen hinzugefügt, Einträge für bestehende Variablen nicht verändert werden.
+
+*  `Supp` <Varname> <Listenzeichen> <Supplement> +
+Dieses Kommando liest den String-Wert der Variablen <varname>, einer Liste aus Werten, die separiert werden durch <Listenzeichen> und den String <supplement> zu dieser Liste (wenn sie noch nicht enthalten sind), aus. Wenn  <supplement> die <separator> enthält, können mit diesen Listenzeichen die Einträge in einzelne Strings unterteilt werden und die Prozedur wird für jeden Teilstring angewendet.
++
+Eine typische Verwendung ist der Eintrag zu einer Pfadvariablen, die in der Registry definiert ist.
++
+Supp behält den ursprünglichen Stringtyp (REG_EXPAND_SZ bzw. REG_SZ) bei.
++
+Beispiel:
++
+Der allgemeine Systempfad wird festgelegt durch den Eintrag der Variable Path im Registrierschlüssel
++
+'KEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment'
++
+Wenn dieser Schlüssel mit OpenKey geöffnet ist, kann mit der Anweisung
++
+`supp "Path" ; "C:\utils;%JAVABIN%"`
++
+der Pfad ergänzt werden, um die Einträge '"C:\utils"' sowie '"%JAVABIN%"'.
++
+(Weil der Registry-Eintrag für den Systempfad den Datentyp REG_EXPAND_SZ hat, expandiert Windows %JAVABIN% automatisch zum entsprechenden Verzeichnisnamen, falls %JAVABIN% ebenfalls als Variable definiert ist).
++
+Unter Win2k ist das Phänomen zu beobachten, dass sich der path-Eintrag nur per Skript auslesen (und dann patchen) lässt, wenn vor dem Lesen ein Wert gesetzt wird.
++
+Der alten Wert von Path wird aus der Umgebungsvariable auslesen, wieder in die Registry zurückgeschrieben und dann ist es möglich mit der Registry-Variablen zu arbeiten.
++
+[source,opsiscript]
+----
+[Actions]
+DefVar $Path$
+set $Path$ = EnvVar ("Path")
+Registry_PathPatch
+
+[Registry_PathPatch]
+openkey [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\control\Session Manager\Environment]
+set "Path"="$Path$"
+supp "Path"; "c:\orawin\bin"
+----
++
+CAUTION: Nach dem Patchen des Registry-Path enthält die Umgebungsvariable Path den veränderten Wert erst nach einem Reboot oder nach einem Aufruf von `UpdateEnvironment` siehe: xref:prim-section#UpdateEnvironment[UpdateEnvironment]
+
+*  `GetMultiSZFromFile` <varname> <Dateiname> +
+Liest eine Datei zeilenweise in einen Multistring ein und weist diesen <varname> zu.
+
+*  `SaveValueToFile` <varname> <filename> +
+Exportiert die genannten Werte (String oder MultiSZ) in die Datei <filename>
+
+*  `DeleteVar` <Varname> +
+Löscht den Eintrag mit Bezeichnung <Varname> aus dem geöffneten Schlüssel.
+
+*  `DeleteKey` <Registryschlüssel> +
+Löscht den Registry-Key rekursiv samt aller Unterschlüssel und den enthaltenen Registry-Variablen und -Werten. Zur Syntax, in der der Registrierschlüssel angegeben wird, vgl. OpenKey.
++
+Beispiel:
++
+[source,opsiscript]
+----
+[Registry_KeyLoeschen]
+deletekey [HKCU\Environment\subkey1]
+----
+
+*  `ReconstructFrom` <Dateiname> +
+(abgekündigt)
+
+*  `FlushKey` +
+Sorgt dafür, dass die Einträge des Schlüssels nicht mehr nur im Speicher gehalten, sondern auf die Platte gespeichert werden (geschieht automatisch beim Schließen eines Keys, insbesondere beim Verlassen einer Registry-Sektion).
+
+[[opsi-script-registry-allntuser]]
+=== Registry-Sektionen, die `alle NTUser.dat` patchen
+
+Wird eine Registry-Sektion mit dem Parameter `/AllNTUserdats` aufgerufen, so werden ihre Anweisungen für alle auf dem NT-System angelegten User ausgeführt.
+
+Dazu werden zunächst die Dateien NTUser.dat für alle auf dem System eingerichteten User-Accounts durchgegangen (in denen die Registry-Einstellungen aus 'HKEY_Users' abgelegt sind). Sie werden temporär in einen Hilfszweig der Registry geladen und dort entsprechenden der Anweisungen der Sektion bearbeitet. Weil dies für den zum Zeitpunkt der Programmausführung angemeldeten User nicht funktioniert, werden die Anweisungen der Sektion zusätzlich für 'HKEY_Current_User' ausgeführt. Als Ergebnis verändert sich die gespeicherte NTUser.dat.
+
+Dieser Mechanismus funktioniert nicht für einen angemeldeten User, da seine NTUser.dat in Benutzung ist und der Versuch die Datei zu laden einen Fehler produziert. Damit aber auch für den angemeldeten User Änderungen durchgeführt werden, werden die Registry Kommandos ebenfalls auf den Bereich 'HKEY_Current_User' angewendet ('HKEY_Users' ist der Zweig für den angemeldeten Benutzer).
+
+Auch künftig erst angelegte Accounts werden mit erfasst, da auch die NTUser.dat aus dem Profilverzeichnis des 'Default Users' bearbeitet wird.
+
+Die Syntax der Sektion ist die einer Standard-Registry-Sektion. Allerdings werden bis vor Version 4.11.2.1 alle Schlüsselnamen relativ interpretiert. D.h. *der Hauptkey ist wegzulassen*: Im folgenden Beispiel werden faktisch die Registry-Einträge für die Variable 'FileTransferEnabled' unter 'HKEY_Users\XX\Software...' neu hergestellt, sukzessive für alle User auf der Maschine:
+[source,opsiscript]
+----
+[Registry_AllUsers]
+openkey [Software\ORL\WinVNC3]
+set "FileTransferEnabled"=reg_dword:0x00000000
+----
+
+Seit _{opsi-script}_ version 4.11.2 darf man den root key 'HKEY_CURRENT_USER' beim `openkey` Kommando mitgeben. +
+Beispiel:
+[source,opsiscript]
+----
+[Registry_AllUsers]
+openkey [HKEY_CURRENT_USER\Software\ORL\WinVNC3]
+set "FileTransferEnabled"=reg_dword:0x00000000
+----
+
+Das hat folgende Vorteile:
+
+* Der Syntax ist leichter verständlich
+
+* Die selbe Registry Sektion kann mit '/AllNtuserdats' und in einem 'userLoginScript' verwendet werden.
+
+////
+[[opsi-script-registry-allusrclass]]
+=== Registry Sections to Patch 'All UsrClass.dat'
+
+Hier wird weitgehend das selbe gemacht wie bei `/AllNTUserDats`. Wird eine Registrysektion mit dem Parameter '/AllUsrClassDats' aufgerufen, so wird aber aus den Userprofilen nicht die NTUser.dat geladen, sondern die Datei UsrClass.dat.
+
+Dies wird gemacht, da 'HKEY_CURRENT_USER\Software\Classes' nicht in der NTUser.dat gespeichert sind. Dieser Teil der Registry ist (ab >= NT6) in der Datei `%UserProfile%\AppData\Local\Microsoft\Windows\UsrClass.dat` gespeichert.. Damit können per '/AllUsrClassDats' aber auch nur Registrykeys unter  'HKEY_CURRENT_USER\Software\Classes' gepatcht werden..
+
+Dieser Aufruf kann z.B. verwendet werden 'File Aoosiationen' (verbindungen zwischen Dateierweiterungen und Programmen) im User Profil zu manipulieren.
+
+Der Parameter `/AllUsrClassDats` kann nicht zusammen mit `/AllNTUserDats` verwendt werden.
+
+
+Example:
+[source,opsiscript]
+----
+[Registry_AllUserClasses]
+deletekey [HKEY_CURRENT_USER\Software\Classes\.html]
+----
+////
+[[opsi-script-registry-regedit]]
+=== Registry-Sektionen im Regedit-Format
+
+Bei Aufruf von `Registry` mit dem Parameter `/regedit` wird der Inhalt der Registry-Sektion in dem Exportformat erwartet, welches das Standard-Windows-Programm regedit erzeugt.
+
+Die von regedit generierten Exportdateien haben – von der Kopfzeile abgesehen - den Aufbau von Ini-Dateien. Beispiel:
+[source,ini]
+----
+REGEDIT4Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org]
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\general]
+"bootmode"="BKSTD"
+"windomain"=""
+"opsiconf"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\shareinfo]
+"user"="pcpatch"
+"pcpatchpass"=""
+"depoturl"="\\\\bonifax\\opt_pcbin\\install"
+"configurl"="\\\\bonifax\\opt_pcbin\\pcpatch"
+"utilsurl"="\\\\bonifax\\opt_pcbin\\utils"
+"utilsdrive"="p:"
+"configdrive"="p:"
+"depotdrive"="p:"
+----
+
+Die Sektionen bezeichnen hier Registry-Schlüssel, die geöffnet werden sollen. Die einzelnen Zeilen stehen für die gewünschten Setzungen von Variablen (entsprechend dem Set-Befehl in {opsi-script}-Registry-Sektionen).
+
+Diese Anweisungen können aber nun nicht als Sektion innerhalb eine _{opsi-script}_ Skripts untergebracht werden. Daher kann die Registry Sektion mit dem Parameter `/regedit` nur als ausgelagerte Sektion oder über die Funktion loadTextFile geladen werden:
+[source,opsiscript]
+----
+registry "%scriptpath%/opsiorgkey.reg" /regedit
+----
+
+Zu beachten ist noch, dass regedit seit Windows XP nicht mehr das Regedit4-Format produziert, sondern ein Format, welches durch die erste Zeile +
+'"Windows Registry Editor Version 5.00"' +
+gekennzeichnet ist.
+
+Windows sieht hier zusätzliche Wertetypen vor. Gravierender ist, dass die Exportdatei ursprünglich in Unicode erzeugt wird. Um sie mit den 8 Bit-Mitteln der Standardumgebung des _{opsi-script}_ zu verarbeiten, muss der Zeichensatz konvertiert werden.
+Die Konvertierung kann z.B. mit einem geeigneten Editor durchgeführt werden. Eine andere Möglichkeit besteht darin, die Konvertierung on the fly vom _{opsi-script}_ durchführen zu lassen. Dazu lässt sich die String-Listenfunktion `loadUnicodeTextFile` verwenden. Wenn z.B. printerconnections.reg ein Unicode-Export ist, wäre regedit in folgender Form aufzurufen:
+[source,opsiscript]
+----
+registry loadUnicodeTextFile("%scriptpath%/opsiorgkey.reg") /regedit
+----
+
+Auch eine Registry-Patch im regedit-Format kann „für alle NT-User“ ausgeführt werden, sinngemäß in der gleichen Weise wie oben für das gewöhnliche winst-Registry-Patch-Format beschrieben.
+D.h. der Root-Schlüssel 'HKCU' muss aus den Angaben entfernt werden und dann wird aus '[HKEY_CURRENT_USER\Software\ORL]' -> '[Software\ORL].'
+
+[[opsi-script-registry-addreg]]
+=== Registry-Sektionen im AddReg-Format
+
+Die Syntax einer Registry-Sektion, die mit dem Parameter `/addReg` aufgerufen wird, folgt der Syntax von '[AddReg]'-Sektionen in inf-Dateien, wie sie z.B. von Treiberinstallationen verwendet wird.
+
+Beispiel:
+[source,ini]
+----
+[Registry_ForAcroread]
+HKCR,".fdf","",0,"AcroExch.FDFDoc"
+HKCR,".pdf","",0,"AcroExch.Document"HKCR,"PDF.PdfCtrl.1","",0,"Acr"
+----
+
+[[opsi-script-opsiservicecall]]
+== OpsiServiceCall Sektion [W/L/M]
+
+Mit dieser Sektion ist es möglich Informationen abzufragen – oder Daten zu bestimmen – mit Hilfe des opsi Service. Es gibt drei Optionen, mit denen man die Verbindung zum opsi Service definieren kann:
+
+* Per Voreinstellung wird vorausgesetzt, dass das Skript in der Standard opsi Installationsumgebung ausgeführt werden kann. D.h. es besteht eine Verbindung zum opsi Service, die genutzt wird.
+
+* Es wird eine URL für den gewünschten Service und ebenso der benötigte Benutzername und das Passwort als Sektionsparameter gesetzt.
+
+* Es kann ein interaktives Login für den Service gesetzt werden – mit einer voreingestellten Service URL und dem Benutzernamen, wenn das gewünscht wird.
+
+Die abgerufenen Daten können als String-Liste zurückgegeben und dann für die Verwendung in Skripten benutzt werden.
+
+[[opsi-script-opsiservicecall-params]]
+=== Aufrufparameter
+
+CAUTION: Es gibt eine Standard Webserviceverbindung. Diese wird beim Start des opsi-script über den opsi-client-agent auf die bestehende Verbindung zum opsi-server gesetzt. +
+Werden keine Aufrufparameter angegeben, so wird diese Standardverbindung verwendet. Existiert diese nicht so schlägt der Aufruf fehl. +
+Es gibt eine Reihe Aufrufparameter, welche eine neue Verbindung aufbauen.
+*Diese neue Verbindung wird dabei die Standardverbindung. D.h. nachfolgende Aufrufe ohne Aufrufparameter verwenden diese Verbindung solange bis diese wieder explizit verändert wird, oder das Produktscript abgearbeitet ist. +
+Ein neues Produkt fängt wieder mit der ursprünglichen Webservice Verbindung an.*
+
+
+*Aufrufparameter welche die Standardverbindung verändern:*
+
+* /interactive
+* /serviceurl /username /password
+* /opsiclientd
+
+*Wiederherstellung der ursprünglichen Verbindung:*
+
+Über den Aufruf einer `opsiServiceCall` Sektion mit dem Aufrufparameter `/preloginservice` wird die Standardverbindung wieder auf den ursprünglichen Wert zurückgesetzt. Alternativ kann auch der Sektionsfreie Aufruf: +
+`opsiServiceCall /preloginservice` +
+verwendet werden.
+
+*Die Aufrufparameter:*
+
+Es gibt Optionen, mit denen man die Verbindung zu einem opsi Service angeben kann und Einstellungen, die für die Verbindung benötigt werden.
+
+Verbindungsparameter können mit Hilfe von
+
+*  `/serviceurl` <url to the opsi web service>
+
+*  `/username` <web service user name>
+
+*  `/password` <web service user password>
+
+gesetzt werden. Wenn diese Parameter definiert sind (oder zumindest einer der Parametern), wird versucht eine Verbindung zu der genannten Service URL herzustellen und bei Erfolg diese zur Standardverbindung zu machen.
+
+Die Option
+
+*  `/interactive` +
+bedeutet, dass der Benutzer die Verbindungsdaten bestätigen muss und das Passwort eingibt. Diese Option kann damit nicht in Skripten verwendet werden, die voll automatisch ausgeführt werden sollen.
+
+*  `/preloginservice` +
+setzt die Standardverbindung wieder auf den beim Start gesetzten Wert zurück.
+
+* `/opsiclientd` //since 4.11.2.1 +
+ruft den Webservice des lokalen opsiclientd auf und verändert die Standardverbindung.
+
+* `/opsiclientd-once` //since 4.11.6.11 +
+ruft den Webservice des lokalen opsiclientd auf und setzt nach dem Aufruf die Standardverbindung wieder auf den ursprünglichen Wert zurück.
+
+[[opsi-script-opsiservicecall-syntax]]
+=== Sektionsformat
+
+Ein `opsiServiceCall`, welcher eine existierende Verbindung zu einem opsi Service benutzt, wird bestimmt durch den Methodennamen und eine Parameterliste.
+
+Beide werden in dem Sektionsabschnitt definiert und haben folgendes Format:
+[source,opsiscript]
+----
+"timeout":<seconds>
+"method":<method name>
+"params":[
+	<params>
+	]
+----
+
+Die Zeile `"timeout":<seconds>` ist optional, wird nur bei lang laufenden Aufrufen (> 90 Sekunden) benötigt und ist erst seit 4.12.4.35 erlaubt.
+
+Dabei sind '<params>' kein, ein oder auch mehrere durch Komma getrennte Strings. Seit opsi-script 4.12.4.37 ist es möglich, folgende Werte in '<params>' auch ohne Anführungszeichen zu schreiben (gemäß JSON-Syntax): Zahlen, boolsche Werte, Arrays, Objekte und Null.
+Welche Parameter benötigt werden, hängt von der aufgerufenen Methode ab.
+
+Beispiel:
+[source,opsiscript]
+----
+[opsiservicecall_clientIdsList]
+"timeout":50
+"method":"getClientIds_list"
+"params":[]
+----
+
+Die Sektion erstellt eine Liste der PC-Namen (IDs) von allen lokalen opsi Benutzern. Wenn es für andere Zwecke als Test und Dokumentation genutzt werden soll, kann die Sektion als ein Teil eines String-Listen Ausdrucks (vgl. das folgende Beispiel) verwendet werden.
+[source,opsiscript]
+----
+DefStringList $result$
+Set $result$=getReturnListFromSection("opsiservicecall_clientIdsList")
+----
+Die Verwendung von GetReturnListFromSection ist dokumentiert in dem Kapitel zur String-Listenverarbeitung dieses Handbuchs (siehe xref:prim-section#opsi-script-stringlist-create-by-section[Kapitel "String-Listen-Erzeugung mit Hilfe von Sektionsaufrufen"]).
+
+Ein Hash, der eine Namensliste mit Wertepaaren enthält, wird durch den folgenden opsi Service aufgerufen (beinhaltet keine leere Parameterliste):
+[source,opsiscript]
+----
+[opsiservicecall_hostHash]
+"method": "getHost_hash"
+"params": [
+	"pcbon8.uib.local"
+	]
+----
+
+.Objekt orientierte Methoden
+
+Der Umgang mit JSON Objekten aus dem Webservice erforet ein Grundverständnis von JSON, den opsi Objekten und den JSON bezogenen Methoden in opsi-script.
+Siehe dazu auch :
+opsi-manual: Kapitel: "Web service / API Methoden seit opsi 4.0" : +
+https://download.uib.de/opsi4.2/stable/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-manual-api-datastructure-opsi4
+
+
+Gemäß folgendem Code Beispiel können Sie Objekte vom Service holen.
+In diesem Beispiel werden Alle productOnClient Objekte geholt, welche zum aktuellen Rechner gehören (`%opsiserviceUser%` ist im Service Kontext der FGDN des Clients), Localboot Produkte sind und bei denen der Actionrequest auf 'setup' steht.
+[source,opsiscript]
+----
+DefStringlist $resultlist$
+set $resultlist$ = getReturnListFromSection("opsiServiceCall_get_productOnClient_setup_objects")
+[opsiServiceCall_get_productOnClient_setup_objects]
+"method": "productOnClient_getObjects"
+"params": [
+          "[]",
+          '{"clientId":"%opsiserviceUser%","productType":"LocalbootProduct","actionRequest":"setup"}',
+          ]
+----
+Das Ergebnis ist ein JSON Array String welcher in der ersten Zeile von `$resultlist$` steht.
+
+
+Sie können auch (veränderte) Objekte wieder zurückschreiben.
+Folgendes Beispiel zeigt das Prinzip:
+Die String Variable `$ArrayStr$` muss ein gültiges JSON Array enthalten.
+[source,opsiscript]
+----
+DefVar $ArrayStr$
+(...)
+[opsiServiceCall_updatePOC]
+"method": "productOnClient_updateObjects"
+"params": [
+           '$ArrayStr$'
+          ]
+----
+
+[[opsi-script-opsiservicecall-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_opsiServiceCall$ = "on"'
+
+[[opsi-script-execpython]]
+== ExecPython Sektionen [W/L/M]
+
+Die ExecPython Sektionen basieren auf Shell-Sektionen (ähnlich wie DosInAnIcon). Während diese den Inhalt der Sektion dem Interpreter cmd.exe übergeben, wird der Inhalt einer ExecPython Sektion dem Python Interpreter übergeben (welcher auf dem System installiert sein muss).
+
+Beispiel
+
+Das folgende Beispiel demonstriert einen execPython Aufruf mit einer Parameterliste zu dem 'print' Python-Kommando.
+
+Der Aufruf könnte wie folgt aussehen
+[source,opsiscript]
+----
+execpython_hello -a "option a" -b "option b" "there we are"
+
+[execpython_hello]
+import sys
+print "we are working in path: ", a
+if len(sys.argv) > 1 :
+	for arg in sys.argv[1:] :
+		print arg
+else:
+  print "no arguments"
+
+
+print "hello"
+----
+
+Die Ausgabe des Druck-(print) Kommandos wird gesammelt und in einen Logdatei geschrieben. So kann man die folgende Logdatei bekommen
+[source,opsiscript]
+----
+output:
+ ------------
+-a
+option a
+-b
+option b
+there we are
+       hello
+----
+
+Anzumerken ist hierbei, dass der loglevel auf '1' gesetzt werden muss, damit die Ausgabe wirklich den Weg in die Logdatei findet.
+
+[[opsi-script-execpython-combine]]
+=== Verflechten eines Python Skripts mit einem _{opsi-script}_ Skript
+
+Aktuell ist die execPython Sektion dem _{opsi-script}_ Skript über vier Kategorien von gemeinsam genutzten Daten integriert:
+
+* Eine Parameterliste geht zum Python Skript über.
+
+* Alles was vom Python Skript gedruckt wird, wird in die _{opsi-script}_ log-Datei geschrieben.
+
+* Der _{opsi-script}_ Skript Mechanismus für die Einführung von Konstanten und Variablen in Sektionen arbeitet erwartungsgemäß für die execPython Sektion.
+
+* Die Ausgabe einer execPython Sektion kann umgewandelt werden in eine String-Liste und dann vom laufenden _{opsi-script}_ Skript weiter verwendet werden.
+
+Ein Beispiel für die ersten beiden Wege der Verflechtung des Python Skripts mit dem _{opsi-script}_ Skript werden im Anschluss beschrieben. Es wurde erweitert, damit einige der Werte von _{opsi-script}_ Konstanten oder Variablen aufgerufen werden können.
+[source,opsiscript]
+----
+[execpython_hello]
+import sys
+a = "%scriptpath%"
+print "we are working in path: ", a
+print "my host ID is ", "%hostID%"
+if len(sys.argv) > 1 :
+	for arg in sys.argv[1:] :
+		print arg
+else:
+  print "no arguments"
+
+print "the current loglevel is ", "$loglevel$"
+print "hello"
+----
+
+Allerdings muss die '$loglevel$' Variable vor dem Aufruf der ExecPython Sektionn gesetzt werden:
+[source,opsiscript]
+----
+DefVar $LogLevel$
+set $loglevel$ = getLoglevel
+----
+
+Damit wir am Ende in der Lage sind, die Ergebnisse der Ausgabe weiter zu verarbeiten, wird eine String-List Variable erstellt, die über die execPython Sektion folgendermaßen aufgerufen werden kann:
+[source,opsiscript]
+----
+DefStringList pythonresult
+Set pythonResult = GetOutStreamFromSection('execpython_hello -a "opt a“')
+----
+
+[[opsi-script-execpython-examples]]
+=== Beispiele
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_compare_to_python$ = "on"'
+
+[[opsi-script-execwith]]
+== ExecWith Sektionen [W/L/M]
+
+'ExecWith' Sektionen sind verallgemeinerte 'DosBatch' bzw. 'ExecPython' Sektionen: Welches Programm den Inhalt der Sektionen ausführt, wird durch einen Parameter beim Sektionsaufruf bestimmt.
+
+Wenn der Aufruf so lautet:
+
+[source,opsiscript]
+----
+`execPython_hello -a "hello" -b "world"`
+----
+
+so sind
+
+`-a "hello" -b "world"`
+
+Parameter, die vom Phythonskript akzeptiert werden. Mit dem ExecWith Aufruf sieht der gleiche Ausdruck wie folgt aus:
+
+[source,opsiscript]
+----
+`execWith_hello "python" PASS -a "hello" -b "world" WINST /EscapeStrings`
+----
+
+Die Option `/EscapeStrings` wird in der ExecPython-Sektion automatisch angewendet und bedeutet, dass Backslahes und Konstanten in String-Variablen dupliziert werden, bevor sie das aufgerufene Programm interpretiert.
+
+[[opsi-script-execwith-params]]
+=== Aufrufparameter (Modifier)
+
+Generell haben wir die Aufrufsyntax:
+
+[source,opsiscript]
+----
+ExecWith_SECTION PROGRAM PROGRAMPARAS pass PASSPARAS winst WINSTOPTS
+----
+
+Jeder der Ausdrücke 'PROGRAM, PROGRAMPARAS, PASSPARAS, WINSTOPTS' können beliebige String-Ausdrücke oder auch einfache String-Konstanten (ohne Anführungszeichen) sein.
+
+Die Schlüsselwörter `PASS` und `WINST` dürfen fehlen, wenn der entsprechende Part nicht existiert.
+
+Es sind folgende _{opsi-script}_-Optionen verfügbar:
+
+*  `/32Bit` +
+Das ist der Default. Der angegebene Interpreterpfad wird als 32 Bit Pfad interpretiert. +
+Beispiel: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` ruft (auch auf einem 64bit System) die 32 Bit 'powershell.exe' auf.
+
+*  `/64Bit` +
+Der angegebene Interpreterpfad wird als 64 Bit Pfad interpretiert. +
+Beispiel: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` ruft (auf einem 64bit System) die 64 Bit 'powershell.exe' auf.
+
+*  `/SysNative` +
+Der angegebene Interpreterpfad wird gemäß der OS Architektur interpretiert. +
+Beispiel: `c:\windows\system32\WindowsPowerShell\v1.0\powershell.exe` ruft auf einem 64bit System die 64 Bit 'powershell.exe' und auf einem 32bit System die 32 Bit 'powershell.exe'auf.
+
+*  `/EscapeStrings` +
+Diese Option legt fest, dass die Backslashes in _{opsi-script}_-Variablen und Konstanten dupliziert werden, so dass sie das ausführende Programm in der üblichen Form von Strings in 'C'-Syntax vorfindet.
+
+*  `/LetThemGo` +
+Diese Option hat den Effekt (wie bei `winBatch` Aufrufen), dass das aufgerufene Programm in einem neuen Thread startet, während der _{opsi-script}_ mit dem Auslesen des Skripts fortfährt.
+
+* `/encoding <encoding>` // seit 4.12.4.17 [W/L/M] +
+Der Inhalt der Sektion wird per default im Systemencoding in eine temporäre Datei gespeichert. Dies ist normalerweise eine gute Wahl. In Ausnahmefällen kann aber ein anderes Encoding gewünscht sein. +
+Soll die Datei mit abweichenden Encoding gespeichert werden, so kann das zu verwendende Encoding über diesen Parameter  angegeben werden. Dabei muss dieser Parameter nach dem Schlüsselwort `winst` angegeben werden. +
+Beispiel: +
+[source,opsiscript]
+----
+ExecWith_open "C:\myProgram.exe" WINST /encoding "utf8"
+----
+Die erlaubten Strings für `<encoding>` finden sich unter: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
+
+Wie bei ExecPython Sektionen wird die Ausgabe einer ExecWith-Sektion in einer String-Liste über die Funktion `getOutStreamFromSection` erfasst.
+
+Der Inhalt der Sektion wird in eine temporäre Datei (*.cmd) gespeichert. Seit Version 4.11.3.5 wird, wenn im angegebene Interpreterpfad 'powershell.exe' vorkommt, die temporäre Datei als `.ps1` gespeichert.
+
+Note:: *Hinweise zu Powershell* +
+Die Ausführung von Skripten ist in der  Powershell per default ausgeschaltet. Um eine Execwith Sektion mit powershell nutzen zu können, muß die Skriptausführung erst erlaubt werden.
+Das kann durch einen temporären `Bypass` beim Aufruf geschehen, indem man die `ExecWith`-Sektion als `ExecWith_name "powershell.exe" -ExecutionPolicy Bypass` aufruft, oder durch das vorherige Setzen der `ExecutionPolicy` wie folgt. +
+Seit 4.12.4.35: Wird als aktuelle ExecutionPolicy `AllSigned` detectiert, so wird der Powershell Aufruf automatisch so umgebaut, dass das temporäre Powershellskript nicht per `-File` aufgerufen wird, sondern per `-Command Get-Content -Path <tempfilename> | Out-String | Invoke-Expression`. Dadurch wird das Skript  ohne Berücksichtigung der ExecutionPolicy ausgeführt. In einem solchen Fall werden aber evtl. angegebene `PASSPARAS` nicht mehr berücksichtigt. +
+
+
+Beispiel
+[source,opsiscript]
+----
+DosInAnIcon_setpolicy
+ExecWith_powershell  powershell.exe
+set $exitcode$ = getLastExitcode
+if not ($exitcode$ = "0")
+	comment "powershell script failed"
+endif
+
+[DosInAnIcon_setpolicy]
+echo "powershell set-executionpolicy RemoteSigned ..."
+powershell.exe set-executionpolicy RemoteSigned
+exit %ERRORLEVEL%
+
+[ExecWith_powershell]
+echo "powershell opsi-script-test"
+if ($?) {Exit(0)}
+else {Exit(1)}
+----
+
+
+[[opsi-script-execwith-examples]]
+=== Weitere Beispiele
+
+Der folgende Aufruf verweist auf eine Sektion, die ein 'autoit3'-Skript ist, dass auf zu öffnende Fenster wartet (dafür ist die Option `/letThemGo` zu benutzen), um sie dann in der aufgerufenen Reihenfolge zu schließen:
+[source,opsiscript]
+----
+ExecWith_close "%SCRIPTPATH%\autoit3.exe" WINST /letThemGo
+----
+
+Ein einfacher Aufruf
+[source,opsiscript]
+----
+ExecWith_edit_me "notepad.exe"  WINST /letThemGo
+----
+ruft Notepad auf und öffnet die Sektion als Datei (allerdings ohne die Zeilen die mit einem Semikolon	 beginnen, da der _{opsi-script}_ solche Zeilen als Kommentarzeilen interpretiert und vor der weiteren Behandlung der Sektion entfernt).
+
+Für zusätzliche Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_autoit3_test$ = "on"'.
+
+[[opsi-script-ldapsearch]]
+== LDAPsearch Sektion [W]
+
+Eine LDAPsearch Sektion beschreibt eine Suchanfrage an ein LDAP Verzeichnis, die ausgeführt wird und auch die Antwort empfängt (und wenn möglich im Cache speichert).
+
+Bevor wir zu den _{opsi-script}_ Kommandos übergehen, gibt es erst noch einige Erklärungen zum Syntax von LDAP selbst
+
+[[opsi-script-ldapsearch-general]]
+=== LDAP – Protokoll, Service, Verzeichnis
+
+LDAP bedeutet "Lightweight Directory Access Protocol" und ist, wie der Name besagt, ein festgelegter Weg der Kommunikation mit einem Datenverzeichnis.
+
+Dieses Verzeichnis ist für gewöhnlich hierarchisch organisiert. Es ist eine hierarchische Datenbank oder ein Datenbaum.
+
+Ein *LDAP Service* implementiert das Protokoll zum Lesen und Schreiben auf diesem Verzeichnis. Ein Verzeichnis, dass über einen LDAP Service angesteuert werden kann, nennt sich *LDAP directory*.
+
+Für ein Beispiel werfen einen Blick auf einen Bereich eines LDAP Verzeichnisbaums mit Daten aus dem opsi LDAP-Backend (angezeigt im Open Source LDAP-Browser JXPlorer).
+
+.Ansicht von verschiedenen Bereichen des opsi LDAP Baums
+image::ldap-in-jxplorer.png["opsi LDAP Baum", pdfwidth=90%]
+
+Ein *LDAP search request* ist ein Suchabfrage an das LDAP Verzeichnis über einen LDAP Service. Als Antwort werden verschiedene Inhalte des Datenverzeichnisses zurückgegeben.
+
+Grundsätzlich beschreiben Suchabfragen den Pfad im Verzeichnisbaum, der zu der gewünschten Information führt. Der Pfad ist der *distinguished name* (dn) zusammen gesetzt aus den Namen der Knoten ( "relative distinguished names") welche den Pfad bilden. Zum Beispiel:
+
+'local/uib/opsi/generalConfigs/bonifax.uib.local'
+
+Da jeder Knoten als eine Instanz einer strukturellen Objektklasse konzipiert ist, wird die Pfadbeschreibung in folgender Form ausgegeben: mit  Klassentyp (und beginnend mit dem letzten Pfadelement):
+
+'cn=bonifax.uib.local,cn=generalConfigs,cn=opsi,dc=uib,dc=local'
+
+Der Pfad in einer Abfrage muss nicht notwendigerweise „komplett“ sein und auch nicht zu einem einzelnen Blatt (Teil) des Baumes führen. Im Gegenteil, unvollständige Pfade sind üblich.
+
+Aber auch wenn der Pfad zu einem einzelnen Blatt führt, kann dieses wiederum mehrere Werte enthalten. Jeder Knoten des Baumes hat eine oder mehrere Klassen als Attributtypen. Zu jeder Klasse können ein oder mehrere Werte zugehörig sein.
+
+Bei einem gegebenen Abfragepfad könnten wir uns interessieren für
+
+. für die Knoten – auch LDAP Objekte genannt – zu welchen der Pfad führt,
+
+. für die Attribute, die zu den Knoten gehören,
+
+. und die Werte, die sowohl zu den Objekten wie zu den Attributen gehören.
+
+Offensichtlich ist der Umgang mit der Fülle der Informationen möglicher Antworten die vorrangige Herausforderung bei der Abwicklung von LDAP Abfragen.
+
+Der folgende Abschnitt zeigt eine LDAP Abfrage über den Bereich des LDAP Baums, welcher in der obenstehenden Grafik abgebildet ist.
+
+Beispiel einer LDAP Antwort
+
+Eine _{opsi-script}_ Sektion `ldapsearch_generalConfigs` ist wie folgt definiert:
+[source,opsiscript]
+----
+[ldapsearch_generalConfigs]
+targethost: bonifax
+dn: cn=generalConfigs,cn=opsi,dc=uib,dc=local
+----
+
+Der Sektionsaufruf gibt eine LDAP Antwort zurück, die folgendermaßen aussieht:
+[source,ini]
+----
+Result: 0
+  Object: cn=generalConfigs,cn=opsi,dc=uib,dc=local
+  Attribute: cn
+	generalConfigs
+  Attribute: objectClass
+	organizationalRole
+Result: 1
+  Object: cn=pcbon4.uib.local,cn=generalConfigs,cn=opsi,dc=uib,dc=local
+  Attribute: cn
+	pcbon4.uib.local
+  Attribute: objectClass
+	opsiGeneralConfig
+  Attribute: opsiKeyValuePair
+	test2=test
+	test=a b c d
+Result: 2
+  Object: cn=bonifax.uib.local,cn=generalConfigs,cn=opsi,dc=uib,dc=local
+  Attribute: objectClass
+	opsiGeneralConfig
+  Attribute: cn
+	bonifax.uib.local
+  Attribute: opsiKeyValuePair
+	opsiclientsideconfigcaching=FALSE
+	pcptchlabel1=opsi.org
+	pcptchlabel2=uib gmbh
+	button_stopnetworking=
+	pcptchbitmap1=winst1.bmp
+	pcptchbitmap2=winst2.bmp
+	debug=on
+	secsuntilconnectiontimeout=280
+	opsiclientd.global.log_level=
+----
+
+Es gibt nun verschiedene _{opsi-script}_ Optionen, um die Komplexität der Auswertung der Ergebnisse solcher Anfragen zu reduzieren und zu handhaben.
+
+[[opsi-script-ldapsearch-params]]
+=== LDAPsearch Aufrufparameter
+
+Für den Aufruf von LDAPSearch Sektionen sind zwei Typen von Optionen definiert.
+
+* cache options
+* output options
+
+Die 'cache options' sind:
+
+*  `/cache`
+
+*  `/cached`
+
+*  `/free`
+
+* (no cache option)
+
+Wenn keine cache Option spezifiziert wurde, wird die Antwort der LDAP Suche nicht für zukünftige Anwendung gespeichert.
+
+Bei der `/cache` Option wird die Antwort für zukünftige Auswertungen gespeichert, die `/cached` Option verweist auf die letzte gespeicherte Antwort, welche wiederverwendet wird, statt eine neue Suche zu starten, die `/free` Option löscht die gecachten Antworten (dies ist vor allem bei Suchanfragen mit sehr langen Antworten sinnvoll).
+
+Die output options sind:
+
+*  `/objects`
+
+*  `/attributes`
+
+*  `/values`
+
+* (no output option)
+
+Die Ausgabeoptionen bestimmen die String-Listen, die produziert werden, wenn eine LDAPsearch Sektion über getReturnlistFromSection aufgerufen wird:
+
+* Wenn die Ausgabeoptionen nicht näher spezifiziert werden, wird die komplette LDAP Antwort aufgelistet.
+
+* Die Optionen objects, attributes und values beschränken die Ausgabe entsprechend auf Zeilen zu Objekten, Attributen bzw. Werten in der LDAP Antwort.
+
+Zu beachten ist, dass die ausgegebenen Listen von Attributen nur dann dem richtigen Objekt zu geordnet werden können, wenn die gesamte Ausgabe nur noch ein Objekt enthält. Ebenso sind Werte nur dann dem korrekten Attribut zuordnenbar, wenn nur noch ein Attribut in der Ausgabeliste vorkommt.
+
+Daher wird so vorgegangen, dass eine ursprüngliche Suche immer weiter eingeengt wird bis nur noch ein Objekt bzw. Attribut zurückgegeben wird. Dies kann über entsprechende Count Aufrufe überprüft werden.
+
+Die Einengung der ursprünglichen Suche geht sehr schnell, wenn diese auf der gecachten Antwort durchgeführt wird.
+
+[[opsi-script-ldapsearch-narrow-search]]
+=== Einengung der Suche
+
+Ein Beispiel soll zeigen, wie die Suche soweit eingeschränkt werden kann, damit ein bestimmtes Ergebnis bei einer Suche im LDAP Verzeichnis erreicht werden kann.
+
+Wir starten mit dem Aufruf von 'ldapsearch_generalConfigs' (wie oben beschrieben), fügen den cache Parameter hinzu,
+
+`ldapsearch_generalconfigs /cache`
+
+die Abfrage wird ausgeführt und die Antwort für zukünftige Nutzung gespeichert.
+
+Dann gibt der Aufruf
+
+`getReturnlistFromSection("ldapsearch_generalconfigs /cached /objects")`
+
+folgende Liste aus
+[source,ini]
+----
+cn=generalconfigs,cn=opsi,dc=uib,dc=local
+cn=pcbon4.uib.local,cn=generalconfigs,cn=opsi,dc=uib,dc=local
+cn=bonifax.uib.local,cn=generalconfigs,cn=opsi,dc=uib,dc=local
+----
+
+Wenn wir die Auswahl im Baumverzeichnis mit
+[source,opsiscript]
+----
+[ldapsearch_generalConfigs]
+targethost: bonifax
+dn: cn=bonifax.ubi.local,cn=generalConfigs,cn=opsi,dc=uib,dc=local
+----
+
+einschränken und nochmal starten, enthält die Objektliste nur noch folgende Einträge
+[source,ini]
+----
+cn=bonifax.uib.local,cn=generalconfigs,cn=opsi,dc=uib,dc=local
+----
+
+Die dazugehörige Attributliste enthält drei Elemente:
+[source,ini]
+----
+objectclass
+cn
+opsikeyvaluepair
+----
+
+Um die zugehörigen Werte zu einem einzelnen Attribut zu bekommen, muss die Abfrage noch erweitert werden:
+[source,opsiscript]
+----
+[ldapsearch_generalConfigs]
+targethost: bonifax
+dn: cn=bonifax.ubi.local,cn=generalConfigs,cn=opsi,dc=uib,dc=local
+attribute: opsiKeyValuePair
+----
+
+Das Ergebnis ist eine Attributliste, die nur ein Element enthält. Die Liste mit den zugehörigen Werten sieht wie folgt aus
+[source,ini]
+----
+opsiclientsideconfigcaching=false
+pcptchlabel1=opsi.org
+pcptchlabel2=uib gmbh
+button_stopnetworking=
+pcptchbitmap1=winst1.bmp
+pcptchbitmap2=winst2.bmp
+debug=on
+secsuntilconnectiontimeout=280
+opsiclientd.global.log_level=6
+----
+
+Es gibt keine LDAP Mittel um diese Ergebnis noch weiter einzugrenzen!
+
+(Aber die _{opsi-script}_ Funktion getValue (key, list) (vgl. xref:prim-section#opsi-script-stringlist-getstring[Kapitel "(Wieder-) Gewinnen von Einzelstrings aus String-Listen"]) hilft in diesem Fall: z.B. getValue ("secsuntilconnectiontimeout", list) würde die gewünschte Zahl ausgeben).
+
+Mit der Funktion `count` (list) kann überprüft werden, ob die Eingrenzung der Suchabfrage erfolgreich war. In den meisten Fällen ist gewünscht, dass das Ergebnis "1" ist.
+
+[[opsi-script-ldapsearch-syntax]]
+=== LDAPsearch Sektion Syntax
+
+Eine LDAPsearch Sektion beinhaltet die Spezifikationen:
+
+*  `targethost:` +
+Der Server, der das LDAP Verzeichnis verwaltet/gespeichert wird (service), muss benannt werden.
+
+*  `targetport:` +
+Wenn der Port eines LDAP Service nicht der voreingestellte Port von 389, muss er an dieser Stelle angegeben werden. Wenn die Spezifizierung nicht erfolgt, wird der Default-Port verwendet.
+
+*  `user:` +
+Zu verwendender user Name. Seit 4.11.3.5
+
+*  `password:` +
+Zu verwendendes user Passwort. Seit 4.11.3.5
+
+*  `dn:` +
+Hier kann der charakteristische Name (distinguished name), der „Suchpfad“, für die Suchanfrage gegeben werden.
+
+*  `typesonly:` +
+Per Voreinstellung ist der Wert "false", was bedeutet das auch die Werte ermittelt werden.
+
+*  `filter:` +
+Der Filter für eine LDAP Suche hat eine spezielle LDAP Syntax, die nicht vom _{opsi-script}_ überprüft wird. Voreingestellt ist "(objectclass=*)".
+
+*  `attributes:` +
+Durch Kommas werden die Attributnamen in einer Liste getrennt. Die Default-Einstellung ist eine Liste, in der alle Attribute aufgeführt werden.
+
+[[opsi-script-ldapsearch-examples]]
+=== Beispiele
+
+Ein kurzes und sehr realistisches Beispiel soll am Ende dieses Abschnittes aufgeführt werden:
+
+'$founditems$' ist eine StringList Variable und $opsiClient$ ist eine String-Variable. Der Aufruf von 'getReturnlistFromSection' liefert die Ergebnisse. Das nachfolgende Codefragment gibt das eindeutige Ergebnis für $opsiDescription$ zurück, wenn dieses existiert. Es vermeldet einen Fehler, wenn die Suche ein unerwartetes Ergebnis zurück gibt:
+[source,opsiscript]
+----
+set $opsiClient$ = "test.uib.local"
+set $founditems$ = getReturnlistFromSection("ldapsearch_hosts /values")
+
+DefVar $opsiDescription$
+set $opsiDescription$ = ""
+if count(founditems) = "1"
+  set $opsiDescription$ = takeString(0, founditems)
+else
+  if count(founditems) = "0"
+    comment "No result found")
+  else
+    logError "No unique result for LdAPsearch for client " + $opsiclient$
+  endif
+endif
+
+
+[ldapsearch_hosts]
+targethost: opsiserver
+targetport:
+dn: cn=$opsiclient$,cn=hosts,cn=opsi,dc=uib,dc=local
+typesOnly: false
+filter: (objectclass=*)
+attributes: opsiDescription
+----
+
+Beispiel mit user / password
+[source,opsiscript]
+----
+comment ""
+comment "------------------------------"
+comment "Testing: "
+comment "user / password"
+Set $LdapHost$ = "vmix7.uib.local"
+Set $LdapPort$ = "389"
+Set $LdapUser$ = "cn=Administrator,cn=Users,dc=uib,dc=local"
+Set $LdapPassword$ = "Linux123"
+Set $LdapResultType$ = "objects"
+Set $LdapSearchDn$ = "cn=Users,dc=uib,dc=local"
+Set $LdapSearchAttributes$ = "name,objectClass"
+Set $LdapFilter$ = "(&(objectclass=*))"
+
+markErrorNumber
+set $list1$ = getReturnListFromSection("ldapsearch_users /" + $LdapResultType$)
+if errorsOccurredSinceMark > 0
+	comment "failed while ldapsearch"
+	set $TestResult$ = "not o.k."
+else
+	comment "passed"
+endif
+
+[ldapsearch_users]
+targethost: $LdapHost$
+targetport: $LdapPort$
+user: $LdapUser$
+password: $LdapPassword$
+dn: $LdapSearchDn$
+attributes: $LdapSearchAttributes$
+filter: $LdapFilter$
+----
+
+Für weitere Beispiele beachten Sie das Produkt 'opsi-script-test'
+und dort den Bereich '$Flag_winst_ldap_search$ = "on"'.

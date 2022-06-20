@@ -1,0 +1,137 @@
+[[firststeps-software-deployment-client-integration]]
+=== Integration vorhandener Clients in opsi
+
+Um vorhandene Clients in opsi aufzunehmen, muss auf diesen der {opsi-client-agent} (bzw opsi-linux-client-agent oder opsi-mac-client-agent) installiert werden.
+Dies kann auf mehrere Arten durchgeführt werden.
+Nachdem Sie, wie im Folgenden beschrieben, den {opsi-client-agent} installiert haben, erscheint der Client auch in der Client-Liste des {opsi-configed}, sofern Sie ihn dort noch nicht hinzugefügt hatten.
+
+Grundsätzlich gibt es die Möglichkeit die Installation des Agents <<firststeps-software-deployment-client-integration-installer,auf dem Client auszuführen>> oder
+ifdef::getstarted[xref:getting-started:adding-clients.adoc#firststeps-software-deployment-client-integration-opsi-deploy[vom Server aus]]
+die Installation anzustoßen.
+
+Das Ausführen der Installation direkt auf dem Client eignet sich für einzelne Rechner.
+Für einen Massen-Rollout des Agents eignet sich <<firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>.
+Falls bereits eine andere Möglichkeit existiert Software zu verteilen, so bietet es sich an, den initialen Rollout über den opsi-client-agent-installer oder das opsi-client-agent MSI-Paket durchzuführen.
+
+Sobald der Agent installiert ist, können vorhandene opsi-Produkte auf diesen Clients
+ifdef::getstarted[xref:rollout-products.adoc#firststeps-software-deployment-product-tests[installiert]]
+werden.
+
+
+[[firststeps-software-deployment-client-integration-installer]]
+==== Verwendung des Installers
+
+. Loggen Sie sich mit auf dem Client ein.
+. Laden Sie den Installer von ihrem configserver herunter. Der Installer liegt unter https://<fqdn_oder_ip_des_configservers>:4447/public/opsi-client-agent/ und hat den Dateinamen
+opsi-client-agent-installer.exe (bzw opsi-linux-client-agent-installer.sh oder opsi-mac-client-agent-installer.sh)
+. Führen Sie den Installer aus (bei linux und macOS sind dabei root-Rechte erforderlich, also ggfs mit sudo - bei windows folgt später ggfs eine UAC Anfrage)
+. Der Installer entpackt sich dann in ein temporäres lokales Verzeichnis und startet den enthaltenen oca-installation-helper. Dieser zeigt ein Nutzer-Interface mit Eingabefeldern für
+Client-ID, Opsi Service URL, Username und Password. Soweit möglich sind diese Felder vorausgefüllt, müssen aber gegebenenfalls noch manuell ergänzt oder angepasst werden.
+. Die Client-ID entspricht in der Regel dem FQDN des Clients. Die opsi Service URL sollte das Format https://<fqdn_oder_ip_des_configservers>:4447 haben.
+Username und Passwort sollten im Fall einer Erstinstallation des clients von einem Mitglied der Gruppe opsiadmin sein.
+Für eine Reinstallation kann hier auch die Client-Id und der pckey verwendet werden.
+. Der Installer nimmt per opsi-Webservice Kontakt zum Server auf, um den Client beim Server zu registrieren. Anschließend wird das im Installer enthaltene opsi-script
+aufgerufen um das setup.opsiscript des opsi-[linux-|mac-]client-agents auszuführen.
+
+Beim Aufruf des Installers können Parameter mitgegeben werden, welche eine Voll-Automatisierung des Vorgangs ermöglichen. Details dazu finden Sie im
+ifeval::["{mode}" == "antora"]
+xref:manual:client/opsi-client-agent.adoc#opsi-manual-clientagent-manual-installation[opsi-Handbuch]
+endif::[]
+ifeval::["{mode}"!= "antora"]
+link:https://download.uib.de/4.2/documentation/html/opsi-manual-v4.2/opsi-manual-v4.2.html#opsi-manual-clientagent-subsequent-installation[opsi-Handbuch]
+endif::[]
+.
+
+[[firststeps-software-deployment-client-integration-opsi-deploy]]
+==== Verwendung von opsi-deploy-client-agent
+
+Das `opsi-deploy-client-agent` Programm verteilt den {opsi-client-agent} (bzw opsi-linux-client-agent oder opsi-mac-client-agent) direkt vom {opsi-server} auf die Clients.
+Es ist hiermit einfach möglich eine große Menge an Clients vom Server aus in eine opsi-Umgebung zu integrieren.
+
+Voraussetzungen für Windows-Clients:
+
+* ein offener c$ share
+* ein offener admin$ share
+* ein administrativer account
+* keine oder eine nicht interferierende Antivirus-Lösung bei Benutzung der `winexe`
+* das Programm `winexe` auf dem Server. Dieses ist Teil des Pakets `opsi-windows-support`.
+
+Voraussetzungen für Linux- und MacOS-Clients:
+
+* ssh-Zugang mit einem user, der "sudo" ausführen darf oder selbst root ist.
+
+Das `opsi-deploy-client-agent` Programm findet sich unter `/var/lib/opsi/depot/opsi-client-agent` (analog opsi-linux-client-agent, opsi-mac-client-agent) +
+Führen Sie das Programm mit 'root' Rechten aus.
+
+Das Program erzeugt serverseitig den Client, kopiert die Installations-Dateien und Konfigurationsinformationen, wie bspw. den pckey, auf den Client
+und startet dort die Installation über den oca-installation-helper (nicht-interaktiv).
+
+Mit dem `opsi-deploy-client-agent` kann auch eine ganze Liste von Clients bearbeitet werden.
+Dazu können entweder beliebig viele Clients als letzter Parameter übergeben werden oder mit der Option '-f' die Clients aus einer Datei eingelesen werden.
+Bei der Verwendung einer Datei, muss in jeder Zeile ein Client stehen.
+
+Das Program kann mit IP-Adressen, Hostnamen und FQDNs arbeiten. Es wird versuchen automatisch zu erkennen welche Art von Adresse übergeben wurde.
+
+Mögliche Parameter können Sie mit dem Parameter `--help` in Erfahrung bringen:
+[source,prompt]
+----
+usage: opsi-deploy-client-agent [-h] [--version] [--verbose] [--debug-file DEBUG_FILE] [--username USERNAME]
+                                [--password PASSWORD] [--use-fqdn | --use-hostname | --use-ip-address]
+                                [--ignore-failed-ping]
+                                [--reboot | --shutdown | --start-opsiclientd | --no-start-opsiclientd]
+                                [--hosts-from-file HOST_FILE] [--skip-existing-clients] [--threads MAX_THREADS]
+                                [--install-timeout INSTALL_TIMEOUT] [--depot DEPOT] [--group GROUP] [--smbclient | --mount]
+                                [--keep-client-on-failure | --remove-client-on-failure]
+                                [--failed-clients-file FAILED_CLIENTS_FILE]
+                                [host [host ...]]
+
+Deploy opsi client agent to the specified clients. The c$ and admin$ must be accessible on every client. Simple File Sharing
+(Folder Options) should be disabled on the Windows machine.
+
+positional arguments:
+  host                  The hosts to deploy the opsi-client-agent to.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --debug-file DEBUG_FILE
+                        Write debug output to given file.
+  --username USERNAME, -u USERNAME
+                        username for authentication (default: Administrator).Example for a domain account: -u
+                        <DOMAIN>\\<username>
+  --password PASSWORD, -p PASSWORD
+                        password for authentication
+  --use-fqdn, -c        Use FQDN to connect to client.
+  --use-hostname        Use hostname to connect to client.
+  --use-ip-address      Use IP address to connect to client.
+  --ignore-failed-ping, -x
+                        try installation even if ping fails
+  --reboot, -r          reboot computer after installation
+  --shutdown, -s        shutdown computer after installation
+  --start-opsiclientd, -o
+                        Start opsiclientd service after installation without performing Events (default).
+  --no-start-opsiclientd
+                        Do not start opsiclientd service after installation (deprecated).
+  --hosts-from-file HOST_FILE, -f HOST_FILE
+                        File containing addresses of hosts (one per line). If there is a space followed by text after the
+                        address this will be used as client description for new clients.
+  --skip-existing-clients, -S
+                        skip known opsi clients
+  --threads MAX_THREADS, -t MAX_THREADS
+                        number of concurrent deployment threads
+  --install-timeout INSTALL_TIMEOUT
+                        timeout for single threads (default is unlimited)
+  --depot DEPOT         Assign new clients to the given depot.
+  --group GROUP         Assign fresh clients to an already existing group.
+  --smbclient           Mount the client's C$-share via smbclient.
+  --mount               Mount the client's C$-share via normal mount on the server for copying the files.This imitates the
+                        behaviour of the 'old' script.
+  --keep-client-on-failure
+                        If the client was created in opsi through this script it will not be removed in case of failure.
+                        (DEFAULT)
+  --remove-client-on-failure
+                        If the client was created in opsi through this script it will be removed in case of failure.
+  --failed-clients-file FAILED_CLIENTS_FILE
+                        filename to store list of failed clients in
+----

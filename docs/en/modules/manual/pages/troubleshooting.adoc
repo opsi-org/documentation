@@ -1,0 +1,203 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+
+
+[[opsi-manual-troubleshooting]]
+= Troubleshooting
+
+The following chapters describe ways to find and fix problems.
+
+
+[[opsi-manual-troubleshooting-general]]
+== General troubleshooting
+
+Usually we first see the symptons of a problem and this is what
+makes us realise something went wrong.
+Our next step should be finding out where the problem lies.
+Once we know what our problem is we can attempt to fix it.
+
+While checking where the problem comes from it is a good idea to revisit
+the relevant chapters and double check your configuration.
+Spending hours debugging a problem to then find out you made a typo can
+be frustrating.
+
+When going through the following suggestions you should continously try
+to reproduce the error to see if this made the problem disappear.
+
+
+[[opsi-manual-troubleshooting-general-updates]]
+=== Install updates
+
+Usually an easy first step is to make sure that you are using the latest
+versions when encountering problems.
+By switching to a newer version you increase the chance that an existing
+problem has been fixed in the meantime.
+
+Whenever updates for opsi are released an information is posted on the link:https://forum.opsi.org/[forums].
+Along with the release information changelogs are posted that can help you
+identify what version of a component contains the fix relevant to your problem.
+
+On a Debian-based system you can install updates for your OS with the following commands:
+[source,prompt]
+----
+apt update
+apt dist-upgrade
+----
+
+Afterwards you should update your opsi packages:
+[source,prompt]
+----
+opsi-package-updater -v update
+----
+
+
+[[opsi-manual-troubleshooting-general-opsi]]
+=== opsi configuration
+
+You should make sure that your opsi server has the current configurations
+applied and that access rights are set as expected.
+
+[source,prompt]
+----
+opsi-setup --set-rights
+opsi-setup --init-current-config
+----
+
+
+If you are using the MySQL backend make sure that all migrations are applied:
+[source,prompt]
+----
+opsi-setup --update-mysql
+----
+
+After this you should restart the opsi service so that they use
+the new configurations.
+[source,prompt]
+----
+systemctl restart opsiconfd.service
+systemctl restart opsipxeconfd.service
+----
+
+The configuration is applied now. You should check that the services are running:
+[source,prompt]
+----
+systemctl status opsiconfd.service
+systemctl status opsipxeconfd.service
+----
+
+In some cases the restart of a server may also work wonders.
+
+
+[[opsi-manual-troubleshooting-general-logging]]
+=== Logging
+
+To figure out what goes wrong a look into the logs is often the best route
+to follow.
+By default most opsi components log information that is useful during runtime
+but for finding out the cause of a problem you often have to increase the loglevel.
+After increasing the loglevel try to reproduce the previous behaviour and then look into the logs.
+
+Once you finished solving your problem do not forget to reduce the loglevel
+back to defaults because high loglevel may slow down your servers or result
+in using up a lot of unwanted disk space.
+
+
+[[opsi-manual-troubleshooting-specific]]
+== Troubleshooting specific problems
+
+The following chapters contain information about troubleshooting specific problems.
+
+
+[[opsi-manual-troubleshooting-specific-mysql-has-gone-away]]
+=== MySQL server has gone away
+
+This error is accompanied by an error message like to following:
+[source,prompt]
+----
+Execute error: (2006, 'MySQL server has gone away')
+----
+
+This error can have multiple causes which makes it important to look through the <<opsi-manual-troubleshooting-general-logging,logs>> of your server.
+
+[[opsi-manual-troubleshooting-specific-packet-size]]
+==== Packet size
+
+One possible cause of this error is that parts of queries exceed the allowed size.
+This is especially true if the error appears repeatedly over short time spans.
+
+A solution to this can be to tune the link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_allowed_packet[max_allowed_packet] setting of your MySQL server.
+
+[[opsi-manual-troubleshooting-specific-connection-lifetime]]
+==== Connection Pool: Connectin lifetime
+
+One possible cause of this can be that a connection of the connection pool of the MySQL backend is unable to reach the MySQL server after a long abstinence.
+In such a case it is possible that the server has closed the connection on it's side.
+
+A solution to this can be to limit the lifetime of connections by adjusting the value for <<opsi-manual-backends-mysql-configuration,connectionPoolRecycling>>.
+This should usually be lower than the timeout configured on the MySQL server (variable link:https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_wait_timeout[wait_timeout]).
+With a default of 28800 seconds in MySQL 8.0 you could set the connection lifetime in opsi to 28500 seconds e.g.
+
+
+[[opsi-manual-troubleshooting-specific-samba-access]]
+=== Unable to access depot shares
+
+Check if samba is running:
+
+[source,prompt]
+----
+ps -ef | grep mbd
+----
+
+At least one `nmbd` and one `smbd` process should be running.
+
+To restart Samba:
+
+[source,prompt]
+----
+systemctl restart smbd.service
+systemctl restart nmbd.service
+----
+
+It can also help to set the pcpatch-password.
+In a multi-depot environment we recommend to set this the same on all servers.
+
+[source,prompt]
+----
+opsi-admin -d task setPcpatchPassword
+----
+
+
+[[opsi-manual-troubleshooting-specific-opsiconfd]]
+=== Accessing opsi webservice does not work
+
+Check if the opsi service opsiconfd is running and responding.
+
+Open the address `https://<server-address>:4447/info` with your browser.
+If you can't connect check if the <<opsi-manual-troubleshooting-general-opsi,required services are running>> and check the corresponding logfiles.
+
+If accessing the page works check the loads of the webservice.
+This makes use of 'rrdtool' with Python bindinds. Install them if needed.
+
+Make sure that enough space is available on the server.
+
+If you can not connect, continue with next step. If you can connect: check the load of 'opsi-webservice' and check the freespace on disk (scroll down in the info-page). +
+For the generation of load images you need 'rrdtool' with Python-bindings. Please install them if needed. +

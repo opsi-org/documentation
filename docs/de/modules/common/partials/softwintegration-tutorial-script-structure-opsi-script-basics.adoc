@@ -1,0 +1,266 @@
+[[opsi-softwintegration-tutorial-script-structure]]
+==== Struktur eines opsi-script Skripts
+
+Im folgenden werden die wesentlichen Elemente eines _opsi-script_ Skriptes an Beispielen für Windows erläutert.
+
+Zunächst ein Beispiel für ein einfaches opsi-script-Skript:
+[source,winst]
+----
+[Actions]
+WinBatch_tightvnc_silent_install
+
+[WinBatch_tightvnc_silent_install]
+"%ScriptPath%\tightvnc-1.3.9-setup.exe" /silent
+----
+
+Ein opsi-script-Skript besteht aus *primären* und *sekundären* Sektionen.
+Sektionen werden, wie von ini-Dateien bekannt, mit einem Sektions-Namen in eckigen Klammern eingeleitet. +
+Die eigentlichen Arbeiten zur Software-Installation finden in den sekundären Sektionen statt,
+die von den primären Sektionen aufgerufen werden.
+
+Die sekundären Sektionen sind „Themen-spezifisch“ und verfügen jeweils über eine spezielle Syntax. +
+Der Sektionsname einer sekundären Sektion beginnt mit deren Typ, gefolgt von einem frei definierbaren Namen.
+
+Im Beispiel ruft die primären Sektion `[Actions]`  eine sekundäre Sektion `[WinBatch_7z_silent_install]` auf. +
+Die sekundäre Sektion ist vom Typ `WinBatch`. Der Inhalt einer `WinBatch`-Sektion wird über die Windows-API ausgeführt. +
+In diesem Fall wird also das Setup-Programm `tightvnc-1.3.9-setup.exe` mit dem Parameter `/silent` gestartet.
+
+
+[[opsi-softwintegration-tutorial-primary-sections]]
+==== Primäre Sektionen
+
+Actions/Aktionen::
+Die `[Actions]` Sektion ist das eigentliche Hauptprogramm. Hier beginnt die Skript-Verarbeitung.
+
+Sub-Sektionen::
+Programmabschnitte, die wiederholt benötigt werden, können in Sub-Sektionen (Unterprogramme) ausgelagert werden.
+Es besteht die Möglichkeit Sub-Sektionen in externe Dateien auszulagern.
+
+Die primären Sektionen sind das Hauptprogramm in dem der Ablauf des Skripts gesteuert wird. Hierzu gibt es:
+
+* Variablen: Strings und Stringlisten
+* `if` `elseif` `else` `endif` Anweisungen
+* `for` Schleifen über Stringlisten
+* Funktionen
+
+.Vermeidung doppelten Codes über ausgegliederte Sub
+image::opsi-winst-delsub-schema.png["Abbildung: Vermeidung doppelten Codes über ausgegliederte Sub",width=400]
+
+
+[[opsi-softwintegration-tutorial-secondary-sections]]
+==== Wichtige sekundäre Sektionen
+
+Files::
+Datei-Operationen, wie:
+
+* kopieren (mit Versionskontrolle, rekursiv ...)
+* löschen
+* Verzeichnisse anlegen
+* ...
+
+WinBatch::
+Dient zum Aufrufen von Programmen über die Windows-API.
+Beispielsweise werden Aufrufe von Setup-Programmen im silent mode in diesen Sektionen durchgeführt.
+
+ShellInAnIcon::
+Der Inhalt dieser Sektion wird der Betriebssystemtypischen _shell_ zur Ausführung übergeben. Diese _shell_ ist bei Windows die `cmd.exe`, bei Linux und bei macOS die `bash`. Hier können also normale Batch-Skripte abgelegt werden. +
+Namensvarianten von `ShellInAnIcon` mit identischem Verhalten sind `Shellbatch`, `DOSBatch` und `DOSInAnIcon`.
+
+ExecWith::
+Der Inhalt dieser Sektionen wird einem externen Programm (Interpreter) zur Ausführung übergeben.
+Beispielsweise können über `ExecWith` AutoIt-Skripte http://www.autoitscript.com direkt in das opsi-script-Skript integriert werden.
+
+Registry::
+Die _Registry-Sektionen_ dienen dem Bearbeiten der Registry.
+
+LinkFolder::
+_LinkFolder-Sektionen_ dienen dem Erstellen und Entfernen von Verknüpfungen.
+Es können beispielsweise Verknüpfungen auf dem Desktop oder im Startmenü erstellt werden.
+
+
+[[opsi-softwintegration-tutorial-global-constants]]
+==== Globale Konstanten
+
+Globale Konstanten sind Text-Platzhalter, die in primären und sekundären Sektionen eingesetzt werden können
+und zur Laufzeit textuell durch ihre Werte ersetzt werden. +
+Über die Verwendung von Platzhaltern kann sichergestellt werden,
+dass Pfade in unterschiedlichen Umgebungen (z.B. auf System mit unterschiedlichen Sprachen oder Betriebssystem-Versionen) richtig gesetzt sind.
+
+Beispiele:
+
++%ProgramFiles32Dir%+:: c:\programme
++%Systemroot%+::        c:\windows
++%System%+::            c:\windows\system32
++%opsiTmpDir%+::       c:\
++%Scriptpath%+::        <Pfad zu laufenden Script>
+
+
+[[opsi-softwintegration-tutorial-second-example]]
+==== Zweites Beispiel: tightvnc
+
+Zur Erläuterung nun ein einfaches Script zur Installation von _tightvnc_.
+Eigentlich würde dieses Script mit dem Aufruf der Silent-Installation in der _Winbatch-Sektion_ auskommen.
+Bei einer wiederholten Installation erscheint hier (wegen des Neustarts eines laufenden Services) jedoch ein interaktiver Dialog.
+Dieses Dialog-Fenster wird (so es auftaucht) mit Hilfe von _AutoIt_ geschlossen.
+
+[source,winst]
+----
+[Actions]
+Message "Installiere tightvnc 1.3.9 ..."
+ExecWith_autoit_confirm "%ScriptPath%\autoit3.exe" WINST /letThemGo
+WinBatch_tightvnc_silent_install
+KillTask "autoit3.exe"
+
+[WinBatch_tightvnc_silent_install]
+"%ScriptPath%\tightvnc-1.3.9-setup.exe" /silent
+
+[ExecWith_autoit_confirm]
+; Wait for the confirm dialog which only appears if tightvnc was installed before as service
+; Waiting for the window to appear
+WinWait("Confirm")
+; Activate (move focus to) window
+WinActivate("Confirm")
+; Choose answer no
+Send("N")
+----
+
+[[opsi-softwintegration-tutorial-elementary-commands]]
+==== Elementare Befehle für primäre Sektionen
+
+[[opsi-softwintegration-tutorial-elementary-commands-string-variable]]
+===== String-Variable
+
+Variablen-Deklaration:: `DefVar <variable name> [= <initial value>]`
+
+Variablen-Zuweisung:: `Set <variable name> = <value>`
+
+*Beispiel:*
+[source,winst]
+----
+DefVar $ProductId$
+Set $ProductId$ = "firefox"
+----
+
+oder
+
+[source,winst]
+----
+DefVar $ProductId$ = "firefox"
+----
+
+IMPORTANT: Stringvariablen werden in primären und sekundären Sektionen unterschiedlich behandelt.
+In primären Sektionen sind Stringvariablen eigenständige Objekte.
+Nur hier können sie deklariert und ihnen Werte zugewiesen werden.
+Entsprechend ist die Verbindung von Variablen und Strings zu einem Stringausdruck mit einem Operator `"+"` durchzuführen. +
+Beispiel: `"Installing "+ $ProductId$ +" ..."` +
+In sekundären Sektionen werden Stringvariablen vor der Ausführung der Sektion durch den Inhalt der Variable ersetzt. +
+Beispiel: `"Installing $ProductId$ ..."` +
+Dies ist zu beachten, wenn entsprechende Stringausdrücke per Cut&Paste im Skript kopiert werden. +
+Der Vorteil dieser Konstruktion ist, dass in Sektionen die außerhalb des _{opsi-script}_ ausgeführt werden (DosBatch / Execwith)
+problemlos mit opsi-script-Variablen gearbeitet werden kann.
+
+[[opsi-softwintegration-tutorial-elementary-commands-message]]
+===== Message / ShowBitmap
+
+Zur Textausgabe während der Installation: +
+`Message <string>`
+
+*Beispiel:*
+[source,winst]
+----
+Message "Installing "+ $ProductId$ +" ..."
+----
+
+Zur Ausgabe einer Grafik während der Installation: +
+`ShowBitmap <filename> <subtitle>`
+
+*Beispiel:*
+[source,winst]
+----
+ShowBitmap "%ScriptPath%\python.png" "Python"
+----
+
+[[opsi-softwintegration-tutorial-elementary-commands-if-else-endif]]
+===== if [elseif] [else] endif
+
+*Syntax:*
+[source,winst]
+----
+if <condition>
+	;statement(s)
+[elseif <condition>
+;statement(s)]
+[
+else
+	;statement(s)
+]
+endif
+----
+
+[[opsi-softwintegration-tutorial-elementary-commands-functions]]
+===== Funktionen
+
+HasMinimumSpace:: Prüft auf freien Platz auf der Festplatte.
+FileExists:: Prüft auf Existenz einer Datei oder eines Verzeichnisses.
+
+[[opsi-softwintegration-tutorial-elementary-commands-error]]
+===== Fehler, Logging und Kommentare
+
+Kommentarzeichen ';':: Zeilen, die mit einem Semikolon (';') beginnen, werden nicht interpretiert.
+
+Comment:: Schreibt eine Kommentar-Meldung in die Log-Datei.
+
+LogError:: Schreibt eine Fehlermeldung in die Log-Datei.
+
+IsFatalError:: Bricht die Ausführung des laufenden Skriptes ab und meldet die Installation als gescheitert zurück.
+
+[[opsi-softwintegration-tutorial-elementary-commands-requirements]]
+===== Bedingung zur Ausführung
+
+requiredOpsiscriptVersion:: gibt die (mindestens) benötigte opsi-script Version an.
+
+[[opsi-softwintegration-tutorial-winst-commands]]
+===== Weitere wichtige {opsi-script} Funktionen
+
+Einen Überblick über die {opsi-script} Funktionen gibt die Referencecard: +
+https://download.uib.de/opsi_stable/doc/opsi-script-reference-card-en.pdf
+
+Eine detaillierte Dokumentation ist im {opsi-script} Handbuch zu finden: +
+http://download.uib.de/opsi_stable/doc/opsi-script-manual-de.pdf
+
+Hier noch einige Hinweise auf besonders wichtige Elemente:
+
+.Stringlisten:
+Stringlisten sind sehr mächtig, insbesondere zur Auswertung von Ausgaben externer Programme. Lesen Sie dazu die opsi-script-Dokus.
+
+.ExitWindows:
+Neustart/Herunterfahren des Systems und Beendung des {opsi-script}.
+
+*  `ExitWindows /Reboot` +
+Rechner-Neustart nach Abschluss des laufenden Skriptes.
+
+*  `ExitWindows /ImmediateReboot` +
+Sofortiger Neustart.
+
+*  `ExitWindows /ImmediateLogout` +
+Sofortige Beendigung der Skript-Bearbeitung und Beendung des {opsi-script}.
+
+.{product-properties}:
+Für manche Produkte ist es erforderlich, Optionen zur Verfügung zu stellen.
+Diese werden zur Laufzeit Client-spezifisch ausgewertet.
+Wie solche Properties erstellt werden, ist im Kapitel
+<<opsi-client-softwintegration-create-opsi-package,Erstellen eines opsi-Produkt-Pakets>> beschrieben.
+
+Der Zugriff auf die Werte der Properties geschieht über die Funktion `GetProductProperty`:
+
+[source,winst]
+----
+if GetProductProperty("example-property", "no") = "yes"
+	Files_copy_extra_files
+endif
+----
+
+.Encoding:
+Schreiben Sie Ihre Scripte in UTF-8 Encoding und setzen sie die Zeile +
+`encoding=utf8`
+an den Anfang der Datei-

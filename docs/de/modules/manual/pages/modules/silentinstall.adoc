@@ -1,0 +1,155 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      14.02.2013
+:Revision:  4.0.3
+:toclevels: 6
+
+
+ifeval::["{mode}" == "antora"]
+include::common:partial$opsi_terms.adoc[]
+endif::[]
+
+[[opsi-manual-silentinstall]]
+= opsi Feature SilentInstall (frei)
+
+Das SilentInstall-Feature bietet opsi-Administratoren die Möglichkeit, Software bei Anwendern zu installieren, ohne dass diese bei Ihrer Arbeit gestört werden. Die folgende Dokumentation beschreibt die Besonderheiten dieser Erweiterung und bietet einen Leitfaden zur Konfiguration der neuen Installationsmethode.
+
+[[opsi-manual-silentinstall-preconditions]]
+== Vorbedingungen für die Silent Installation
+
+Um dieses Feature benutzten zu können, braucht man opsi mindestens in der Version 4.0.3. Hauptsächlich wird der _{opsi-client-agent}_ ab Version 4.0.3.1 benötigt.
+
+[[opsi-manual-silentinstall-overview]]
+== Überblick über das SilentInstall-Feature
+
+Die SilentInstall Methode bietet die Möglichkeit eine festgelegte Liste von Produkten zu installieren ohne dass der Anwender seine Arbeit unterbrechen muss.
+Der große Unterschied zur Installation per onDemand-Event (push Installation) besteht darin, dass bei dieser Installationsmethode nichts angezeigt wird.
+
+Alle Ausgaben werden unterdrückt und auf keinem Desktop angezeigt. Diese Art der Installation birgt natürlich auch Gefahren. Bei einem Problem wie z.B. ein Syntaxfehler im _{opsi-script}_ Skript, hat man keine Möglichkeit Einfluss auf den Zustand zu nehmen. Der Grund dafür liegt daran, dass eventuell auftauchende Dialogfenster nicht angezeigt werden. Die Folge in diesem Fall wäre, dass der _{opsi-script}_ nicht beendet wird und damit das Event nicht zum Abschluss kommen kann und eventuell auftretende Events blockiert. Um diesen "Worstcase" zu vermeiden, wird die maximale Installationszeit in Form einer Timeout-Einstellung festgelegt. Dieser Wert muss eventuell angepasst werden, wenn im Vorfeld klar ist, dass die Installation definitiv länger dauert. Näheres dazu wird im Konfigurationsabschnitt dieser Dokumentation beschrieben.
+
+Eine weitere und sehr wichtige Besonderheit dieses Features ist die fest vorgegebene Liste der Produkte. Es wird zwar Kontakt zum Service hergestellt, aber anders als üblich werden die ActionRequests vom Service ignoriert. Die zu installierende Software wird über eine Konfiguration im '{opsi-client-agent}' fest vorgegeben. Diese Produkte werden abgearbeitet und müssen dafür nicht extra auf setup gestellt werden. Es wird immer "setup" ausgeführt. Wie in diesem Fall üblich wird nach dem setup-Skript das update-Skript ausgeführt, sofern eines hinterlegt wurde. +Abhängigkeiten werden nicht aufgelöst.+ Entweder man sollte komplett auf Pakete mit Abhängigkeiten in diesem Modus verzichten oder man muss dafür sorgen, dass die Produkte inklusive der Abhängigkeiten mit in die Bearbeitungsliste konfiguriert werden sollten. Abschliessend wird der Installationstatus und die Installationslogs zum Service übertragen.
+
+Zusammenfassend wird empfohlen für diesen Modus nur Produkte auszuwählen, die folgende Kriterien erfüllen:
+
+* kleine Pakete oder Installationen
+* wenig Last produzieren: Einige Softwareinstallation, unter anderem auch viele MSI Installationen belegen die kompletten Ressourcen des Clients. Somit kann es passieren, dass der Client des Anwenders nicht mehr oder zeitweise sehr träge reagiert.
+* in einer festgelegten Zeit installierbar sein: Das Event dieser Erweiterung ist in der Standardkonfiguration mit einem Timeout von 300 Sekunden angelegt. Sollte die Installation in dieser Zeit nicht abgeschlossen sein, wird der _{opsi-script}_-Prozess beendet, damit das Event abgeschlossen werden kann.
+* Software die einen Reboot bei der Installation benötigt sollte vermieden werden. In der Standardkonfiguration ist dieses Event so konfiguriert, dass angeforderte Reboots nicht ausgeführt werden. Ohne diese Absicherung würde der _{opsi-client-agent}_ ohne Vorwarnung den Client Rebooten. Sollte ein Anwender angemeldet sein, droht Datenverlust. Die Folge daraus könnte sein, dass man eventuell Software im Hintergrund installiert, die in diesem Zustand nicht funktioniert.
+
+
+In der Standardkonfiguration wird mit diesem Modus swaudit und hwaudit über diese Methode installiert. Die Inventarisierungsprodukte von opsi erfüllen alle oben genannte Kriterien und eignen sich deshalb für diesen Modus. Mit der Standardkonfiguration wird die opsi Hard- und Software-Inventarisierung auf Wunsch ausgeführt, ohne dass die Pakete erst im _{opsi-configed}_ auf setup gestellt werden müssen. Mit dieser Methode kann man bei Bedarf die Informationen in Echtzeit beschaffen. Denkbar wären auch Konfigurationsprodukte, die zum Beispiel Reparaturarbeiten erledigen oder dafür sorgen, dass ein festgelegter Sollzustand der Clienteinstellungen regelmäßig wiederherstellt wird.
+
+[[opsi-manual-silentinstall-fireEvent]]
+== Auslösen der Silent Installation
+
+Dieses Event wird nicht von alleine ausgelöst wie andere Events. Deshalb gibt es zwei Möglichkeiten dieses Event zu aktivieren.
+
+Die erste Möglichkeit wäre das Event über den opsi-Webservice auszulösen, wie z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method hostControl_fireEvent silent_install client.domain.local
+----
+
+Dies ermöglicht es auch, diese Schritte in eigenen Skripten unterzubringen. Mit diesen Skripten kann man dieses Feature steuern und z.B.: mit einem at-Job kombinieren, um die Auslösung des Events zu planen.
+
+Als Alternative dazu kann das Event über ein Timer-Event nach einem festgelegten Intervall gestartet werden. In der Standardkonfiguration ist diesem Event ein Intervall von 6 Stunden vorgegeben. Dieser Wert geht davon aus, dass ein Arbeitsplatz-Client im Durchschnitt 8 Stunden eingeschaltet ist. Mit dieser Annahme würde dieses Event jeden Arbeitstag aber nur einmal am Tag ausgeführt werden.
+Näheres zu der Konfiguration und Aktivierung dieses Events wird im Konfigurationsabschnitt erläutert.
+
+[[opsi-manual-silentinstall-configuration]]
+== Konfigurationen des opsi-Feature: 'SilentInstall'
+
+Im Folgenden werden die Standardkonfiguration dieses Features erläutert. Als erstes gibt es folgendes Event in der standard opsiclientd.conf. Das Listing zeigt nur die wichtigen Optionen:
+
+Standard Event SilentInstall:
+[source,ini]
+----
+[event_silent_install]
+process_shutdown_requests = false
+action_processor_productIds = swaudit,hwaudit
+action_processor_command = %action_processor.command% /productlist %action_processor_productIds% /silent
+action_processor_desktop = winlogon
+action_processor_timeout = 300
+----
+
+* action_processor_productIds
+    - Diese Option ist eine der wichtigen Neuerungen für die Eventsteuerung. Mit dieser Option kann man allen Events, die Produktaktionen ausführen, eine Liste von Produkten übergeben. Die Konfiguration für diese Option muss als kommaseparierte Liste angegeben werden.
+* process_shutdown_request = false
+    - Sorgt dafür, dass ein Reboot, welcher vom _{opsi-script}_ angefordert wurde, nicht ausgeführt wird.
+* action_processor_command
+    - Hier wird der Aufruf vom _{opsi-script}_ vorbereitet.
+* action_processor_desktop
+    - In dieser Option wird beeinflusst, auf welchen Desktop die Gui vom _{opsi-script}_ angezeigt werden soll.
+* action_processor_timeout
+    - Hier wird der Zeitraum festgelegt, ab wann der _{opsi-script}_-Prozess beendet wird
+
+Das zweite Event ist das Timer Event, welches vorgesehen ist, um das Event nach einem festgelegten Intervall auszulösen:
+
+Standard Timer Event für SilentInstall
+[source,ini]
+----
+[event_timer_silentinstall]
+super = silent_install
+type = timer
+active = false
+interval = 21600
+----
+
+* super
+    - Diese Option beschreibt von welchem Event dieses Timer-Event erbt. Standardmäßig wird vom Event silent_install geerbt.
+* type
+    - Diese Option legt fest, dass diese Event-Konfiguration ein Timer-Event ist.
+* active
+    - Standardmäßig ist dieses Event deaktiviert. Um es zu aktivieren, muss diese Option auf 'true' gestellt werden.
+* interval
+    - Mit dieser Option wird der Intervall festgelegt. Nach Ablauf dieser Zeit wird das Event ausgelöst. Dieser Wert ist Standardmäßig auf 6 Stunden voreingestellt. Diese Zeit sollte wie alle Timerintervalle nicht zu gering gewählt werden, da ansonsten das Event ständig aktiv wird und ggf. andere Aktionen damit blockiert werden. Man sollte das Intervall aber auch nicht zu hoch setzen, da der '{opsi-client-agent}' über das gesamte Intervall durchlaufen muss, um das Event aus zu lösen. Wenn innerhalb des Intervalls der Client selbst oder der '{opsi-client-agent}' neu gestartet wird, wird dieses Event nie ausgelöst.
+
+Es ist auch denkbar, das Event SilentInstall beim Eintreten eines  Systemereignisses auszulösen. Dafür muss zu dem vorhandenen Event noch die Option 'wql' konfiguriert werden. Wie man das genau umsetzt kann man beim event_net_connection nachschauen. Sollte die 'wql' Option eingesetzt werden, wird empfohlen das Event mit 'active = false' standardmäßig auszuschalten, damit dieses Event bei Bedarf aktiviert werden kann.
+
+Um das Event wie vorgesehen per Timer zu starten, genügt es eigentlich einen Hostparameter zu setzen. Dazu muss wie gewohnt erst eine Default-Konfiguration angelegt werden. In diesem Fall reicht es aus, das entsprechende Timer-Event zu aktiveren.
+
+Zunächst wird die Standardoption angelegt, im Folgenden werden die nötigen '{opsi-config-objects}' über '{opsi-admin}' angelegt. Man kann diese Konfiguration auch über den '{opsi-configed}' einrichten:
+
+[source,prompt]
+----
+opsi-admin -d method config_createBool opsiclientd.event_timer_silentinstall.active "event_timer_silentinstall active" false
+----
+
+Damit ist für alle Clients dieses Event zunächst deaktiviert. Nun ist es möglich, dieses Event für einzelne Clients aktiv zu setzen:
+
+
+[source,prompt]
+----
+opsi-admin -d method configState_create opsiclientd.event_timer_silentinstall.active silentclient.domain.de true
+----
+
+Um die Produkte, die abgearbeitet werden sollen, zu beeinflussen, muss man folgende Einstellungen vornehmen.
+Wenn man zum Beispiel statt 'swaudit' und 'hwaudit' das Produkt firefox installieren will, sollte man wieder vorgehen wie oben beschrieben. Zunächst muss man einen Defaultwert eintragen:
+
+[source,prompt]
+----
+opsi-admin -d method config_createUnicode opsiclientd.event_silent_install.action_processor_productIds "event_silent_install productIds" "swaudit,hwaudit" "swaudit,hwaudit"
+----
+
+Mit dieser Option wird für alle Clients Standardmäßig die Produktliste für das Silent Install Event auf swaudit und hwaudit gesetzt. Um nun diese Einstellung für einen Client zu ändern, kann man folgenden Befehl ausführen:
+
+[source,prompt]
+----
+opsi-admin -d method configState_create opsiclientd.event_silent_install.action_processor_productIds client.domain.de "firefox"
+----
+
+Damit ist es auch möglich, einem Client eine andere Liste von Produkten zur Verarbeitung zu übergeben.

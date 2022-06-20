@@ -1,0 +1,191 @@
+﻿////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+; 
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-inventory]]
+= Inventory
+
+The localboot products `hwaudit` and `swaudit` and the netboot product `hwinvent` are available for inventory purposes.
+
+[[opsi-manual-inventory-hard]]
+== Hardware Inventory
+
+The hardware inventory is controlled in opsi via a configuration file. This means that the information how and which data is collected is not hardwired into the corresponding products `hwaudit` and `hwinvent`. Rather, these products are controlled via a configuration file. For this purpose, each time an inventory product is executed, the configuration file is read in and interpreted via the opsi web service. At the same time, this configuration file also controls the structure of the database, so that an extension of this configuration file also entails an extension of the database schema.
+
+The configuration file is `/etc/opsi/hwaudit/opsihwaudit.conf`. +
+In this file all objects to be inventoried are defined and is described how the data belonging to this object is to be collected (under Linux and under Windows). At the same time, the associated data structure is also defined.
+For simplification, this configuration file contains inheritance mechanisms that are based on an object orientation. The background to this is the fact that many objects have identical data fields, e.g. `Name` and `Vendor`. This general information is defined in 'virtual' hardware classes. The actual inventory objects are then 'structural' hardware classes, which can inherit many properties from the above 'virtual' classes.
+
+An example to explain this mechanism: +
+The configuration file first defines a 'virtual class' named '"BASIC_INFO"'. This defines the properties ('Values'):
+
+* "name"
+
+* "description"
+
+Next comes the 'virtual class' named '"HARDWARE_DEVICE"', which inherits all the properties of '"BASIC_INFO"' and defines the following additional ones:
+
+* "vendor"
+
+* "model"
+
+* "serialNumber"
+
+Next comes the first object, which we also find in the inventory, the first 'structural class' name '"COMPUTER_SYSTEM"', which inherits all properties of '"HARDWARE_DEVICE"' and defines or overwrites the following additional ones:
+
+* "name"
+
+* "systemType"
+
+* "totalPhysicalMemory"
+
+Various properties are described in the context of the definition of a class and its 'values':
+
+* Class definition: +
+**  "Type" +
+is "STRUCTURAL" or  "VIRTUAL"
+** "Super" +
+specifies the class from which to inherit.
+** "Opsi" +
+specifies the name of the class, which will later be used as the display name in opsi.
+
+Furthermore, the class definition can indicate how this data is collected. This information can also be used to define the 'values'.
+
+* For inventory under Linux:
+
+** "Linux": "[<command>]<parameter>" +
+Execution of the command line program <command>, with the argument <parameter>. Currently the supported programs are lshw, dmidecode, lsusb and lspci.
+
+** "Python": "<python code with place holder>" +
+Execution of the specified Python code whereby the placeholder is then replaced by the determined values.
+
+* For the Inventory under Windows:
+
+** "WMI": "<wmi select statement>" +
+WMI query to be executed. Apart from the default (root\cimv2), custom namespaces can be used (e.g. `namespace=root\\cimv2\\security\\microsofttpm:SELECT * FROM Win32_Tpm`).
+
+** "Cmd": "<Python text object with place holder>" +
+In this case, this is the relative path to an executable Python program, whose output replaces the placeholder.
+
+** "Registry": "[<registry key>] <value name>" +
+The value of <value name> is read from the registry in <registry key>. +
+The registry is read in an architecture-specific manner. This means that the 64-bit branch of the registry is read on a 64-bit system.
+
+* Value Definition:
+
+** "Type": "<MySQL database type>" +
+<MySQL database type> specifies the data type which will be used to create this value in the database.
+
+** "Scope": "<scope>" +
+The <scope> field is used in the following way: +
+"g" means: This attribute is the same for all devices of this type. +
+"i" means: This attribute can have different values for devices of this type.
+
+** "Opsi": "<id>" +
+<id> is the opsi internal name of the field. This can be localized for output via the files in `/etc/opsi/hwaudit/locales`.
+
+** "WMI": "<id or command>" +
+<id or command> is either the name of the WMI command, specified in the class definition, which outputs the value, or a seperate WMI command.
+
+** "Linux": "<id>" +
+<id> is the name of the Linux command, specified in the class definition, which outputs the value. 
+
+** "Condition": "<condition>" +
+<condition> is a condition which must be fulfilled, in order for the 'value' to be determined. For example, if the <condition> is defined as "vendor=[dD]ell*", then the values of "vendor" must contain either 'Dell' or 'dell'.
+
+Here is an example of the class "COMPUTER_SYSTEM":
+[source,prompt]
+----
+{
+   "Class": {
+      "Type":   "STRUCTURAL",
+      "Super":  [ "HARDWARE_DEVICE" ],
+      "Opsi":   "COMPUTER_SYSTEM",
+      "WMI":    "select * from Win32_ComputerSystem",
+      "Linux":  "[lshw]system"
+   },
+   "Values": [
+      {
+         "Type":   "varchar(100)",
+         "Scope":  "i",
+         "Opsi":   "name",
+         "WMI":    "Name",
+         "Linux":  "id"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "systemType",
+         "WMI":    "SystemType",
+         "Linux":  "configuration/chassis"
+      },
+      {
+         "Type":   "bigint",
+         "Scope":  "i",
+         "Opsi":   "totalPhysicalMemory",
+         "WMI":    "TotalPhysicalMemory",
+         "Linux":  "core/memory/size",
+         "Unit":   "Byte"
+      },
+      {
+         "Type":   "varchar(50)",
+         "Scope":  "i",
+         "Opsi":   "dellexpresscode",
+         "Condition": "vendor=[dD]ell*",
+         "Cmd":	"#dellexpresscode\dellexpresscode.exe#.split('=')[1]",
+         "Python":  "str(int(#{'COMPUTER_SYSTEM':'serialNumber','CHASSIS':'serialNumber'}#,36))"
+      }
+   ]
+},
+----
+
+The last value, "dellexpresscode", is particularly interesting: +
+This only makes sense if it is also a Dell computer, hence the condition. +
+Under Windows the command line program `dellexpresscode.exe` is executed, which is located as seen from `hwaudit.exe` in the subdirectory `dellexpresscode\`. This produces an output in the form: 'dellexpresscode=123456789'. With the `.split('=')[1]` after the placeholder, the value after the equal sign is used. +
+Under Linux it is checked in which element ('COMPUTER_SYSTEM' or 'CHASSIS') a value was found for 'serialNumber' and this is then used to calculate the Dell expresscode.
+
+The opsi names of the values are translated using the files found in `/etc/opsi/hwaudit/locales/*`.
+Example of `/etc/opsi/hwaudit/locales/en_US`:
+----
+COMPUTER_SYSTEM = Computer
+COMPUTER_SYSTEM.systemType = Type
+----
+
+The class name COMPUTER_SYSTEM is translated into "Computer".
+The opsi attribute "systemType" of the class COMPUTER_SYSTEM is translated into "type".
+Finally this note: If a new field is created, you should create it in the locale files, even if you do not translate the term yourself. This prevents "'Warning'" messages from being generated while running.
+
+After you have modified the configuration file and the locales, you have to execute the following command so that the changes are also transferred to the database:
+
+[source,prompt]
+----
+opsi-setup --init-current-config
+----
+
+Furthermore you have to completely reload the data in 'opsi-configed': 'File / Reload all data'.
+
+The source code of this package can be found on GitHub: link:https://github.com/opsi-org/hwaudit[opsi-org/hwaudit]
+
+[[opsi-manual-inventory-soft]]
+== Software Inventory
+
+Software inventory is done with the localboot product `swaudit`. The information from the uninstall path of the registry is collected and supplemented with additional information about hotfixes and license keys.
+
+The source code of this package can be found on Github: link:https://github.com/opsi-org/swaudit[opsi-org/swaudit]

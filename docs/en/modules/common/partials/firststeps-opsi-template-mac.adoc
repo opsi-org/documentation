@@ -1,0 +1,216 @@
+
+
+.define_vars_multi.opsiscript: Variablen deklaration
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.0.10
+; ----------------------------------------------------------------
+
+; -------------------------------------
+; include file for opsi-setup-detector products
+; Define all variables here
+;---------------------------
+DefVar $arch$
+DefVar $distCodeName$
+DefVar $distRelease$
+DefVar $distroName$
+DefVar $distrotype$
+DefVar $errorstring$
+DefVar $exitcode$
+DefVar $iconfile$
+DefVar $installCommand$
+DefVar $installSuccess$
+DefVar $installdir$
+DefVar $installdir1$
+DefVar $installdir2$
+DefVar $installerfile$
+DefVar $licensekey$
+DefVar $licensepool$
+DefVar $licenserequired$
+DefVar $minimumspace$
+DefVar $msiid$
+DefVar $oldProgFound$
+DefVar $os$
+DefVar $osshort$
+DefVar $productid$
+DefVar $targetfile$
+DefVar $tmpstr$
+DefVar $uninstallprogram$
+
+DefStringlist $ListOfPackageNames$
+DefStringList $osinfomap$
+----
+
+.setup.opsiscript: Installationsscript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.0.10
+; ----------------------------------------------------------------
+encoding=utf8
+
+[Actions]
+requiredOpsiscriptVersion >= "4.12.4.23"
+
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+importlib "uib_macosinstalllib.opsiscript"
+
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; ----------------------------------------------------------------
+; Please edit the following values:
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "m-opsi-template"
+Set $MinimumSpace$	 = "1 MB"
+; the path were we find the product after the installation
+;Set $InstallDir$	= "/Applications/<product.app>"
+Set $InstallDir$		= "/Applications/<productid.app>"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = "" 
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "macos"))
+	logError "Installation aborted: wrong OS version: only MacOS"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%/" + $ProductId$ + ".png" $ProductId$
+
+
+if FileExists("%ScriptPath%/delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%/delsub.opsiscript"
+endif
+
+Message "Installing " + $ProductId$ + " ..."
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, reserve license and get license key"
+	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
+endif
+
+comment "Start setup "
+ChangeDirectory "%SCRIPTPATH%/files1"
+;----------------------------------------------
+set $installSuccess$ = install_macos_generic("%SCRIPTPATH%/files1/<my macos install file>") 
+;----------------------------------------------
+if $installSuccess$  = "false"
+	LogError "Installation failed"
+	isfatalerror "Installation failed"
+else
+	Comment "Installation success"
+endif
+
+comment "Copy files"
+Files_install
+
+[Files_install]
+; Example of recursively copying some files into the installation directory:
+;
+; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+----
+
+.delsub.opsiscript: Ausgelagerte Deinstallations-Sub-Sektion
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.0.10
+; ----------------------------------------------------------------
+encoding=utf8
+
+Message "Check for existing installation of " + $ProductId$ + " ..."
+
+comment "Start the Uninstall check:"
+set $oldProgFound$ = "false"
+if directoryExists($InstallDir$)
+	set $oldProgFound$ = "true"
+endif
+
+if $oldProgFound$ = "true"
+	Message "Uninstalling " + $ProductId$ + " ..."
+	if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown') or ($InstallDir$ = '/Applications/'))
+		Files_uninstall
+	endif
+endif
+
+[Files_uninstall]
+del -sf "$InstallDir$/"
+;-----------------------------------------------------
+----
+
+.uninstall.opsiscript: Deinstallations-Skript
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.0.10
+; ----------------------------------------------------------------
+encoding=utf8
+
+
+[Actions]
+requiredOpsiscriptVersion >= "4.12.4.23"
+
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+importlib "uib_macosinstalllib.opsiscript"
+
+
+; All variables are defined here:
+include_insert "define_vars_multi.opsiscript"
+
+; ----------------------------------------------------------------
+; Please edit the following values:
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+Set $ProductId$		 = "m-opsi-template"
+; the path were we find the product after the installation
+;Set $InstallDir$	= "/Applications/<product.app>"
+Set $InstallDir$	= "/Applications/<productid.app>"
+Set $LicenseRequired$ = "false"
+Set $LicensePool$	  = ""
+; ----------------------------------------------------------------
+
+set $OS$ = GetOS
+
+if not(($OS$ = "macos"))
+	logError "Installation aborted: wrong OS version: only macos"
+	isFatalError "wrong OS"
+endif
+
+comment "Show product picture"
+ShowBitmap "%ScriptPath%/" + $ProductId$ + ".png" $ProductId$
+
+
+
+Message "Uninstalling " + $ProductId$ + " ..."
+
+if FileExists("%ScriptPath%/delsub.opsiscript")
+	comment "Start uninstall sub section"
+	Sub "%ScriptPath%/delsub.opsiscript"
+endif
+
+if $LicenseRequired$ = "true"
+	comment "Licensing required, free license used"
+	Set $tmpstr$ = FreeLicense($LicensePool$)
+endif
+----
+

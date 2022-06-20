@@ -1,0 +1,252 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the German creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+:getstarted:  getting started
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[opsi-getting-started-requirements]]
+= Requirements
+
+Subsequently the requirements for the installation of an {opsi-server} will be described.
+
+// Add the support matrix
+// :leveloffset: -1
+include::common:partial$supportmatrix.adoc[leveloffset-1]
+// :leveloffset: 0
+
+
+[[opsi-getting-started-requirements-hardware]]
+== Hardware requirements
+
+
+For a {opsi-server} the following hardware is recommended:
+
+* Intel-x86-compatible PC
+
+* 2GB RAM or higher
+
+* a hard disk with 60 GB capacity or more
+** An {opsi-Server} should have at least a minimum free space of 16 GB in the directory '/var/lib/opsi'
+
+The requirements of the server are moderate in testing environments. In the case of production environments it is recommended to increase the capabilities of the host system.
+
+We recommend in the case of testing with a Virtual machine, that the host computer should have at least a dual core processor and at least 4GB of RAM.
+For testing purposes, a test client can be run as another Virtual machine on the same host computer.
+
+
+[[opsi-getting-started-introduction-hardware-requirements-hints]]
+=== Notes on determining hardware requirements
+
+Hardware requirements depend heavily on usage.
+So here are a few tips to calculate the system requirements.
+
+
+[[opsi-getting-started-introduction-hardware-requirements-ram]]
+==== Memory requirements
+
+Each active Samba connection starts its own Samba process.
+Estimates vary between 800 kB and 4 MB.
+How many opsi clients access an opsi server at the same time depends heavily on the daily routines in your environment.
+
+The following values ​​were recommended for link:https://www.samba.org/samba/docs/man/Samba3-ByExample/secure.html[Samba 3]:
+
+|==========================
+| Process | 1 user | 130 users | 500 users
+| smbd    | 4 MB   | 520 MB    | 2000 MB
+|==========================
+
+Since we do not have any values ​​for current Samba versions, the above figures can only be regarded as a rough estimate and should be extended with a safety margin of 50%.
+
+The memory consumption of opsiconfd depends heavily (but not only) on the number of clients.
+The following minimum memory consumption can be derived from existing installations.
+The specified number of users are not active users at the same time, but the total number.
+
+|==========================
+| Process   | 100 users | 2000 users | 4000 users
+| opsiconfd | 500 MB    | 1000 MB    | 2000 MB
+|==========================
+
+You should also implement a safety margin here.
+
+
+[[opsi-getting-started-introduction-hardware-requirements-hints-cpu]]
+==== CPU
+
+Opsiconfd currently uses only one core.
+This core is only fully loaded when many opsi clients (> 100) access the server exactly at the same time.
+But the operating system, Samba, the database, etc. also require computing time.
+
+I.e. with 500 clients two CPU cores should be sufficient, with 1000 clients four CPU cores should be provided.
+
+Also note that opsi-depots put a strain on the opsi-configserver, which is significantly larger than that of a single client.
+
+
+[[opsi-getting-started-introduction-software-and-configuration-preconditions]]
+== Configuration requirements
+
+Your server and your network have to comply to the following requirements to install and work with opsi:
+
+
+[[opsi-getting-started-requirements-software-dns-domainname]]
+=== Valid DNS domain name
+
+Your DNS domain name must consist of at least one domain and one toplevel domain.
+In other words: the fully qualified domain name must contain at least one point.  Furthermore, the toplevel domain must consist of at least two characters.
+
+Valid domain names are e.g.: 'domain.local' , 'uib.de', 'subdomain.domain.de'.
+An invalid example: 'mydomain.d' because this is only one character at the top-level domain
+An invalid example: 'mydomain' because this is only a top-level domain +
+
+see also: +
+
+* https://en.wikipedia.org/wiki/Domain_name
+* https://en.wikipedia.org/wiki/Hostname
+
+
+[[opsi-getting-started-requirements-software-dns-hostname]]
+=== Valid DNS hostname
+
+The hostnames (also of the clients) must comply with the guidelines.
+This includes, for example, that they must not contain any underscores.
+
+Make sure that at your {opsi-Server}, returns a 'fully qualified domainname', in which at least come two dots, e.g. 'opsiserver.domain.local':
+
+[source,prompt]
+----
+hostname -f
+----
+
+Should the result not look like this (e.g. '127.0.0.1' or 'localhost') then you check your '/etc/hosts' directory or the name resolution first.
+
+see also: +
+* https://en.wikipedia.org/wiki/Hostname
+
+
+[[opsi-getting-started-requirements-software-dns-resolving]]
+=== Correct name resolution for the server
+
+Check the entry for the {opsi-Server} in the file '/etc/hosts', or check the output of:
+
+[source,prompt]
+----
+getent hosts $(hostname -f)
+----
+
+The result should look like the following example: +
+'192.168.1.1 server.domain.tld server'
+
+Here the IP address should belong to the network interface, to which the Clients will be connecting.
+
+If the result looks different from the above example (contains eg. '127.0.0.1' or 'localhost'), or the full qualified hostname does not contain one or more dots, then you must correct your name resolution (DNS or `/etc/hosts` file).
+
+NOTE: The names must be in accordance of the rules of a DNS system but a DNS server is not required for the usage of opsi.
+
+NOTE: opsi does not require _Active Directory_ or similar. Integrating opsi is possible but not required.
+
+
+[[opsi-getting-started-requirements-software-lang]]
+=== Localization settings
+
+opsi requires configured language settings ('locale') on the server.
+It is recommended to use an UTF-8 compatible locale.
+
+The following command performs a simplified check:
+[source,prompt]
+----
+test -e /etc/default/locale && echo "ok" || (echo "Check locales:" && locale)
+----
+
+If the output is _ok_ locales are set.
+If the output is _check locales:_ you should check if the following list
+has settings for _LANG_ or _LC_ALL_ that are according to your used language.
+
+For English we recommend `en_GB.UTF-8` or `en_US.UTF-8`.
+
+The following commands show how these settings can be changed if nothing or an
+undesired value is set:
+
+[source,prompt]
+----
+sudo locale-gen en_GB.UTF-8
+update-locale LANG=en_GB.UTF-8
+----
+
+To apply these settings systemwide the server should be restarted.
+
+For more information please consult the documentation of your Linux distribution.
+
+
+[[opsi-getting-started-installation-config-ports]]
+== Needed network ports
+
+This is an overview of the used ports and network protocols.
+
+Config server = central opsi-server to manage all clients. +
+Depot server = opsi-server in the individual locations. +
+If there is only one opsi-server, it takes both roles.
+
+* opsi-server web service: 4447/tcp +.
+Client to config and depot server, depot server to config server, also connections via localhost.
+
+* opsi-client web service: 4441/tcp +
+Config server to client, connection from client to itself via localhost.
+
+* opsi-client Notifier: 45000-45099/tcp +
+Connection from client to itself via localhost. +
+A random port from the given range is selected.
+
+* TFTP: 69/udp +
+Connection from the client to the depot server.
+
+* TFTP: 1024-65535/udp +
+Connection from the depot server to the client.
+
+* CIFS/SMB: 445/tcp +
+Client to depot server.
+
+* CIFS/SMB: 445/tcp + connection from
+Depot server to client. +
+Only necessary if opsi-deploy-client-agent (winexe, smbclient) is used for Windows clients.
+
+* Grafana web service: 3000/tcp +
+Connection from client to config server. +
+Only if the management web page of the config server is to be accessed from the client.
+
+* SSH: 22/tcp +
+Connection from client to Config server. +
+Management access to Config and Depot server.
+
+* SSH: 22/tcp +
+Connection from depot server to client. +
+Only necessary if opsi-deploy-client-agent is used for Linux / MacOS clients.
+
+* DNS: 53/tcp, 53/udp +.
+All servers / clients must be able to reach your DNS.
+
+* Wake-on-LAN (WoL): 7/udp, 9/udp, 12287/udp +
+Connection from config server to client. These ports are configurable.
+
+* HTTP: 80/tcp +
+Config and depot server to the Internet. +
+To load e.g. server updates from http://download.opensuse.org.
+
+* HTTPS: 443/tcp + Config and depot server to the Internet.
+Config and depot server to the Internet. +
+To load e.g. packages from https://download.uib.de (opsi-package-updater).

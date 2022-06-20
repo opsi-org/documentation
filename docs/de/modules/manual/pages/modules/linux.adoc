@@ -1,0 +1,734 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.01.2019
+:Revision:  4.1
+:toclevels: 6
+
+
+ifeval::["{mode}" == "antora"]
+include::common:partial$opsi_terms.adoc[]
+endif::[]
+
+[[opsi-manual-linux]]
+= opsi Linux Support
+
+
+include::common:partial$supportmatrix-linclient.adoc[]
+
+[[opsi-manual-linux-preconditions]]
+== Vorbedingungen für den opsi Linux Support
+
+
+Technische Voraussetzungen sind opsi 4.0.5 mit den Paketständen:
+
+.Benötigte Pakete
+[options="header"]
+|==========================
+|opsi-Paket|Version
+|opsi-linux-bootimage|>= 20140805-1
+|==========================
+
+Der opsi Support für Linux besteht aus einem Teil, der von Anfang an Opensource ist (den Netbootprodukten)
+und einem kofinanzierten Teil (dem Agent für die Clients).
+
+Dieser opsi-linux-client-agent ist eine
+http://uib.de/de/opsi-erweiterungen/erweiterungen/[kofinanzierte opsi Erweiterung]. +
+Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+Weitere Details hierzu finden Sie in xref:modules/modules#opsi-manual-modules[Freischaltung kostenpflichtiger Module].
+
+[[opsi-manual-linux-freestart]]
+== opsi-linux-client-agent: 15 Freistarts
+
+Der opsi-linux-client-agent beinhaltet 15 Freistarts bei denen der Agent auch ohne Freischaltung verwendet werden kann.
+
+Genauer formuliert: Nach der initalen Installation des opsi-linux-client-agent kann der der opsi-script 15 mal im Servicekontext gestartet werden ohne eine Freischaltung zu fordern. +
+Dies gibt Ihnen die Möglichkeit einen Linuxrechner aufzusetzen und mit den entsprechenden opsi-Produkten für den geplanten Einsatz zu konfigurieren.
+Beispielsweise können Sie nach der Installation das Produkt `l-opsi-server` aufrufen, um aus dem frisch installierten Rechner einen opsi-server zu machen.
+
+Für eine dauerhafte Pflege des installierten Linuxrechners über diese 15 Freistarts hinaus benötigen Sie aber eine Freischaltung dieses Features.
+
+
+[[opsi-manual-linux-getit]]
+== Installieren der Pakete
+
+Die Linux-bezogenen Pakete können über den `opsi-package-updater` geladen werden.
+Im Auslieferungszustand hat dieser bereits das Repository für die Linux-Produkte aktiviert.
+
+Sie können mit dem folgenden Aufruf die opsi-linux Produkte einspielen:
+[source,prompt]
+----
+opsi-package-updater -v --repo uib_linux install
+----
+
+
+[[opsi-manual-linux-introduction]]
+== Einführung
+
+*Ein Management-Werkzeug für Windows und Linux*
+
+Ziel der Erweiterung von opsi um die Unterstützung von Linux-Systemen ist die Schaffung eines Managementsystems für heterogene Umgebungen. Der Fokus liegt dabei auf der möglichst vollständigen Integration beider Welten in die gleichen Management-Vorgänge und Werkzeuge.
+
+Dies bedeutet, dass eine Linux-Installation auf die gleiche Weise angestoßen wird wie eine Windows-Installation. +
+Der opsi-client-agent unter Linux basiert auf dem selben Code wie der unter Windows und ist (soweit sinnvoll) befehlskompatibel.
+
+*Linux-Distributionsübergreifend*
+
+Der Linux-Support von opsi ist distributionsübergreifend angelegt. +
+Die folgenden Distributionen werden gleichwertig unterstützt:
+
+* Debian
+* Ubuntu
+* Linux Mint
+* OpenSuse / SLES (Suse Linux Enterprise Server)
+* RHEL (RedHat Enterprise Linux)
+* Alma Linux 8
+* Rocky Linux 8
+* CentOS
+* UCS
+
+Bitte beachten Sie das für eine Linux Mint Installation mindestens 4GB RAM in der Maschine bzw. VM verügbar sein müssen.
+
+
+include::common:partial$firststeps-osinstall-lin.adoc[leveloffset=2]
+
+
+[[opsi-manual-linux-clientagent]]
+== opsi-linux-client-agent
+
+Der opsi-client-agent für Linux ist Bestandteil des Kofinanzierungsprojektes 'Linux Agent' und derzeit kostenpflichtig.
+
+CAUTION: Ein Rechner kann *nicht* gleichzeitig am selben '{opsi-configserver}' Client *und* Server (z.B. '{opsi-depot}' / '{opsi-configserver}') sein. +
+Dies ist ein Problem mit der derzeitigen Datenstruktur in opsi und wird zu einem späteren Zeitpunkt gelöst. +
+Ein '{opsi-configserver}' kann sich also auch nicht selbst als Client haben. Es ist aber durchaus möglich einen Linuxclient als opsi-Server zu installieren der dann selber als '{opsi-configserver}' agiert oder als '{opsi-depot}' für einen anderen '{opsi-configserver}'. Wenn Sie auf diese Weise einen opsi-Server aufgesetzt haben und wollen diesen als Depotserver an dem '{opsi-configserver}' registrieren an dem diese Maschine auch Client ist, müssen Sie den Rechner als Client vorher löschen.
+
+Der opsi-client-agent für Windows besteht im Kern aus den Komponenten:
+
+. dem Service `opsiclientd`
+
+. dem Actionprocessor `opsi-script / opsi-script-nogui`
+
+Der opsi-client-agent für Linux basiert auf einer Portierung des Windows-Clientagenten nach Linux.
+
+Die Aufgaben des `opsiclientd` beim Systemstart sind:
+
+* Kontakt mit dem opsi-Server: Prüfen ob Aktionen gesetzt sind
+* Mounten des Depot Shares
+* Gegebenenfalls Updaten des Actionprocessors
+* Starten des Actionprocessors
+* Unmount des Depot Shares
+* Senden der Logdatei an den Server
+
+Der Actionprocessor heißt unter Linux opsi-script und ist aus den selben Quellen gebaut wie unter Windows. Damit steht unter Linux die gleiche Scriptsyntax zur Verfügung wie unter Windows. Weiterhin sind alle nicht plattformspezifischen Funktionen umgesetzt wie z.B:
+
+* File handling
+* String und Stringlisten Funktionen
+* Ausführen von externen Scripten und Programmen
+* Kommunikation mit dem opsi-Server
+* Patchen von Konfigurationsdateien
+
+Natürlich gibt es unter Linux keine Funktionen zum Patchen der Registry, dafür aber neue linuxspezifische Funktionen wie z.B.:
+
+* getLinuxDistroType
+* getLinuxVersionMap
+
+Das Logging des opsi-script ist analog zur dem unter Windows.
+
+Anders als bei Windows gibt es den opsi-script neben einer grafischen Version für die Arbeit unter X-Windows zusätzlich in einer Version 'no-gui' für Systeme ohne grafische Oberfläche.
+
+
+[[opsi-manual-linux-clientagent-installation-servicesetup]]
+== opsi-linux-client-agent: Installation: service_setup.sh
+
+Diese Methode dient zur Installation auf einzelnen Rechnern. Für ein Massen-Rollout siehe weiter unten.
+
+. Loggen Sie sich mit `root` Rechten auf dem Client ein.
+. Mounten Sie den share `//<opsiserver>/opsi_depot` an eine beliebige Stelle.
+. Wechseln Sie in das Verzeichnis `opsi-linux-client-agent` auf dem gemounteten share
+. Starten Sie dort das Script `./service_setup.sh`
+
+Das Skript nimmt per opsi-Webservice Kontakt zum Server auf, um serverseitig den Client zu erzeugen und den pckey zu erfahren. Dies erfolgt zunächst mit einer user/password Kombination, die aus mehreren möglichen Konfigurationsdateien auszulesen versucht wird. Schlägt dies fehl, so erscheint ein Login mit der Frage nach client-id, Service-URL, user und password. Dort kann die Operation mit den Accountdaten eines Mitglieds der Gruppe {opsi-admin-group} autorisiert werden.
+
+
+[[opsi-manual-linux-clientagent-installation-opsideploy]]
+=== opsi-linux-client-agent: Installation: opsi-deploy-client-agent
+
+Das `opsi-deploy-client-agent` verteilt den opsi-client-agent direkt vom {opsi-server} auf die Clients.
+
+Voraussetzung hierfür sind bei den Clients:
+
+* ssh Zugang als root oder als user, welcher `sudo` ausführen darf.
+
+
+Das Skript erzeugt serverseitig den Client, kopiert die Installations-Dateien und Konfigurationsinformationen, wie bspw. den pckey, auf den Client und startet dort die Installation.
+
+
+Mit dem `opsi-deploy-client-agent` kann auch eine ganze Liste von Clients bearbeitet werden.
+Dazu können entweder beliebig viele Clients als letzter Parameter übergeben werden oder mit der Option '-f' die Clients aus einer Datei eingelesen werden.
+Bei der Verwendung einer Datei, muss in jeder Zeile ein Client stehen.
+
+Das Programm kann mit IP-Adressen, Hostnamen und FQDNs arbeiten. Es versucht automatisch zu erkennen welche Art von Adresse übergeben wurde.
+
+Das Skript findet sich unter '/var/lib/opsi/depot/opsi-linux-client-agent' +
+Führen Sie das Programm mit 'root' Rechten aus.
+
+[source,prompt]
+----
+bonifax:/var/lib/opsi/depot/opsi-linux-client-agent# ./opsi-deploy-client-agent  --help
+usage: opsi-deploy-client-agent [-h] [--version] [--verbose]
+                                [--debug-file DEBUGFILE] [--username USERNAME]
+                                [--password PASSWORD]
+                                [--use-fqdn | --use-hostname | --use-ip-address]
+                                [--ignore-failed-ping]
+                                [--reboot | --shutdown | --start-opsiclientd | --no-start-opsiclientd]
+                                [--hosts-from-file HOSTFILE]
+                                [--skip-existing-clients]
+                                [--threads MAXTHREADS] [--depot DEPOT]
+                                [--group GROUP] [--smbclient | --mount]
+                                [--keep-client-on-failure | --remove-client-on-failure]
+                                [host [host ...]]
+
+Deploy opsi client agent to the specified clients. The c$ and admin$ must be
+accessible on every client. Simple File Sharing (Folder Options) should be
+disabled on the Windows machine.
+
+positional arguments:
+  host                  The hosts to deploy the opsi-client-agent to.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --verbose, -v         increase verbosity (can be used multiple times)
+  --debug-file DEBUGFILE
+                        Write debug output to given file.
+  --username USERNAME, -u USERNAME
+                        username for authentication (default:
+                        Administrator).Example for a domain account: -u
+                        <DOMAIN>\\<username>
+  --password PASSWORD, -p PASSWORD
+                        password for authentication
+  --use-fqdn, -c        Use FQDN to connect to client.
+  --use-hostname        Use hostname to connect to client.
+  --use-ip-address      Use IP address to connect to client.
+  --ignore-failed-ping, -x
+                        try installation even if ping fails
+  --reboot, -r          reboot computer after installation
+  --shutdown, -s        shutdown computer after installation
+  --start-opsiclientd, -o
+                        Start opsiclientd service after installation
+                        (default).
+  --no-start-opsiclientd
+                        Do not start opsiclientd service after installation.
+  --hosts-from-file HOSTFILE, -f HOSTFILE
+                        File containing addresses of hosts (one per line).If
+                        there is a space followed by text after the address
+                        this will be used as client description for new
+                        clients.
+  --skip-existing-clients, -S
+                        skip known opsi clients
+  --threads MAXTHREADS, -t MAXTHREADS
+                        number of concurrent deployment threads
+  --depot DEPOT         Assign new clients to the given depot.
+  --group GROUP         Assign fresh clients to an already existing group.
+  --smbclient           Mount the client's C$-share via smbclient.
+  --mount               Mount the client's C$-share via normal mount on the
+                        server for copying the files. This imitates the
+                        behaviour of the 'old' script.
+  --keep-client-on-failure
+                        If the client was created in opsi through this script
+                        it will not be removed in case of failure. (DEFAULT)
+  --remove-client-on-failure
+                        If the client was created in opsi through this script
+                        it will be removed in case of failure.
+----
+
+[[opsi-manual-linux-clientagent-installation-netboot]]
+=== opsi-linux-client-agent: Installation: Durch die opsi netbootprodukte
+
+Wenn Sie ein Linux über die opsi-Netboot-Produkte installieren, wird der opsi-linux-client-agent automatisch mit installiert, wenn das Property `install_opsi-client-agent` auf 'true' steht.
+
+[[opsi-manual-linux-clientagent-opsiclientd-configuration]]
+=== opsi-linux-client-agent: opsiclientd Konfiguration
+
+Der `opsiclientd` für Linux ist eine Portierung des opsiclientd für Windows und arbeitet mit einer analogen Konfigurations Datei: `/etc/opsi-client-agent/opsiclientd.conf`.
+
+Eine ausführliche Beschreibung dieser Konfiguration findet sich im Kapitel zum opsi-client-agent: xref:client/opsi-client-agent#opsi-manual-clientagent-configuration[opsi-client Konfiguration]
+
+Dabei sind nicht alle Features und Events auch unter Linux verfügbar. +
+Verfügbar sind:
+
+* Start beim Systemstart (bzw. start des `opsiclientd`) unter Linux ist der Name des Events `opsiclientd_start` (und nicht `gui_startup`)
+
+* `event_on_demand`
+* Das `event_timer` aber nur mit der Einstellung: `super = default`
+
+
+Nicht verfügbar sind (derzeit):
+
+* Alles was mit dem lokalen Cache ('WAN-Erweiterung') zu tun hat.
+* Das `event_net_connection`
+* Das `event_on_shutdown`
+* Das `event_silent_install`
+
+[[opsi-manual-linux-clientagent-places]]
+=== opsi-linux-client-agent: Pfade
+
+Der opsi-linux-client-agent legt Dateien an folgenden Orten ab:
+
+Die Binaries (bzw symlinks auf binaries):
+
+`/usr/bin/opsi-script`
+
+`/usr/bin/opsiclientd`
+
+Die Hilfsdateien für den opsi-script finden sich in:
+
+Skindateien: +
+`/opt/opsi-script/skin`
+custom : `/usr/share/opsi-script/customskin`
+
+opsi-script Library: +
+`/opt/opsi-script/lib`
+
+Translation Dateien: +
+`/opt/opsi-script/locale/opsi-script.po`
+
+Die Konfigurationen:
+
+`/etc/opsi-client-agent/opsiclientd.conf` (Konfiguration des opsiclientd)
+
+`/etc/opsi-script/opsi-script.conf` (Konfiguration des opsi-script)
+
+Logdateien sind zu finden unter:
+
+`/var/log/opsi-client-agent`
+
+`/var/log/opsi-client-agent/opsiclientd`
+
+`/var/log/opsi-script/`
+
+[[opsi-manual-linux-clientagent-knownbugs]]
+== opsi-linux-client-agent: Known Bugs
+
+Das Kopieren von vielen Dateien von einem Samba3-Share ist abhängig von der Samba-Version fehlerhaft. Es werden nicht alle Dateien kopiert.
+Das Problem wurde bei Samba4 Shares bisher nicht beobachtet.
+
+Als Workaround kann statt:
+[source,winst]
+----
+[Files_copy_netboot]
+copy -s "%scriptPath%/installfiles/*" "$target$/installfiles/"
+----
+das folgende verwendet werden:
+[source,winst]
+----
+[ShellInAnIcon_opsi_copy_netboot]
+set -x
+export PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+cd "%scriptPath%"
+tar cf - installfiles | ( cd "$target$/installfiles/" ; tar xf - )
+----
+
+
+[[opsi-manual-linux-scriptexample]]
+== Beispiel Scriptteile
+
+Unter Windows gilt für die Softwareverteilung: Die Installation von Software ist genauso wichtig wie die anschließende Konfiguration der Software. +
+Unter Linux stehen die meisten Pakete über die Repositories der Distribution zur Verfügung. Dadurch wird der Installationsanteil kleiner, der Konfigurationsanteil aber bleibt. Weiterhin gibt es auch Applikationen, welche nicht über die Standardrepositories verfügbar sind. +
+Hier müssen unter Umständen zunächst weitere Repositories dem System hinzugefügt werden bzw. Installationsquellen dem Paket zugefügt werden. +
+Wichtig ist, dass alle Installations- und Konfigurationsarbeiten zentral vom opsi-Server gesteuert und dort auch geloggt werden.
+
+Im folgenden finden Sie Beispiele für folgende Aufgaben in einem beispielhaften Script für den opsi-linux-client-agent:
+
+* Beenden wenn es nicht unter Linux läuft
+* Feststellen des Distributionstyps zur Entscheidung zwischen `apt`, `zypper` und `yum`
+* Feststellen der genauen Linux Version
+* Installation eines Paketes
+* Hinzufügen eines Repositories
+
+Beispiel: Beenden wenn es nicht unter Linux läuft:
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4.1"
+ScriptErrorMessages=off
+
+DefVar $OS$
+
+set $OS$ = GetOS
+
+if not($OS$ = "Linux")
+	LogError "Wrong OS: Product: " + $ProductId$ + " is only for Linux"
+	isFatalError "Wrong OS"
+endif
+----
+
+Beispiel: Feststellen des Distributionstyps:
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4.1"
+ScriptErrorMessages=off
+
+DefVar $distrotype$
+
+set $distrotype$ = getLinuxDistroType
+
+if $distrotype$ = 'debian'
+	Message "Try to get Package Lock..."
+	if waitForPackageLock("60","false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+		isFatalError "package lock failed"
+	endif
+	ShellInAnIcon_Upgrade_deb
+else
+	LogError "Wrong Distro: This Product is for Debian/Ubuntu only"
+	isFatalError "Wrong distro"
+endif
+
+if not("0" = getLastExitCode)
+	Message "failed ShellInAnIcon_Upgrade"
+	LogError "failed ShellInAnIcon_Upgrade"
+	isFatalError "failed Upgrade"
+endif
+
+
+[ShellInAnIcon_Upgrade_deb]
+set -x
+export DEBIAN_FRONTEND=noninteractive
+apt update
+apt --yes dist-upgrade
+exit $?
+----
+
+
+Beispiel: Feststellen der genauen Linux Version und Installation eines Paketes:
+
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4.1"
+ScriptErrorMessages=off
+
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $desktop$
+
+DefStringList $linuxInfo$
+
+set $linuxInfo$ = getLinuxVersionMap
+set $distCodeName$ = getValue("Codename", $linuxInfo$)
+set $distRelease$ = getValue("Release", $linuxInfo$)
+set $distroName$  = getValue("Distributor ID", $linuxInfo$)
+
+set $desktop$ = GetProductProperty("desktop", "kde")
+
+
+if $distrotype$ = 'suse'
+	if $desktop$ = "unity"
+		Message " No Unity on SUSE - fallback to KDE ..."
+		set $desktop$ = "kde"
+	endif ; unity
+
+	Message "Try to get Package Lock..."
+	if waitForPackageLock("60","false")
+		comment "we got the package lock."
+	else
+		LogError "could not get Package Lock"
+		isFatalError "package lock failed"
+	endif
+
+	if $desktop$ = "kde"
+		if ($distroName$ = 'openSUSE project')
+			ShellInAnIcon_kde_suse
+		endif
+		if ("SUSE LINUX" = $distroName$) and ($distRelease$ = "11")
+			ShellInAnIcon_kde_sles11
+		endif
+		if not("0" = getLastExitCode)
+			LogError "failed ShellInAnIcon"
+			Message "failed kde"
+			isFatalError "failed kde"
+		endif
+	endif ; kde
+endif; suse type
+
+[ShellInAnIcon_kde_suse]
+set -x
+zypper --no-gpg-checks --non-interactive install patterns-openSUSE-kde4 patterns-openSUSE-kde4_basis
+zypper --no-gpg-checks --non-interactive install splashy-branding-openSUSE
+exit $?
+
+[ShellInAnIcon_kde_sles11]
+set -x
+zypper --no-gpg-checks --non-interactive install --auto-agree-with-licenses -t pattern kde
+exit $?
+----
+
+
+Beispiel: Hinzufügen eines Repositories:
+[source,winst]
+----
+[Actions]
+requiredWinstVersion >= "4.11.4.1"
+ScriptErrorMessages=off
+
+DefVar $distCodeName$
+DefVar $distroName$
+DefVar $distRelease$
+DefVar $desktop$
+
+DefStringList $linuxInfo$
+
+set $linuxInfo$ = getLinuxVersionMap
+set $distCodeName$ = getValue("Codename", $linuxInfo$)
+set $distRelease$ = getValue("Release", $linuxInfo$)
+set $distroName$  = getValue("Distributor ID", $linuxInfo$)
+
+set $desktop$ = GetProductProperty("desktop", "kde")
+
+
+if $distroName$ = 'Ubuntu'
+
+	if $desktop$ = "cinnamon"
+		set $desktopPackage$ = $desktop$
+		Message "Try to get Package Lock..."
+		if waitForPackageLock("60","false")
+			comment "we got the package lock."
+		else
+			LogError "could not get Package Lock"
+			isFatalError "package lock failed"
+		endif
+		ShellInAnIcon_ubuntu_cinnamon
+		if not("0" = getLastExitCode)
+			Message "failed ShellInAnIcon_ubuntu_cinnamon"
+			LogError "failed ShellInAnIcon_ubuntu_cinnamon"
+			isFatalError "failed cinnamon"
+		endif
+	endif ; cinnamon
+endif; ubuntu
+
+[ShellInAnIcon_ubuntu_cinnamon]
+set -x
+export DEBIAN_FRONTEND=noninteractive
+# we need to get the add-apt-repository command
+apt --yes --force-yes install python-software-properties
+# the cinnamon repository
+add-apt-repository ppa:gwendal-lebihan-dev/cinnamon-stable
+apt update
+apt --yes install ubuntu-desktop
+exit $?
+----
+
+Viele dieser und einige weitere nützliche Funktionen sind in der opsi-script standard-Bibliothek uib_lin_install.opsiscript enthalten.
+
+[[opsi-manual-linux-localboot]]
+== Linux Localboot Produkte
+
+Hier einige Lokalbootprodukte, welche zum Standardumfang des opsi Linuxsupports gehören.
+
+[[opsi-manual-linux-localboot-l-opsi-server]]
+=== Das Produkt l-opsi-server
+
+Das Produkt 'l-opsi-server' dient dazu, automatisiert auf einer Linuxmaschine per opsi-linux-client-agent
+einen opsi-server zu installieren. Dies kann dazu dienen, um schnell einen neuen opsi-depot-server zu installieren
+oder z.B. ein opsi Testsystem.
+
+CAUTION: Derzeit kann eine Maschine nicht gleichzeitig am selben opsi-configserver
+opsi-client und opsi-depot-server sein. +
+Sie haben derzeit zwei Möglichkeiten mit dieser Beschränkung umzugehen: +
+1. Verwendung von einem opsi-configserver: Wenn also ein per 'l-opsi-server' installierter opsi-server zum Depotserver an seinem Config-Server werden soll, so müssen Sie vorher im configed die Maschine als Client löschen. +
+2. Verwendung von zwei opsi-configservern: Sie setzen für die Verwaltung Ihrer opsi-server einen zweiten, unabhängigen
+opsi-configserver auf, welcher nur dazu dient die anderen opsi-server zu installieren und zu pflegen. Dieser zweite opsi-configserver kennt die anderen opsi-server also nur als Clients, während der bisherige (erste) opsi-configserver die anderen opsi-server nur als Depots (oder garnicht) kennt. +
+In UCS Umgebungen wird Methode 2 empfohlen und der zweite opsi-configserver darf keine UCS Maschine sein.
+
+Das Produkt 'l-opsi-server' hat folgende Properties:
+
+* `opsi_online_repository`: +
+(Basis-) Repository für die opsi-server installation. +
+(Default="https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/") +
+siehe auch 'repo_kind'
+
+* `opsi_noproxy_online_repository`: +
+(Basis-) Repository für die opsi-server installation (ohne cache proxy). +
+(Default="https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/") +
+Sollten Sie bei `opsi_online_repository` einen Proxy oder deb-cacher mit angegeben haben
+(z.B. 'http://mydeb-cacher:9999/download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/"),
+dann geben Sie hier die URL nochmal ohne den Proxy an. Ansonsten geben Sie hier das selbe an wie bei `opsi_noproxy_online_repository`.
+
+* `repo_kind`: +
+Welche Repository Art ["experimental", "stable", "testing"] soll zur Installation verwendet werden ?. (Default='stable') +
+Aus dem Client OS, 'opsi_online_repository' und 'repo_kind' wird die URL zusammengebaut, welche verwendet wird,
+um dem Client ein opsi Repository hinzuzufügen.
+
+* `backend`: +
+Welches Backend soll installiert werden ? (Die Auswahl `mysql` benötigt die Hinterlegung einer gültigen Freischaltdatei). (Default='file') +
+Eine modules Datei mit den benötigten Freischaltungen kann im custom Verzeichnis des Produktes abgelegt werden.
+Wird dort eine modules gefunden so wird diese verwendet.
+
+* `opsi_admin_user_name`: +
+Unter welchen Namen soll ein opsi_admin_user erzeugt werden (empty= kein user wird erzeugt). (Default='adminuser') +
+Wird hier ein user angegeben, so wird dieser angelegt, wird Mitglied der Gruppen 'opsiadmin', 'pcpatch'/'opsifileadmin'
+und bekommt als unix- und samba Passwort den Wert von `opsi_admin_user_password`
+
+* `opsi_admin_user_password`: +
+Was ist das Passwort für den opsi_admin_user (empty= nicht erlaubt). (Default='linux123') +
+siehe `opsi_admin_user_name`
+
+* `setup_after_install`: +
+Welche opsi Produkte sollen nach der Installation von l-opsi-server installiert werden ?. (Default="")
+
+* `allow_reboot`: +
+Darf die Maschine nach der Installation von l-opsi-server rebootet werden ?. (Default='true')
+
+* `myipname`: +
+Soll ein abweichender IP-Name (FQDN) bei der Installation verwendet werden ? ('auto'= use standard) (Default='auto') +
+siehe `install_and_configure_dhcp`
+
+* `myipnumber`: +
+Soll eine abweichende IP-Nummer bei der Installation verwendet werden ? ('auto'= use standard) (Default='auto')+
+siehe `install_and_configure_dhcp`
+
+* `install_and_configure_dhcp`: +
+Soll ein DHCP-Server auf der Maschine installiert und konfiguriert werden ?. (Default='False') +
+Wenn dieses Property 'false' ist, so werden die Properties: 'netmask', 'network','dnsdomain','nameserver' und 'gateway' nicht beachtet, da diese nur der DHP Konfiguration dienen.
+
+* `netmask`: +
+Netmask  (für dhcp). (Default="255.255.0.0") +
+Nicht verwendet wenn 'install_and_configure_dhcp=false'
+
+* `network`: +
+Netzwek Adresse (für dhcp). (Default="192.168.0.0") +
+Nicht verwendet wenn 'install_and_configure_dhcp=false'
+
+* `dnsdomain`: +
+DNS domain (for dhcp). (Default="uib.local") +
+Nicht verwendet wenn 'install_and_configure_dhcp=false'
+
+* `nameserver`: +
+Primary nameserver (für dhcp). (Default="192.168.1.245") +
+Nicht verwendet wenn 'install_and_configure_dhcp=false'
+
+* `gateway`: +
+gateway (option routers for dhcp). (Default="192.168.1.245") +
+Nicht verwendet wenn 'install_and_configure_dhcp=false'
+
+* `ucs_master_admin_password`: +
+Passwort des users 'Administrators' auf dem UCS-Master. +
+Wird nur für UCS-Server benötigt und hier nur für alle Rollen außer 'Master'. (Default='linux123')
+
+* `update_test`: +
+Nicht verwenden: Internal Debuging. (Default='False')
+
+Das Produkt hat eine 'setup required before' Abhängigkeit zu dem Produkt 'l-system-update'.
+D.h. wenn Sie 'l-opsi-server' auf 'setup' stellen, wird automatisch 'l-system-update' auch auf setup
+gestellt und vorher installiert.
+
+In dem Verzeichnis `custom` des Produktes `l-opsi-server` kann eine Freischaltdatei (`modules`) abgelegt werden, welche bei der Installation durch das Produkt `l-opsi-server` verwendet wird und beim Einspielen einer neuen Version des Produktes erhalten bleibt.
+
+
+
+[[opsi-manual-linux-localboot-l-os-postinst]]
+=== l-os-postinst für v4.0.5 Netboot installationen
+
+Dieses Produkt übernimmt jene Teile der Basisinstallation, welche sich vom Bootimage nicht korrekt ausführen lassen.
+
+Dies ist für die unterschiedlichen Distributionen:
+
+* CentOS:
+
+** Installation von SELinux
+
+
+Das Produkt hat eine Abhängigkeit zu dem Produkt 'l-system-update', welches vor dem Lauf von 'l-os-postinst' aufgerufen wird. +
+Das Produkt hat eine hohe Priorität, d.h. es wird vor 'normalen' Produkten ausgeführt.
+
+[[opsi-manual-linux-localboot-l-desktop]]
+=== l-desktop
+
+Das Produkt l-desktop installiert einen Desktop auf dem Rechner.
+
+Über das Property `desktop` kann der zu installierende Desktop ausgewählt werden. Dabei ist zu beachten, das nicht alle Desktops auf allen Distributionen verfügbar sind. So gibt es z.B. 'Unity' nur unter Ubuntu. Wird ein nicht verfügbarer Desktop gewählt so wird ein Distributionsspezifischer Defaultdesktop installiert. Weiterhin haben die Desktop Pakete einen unterschiedlichen Umfang, welcher abhängig von Distribution und Desktop sich auf die eigentliche Desktop Software beschränken kann oder auch Basisprodukte wie libreoffice, firefox, PDF-Reader usw. enthalten kann.
+
+Das Property `desktop` hat folgende Werte:
+
+* Gnome +
+Default für Debian, CentOS, RHEL +
+Verfügbar auf allen Distributionen.
+
+* KDE +
+Default für SLES, OpenSuse
+Verfügbar auf allen Distributionen.
+
+* Unity +
+verfügbar nur für Ubuntu
+
+* Cinnamon +
+verfügbar nur für Ubuntu
+
+* xfce4 +
+Verfügbar auf Ubuntu, Debian.
+
+* lxde +
+Verfügbar auf Ubuntu, Debian.
+
+
+[[opsi-manual-linux-localboot-l-system-update]]
+=== l-system-update
+Dieses Produkt aktualisiert das System.
+
+[[opsi-manual-linux-localboot-l-swaudit]]
+=== swaudit
+Softwareinventarisierung auf Basis des Paketmanagers
+
+[[opsi-manual-linux-localboot-hwaudit]]
+=== hwaudit
+
+Hardwareinventarisierung. +
+Die Hardwareinventarisierung basiert zur Zeit auf der in Python implementierten Methode wie sie auch vom bootimage verwendet wird.
+
+[[opsi-manual-linux-localboot-l-jedit]]
+=== l-jedit
+
+Java-basierter Editor mit Syntaxhighlighting für opsi-script.
+Ist noch kein Java installiert, so wird dieses automatisch installiert.
+
+
+[[opsi-manual-linux-inventory]]
+== Inventarisierung
+
+Zur Inventarisierung werden die Daten durch den Clientagenten erhoben und an den Server gesendet. Die Hardwareinventarisierung basiert auf den schon im Bootimage implementierten Methoden.
+
+Die Softwareinventarisierung basiert auf den Daten des Paketmanagements der verwendeten Distribution.
+
+[[opsi-manual-linux-uefi]]
+== UEFI / GPT Unterstützung
+
+Die Meisten der opsi 4.1 / opsi 4.2 Linux Netbootprodukte sind UEFI/GPT kompatibel. Details siehe hierzu in der obigen Auflistung der Netbootprodukte.
+
+
+[[opsi-manual-linux-debproxy]]
+== Proxy für '.deb'-Pakete einrichten und verwenden
+
+Anleitungen zur Erstellung eines eigenen Proxy zum Zwischenspeichern von '.deb'-Paketen finden Sie unter anderem hier:
+
+* link:http://wiki.ubuntuusers.de/Lokale_Paketquellen/Apt-Cacher-ng[Ubuntusers Wiki: Apt-Cacher-NG]
+
+* link:http://www.gambaru.de/blog/2011/10/26/apt-cacher-ng-ein-proxy-server-fur-debian-und-ubuntu/[Gambaru.de: Apt-Cacher-NG: Ein Proxy-Server für Debian und Ubuntu]
