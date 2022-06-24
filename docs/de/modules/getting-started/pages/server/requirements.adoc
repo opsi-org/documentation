@@ -32,70 +32,26 @@ include::common:partial$supportmatrix.adoc[]
 [[opsi-getting-started-requirements-hardware]]
 == Hardwarevoraussetzungen
 
-Für den {opsi-Server} in realer Hardware wird benötigt:
+Für einen {opsi-Server} auf realer Hardware wird benötigt:
 
-* Intel-x86-kompatibler PC
+* x86-64- oder ARM64-System
+* Mindestens 2GB RAM
+* Mindestens 2 CPU-Cores
+* Der Bedarf an Festplatten-Speicher hängt stark von der Anzahl der opsi-Pakete ab. Für Produktiv-Systeme gilt:
+** Im Verzeichnis '/tmp' sollte immer mindestens 15GB freier Speicher zur Verfügung stehen.
+** Das Verzeichnis '/var/lib/opsi' sollte mindestens 60GB umfassen und flexibel erweiterbar sein.
 
-* mindestens 2GB RAM
+Wie viele opsi-Clients gleichzeitig auf einen opsi-Server zugreifen, hängt stark von der Konfiguration und den Tagesabläufen in der jeweiligen Umgebung ab.
+In großen Umgebungen, mit vielen gleichzeitigen Client-Verbindungen, kann der RAM- und CPU-Bedarf deutlich ansteigen.
 
-* eine Festplatte mit mindestens 60 GB Kapazität
-** Ein {opsi-Server} sollte im Betrieb im Verzeichnis '/var/lib/opsi' über mindestens 16 GB freien Speicher verfügen
+Der zentrale opsi-Dienst 'opsiconfd' benötigt pro Worker-Prozess ca. 250MB RAM.
+Es sollte etwa ein Worker-Prozess für 20 gleichzeitige Verbindungen zur Verfügung stehen.
+Die Anzahl der CPU-Cores sollte in etwa der Hälfte der Anzahl von Worker-Prozessen entsprechen.
 
-Im Testbetrieb sind die Anforderungen an die Leistungsfähigkeit der Maschine nicht besonders hoch. Für den Produktivbetrieb kann es nötig werden die Anforderungen an den Server an zu passen.
-
-Bei der Verwendung der virtuellen Maschine muss ein angemessener Wirtsrechner genutzt werden. Es sollte mindestens ein Dualcore Prozessor und 4GB RAM vorhanden sein.
-Für eine Teststellung kann problemlos eine weitere virtuellen Maschine auf dem selben Wirtsrechner als Client dienen.
-
-
-[[opsi-getting-started-introduction-hardware-requirements-hints]]
-=== Hinweise zur Ermittlung von Hardware-Anforderungen
-
-Die Anforderungen an die Hardware hängen stark von der Verwendung ab.
-Daher hier ein paar Hinweise damit Sie das passende für sich kalkulieren können.
-
-
-[[opsi-getting-started-introduction-hardware-requirements-ram]]
-==== Arbeitsspeicher
-
-Jede aktive Samba Connection macht einen eigenen Samba Prozess auf.
-Für diesen sind je nach Quelle zwischen 800 kB und 4 MB zu kalkulieren.
-Wieviele opsi-clients gleichzeitig auf einen opsi Server zugreifen, hängt stark von den Tagesabläufen in Ihrer Umgebung ab.
-
-Für link:https://www.samba.org/samba/docs/man/Samba3-ByExample/secure.html[Samba 3] wurden folgende Werte empfohlen:
-
-|==========================
-| Prozess | 1 User | 130 User | 500 User
-| smbd    | 4 MB   | 520 MB   | 2000 MB
-|==========================
-
-Da uns keine Werte für aktuelle Samba-Versionen vorliegen, können die vorgenannten Zahlen lediglich als grobe Schätzung angesehen werden und sollten mit einem Sicherheitszuschlag von 50% versehen werden.
-
-Der Speicherverbrauch des opsiconfd hängt stark (aber nicht nur) von der Anzahl der Clients ab.
-Aus bestehenden Installationen kann der folgende Minimalverbrauch abgeleitet werden.
-Bei den angegebenen Userzahlen handelt es sich hierbei nicht um gleichzeitig aktive User, sondern um die Gesamtzahl.
-
-|==========================
-| Prozess   | 100 User | 2000 User | 4000 User
-| opsiconfd | 500 MB   | 1000 MB   | 2000 MB
-|==========================
-
-Auch hier sollten Sie einen Sicherheitszuschlag haben.
-
-
-[[opsi-getting-started-introduction-hardware-requirements-hints-cpu]]
-==== CPU
-
-Der opsiconfd nutzt derzeit nur einen Kern.
-Dieser eine Kern wird auch nur dann ausgelastet, wenn viele opsi-clients (>100) exakt gleichzeitig auf den Server zugreifen.
-Aber das Betriebsystem, Samba, die Datenbank usw. benötigen ebenfalls Rechenzeit.
-
-D.h. bei 500 Clients sollten zwei CPU-Kerne hinreichend sein, bei 1000 Clients sollten sie vier CPU-Kerne zur Verfügung stellen.
-
-Beachten Sie auch, dass opsi-Depots Last auf den opsi-Configserver bringen, die zudem deutlich größer ist, als die eines einzelnen Clients.
-
+In der Standard-Konfiguration sind auf dem gleichen System zusätzliche Ressourcen für Samba, MySQL und Redis einzuplanen.
 
 [[opsi-getting-started-introduction-software-and-configuration-preconditions]]
-== Software und Konfigurationsvoraussetzungen
+== Software- und Konfigurationsvoraussetzungen
 
 Folgende Voraussetzungen müssen erfüllt sein, damit Sie opsi installieren bzw. einsetzen können:
 
@@ -246,3 +202,40 @@ Um z.B. Server-Updates von http://download.opensuse.org zu laden.
 * HTTPS: 443/tcp +
 Config- und Depot-Server ins Internet. +
 Um z.B. Pakete von https://download.uib.de zu laden (opsi-package-updater).
+
+
+[[opsi-getting-started-installation-config-proxy]]
+== Proxy-Einstellungen
+
+Wenn ein HTTP-Proxy verwendet wird, sollten die Proxy-Einstellungen systemweit über Umgebungsvariablen konfiguriert werden.
+Diese Umgebungsvariablen werden in der Regel in der Datei `/etc/environment` hinterlegt.
+Die folgenden Umgebungsvariablen sollten angelegt werden, alle kleingeschrieben.
+
+=== http_proxy
+Mit der Umgebungsvariablen `http_proxy` wird konfiguriert welcher Proxy für HTTP-Verbindungen verwendet werden soll.
+Hierbei sollte unbedingt eine vollständige URL verwendet werden, nicht nur Hostname und Port.
+Benötigt der Proxy eine Authentifizierung, kann diese in der URL mit angegeben werden.
+
+`http_proxy=http://<user>:<password>@<proxy-address>:<port>`
+
+Beispiel: `http_proxy=http://10.10.10.10:3128`
+
+=== https_proxy
+Wie `http_proxy`, nur für HTTPS-Verbindungen.
+
+Beispiel: `https_proxy=https://10.10.10.10:3128`
+
+
+=== no_proxy
+Über die Umgebungsvariable `no_proxy` wird definiert, für welche Adressen kein Proxy verwendet werden soll.
+Mehrere Adressen werden hierbei mit Komma getrennt.
+Für die einzelnen Adressen sollten unbedingt folgende Regeln beachtet werden:
+* Durchgängig Kleinschreibung verwenden.
+* Es sollten nur IP-Adressen verwendet werden, wenn auch der Zugriff direkt auf die IP-Adresse erfolgt. Bei der Auswertung der Ausnahmen findet keine Namensauflösung statt.
+* Es dürfen keine IP-Adressbereiche (CIDR-Matching, wie z.B: 192.168.0.0/24) verwendet werden.
+* Auch für lokale Adressen und Loopback-Adressen, wie `localhost` und `127.0.0.1`, müssen Ausnahmen definiert werden.
+* Es dürfen keine Wildcards, wie `*` oder Regular Expressions, verwendet werden.
+* Jeder Name wird als Suffix ausgewertet, `domain.com` definiert daher eine Ausnahme für alle Hostnamen die auf `domain.com` enden.
+* Bei jeder Adresse kann, optional, nach einem Doppelpunkt ein Port mit angegeben werden. Dann gilt die Ausnahme nur für den angegebenen Port.
+
+Beispiel: `no_proxy=127.0.0.1,localhost,mydomain.example,hostname.domain.com:8080`
