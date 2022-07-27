@@ -2,9 +2,20 @@ FROM docker.uib.gmbh/fabian/opsidoc-antora:latest AS opsidoc-dev-container
 
 LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
-ARG USER
 
+ARG USER
 ENV USER=${USER}
+
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+ARG USERNAME=${USER}
+
+RUN groupmod -n $USERNAME $(getent group 1000 | awk -F ":" '{ print $1 }') \
+	&& mv /home/$(getent passwd 1000 | awk -F ":" '{ print $1 }') /home/$USERNAME \
+	&& ln -s /home/$USERNAME /home/$(getent passwd 1000 | awk -F ":" '{ print $1 }') \
+	&& usermod -l $USERNAME $(getent passwd 1000 | awk -F ":" '{ print $1 }') \
+    && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
+    && chown -R $USER_UID:$USER_GID /home/$USERNAME
 
 ENV TZ=Europe/Berlin
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
