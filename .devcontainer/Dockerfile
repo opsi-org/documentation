@@ -4,11 +4,11 @@ LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
 
 ARG USER
-ENV USER=${USER}
+ENV USER=opsidoc
 
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
-ARG USERNAME=${USER}
+ARG USERNAME=opsidoc
 
 
 	
