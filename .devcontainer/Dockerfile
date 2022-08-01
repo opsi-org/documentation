@@ -3,8 +3,6 @@ FROM docker.uib.gmbh/opsi/opsidoc-antora:latest AS opsidoc-dev-container
 LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
 
-ARG USER
-ENV USER=opsidoc
 
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
