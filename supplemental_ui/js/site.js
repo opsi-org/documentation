@@ -291,10 +291,24 @@
     });
 })();
 
+
 function searchWord(searchText) {
     let cont = document.querySelector("article");
     let pattern = new RegExp("(" + searchText + ")", "gi");
+
+    let links = document.querySelectorAll(".xref");
+    let hrefs = []
+    for (var i = 0; i < links.length; i++) {
+        hrefs.push(links[i].href)
+    }
     cont.innerHTML = cont.innerHTML.replace(pattern, "<mark>$1</mark>");
+   
+    let new_links = document.querySelectorAll(".xref");
+    for (var i = 0; i < links.length; i++) {
+        new_links[i].href = hrefs[i]
+    }
+    
     let scrollPos = document.querySelector("mark").offsetTop - 200;
     window.scroll({ top: scrollPos, behavior: "auto" });
+   
 }
