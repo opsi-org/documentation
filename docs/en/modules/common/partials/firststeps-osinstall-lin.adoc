@@ -1,168 +1,7 @@
 [[firststeps-osinstall]]
 == Installation of a new Linux PC via opsi (OS-Installation)
 
-////
-[[firststeps-osinstall-linux-netboot-intro]]
-=== Linux Netboot Produkte: Einführung und technische Hintergründe
 
-Bei den mit opsi v4.0.5 veröffentlichten Linux-Netboot-Produkte wurden die Installationen des gewählten Betriebssystems weitgehend vom Netboot-Produkt gesteuert ('generischer Installer').
-Die ab v4.0.6 veröffentlichten Linux Netboot Produkte verwenden den distributionseigenen Installer.
-
-.distributionseigener Installer
-
-* Ähnlich wie bei der Windows-Installation wird für den Installer eine Antwortdatei bereit gestellt, welche vom Installer zur nichtinteraktiven Installation genutzt wird.
-
-* Der distributionseigene Installer ist nicht wie bei Windows ein Programm das aufgerufen wird, sondern in einer Kombination aus distributionseigenem Kernel und initrd implementiert.
-
-* Die gesamte Grundinstallation - inklusive Partitionierung, LVM, Basissoftware, etc. - liegt in der Hand des Installers und wird nicht mehr durch das bootimage durchgeführt.
-
-* Bei den Suse- und RedHat-artigen Distributionen werden die Installationsquellen von Ihnen bereitgestellt, in dem Sie die Installations-DVD als ISO-Datei auf dem Depotshare ablegen. Dieses Verfahren ähnelt der Situation unter Windows, nur dass der Ablageort ein anderer ist und dass Sie bei Windows den Inhalt der Installations-DVD ablegen anstatt einer ISO-Datei.
-
-* Bei den Debian-artigen werden die Installationsquellen aus dem Netz verwendet. Auf dem Depotshare liegen nur die Netboot Versionen von Distributionskernel und dazugehörigem initrd. Da diese Dateien nicht groß sind, werden sie im opsi-Paket mitgeliefert. +
-
-* Zur weiteren Pflege der Installation kann der opsi-linux-client-agent im Rahmen der Basisinstallation mit installiert werden.
-
-Abläufe der Installationsmimik:
-
-. Das opsi-linux-bootimage wird gebootet, löscht die Partitionstabelle und erstellt eine kleine temporäre Hilfsparition.
-
-. Das opsi-linux-bootimage holt sich das distributionseigene initrd und entpackt es auf der Hilfspartition.
-
-. Das opsi-linux-bootimage holt sich die generische Vorlage für die Antwortdatei, patcht (personalisiert) diese und legt sie dann in das initrd Verzeichnis.
-
-. Das opsi-linux-bootimage erstellt weitere Hilfscripte und Konfigurationsdateien (z.B. zur Installation des opsi-linux-client-agent) und legt sie dann in das initrd Verzeichnis.
-
-. Das opsi-linux-bootimage packt das gepatchte initrd Verzeichnis wieder zusammen.
-
-. Das opsi-linux-bootimage bootet den Distributions-Kernel mit dem gepatchten initrd per kexec oder per reboot.
-
-. Das so geladene System installiert das Zielsystem unattended und installiert abschließend den opsi-linux-client-agent.
-
-* Die Installation findet exakt gemäß den Anforderungen des Distributors statt. Dies ist immer ein Vorteil, aber natürlich im Unternehmensumfeld als Ausgangsbedingung für Supportverträge besonders wichtig.
-
-
-
-[[firststeps-osinstall-fill-base-packages]]
-=== Betriebssysteminstallation: Vervollständigen der Basispakete für Linux
-
-In den zum Download empfohlenen Paketen sind teilweise lediglich Basispakete (Framework) enthalten. Diese dienen zur Installation der Linux-Betriebssysteme, müssen jedoch noch vervollständigt werden, da sie nicht die Dateien zur Installation des Betriebssystems selbst enthalten.
-
-Zur automatischen Linux-Betriebssysteminstallation müssen Sie Ihre vorhandenen Original-Linux-Installationsdateien kopieren (und ggf und den Linux-Lizenzschlüssel auf dem Server ablegen).
-
-opsi linux-netboot Produkte welche vervollständigt werden müssen: +
-
-* `Suse`
-
-* `openSuse`
-
-* `RedHat`
-
-* `centOS`
-
-opsi linux-netboot Produkte mit Netinstaller, welche *nicht* vervollständigt werden müssen: +
-
-* `Debian`
-
-* `Ubuntu`
-
-
-
-
-Die Bereitstellung der Installationsmedien für die Suse- und RedHat-artigen Distributionen erfolgt auf einem nfs share: `opsi_nfs_share`.
-
-Zur Einrichtung des shares muss ein NFS-Server auf dem opsi-server installiert und konfiguriert sein.
-
-Seit opsi v4.0.6 wird dies über ein gesondertes Paket `opsi-linux-support` erfolgen. Dieses Paket wird nicht per default installiert und muss einmalig nachinstalliert werden.
-
-Auf Debian-artigen Betriebssystemen kann das durch den folgenden Befehl erreicht werden:
-
-[source,prompt]
-----
-apt install opsi-linux-support
-----
-
-Beim Einsatz einer Firewall auf Ihrem Server muss diese noch so konfiguriert
-werden, dass TCP-Verbindungen auf Port 80 akzeptiert werden.
-Bitte konsultieren Sie hierzu das entsprechende Handbuch.
-
-Was dieses Paket macht, ist (als händige Anleitung) im Folgenden beschrieben:
-
-* Auf dem opsi-server muss das entsprechende NFS-Server-Paket installiert sein. Auf Debian, Ubuntu, Suse ist dies das Paket: `nfs-kernel-server`. Auf Centos, Redhat ist es das Paket `nfs-utils`.
-
-* Der Export `opsi_nfs_share` muss angelegt und exportiert werden:
-
-** Verzeichnis erzeugen: +
-`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
-
-** In der Datei `/etc/exports` den Eintrag: +
-`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
-erzeugen.
-
-** Das Aktivieren des Exports wird mit dem folgenden Befehl ausgelöst: +
-`exportfs -r`
-
-** Zur Kontrolle des erfolgreichen Exports den folgenden Befehl aufrufen: +
-`showmount -e localhost` +
-Die Ausgabe sollte sein: +
-`Export list for localhost: +
-/var/lib/opsi/depot/opsi_nfs_share *`
-
-* Der share `opsi_nfs_share` hat folgenden Verzeichnisaufbau: +
-`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
-zum Beispiel: +
-`opsi_nfs_share/opensusel15-2/64/openSUSE-Leap-15.2-DVD-x86_64-Current.iso` +
-Die Installationsdatei muss als Dateiendung `.iso` haben, der Rest ist egal. Liegen in einem Verzeichnis mehrere `.iso` Dateien so ist nicht definiert, welche verwendet wird.
-
-* Kopieren Sie die Installations-DVD an den entsprechenden Platz im `opsi_nfs_share` und führen Sie aus: +
-`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
-WICHTIG: Verwenden Sie die Standard Installations-DVD's der Distribution. Modifizierte Installations DVD's haben eventuell einen anderen Aufbau und funktionieren nicht.
-
-* Sollten Sie aus irgendwelchen Gründen das Verzeichnis `/var/lib/opsi/depot/opsi_nfs_share` nicht vom opsi-server aus per NFS exportieren können (z.B. weil der Depotshare vom opsiserver per NFS von einem NAS eingebunden ist), so kann der zu verwendende NFS-share über ein Serverweites config angegeben werden. Z.B. `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
-
-Die opsi Netbootprodukte für Debian und Ubuntu beziehen Ihre Installations-Dateien nicht aus einem ISO-File. Vielmehr werden diese von uns mit dem Standard Netboot-Kernel und initrd ausgeliefert. Alle weiteren benötigten Pakete werden über das Internet bezogen. Zur Entlastung Ihrer Netzwekverbindung kann bei vielen Installationen daher die Verwendung eines lokalen apt-cache sinnvoll sein. +
-////
-////
-Die Pakete debian8 und ubuntu16-04 können auch auf ein lokales http-Repository zugreifen. +
-////
-////
-Siehe auch Kapitel <<firststeps-osinstall-linux-debproxy>>
-
-// Siehe auch Kapitel <<firststeps-osinstall-local-http-deb-repo>>
-
-[NOTE]
-.Startreihenfolge beteiligter Dienste unter SLES 11
-===================================================
-
-Es kann vorkommen, dass der `showmount`-Befehl mit einer Fehlermeldung wie nachfolgend abbricht:
-
-[source,prompt]
-----
-# showmount -e localhost
-clnt_create: RPC: Program not registered
-----
-
-Bitte stellen Sie sicher, dass nach der Installation des NFS-Servers ein
-Neustart stattgefunden hat.
-Anschließend müssen die Dienste 'rpcbind' und 'nfs-server' in genau dieser Reihenfolge gestartet werden.
-
-Ein Neustart der Dienste kann wie folgt durchgeführt werden:
-[source,prompt]
-----
-# systemctl restart rpcbind.service
-# systemctl restart nfs-server.service
-----
-
-Anschließend liefert showmount das gewünschte Ergebnis:
-
-[source,prompt]
-----
-# showmount -e localhost
-Export list for localhost:
-/var/lib/opsi/depot/opsi_nfs_share *
-----
-
-===================================================
-////
 
 [[firststeps-osinstall-netboot-distro]]
 === opsi Linux netboot products based on the distibution installer
@@ -204,10 +43,13 @@ Advantages:
 
 * The opsi integration of new releases is easier and faster available.
 
-* For Suse, RedHat and Linux Mint like distributions, the installation is done from the sources on the opsi-server, and therefore is faster and more stable than installing from the internet repositories.
+* For Suse, RedHat, Linux Mint like distributions and Ubuntu 22-04, the installation is done from the sources on the opsi-server, and therefore is faster and more stable than installing from the internet repositories.
 
 [[firststeps-osinstall-netboot-distro-prepare]]
-==== Providing the installation media on the server
+==== Providing the installation media on the server via NFS
+
+This affects SUSE like product prior to version 4.2.0.2-1, Redhat like distributions prior to version 4.2.0.3-1 and Linux Mint packages prior to version 4.2.0.2-1.
+Later on the new variant is explained.
 
 For Suse. RedHat and Linux Mint like distributions, the installation media is provided by an additional nfs-share: `opsi_nfs_share`.
 
@@ -260,40 +102,26 @@ IMPORTANT: use the standard installation DVDs of the distribution. Modified inst
 
 * The product `ubuntu22-04` a .iso file has to be placed in the `iso` directory within the package directory in the depot.
 
-[NOTE]
-.Start order of involved services for SLES 12
-=============================================
+==== Providing the installation media on the server via opsiconfd WebDAV
 
-It may occur that the `showmount` command exits with an error message
-like the following:
+This affects SUSE like product after to version 4.2.0.2-1, Redhat like distributions after to version 4.2.0.3-1 and Linux Mint packages after to version 4.2.0.2-1.
 
-[source,prompt]
-----
-# showmount -e localhost
-clnt_create: RPC: Program not registered
-----
+RedHat and SUSE like distributions along with Linux Mint and Ubunut 22-04 in the above mentioned versions do not use the NFS method anymore. Instead the opsiconfd WebDAV server is used to distribute the installation media. For this case each of those netboot packages contains a `iso` or `isocontent` subdirectory.
 
-Please make sure that after installing the NFS-server a reboot has been made.
-Then the services 'rpcbind' and 'nfs-server' need to be started in that exact order.
+The `iso` subdirectory shall contain an ISO image of the specific distribution. On the other hand the `isocontent` directory shall contain the contents of an ISO image, including files starting with a dot.
 
-The services can be restarted by the following commands:
-[source,prompt]
-----
-# systemctl restart rpcbind.service
-# systemctl restart nfs-server.service
-----
-
-Then showmount works as expected:
+Here is an example how to fill the `isocontent` directory.
 
 [source,prompt]
 ----
-# showmount -e localhost
-Export list for localhost:
-/var/lib/opsi/depot/opsi_nfs_share *
+mount SLE-15-SP3-Full-x86_64-GM-Media1.iso /mnt 
+cp -r /mnt/* /var/lib/opsi/depot/sles15-3/isocontent/
+cp /mnt/.treeinfo /var/lib/opsi/depot/sles15-3/isocontent/
+cp /mnt/.discinfo /var/lib/opsi/depot/sles15-3/isocontent/
+umount /mnt
 ----
 
-=============================================
-
+Please note: the file `.discinfo` is not present on all distribution installation media and might be missing.
 
 [[firststeps-osinstall-netboot-distro-generalproperties]]
 ==== Common properties of the Linux netboot products based on the distibution installer
@@ -603,11 +431,10 @@ default: True
 
 .Source of installation
 To download the installation DVD you need an account on SUSE.
-Installation DVD should have the name (we've made tests with files with these names):
-sles11sp4: SLES-11-SP4-DVD-x86_64-GM-DVD1.iso
-sles12: SLE-12-Server-DVD-x86_64-GM-DVD1.iso
-sles12sp1: SLE-12-SP1-Server-DVD-x86_64-GM-DVD1.iso
-Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/sles12sp2/64/`
+Prior to version 4.2.0.2-1:
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/sles15-3/64/`
+After version 4.2.0.2-1
+Copy the ISO image content to `/var/lib/opsi/depot/sles15-3/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 .Videos (time lapse)
@@ -652,16 +479,28 @@ name: subscription_register
 description: set to false, if you don't want to register your system online, you need to set this to false and you have to introduce your local repository
 default: True
 ----
-.Source of installation CentOS
-Download the installation DVD here, e.g. from link:http://isoredirect.centos.org/centos/8/isos/x86_64/[here].
-Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/centos8/64/`
+.Source of installation AlmaLinux
+Download the installation DVD here, e.g. from link:https://repo.almalinux.org/almalinux/8/isos/x86_64/[here].
+Prior to version 4.2.0.3-1
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/alma8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/alma8/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 .Source of installation RedHat
 To download the installation DVD you need an account on RedHat.
-Installation DVD should be named ((we've made tests with a file with these name)): +
-rhel-server-7.0-x86_64-dvd.iso
+Prior to version 4.2.0.3-1
 Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/redhat8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/redhat8/isocontent/`
+Please don't forget to execute `opsi-set-rights`.
+
+.Source of installation RockyLinux
+Download the installation DVD here, e.g. from link:https://rockylinux.org/download/[here].
+Prior to version 4.2.0.3-1
+Copy the ISO-File to `/var/lib/opsi/depot/opsi_nfs_share/rocky8/64/`
+After version 4.2.0.3-1
+Copy the ISO image content to `/var/lib/opsi/depot/rocky8/isocontent/`
 Please don't forget to execute `opsi-set-rights`.
 
 
