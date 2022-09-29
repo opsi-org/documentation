@@ -1,58 +1,23 @@
 # Documentation for opsi
 
-This is the source of the official documentation for the open source client management solution [opsi](http://www.opsi.org/).
+This is the source of the official documentation for the open source client management solution [opsi](https://www.opsi.org/).
 
-The documentation is published on the website [http://docs.opsi.org](http://docs.opsi.org/).
+The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
-PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.1/documentation/). 
+PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.2/documentation/). 
 
 
 ## Edit this documentation
 
+There are two main ways to edit the documentation:
+1) Via the edit link on docs.opsi.org
+2) Clone this repository and edit the files locally.
 
 
+## How to build an opsi manual (Antora and HTML/PDF)
 
-
-
-## How to build an opsi manual Antora and HTML/PDF
-
-To build the docu files you can use the vscode devconatiner. 
-In the devcontainer you can execute the diffrent scripts to create the antora site and the  HTML/PDF manuals or you can use the vscode tasks. 
-
-<!-- You can use the `build-with-docker.sh` script or the vscode Devcontainer to create the opsi docs.  
-
- ### build-with-docker.sh
-
-Call the following comannd to build the pdf and html manual in german.
-```
-docker run --rm -it
--u $(id -u ${USER}):$(id -g ${USER})
--v ${pwd}:/opsidoc
-docker.uib.gmbh/fabian/opsidoc-antora:latest
-/opsidoc/build-with-docker.sh de manual
-```
-Possible  manuals to build:
-
-- manual 
-- getting-started
-- releasenotes
-- windows-client-manual
-- linux-client-manual
-- macos-client-manual
-- opsi-script-manual
-- quickinstall
-- opsi-script-reference-card
-- supportmatrix -->
-
-
-<!-- ### Dependencies
-
-- asciidoctor: https://github.com/asciidoctor/asciidoctor
-- asciidoctor-pdf: https://github.com/asciidoctor/asciidoctor-pdf
-  - graphicsmagick
-  - prawn-gmagick: better PNG support
-- asciidoctor-epub3: https://github.com/asciidoctor/asciidoctor-epub3 -->
-
+To build the docu files you can use the vscode devcontainer. 
+In the devcontainer you can execute the different scripts to create the antora site and the  HTML/PDF manuals or you can use the vscode tasks. 
 
 ### CSS stylesheet
 
@@ -115,3 +80,17 @@ With `tools/check_links.py` exists a script that scans build documentation for b
 This script requires Python 3 to be able to run.
 
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
+
+
+## Accept changes from external
+
+Changes made via docs.opsi.org generate a merge request on gitlab.uib.de. 
+Queries and discussions can take place via the GitLab interface on gitlab.uib.de. 
+If the changes are to be adopted, gitlab.uib.de is first entered as the second remote in the local opsidoc repository: 
+
+```
+git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
+```
+
+Then the merge to stable can be processed. Once everything has been merged, stable is pushed internally to gitlab.uib.gmbh.
+The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed. 
