@@ -107,6 +107,13 @@ The default value is "7". +
 see also : xref:cli-params.adoc#opsi-script-configs_default_loglevel[opsi-script-configs_default_loglevel]
 see also : xref:cli-params.adoc#opsi-script-configs_force_min_loglevel[opsi-script-configs_force_min_loglevel]
 
+anchor:forceLogInAppendMode[]
+
+[[opsi-script-LogInAppendMode]]
+=== Logdatei im Append-Mode senden
+
+`forceLogInAppendMode =` <boolean value>   //since 4.12.3.6
+(default=false); if true, log will be send in append mode
 
 anchor:requiredOpsiscriptVersion[]
 
@@ -241,10 +248,14 @@ anchor:AutoActivityDisplay[]
 If true shows a marquee (endless) progressbar while winbatch/dosbatch sections are running. +
 see also: xref:cli-params.adoc#opsi-script-configs_AutoActivityDisplay[AutoActivityDisplay]
 
-anchor:forceLogInAppendMode[]
+anchor:reloadProductList[]
 
-`forceLogInAppendMode =` <boolean value>   //since 4.12.3.6
-(default=false); if true log will be send in append mode
+[[opsi-script-reloadProductList]]
+=== Reloading the product list [W/L/M]
+
+* `reloadProductList`  //since 4.12.6.1 +
+Reloads the product list from the opsi-server after executing the script in opsi-script. If the product list is not empty, opsi-script will process it again. loadProductList can be placed anywhere in the Actions section of the script. However, the recommendation is, according to logic, to put the command at the end of the section.
+
 
 [[opsi-script-string]]
 == String Expressions, String Values, and String Functions [W/L/M]
@@ -587,12 +598,19 @@ The most general function reads the value belonging to some key in some section 
 
 anchor:GetValueFromInifile[]
 
-* `GetValueFromInifile (` file, section, key, default value `) : string` [W/L/M] +
-The function tries to open the ini file `FILE`, retrieve the requested `SECTION` and find the value belonging to the specified `KEY` which the function will return. If any of these operations fail `DEFAULTVALUE` is returned.
+* `GetValueFromInifile (`<file path>, <section>, <key>, <default value>, OPTIONAL <encoding>`) : string` [W/L/M] +
+The function tries to open the ini file <file path>, retrieve the requested <section> and find the value belonging to the specified <key> which the function will return. If any of these operations fail, <default value> is returned. +
+Starting from opsi-script 4.12.6.0, `GetValueFromInifile` supports a fifth, optional parameter <encoding>, which helps reading the ini file in the correct encoding. We recommend using it in case of special encodings.
+
+[source,opsiscript]
+----
+GetValueFromInifile("myfile","mysec","mykey","")
+GetValueFromInifile("myfile","mysec","mykey","", "utf16-le")
+----
 
 The second function borrows its syntax from the ini file format itself, and may sometimes be easier to use. But since this syntax turns complicated in more general circumstances it is discouraged. The syntax reads:
 
-* `GetIni (` <Stringausdruck> [ <character sequence> ] <character sequence> `)` +
+* `GetIni (`<Stringausdruck> [ <character sequence> ] <character sequence>`)` +
 (discouraged, use xref:prim-section.adoc#GetValueFromInifile[GetValueFromInifile]) The <String expression> is interpreted as file name, the first <character sequence> as section name, the second as key name.
 
 [[opsi-script-string-functions-prodprop]]
@@ -600,7 +618,7 @@ The second function borrows its syntax from the ini file format itself, and may 
 
 anchor:GetProductProperty[]
 
-* `GetProductProperty (` <PropertyName>, <DefaultValue>`)` +
+* `GetProductProperty (`<PropertyName>, <DefaultValue>`)` +
 where $PropertyName$ and $DefaultValue$ are String expressions.
 If _{opsi-script}_ is connected to the opsi configuration service the product property is retrieved from the service. +
 If there is no connection to the opsi server, then the resulting string is constructed in the following way: +
@@ -1146,6 +1164,59 @@ if ($ConstTest$ = $CompValue$)
 else
 	set $TestResult$ = "not o.k."
 	LogWarning "testing md5sumFromFile failed"
+endif
+----
+
+anchor:hashFromFile[]
+
+*  `hashFromFile (` <FileName>, <Hashing Algorithm>`)` : string [W/L/M] +
+This is a platform-independant hashing files functions, which supports 80 hashing algorithms. +
+Insert in <Hashing Algorithm> one of these supported hashing algorithms :
+'Gost', 'Grindahl256', 'Grindahl512', 'HAS160', 'Haval_3_128', 'Haval_4_128', 'Haval_5_128', 'Haval_3_160', 'Haval_4_160', 'Haval_5_160', 'Haval_3_192', 'Haval_4_192', 'Haval_5_192', 'Haval_3_224', 'Haval_4_224', 'Haval_5_224', 'Haval_3_256', 'Haval_4_256', 'Haval_5_256', 'MD2', 'MD4', 'MD5', 'Panama', 'RadioGatun32', 'RadioGatun64', 'RIPEMD', 'RIPEMD128', 'RIPEMD160', 'RIPEMD256', 'RIPEMD320', 'SHA0', 'SHA1', 'SHA2_244', 'SHA2_256', 'SHA2_384', 'SHA2_512', 'SHA2_512_224', 'SHA2_512_256', 'SHA3_224', 'SHA3_256', 'SHA3_384', 'SHA3_512', 'Shake_128', 'Shake_256', 'Snefru_8_128', 'Snefru_8_256', 'Tiger_3_128', 'Tiger_4_128', 'Tiger_5_128', 'Tiger_3_160', 'Tiger_4_160', 'Tiger_5_160', 'Tiger_3_192', 'Tiger_4_192', 'Tiger_5_192', 'Tiger2_3_128', 'Tiger2_4_128', 'Tiger2_5_128', 'Tiger2_3_160', 'Tiger2_4_160', 'Tiger2_5_160', 'Tiger2_3_192', 'Tiger2_4_192', 'Tiger2_5_192', 'WhirlPool', 'Blake2B', 'Blake2S', 'Keccak_224', 'Keccak_256', 'Keccak_288', 'Keccak_384', 'Keccak_512', 'GOST3411_2012_256', 'GOST3411_2012_512', 'Blake2XS', 'Blake2XB', 'Blake3_256', 'Blake3XOF', 'Blake2BP', 'Blake2SP' +
+
+[source,opsiscript]
+----
+encoding=utf8
+
+[Actions]
+
+DefVar $OS$
+DefVar $FilePath$
+DefVar $HashResult$
+DefVar $CompValue$
+
+; This online tool can be used to double check hash results : https://emn178.github.io/online-tools/
+
+Set $OS$ = GetOS
+
+switch $OS$
+	case "Windows_nt"
+		comment "We are running on Windows"
+		Set $FilePath$ = "C:\opsi\crypt\dummy.msi"
+	endcase
+	case "Linux"
+		comment "We are running on Linux"
+		Set $FilePath$ = "/home/opsi/crypt/dummy.msi"
+	endcase
+	case "macos"
+		comment "We are running on macOS"
+		Set $FilePath$ = "/home/opsi/crypt/dummy.msi"
+	endcase
+endswitch
+
+if FileExists($FilePath$)
+
+    comment "Testing HashFromFile - MD5"
+    Set $HashResult$ = HashFromFile($FilePath$, "MD5")
+    Set $CompValue$ = md5sumFromFile($FilePath$)
+    if ($HashResult$ = $CompValue$)
+        comment "Testing HashFromFile - MD5 passed"
+    else
+        LogWarning "Testing HashFromFile - MD5 failed"
+    endif
+
+else
+	LogWarning "File not found"
 endif
 ----
 
@@ -2933,9 +3004,11 @@ openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test]
 set "var1" = "value1"
 set "var2" = REG_SZ:"value2"
 set "var3" = REG_EXPAND_SZ:"value3"
-set "var4" = REG_DWORD:444
-set "var5" = REG_BINARY:05 05 05 0F 10
-set "var6" = REG_MULTI_SZ:"value6|value7|de"
+set "var4" = REG_DWORD:4294967295
+; REG_QWORD is supported since 4.12.6
+set "var5" = REG_QWORD:18446744073709551615
+set "var6" = REG_BINARY:05 05 05 0F 10
+set "var7" = REG_MULTI_SZ:"value6|value7|de"
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key1]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key2]
 openkey [HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\opsi-script-test\key3]
@@ -5208,7 +5281,6 @@ if isCertInstalledInSystem("opsi-script-test test CA")
 	endif
 endif
 ----
-
 
 
 [[opsi-script-commands-logging]]
