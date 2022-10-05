@@ -135,27 +135,53 @@ Dies ist auch Voraussetzung um ein opsi-Depot per +WevDAV+ mounten zu können.
 Die Zugehörige boolesche Konfiguration ist `opsiclientd.global.install_opsi_ca_into_os_store`.
 Ist diese aktiviert, spielt der '{opsi-client-agent}' die 'opsi CA' automatisch in den Zertifikatsspeicher des Betriebssystems ein.
 
+[[opsi-manual-security-server2client-problem-solving]]
 === Problemlösung
 Sollte es zu der Situation kommen, dass ein Client das Server-Zertifikat des '{opsi-configserver}s' wegen Problemen mit der 'opsi CA' nicht mehr akzeptiert,
 ist der Client nicht mehr über die normalen opsi-Mechanismen verwaltbar.
 
 In diesem Fall gibt es mehrere Möglichkeiten das Problem zu lösen:
 
-=== Löschen der 'opsi CA' auf dem Client
+==== Löschen der 'opsi CA' auf dem Client
 Die Datei 'opsi-ca-cert.pem' wird auf dem Client gelöscht.
 Bei der nächsten Verbindung zum '{opsi-configserver}' ruft der '{opsi-client-agent}' die 'opsi CA' dann neu ab.
 
-=== Ersetzen der 'opsi CA' über den Control-Server des {opsi-client-agent}
+==== Ersetzen der 'opsi CA' über den Control-Server des {opsi-client-agent}
 Die 'opsi CA' kann über die Control-Server-API des {opsi-client-agent} aktualisiert werden.
 Hierfür wird der RPC 'updateOpsiCaCert' verwendet. Über den Parameter 'ca_cert_pem' wird der Inhalt des 'opsi CA'-Zertifikats im PEM-Format als String übergeben.
 
-=== Über ein temporäres Server-Zertifikat der uib GmbH
+==== Über ein temporäres Server-Zertifikat der uib GmbH
 Zusätzlich zur 'opsi CA' der jeweiligen Umgebung vertraut ein '{opsi-client-agent}' auch der 'uib opsi CA', wenn die entsprechende Konfiguration 'opsiclientd.global.trust_uib_opsi_ca' auf 'true' steht.
 Die 'uib opsi CA' wird von der 'https://www.uib.de[uib GmbH]' verwaltet.
 Die https://www.uib.de[uib GmbH] ist daher in der Lage ein temporär gültiges Server-Zertifikat für den '{opsi-configserver}' zu erzeugen.
 Dieses Zertifikat kann dann auf dem '{opsi-configserver}' der Umgebung eingespielt werden.
 Der '{opsi-client-agent}' nimmt dann wieder eine Verbindung auf und ruft dann automatisch die 'opsi CA' der jeweiligen Umgebung ab.
 Wenn dieser Prozess auf allen betroffenen Clients stattgefunden hat, kann das temporäre Zertifikat wieder entfernt werden.
+
+
+[[opsi-manual-security-opsi-ca-intermediate]]
+== Betrieb der opsi CA als Intermediate-CA
+Es wird empfohlen, die opsi CA als eigene Root-CA zu betreiben.
+Dies ist auch der vorkonfigurierte Standard.
+
+Alternativ besteht jedoch auch die Möglichkeit die opsi-CA als Intermediate-CA zu betreiben.
+Hierfür sind folgende Schritte notwendig:
+
+* Erstellen Sie ein Backup des opsi-Servers, insbesondere der Konfiguration unterhalb von `/etc/opsi`.
+* Erstellen Sie eine Intermediate-CA. Hierbei sollte die folgende Konfiguration verwendet werden: +
+	`authorityKeyIdentifier = keyid:always,issuer` +
+	`basicConstraints = critical,CA:true,pathlen:0` +
+	`keyUsage = critical,digitalSignature,cRLSign,keyCertSign` +
+* Legen Sie den Private Key der Intermediate-CA im verschlüsselten PEM-Format unter `/etc/opsi/ssl/opsi-ca-key.pem` auf dem opsi-Server ab.
+* Die Passphrase zum Private Key der Intermediate-CA muss über `--ssl-ca-key-passphrase` in der `/etc/opsi/opsiconfd.conf` oder als Environment-Variable hinterlegt werden.
+* Legen Sie das Zertifikat der Intermediate-CA im PEM-Format unter `/etc/opsi/ssl/opsi-ca-cert.pem` auf dem opsi-Server ab.
+* Installieren Sie das Zertifikat der Root-CA auf dem opsi-Server.
+* Stellen Sie sicher, dass der opsiconfd die Zertifikats-Datenbank des Betriebssystems verwendet (`--ssl-trusted-certs`).
+* Fügen Sie `opsi_ca` zu `--skip-setup` hinzu, um die Verwaltung der opsi CA durch den opsiconfd zu deaktivieren.
+* Starten Sie den opsiconfd neu.
+* Stellen Sie sicher, dass die Intermediate-CA rechtzeitig vor Ablauf erneuert und ausgetauscht wird.
+
+WARNING: Sollten der opsi-client-agent das Server-Zertifiakt bereits prüfen (`verify_server_cert = true`), kann eine bestehende opsi CA nicht mehr ohne weiteres durch eine Intermediate-CA ausgetauscht werden. Nach dem Austausch würden die Clients das geänderte Server-Zertifikat ablehnen. Lösungsansätze hierzu finden Sie unter <<opsi-manual-security-server2client-problem-solving>>.
 
 
 [[opsi-manual-security-clientcontrolserver]]
