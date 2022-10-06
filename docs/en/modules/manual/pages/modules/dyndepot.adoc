@@ -235,142 +235,95 @@ Three functions for selecting a depot are already implemented in the template sc
 The function +depotSelectionAlgorithmByNetworkAddress+ checks the network addresses of the depots and selects the depot where the current IP address is in the network of the depot. +
 The function +depotSelectionAlgorithmByLatency+ sends ICMP echo request packets (ping) to depots and selects the depot with the lowest latency. +
 The function +depotSelectionAlgorithmByMasterDepotAndLatency+ is intended for environments with several master depots, which can have slave depots assigned. From the set of master depots of the client and the associated slave depots, the depot that has the lowest latency is selected. +
+The function +getDepotSelectionAlgorithmByNetworkAddressBestMatch+ works similarly to +depotSelectionAlgorithmByNetworkAddress+, but prefers the best matching (smallest) Network.
+The function +getDepotSelectionAlgorithmByRandom+ chooses one of the available depots at random. This can be used for balencing load, but it is important to keep all package versions on the depot at the same level.
 The function +getDepotSelectionAlgorithm+ is called by the client and returns the algorithm to be used for the selection of the depot.
 Without changes to the template script, the function +depotSelectionAlgorithmByNetworkAddress+ will be returned.
+
+After changing the selected Algorithm (by commenting in/out in the +getDepotSelectionAlgorithm+ function) the opsiconfd has to be restarted for the changes to take effect.
 
 [source,prompt]
 ----
 # -*- coding: utf-8 -*-
 
-global depotSelectionAlgorithmByNetworkAddress
-depotSelectionAlgorithmByNetworkAddress = \
+global showDepotInfoFunction
+showDepotInfoFunction = \
 '''
-def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
-	selectedDepot = masterDepot
-	logger.info(u"Choosing depot from list of depots:")
-	logger.info(u"   Master depot: %s" % masterDepot)
-	for alternativeDepot in alternativeDepots:
-		logger.info(u"   Alternative depot: %s" % alternativeDepot)
-	if alternativeDepots:
-		import socket, struct
-		# Calculate bitmask of host's ipaddress
-		n = clientConfig['ipAddress'].split('.')
-		for i in range(4):
-			n[i] = forceInt(n[i])
-		ip = (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3]
-
-		depots = [ masterDepot ]
-		depots.extend(alternativeDepots)
-		for depot in depots:
-			if not depot.networkAddress:
-				logger.warning(u"Network address of depot '%s' not known" % depot)
-				continue
-			(network, netmask) = depot.networkAddress.split(u'/')
-			while (network.count('.') < 3):
-				network = network + u'.0'
-			if (netmask.find('.') == -1):
-				netmask = forceUnicode(socket.inet_ntoa(struct.pack('>I',0xffffffff ^ (1 << 32 - forceInt(netmask)) - 1)))
-			while (netmask.count('.') < 3):
-				netmask = netmask + u'.0'
-
-			logger.debug(u"Testing if ip %s is part of network %s/%s" % (clientConfig['ipAddress'], network, netmask))
-
-			n = network.split('.')
-			for i in range(4):
-				n[i] = int(n[i])
-			network = (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3]
-			n = netmask.split('.')
-			for i in range(4):
-				n[i] = int(n[i])
-			netmask = (n[0] << 24) + (n[1] << 16) + (n[2] << 8) + n[3]
-
-			wildcard = netmask ^ 0xFFFFFFFFL
-			if (wildcard | ip == wildcard | network):
-				logger.notice(u"Choosing depot with networkAddress %s for ip %s" % (depot.networkAddress, clientConfig['ipAddress']))
-				selectedDepot = depot
-				break
-			else:
-				logger.info(u"IP %s does not match networkAddress %s of depot %s" % (clientConfig['ipAddress'], depot.networkAddress, depot))
-	return selectedDepot
+	def showDepotInfo():
+		logger.info("Choosing depot from list of depots:")
+		logger.info("   Master depot: %s", masterDepot)
+		for alternativeDepot in alternativeDepots:
+			logger.info("   Alternative depot: %s", alternativeDepot)
 '''
 
-global depotSelectionAlgorithmByLatency
-depotSelectionAlgorithmByLatency = \
+global getDepotWithLowestLatencyFunction
+getDepotWithLowestLatencyFunction = \
 '''
-def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
-	selectedDepot = masterDepot
-	logger.info(u"Choosing depot from list of depots:")
-	logger.info(u"   Master depot: %s" % masterDepot)
-	for alternativeDepot in alternativeDepots:
-		logger.info(u"   Alternative depot: %s" % alternativeDepot)
-	if alternativeDepots:
-		from OPSI.Util.Ping import ping
-		from OPSI.Util.HTTP import urlsplit
-		depots = [ masterDepot ]
-		depots.extend(alternativeDepots)
-		latency = {}
-		for depot in depots:
-			if not depot.repositoryRemoteUrl:
-				continue
-			try:
-				(scheme, host, port, baseurl, username, password) = urlsplit(depot.repositoryRemoteUrl)
-				latency[depot] = ping(host)
-				logger.info(u"Latency of depot %s: %0.3f ms" % (depot, latency[depot]*1000))
-			except Exception, e:
-				logger.warning(e)
-		if latency:
-			minValue = 1000
-			for (depot, value) in latency.items():
-				if (value < minValue):
-					minValue = value
-					selectedDepot = depot
-			logger.notice(u"Choosing depot %s with minimum latency %0.3f ms" % (selectedDepot, minValue*1000))
-	return selectedDepot
-'''
-
-global depotSelectionAlgorithmByMasterDepotAndLatency
-depotSelectionAlgorithmByMasterDepotAndLatency = \
-'''
-def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
-	def getLatencyInformation(depots):
-		from OPSI.Util.Ping import ping
-		from OPSI.Util.HTTP import urlsplit
-
-		latency = {}
-		for depot in depots:
-			if not depot.repositoryRemoteUrl:
-				continue
-
-			try:
-				(scheme, host, port, baseurl, username, password) = urlsplit(depot.repositoryRemoteUrl)
-				latency[depot] = ping(host)
-
-				if latency[depot]:
-					logger.info(u"Latency of depot %s: %0.3f ms" % (depot, latency[depot]*1000))
-				else:
-					logger.info(u"Latency of depot %s: N/A" % depot)
-			except Exception, e:
-				logger.warning(e)
-		return latency
-
 	def getDepotWithLowestLatency(latency):
+		"""
+		Given a dict with depot as key and latency as value it will \
+return the depot with the lowest latency.
+
+		Will return None if no depot can be determined.
+		"""
 		selectedDepot = None
 		if latency:
 			minValue = 1000
 			for (depot, value) in latency.items():
-				if not value:
-					continue
-				if (value < minValue):
+				if value < minValue:
 					minValue = value
 					selectedDepot = depot
-			logger.notice(u"Choosing depot %s with minimum latency %0.3f ms" % (selectedDepot, minValue*1000))
+			logger.notice("Depot with lowest latency: %s (%0.3f ms)", selectedDepot, minValue*1000)
 
 		return selectedDepot
+'''
 
-	logger.info(u"Choosing depot from list of depots:")
-	logger.info(u"   Master depot: %s" % masterDepot)
-	for alternativeDepot in alternativeDepots:
-		logger.info(u"   Alternative depot: %s" % alternativeDepot)
+global getLatencyInformationFunction
+getLatencyInformationFunction = \
+'''
+	def getLatencyInformation(depots):
+		"""
+		Pings the given depots and returns the latency information in \
+a dict with depot as key and the latency as value.
+
+		Depots that can't be reached in time will not be included.
+		"""
+		from OPSI.Util.Ping import ping
+		from urllib.parse import urlparse
+
+		latency = {}
+		for depot in depots:
+			if not depot.repositoryRemoteUrl:
+				logger.info("Skipping {depot} because repositoryRemoteUrl is missing.", depot)
+				continue
+
+			try:
+				host = urlparse(depot.repositoryRemoteUrl).hostname
+				# To increase the timeout (in seconds) for the ping you
+				# can implement it in the following way:
+				#  depotLatency = ping(host, timeout=5)
+				depotLatency = ping(host)
+
+				if depotLatency is None:
+					logger.info("Ping to depot %s timed out.", depot)
+				else:
+					logger.info("Latency of depot %s: %0.3f ms", depot, depotLatency * 1000)
+					latency[depot] = depotLatency
+			except Exception as e:
+				logger.warning(e)
+
+		return latency
+'''
+
+
+def getDepotSelectionAlgorithmByMasterDepotAndLatency(self):
+	return '''\
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	{getLatencyInformationFunction}
+	{getDepotWithLowestLatencyFunction}
+	{showDepotInfoFunction}
+
+	showDepotInfo()
 
 	if alternativeDepots:
 		from collections import defaultdict
@@ -391,7 +344,6 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 		depotsWithLatency = getLatencyInformation(depotsByMaster[masterDepot.id])
 		depotWithLowestLatency = getDepotWithLowestLatency(depotsWithLatency)
 
-		logger.info('Depot with lowest latency: {0}'.format(depotWithLowestLatency))
 		if not depotWithLowestLatency:
 			logger.info('No depot with lowest latency. Falling back to master depot.')
 			depotWithLowestLatency = masterDepot
@@ -399,13 +351,126 @@ def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
 		return depotWithLowestLatency
 
 	return masterDepot
-'''
+'''.format(
+	showDepotInfoFunction=showDepotInfoFunction,
+	getLatencyInformationFunction=getLatencyInformationFunction,
+	getDepotWithLowestLatencyFunction=getDepotWithLowestLatencyFunction
+)
 
+def getDepotSelectionAlgorithmByLatency(self):
+	return '''\
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	{getLatencyInformationFunction}
+	{getDepotWithLowestLatencyFunction}
+	{showDepotInfoFunction}
+
+	showDepotInfo()
+
+	selectedDepot = masterDepot
+	if alternativeDepots:
+		depotsWithLatency = getLatencyInformation([masterDepot] + alternativeDepots)
+		selectedDepot = getDepotWithLowestLatency(depotsWithLatency)
+
+		if not selectedDepot:
+			logger.info('No depot with lowest latency. Falling back to master depot.')
+			selectedDepot = masterDepot
+
+	return selectedDepot
+'''.format(
+	showDepotInfoFunction=showDepotInfoFunction,
+	getLatencyInformationFunction=getLatencyInformationFunction,
+	getDepotWithLowestLatencyFunction=getDepotWithLowestLatencyFunction
+)
+
+def getDepotSelectionAlgorithmByRandom(self):
+	return '''\
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	{showDepotInfoFunction}
+
+	showDepotInfo()
+
+	import random
+
+	allDepots = [masterDepot]
+	allDepots.extend(alternativeDepots)
+	return random.choice(allDepots)
+'''.format(
+	showDepotInfoFunction=showDepotInfoFunction
+)
+
+def getDepotSelectionAlgorithmByNetworkAddress(self):
+	return '''\
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	{showDepotInfoFunction}
+
+	showDepotInfo()
+
+	selectedDepot = masterDepot
+	if alternativeDepots:
+		from OPSI.Util import ipAddressInNetwork
+
+		depots = [masterDepot]
+		depots.extend(alternativeDepots)
+		for depot in depots:
+			if not depot.networkAddress:
+				logger.warning("Network address of depot '%s' not known", depot)
+				continue
+
+			if ipAddressInNetwork(clientConfig['ipAddress'], depot.networkAddress):
+				logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
+				selectedDepot = depot
+				break
+			else:
+				logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot)
+
+	return selectedDepot
+'''.format(
+	showDepotInfoFunction=showDepotInfoFunction,
+)
+
+
+def getDepotSelectionAlgorithmByNetworkAddressBestMatch(self):
+	return '''\
+def selectDepot(clientConfig, masterDepot, alternativeDepots=[]):
+	{showDepotInfoFunction}
+
+	showDepotInfo()
+	logger.debug("Alternative Depots are: %s", alternativeDepots)
+	selectedDepot = masterDepot
+	if alternativeDepots:
+		from OPSI.Util import ipAddressInNetwork
+		import ipaddress
+
+		depots = [masterDepot]
+		depots.extend(alternativeDepots)
+		logger.debug("All considered Depots are: %s",depots)
+		sorted_depots = sorted(depots, key=lambda depot: ipaddress.ip_network(depot.networkAddress), reverse=True)
+		logger.debug("Sorted depots: %s", sorted_depots)
+		for depot in sorted_depots:
+			logger.debug("Considering Depot %s with NetworkAddress %s", depot, depot.networkAddress)
+			if not depot.networkAddress:
+				logger.warning("Network address of depot '%s' not known", depot)
+				continue
+
+			if ipAddressInNetwork(clientConfig['ipAddress'], depot.networkAddress):
+				logger.notice("Choosing depot with networkAddress %s for ip %s", depot.networkAddress, clientConfig['ipAddress'])
+				selectedDepot = depot
+				break
+			else:
+				logger.info("IP %s does not match networkAddress %s of depot %s", clientConfig['ipAddress'], depot.networkAddress, depot)
+
+	return selectedDepot
+'''.format(
+	showDepotInfoFunction=showDepotInfoFunction,
+)
 
 def getDepotSelectionAlgorithm(self):
-	#return depotSelectionAlgorithmByMasterDepotAndLatency
-	#return depotSelectionAlgorithmByLatency
-	return depotSelectionAlgorithmByNetworkAddress
+	""" Returns the selected depot selection algorythm.	"""
+	# return self.getDepotSelectionAlgorithmByMasterDepotAndLatency()
+	# return self.getDepotSelectionAlgorithmByLatency()
+	return self.getDepotSelectionAlgorithmByNetworkAddress()
+	# return self.getDepotSelectionAlgorithmByNetworkAddressBestMatch
+	# return self.getDepotSelectionAlgorithmByRandom()
 ----
 
 
