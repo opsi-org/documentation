@@ -24,6 +24,342 @@ include::common:partial$opsi_terms.adoc[]
 [[opsi-manual-configuration-tools]]
 = opsi command line tools and processes
 
+[[opsi-manual-configuration-tools-opsi-cli]]
+== _opsi-cli_
+
+opsi has received some command line tools and opsi-python scripts over time. Among them are `opsi-setup` or `opsi-admin` and others. Since not all command line tools were created at the same time, each has its own parameter handling and different outputs. Many of these components use the standard RPC interface for backend operations, while many bypass the opsi web service and operate directly on the backend. The new opsi-cli aims to provide all this and much more. At the same time with opsi-cli a new plugin system was implemented, which allows opsi users to extend the functionality of opsi-cli by own plugins. In the following it is described how the new 'opsi-cli' can be used.
+
+[[opsi-manual-configuration-tools-opsi-cli-installation]]
+=== _opsi-cli_ Installation
+
+`opsi-cli` is officially installed with the opsi-utils package on the opsi servers. Thus a manual installation is not necessary. `opsi-cli` can be used as a client component also outside the opsi server, the communication takes place exclusively via the opsi web service. Therefore the opsi-cli is also available for Linux, Windows and MacOS.
+
+INFO: To use the opsi-cli outside of the opsi-server you have to pass access data to the opsi-webservice. One possibility is to use the options `--service`, `--username`, `--password` or to store the credentials locally on the client (see `opsi-cli config service add --help`).
+
+opsi-cli is a directly executable binary and can be used portably. If you want to install the binary on a client in the path, `opsi-cli` can be used itself for that:
+
+[source,prompt]
+----
+opsi-cli self --help
+----
+
+image::opsi-cli-self-help.png["Output: opsi-cli self --help", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-usage]]
+=== _opsi-cli_ usage
+
+`opsi-cli` is a Python binary which is controlled by commands. Similar to docker or kubectl, each command can contain one or more subcommands. In the following, first the basic functionalities and then the already available `commands` are presented. At each point of the call there is the possibility to display a help message, for example: `opsi-cli --help` or `opsi-cli config --help`.
+
+The general call to opsi-cli looks like this:
+
+[source,prompt]
+----
+opsi-cli [OPTIONS] COMMAND [ARGS]...
+----
+
+The options immediately following the `opsi-cli` call itself are considered global configuration and apply to all subcommands as well. There are three main categories in global options.
+
+[[opsi-manual-configuration-tools-opsi-cli-globaloptions]]
+==== Global options
+
+In diesem Segment lässt sich der allgemeine Ablauf und das Logverhalten beeinflussen.
+
+image::opsi-cli-general-options.png["Output: opsi-cli self --help", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-formatoptions]]
+==== Output options
+
+With opsi-cli the output of all subcommands can be unified and offers various formats and filter options.
+
+image::opsi-cli-io-options.png["Output: opsi-cli self --help", pdfwidth=90%]
+
+Here is another example how the output can be influenced:
+
+[source,prompt]
+----
+opsi-cli jsonrpc execute host_getObjects [] '{"id":"testclient01.uib.local"}'
+----
+
+[source,json]
+----
+[
+  {
+    "description": "",
+    "notes": "",
+    "id": "testclient01.uib.local",
+    "hardwareAddress": "",
+    "ipAddress": null,
+    "inventoryNumber": "",
+    "opsiHostKey": null,
+    "created": "2022-07-14 16:10:42",
+    "lastSeen": "2022-07-14 16:10:42",
+    "oneTimePassword": null,
+    "type": "OpsiClient",
+    "ident": "testclient01.uib.local"
+  }
+]
+----
+
+The same call with different formats and filtered to three attributes:
+
+[source,prompt]
+----
+opsi-cli --output-format table --attributes id,type,lastSeen jsonrpc execute host_getObjects [] '{"id":"testclient0*.uib.local"}'
+----
+
+image::opsi-cli-table-format.png["Tableformat"]
+
+[source,prompt]
+----
+opsi-cli --output-format csv --attributes id,type,lastSeen jsonrpc execute host_getObjects [] '{"id":"testclient0*.uib.local"}'
+...
+id;lastSeen;type
+testclient000.uib.local;2018-05-03 11:12:19;OpsiClient
+testclient01.uib.local;2015-07-14 16:10:42;OpsiClient
+testclient02.uib.local;2015-07-14 16:10:47;OpsiClient
+testclient03.uib.local;2015-07-14 16:10:51;OpsiClient
+testclient04.uib.local;2015-07-14 16:10:57;OpsiClient
+----
+
+The `--output-file` option can also be used to write the output directly to a file.
+
+[[opsi-manual-configuration-tools-opsi-cli-serviceoptions]]
+==== Service options
+
+If used outside the opsi server, credentials for the opsi web service must be used. With the following options you can pass the credentials directly when calling the service (alternatively you can store the credentials locally on the client. For more information about this alternative: `opsi-cli config service add --help`). You can also store different service configurations as profiles if you want to manage more than one opsi system.
+
+image::opsi-cli-service-options.png["Output: opsi-cli self --help", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-commands]]
+=== Kommandos
+
+The currently available commands are explained below.
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-config]]
+==== config
+
+This command can be used to change the `opsi-cli` configuration:
+
+[source,prompt]
+----
+opsi-cli config --help
+----
+
+image::opsi-cli-config-help.png["Output: opsi-cli config --help", pdfwidth=90%]
+
+The following command can be used to display the current configuration and its default settings:
+
+[source,prompt]
+----
+opsi-cli config list
+----
+
+image::opsi-cli-config-list.png["Output: opsi-cli config list", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-jsonrpc]]
+==== jsonrpc
+
+With this cammand you get direct access to the opsi webservice API. So `opsi-cli` is a complete drop-in replacement for `opsi-admin`. jsonrpc has two subcommands. With `opsi-cli jsonrpc methods` you get a list of all available API methods and parameters. This list also shows if the method is marked as "deprecated" and in this case also gives an alternative method as recommended fallback. These methods also appear in the log. However, experience has shown that these messages are not noticed in practice. That gives direct access to the current status. The second subcommand `execute` executes the API method. The syntax for the call itself is very similar to the usage with `opsi-admin`.
+
+The following is a direct comparison:
+
+[source,bash]
+----
+opsi-cli jsonrpc execute authenticated
+----
+
+Legacy Call:
+
+[source,bash]
+----
+opsi-admin method authenticated
+----
+
+The method parameters are passed absolutely identically. Here is a more complicated example for clarification:
+
+[source,bash]
+----
+opsi-cli jsonrpc execute host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+Legacy Call:
+[source,bash]
+----
+opsi-admin method host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+In the examples the option -d of opsi-admin was deliberately omitted. Bypassing the opsi webservice has caused problems within the opsi system in the past. Therefore the way to the API is now only possible via the opsi webservice and `opsi-cli` does not support this mode at all. On an opsi server directly you don't need any credentials, these are read out automatically from the server configuration. Because everything is done via the opsi webservice, you can manage opsi from everywhere. To use `opsi-cli` in scripts or cronjobs outside of the opsi server you have to store the credentials before.
+
+Also here the output formats can be influenced like everywhere with `opsi-cli`:
+
+[source,bash]
+----
+opsi-cli --output-format table --attributes id,created,lastSeen jsonrpc execute host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-client-actions]]
+==== client-action
+
+The command `client-action` gives the possibility to manage the opsi clients. `client-action` itself offers primarily options to influence the list of clients on which the actions affect:
+
+[source,prompt]
+----
+opsi-cli client-action --help
+
+Usage: opsi-cli client-action [OPTIONS] COMMAND [ARGS]...
+
+  This command can be used to manage opsi client actions.
+
+Options:
+  --version                     Show the version and exit.
+  --clients TEXT                Comma-separated list of clients or 'all'
+  --client-groups TEXT          Comma-separated list of host groups
+  --exclude-clients TEXT        Do not perform actions for these clients
+  --exclude-client-groups TEXT  Do not perform actions for these client groups
+  --help                        Show this message and exit.
+----
+
+Currently this command supports another subcommand `set-action-request`, which sets product actions for clients. It is comparable with the tasks of opsi-admin, but works according to an exclusion principle. That means without explicit specification and filtering of clients and products the action affects everything. Below this subcommand there are further options to filter the products on which the action has an effect:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --help
+
+Usage: opsi-cli client-action set-action-request [OPTIONS]
+
+  opsi-cli client-action set-action-request command
+
+Options:
+  --where-failed                  Set this to add actionRequests for all
+                                  selected failed products
+  --where-outdated                Set this to add actionRequests for all
+                                  selected outdated products
+  --uninstall-where-only-uninstall
+                                  If this is set, any installed package which
+                                  only has an uninstall script will be set to
+                                  uninstall
+  --exclude-products TEXT         Do not set actionRequests for these products
+  --products TEXT                 Set actionRequests for these products
+  --product-groups TEXT           Set actionRequests for the products of these
+                                  product groups
+  --exclude-product-groups TEXT   Do not set actionRequests for these product
+                                  groups
+  --request-type TEXT             The type of action request to set  [default:
+                                  setup]
+  --setup-on-action TEXT          After actionRequest was set for a client,
+                                  set these products to setup
+  --help                          Show this message and exit.
+----
+
+Here are some examples:
+
+CAUTION: When called without explicitly specifying clients and products, the command affects all clients and all products. To prevent errors, opsi-cli does not allow set-action-request to be executed without at least one of `--where-outdated`, `--where-failed`, `--products`, `--product-groups`.
+
+To set all obsolete products to `setup` for all clients:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --where-outdated
+----
+
+To set a specific product to `setup` for a client:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products opsi-client-agent
+
+[5] [2022-10-28 12:54:59.998] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 12:55:00.055] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 12:55:00.065] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+The product state `setup` is the default if you want to set the same package to uninstall:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products opsi-client-agent --request-type uninstall
+
+[5] [2022-10-28 12:57:06.848] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 12:57:06.904] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 12:57:06.914] [               ] Setting 'uninstall' ProductActionRequest: opsi-client-agent -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+To reset an action request for a client for a specific product the switch `None` is used (`none` is also accepted):
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products opsi-client-agent --request-type None
+
+[5] [2022-10-28 14:12:50.538] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 14:12:50.574] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 14:12:50.580] [               ] Setting 'None' ProductActionRequest: opsi-client-agent -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+In the event that an error is found in a product, all product actions on clients should be temporarily rolled back to prevent the faulty product from being distributed further:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --products opsi-client-agent --request-type None
+----
+
+If the product is available again without errors, all outdated or faulty product statuses can be set back to setup:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --where-outdated --where-failed
+----
+
+To set a specific product to setup for a client group:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --client-groups testclients set-action-request --products opsi-client-agent
+
+[5] [2022-10-28 13:03:24.100] [               ] Selected clients: ['test-1.domain.tld', 'test-2.domain.tld', 'test-3.domain.tld', 'test-4.domain.tld', 'test-5.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 13:03:24.159] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 13:03:24.169] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-5.domain.tld   (set_action_request_worker.py:134)
+----
+
+To set a product group to setup for the client group:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --client-groups testclients set-action-request --product-groups testproducts
+
+[5] [2022-10-28 13:05:53.147] [               ] Selected clients: ['test-1.domain.tld', 'test-2.domain.tld', 'test-3.domain.tld', 'test-4.domain.tld', 'test-5.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 13:05:53.225] [               ] Handling products ['hwaudit', 'opsi-client-agent', 'swaudit']   (set_action_request_worker.py:105)
+[5] [2022-10-28 13:05:53.236] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-5.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: opsi-client-agent -> test-5.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.240] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-5.domain.tld   (set_action_request_worker.py:134)
+----
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-plugin]]
+==== plugin
+
+The `plugin` command is used to manage the plugins. All commands in `opsi-cli` are included as plugins, this also applies to the command `plugin` itself. It is possible to install new plugins from outside the system, but also to extract running plugins from the system.
+
+[source,prompt]
+----
+opsi-cli plugin --help
+----
+
+image::opsi-cli-plugin-help.png["Output: opsi-cli plugin --help", pdfwidth=90%]
 
 [[opsi-manual-configuration-tools-opsi-setup]]
 == Tool: _opsi-setup_
