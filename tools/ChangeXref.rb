@@ -24,7 +24,7 @@ end
 
 class XrefIncludeProcessor < Asciidoctor::Extensions::IncludeProcessor
   def handles? target
-    (target.start_with? 'docs/de/modules') or (target.start_with? 'docs/de/modules')
+    (target.start_with? 'docs/de/modules') or (target.start_with? 'docs/en/modules')
   end
   RX = /xref:.*#/
   SUB = "xref:"
