@@ -28,11 +28,11 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 3) After logging in, the Gitlab editor opens. 
 ![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit.png)
 
-- In area 1, changes can be made to the text.
- - Afterwards, a commit message can be written describing the change (2).
- - A branch name is automatically assigned and a merge request is created (3).
- - With 'Commit changes' (4) the changes are saved and the merge request is created.
- - A uib staff member then looks at the merge request and transfers the changes to the stable branch.
+- (1) Make your changes here.
+- (2) Append a meaningfull commit message.
+- (3) A branch name is automatically assigned and a merge request is created.
+- (4) With 'Commit changes' your changes are saved and the merge request is created.
+- A uib staff member then looks at the merge request and transfers the changes to the stable branch.
 
 ### create an account on gitlab.uib.de
 <a name="create-account"></a>
@@ -41,9 +41,9 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 
 ![gitlab-register](assets/images/en/readme/opsidoc-gitlab-register.png)
 
-2) Now your account must be approved. This is a manuel step. So it can take some time. 
-3) When your account is approved you will recive an email. Now you can sign in on gitlab.uib.de.
-4) Select a Role for yourself. For example developer. 
+2) Now your account must be approved. This is a manual step. So it can take some time. 
+3) When your account is approved you will recieve an email. Now you can sign in on gitlab.uib.de.
+4) Select a Role for yourself, e.g., developer. 
 
 ![gitlab-welcome](assets/images/en/readme/opsidoc-gitlab-welcome.png)
 
@@ -52,8 +52,8 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 
 ## How to build an opsi manual (Antora and HTML/PDF)
 
-To build the docu files you can use the vscode devcontainer. 
-In the devcontainer you can execute the different scripts to create the antora site and the  HTML/PDF manuals or you can use the vscode tasks. 
+To build the documentation files you can use the vscode devcontainer. 
+In the devcontainer you can execute the different scripts to create the antora site and the HTML/PDF manuals or you can use the vscode tasks. 
 
 ### CSS stylesheet
 
@@ -68,7 +68,7 @@ dependencies:
 ```shell
 sh tools/build_stylesheets.sh
 ```
-This will take the *conf/stylesheets/opsi.sass* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
+This will take the *conf/stylesheets/opsi.scss* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
 
 ### PDF theme
 
@@ -84,7 +84,7 @@ npx antora --log-level=debug local-playbook.yml
 
 ### Create PDF/HTML docu
 
-The docu the can be build with the script `make-books.sh` in tools. This script uses python 3.
+The documentation then is built with the script `make-books.sh` in tools. This script uses python 3.
 
 ```shell
 ./tools/make-books.sh -l <LANGUAGE> -m -n <DOCUMENT>
@@ -112,8 +112,8 @@ Examples:
 
 ### Checking for valid links
 
-With `tools/check_links.py` exists a script that scans build documentation for broken links.
-This script requires Python 3 to be able to run.
+With the script `tools/check_links.py` the buiild documentation is scanned for broken links.
+This script requires Python 3.
 
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
