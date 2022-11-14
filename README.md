@@ -17,7 +17,7 @@ There are two main ways to edit the documentation:
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
 
-1) To Start click `Edit this Page` on the right of the docu site.
+1) To Start go to [docs.opsi.org](https://docs.opsi.org) and click `Edit this Page` on the right of the page you want to edit.
 
 ![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
 
