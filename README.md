@@ -13,6 +13,24 @@ There are two main ways to edit the documentation:
 1) Via the edit link on docs.opsi.org
 2) Clone this repository and edit the files locally.
 
+### Edit via docs.opsi.org
+
+1) To Start click `Edit this Page` on the right of the docu site.
+![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
+2) You will get to https://gitlab.uib.de. To edit the docs you have to sign in or create an account (see [create an account on gitlab.uib.de](#create-account)). 
+
+3) After logging in, the Gitlab editor opens. 
+![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit.png)
+
+- In area 1, changes can be made to the text.
+ - Afterwards, a commit message can be written describing the change (2).
+ - A branch name is automatically assigned and a merge request is created (3).
+ - With 'Commit changes' (4) the changes are saved and the merge request is created.
+ - A uib staff member then looks at the merge request and transfers the changes to the stable branch.
+
+### create an account on gitlab.uib.de
+<a name="create-account"></a>
+
 
 ## How to build an opsi manual (Antora and HTML/PDF)
 
