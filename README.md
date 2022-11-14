@@ -112,7 +112,7 @@ Examples:
 
 ### Checking for valid links
 
-With the script `tools/check_links.py` the buiild documentation is scanned for broken links.
+With the script `tools/check_links.py` the build documentation is scanned for broken links.
 This script requires Python 3.
 
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
