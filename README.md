@@ -10,9 +10,9 @@ PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.2/documen
 ## Edit this documentation
 
 There are two main ways to edit the documentation:
-1) Via the edit link on docs.opsi.org
-2) Merge Request on GitHub 
-3) Clone this repository and edit the files locally.
+1) Via the edit link on [docs.opsi.org](https://docs.opsi.org).
+3) Clone this repository, edit the files locally
+and create a Merge Request/Pull Request (gitlab.uib.de or github).
 
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
