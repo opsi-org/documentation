@@ -18,8 +18,11 @@ There are two main ways to edit the documentation:
 <a name="edit-docs"></a>
 
 1) To Start click `Edit this Page` on the right of the docu site.
+
 ![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
+
 2) You will get to https://gitlab.uib.de. To edit the docs you have to sign in (Standard) or create an account (see [create an account on gitlab.uib.de](#create-account)). 
+
 ![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-gitlab-login.png)
 
 3) After logging in, the Gitlab editor opens. 
@@ -35,11 +38,15 @@ There are two main ways to edit the documentation:
 <a name="create-account"></a>
 
 1) Click "Register now" and fill out your information.
+
 ![gitlab-register](assets/images/en/readme/opsidoc-gitlab-register.png)
+
 2) Now your account must be approved. This is a manuel step. So it can take some time. 
 3) When your account is approved you will recive an email. Now you can sign in on gitlab.uib.de.
 4) Select a Role for yourself. For example developer. 
+
 ![gitlab-welcome](assets/images/en/readme/opsidoc-gitlab-welcome.png)
+
 5) Now you can edit the opsidocs repository. Go back to [docs.opsi.org](https://docs.opsi.org). See [Edit via docs.opsi.org](#edit-docs).
 
 
