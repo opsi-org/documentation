@@ -1,141 +1,59 @@
 # Documentation for opsi
 
-This is the source of the official documentation for the open source client management solution [opsi](http://www.opsi.org/).
+This is the source of the official documentation for the open source client management solution [opsi](https://www.opsi.org/).
 
-A rendered version is available [here](https://download.uib.de/opsi4.1/documentation/).
+The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
-
-## Dependencies
-
-Building the opsi manuals requires the following software to be installed on your system:
-
-- asciidoctor: https://github.com/asciidoctor/asciidoctor
-- asciidoctor-pdf: https://github.com/asciidoctor/asciidoctor-pdf
-  - graphicsmagick
-  - prawn-gmagick: better PNG support
-- asciidoctor-epub3: https://github.com/asciidoctor/asciidoctor-epub3
-
-To build the documentation using make you will need:
-
-* make
+PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.2/documentation/). 
 
 
-## How to build an opsi manual
+## Edit this documentation
 
-### Build all documents in all available languages and formats
+There are two main ways to edit the documentation:
+1) Via the edit link on [docs.opsi.org](https://docs.opsi.org).
+3) Clone this repository, edit the files locally
+and create a Merge Request/Pull Request (gitlab.uib.de or github).
 
-``` shell
-make
-```
+### Edit via docs.opsi.org
+<a name="edit-docs"></a>
 
-### Build all documents in all available languages in a specific format
+1) To Start go to [docs.opsi.org](https://docs.opsi.org) and click `Edit this Page` on the right of the page you want to edit.
 
-Just give the format you want to build, e.g. `pdf`.
+![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
 
-``` shell
-make pdf
-```
+2) You will get to https://gitlab.uib.de. To edit the docs you have to sign in (Standard) or create an account (see [create an account on gitlab.uib.de](#create-account)). 
 
-### Build a specific document in all available languages and formats
+![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-gitlab-login.png)
 
-``` shell
-make opsi-getting-started
-```
+3) After logging in, the Gitlab editor opens. 
+![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit.png)
 
-### Build a specific document in all available languages in a specific format
+- (1) Make your changes here.
+- (2) Append a meaningfull commit message.
+- (3) A branch name is automatically assigned and a merge request is created.
+- (4) With 'Commit changes' your changes are saved and the merge request is created.
+- A uib staff member then looks at the merge request and transfers the changes to the stable branch.
 
-Give the name of the document with the specific extension.
+### create an account on gitlab.uib.de
+<a name="create-account"></a>
 
-``` shell
-make opsi-getting-started.pdf
-```
+1) Click "Register now" and fill out your information.
 
-### Build a specific document in a specific languages in a specific format
+![gitlab-register](assets/images/en/readme/opsidoc-gitlab-register.png)
 
-Set the `LANG` parameter to the wanted value.
-Possible values are `de`, `en` and `fr`.
+2) Now your account must be approved. This is a manual step. So it can take some time. 
+3) When your account is approved you will recieve an email. Now you can sign in on gitlab.uib.de.
+4) Select a Role for yourself, e.g., developer. 
 
-``` shell
-make LANG=de opsi-getting-started.pdf
-```
+![gitlab-welcome](assets/images/en/readme/opsidoc-gitlab-welcome.png)
 
-### Build Slides
-
-``` shell
-make -f tools/slide.mk LANG=de slide-test.html
-```
-needed packages:
-apt install source-highlight
-apt install python-pygment
-
-### Check spelling of all documents
-
-``` shell
-make spell
-```
-
-### Clean up the build tree
-
-``` shell
-make clean
-```
-
-### Validate image paths and usage
-
-Checks for unused images.
-
-``` shell
-make check
-```
-
-### Prepare for publication
-
-Prepares the publication of documents with a folder-structure similar to
-the one found at `download.uib.de`.
-This will copy and rename the files at `build` so they appear in `pub`.
-As an example it will copy `build\pdf\de\opsi-getting-started\opsi-getting-started.pdf` to the pub directory and rename it resulting in `pub\opsi-getting-started-de.pdf`.
-Additionally it will create `pub.tar`.
-This tarball includes the structure like the `pub` folder.
-It can be copied to the desired machine and then extracted there.
-
-``` shell
-make publish
-```
-
-### Debugging
-
-For verbose output set the enviroment variable `VERBOSE` to `True`.
-
-``` shell
-VERBOSE=True make
-```
-
-Debug mode includes verbose but leaves temporary build files in `/tmp` for inspection.
-
-``` shell
-VERBOSE=True make
-DEBUG=True make
-```
-
-### Checking for valid links
-
-With `tools/check_links.py` exists a script that scans build documentation for broken links.
-This script requires Python 3 to be able to run.
-
-To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
+5) Now you can edit the opsidocs repository. Go back to [docs.opsi.org](https://docs.opsi.org). See [Edit via docs.opsi.org](#edit-docs).
 
 
-## How to build an opsi manual with tools/create_docs.py
+## How to build an opsi manual (Antora and HTML/PDF)
 
-
-### Dependencies
-
-- asciidoctor: https://github.com/asciidoctor/asciidoctor
-- asciidoctor-pdf: https://github.com/asciidoctor/asciidoctor-pdf
-  - graphicsmagick
-  - prawn-gmagick: better PNG support
-- asciidoctor-epub3: https://github.com/asciidoctor/asciidoctor-epub3
-
+To build the documentation files you can use the vscode devcontainer. 
+In the devcontainer you can execute the different scripts to create the antora site and the HTML/PDF manuals or you can use the vscode tasks. 
 
 ### CSS stylesheet
 
@@ -150,48 +68,65 @@ dependencies:
 ```shell
 sh tools/build_stylesheets.sh
 ```
-This will take the *conf/stylesheets/opsi.sass* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
+This will take the *conf/stylesheets/opsi.scss* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
 
 ### PDF theme
 
 To modify the PDF theme edit conf/opsi-theme.yml.
 
-### Docu
+### Create Antora site
 
-The docu can be build with the script `create_docu.py` in tools. This script uses python 3.
+To create the antore site with your local changes excute: 
 
 ```shell
-usage: create_docu.py [-h] [-l LANG] [-o OUTPUTS] [-f FILES] [-t THEME]
-                      [-s STYLESHEET] [-p PROJECT_PATH]
+npx antora --log-level=debug local-playbook.yml
+```
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -l LANG, --lang LANG  languages to build (en,de)
-  -o OUTPUTS, --outputs OUTPUTS
-                        output formates (html,pdf)
-  -f FILES, --files FILES
-                        docu files to build
-  -t THEME, --theme THEME
-                        pdf theme to use (opsi)
-  -s STYLESHEET, --stylesheet STYLESHEET
-                        html style to use (opsi)
-  -p PROJECT_PATH, --project-path PROJECT_PATH
-                        path to docu project
+### Create PDF/HTML docu
+
+The documentation then is built with the script `make-books.sh` in tools. This script uses python 3.
+
+```shell
+./tools/make-books.sh -l <LANGUAGE> -m -n <DOCUMENT>
+```
+
+```shell
+HELP
+
+Usage: ./bin/makepdf [-c] [-d] [-h] [-l] [-m] [-n <manual|getting-started|releasenotes|windows-client-manual|linux-client-manual|macos-client-manual|opsi-script-manual|quickinstall|opsi-script-reference-card|supportmatrix>]
+
+-h ... help
+-l ... set language default is de
+-e ... Set failure level to ERROR (default: FATAL)
+-c ... clean the build/ directory (contains the pdf)
+-d ... Debug mode, prints the book to be converted. Only in combination with -m and/or -n
+-m ... Build all available manuals
+-n ... Build manual <name>. Only in combination with -m
 ```
 
 Examples:
 
-Build all files in all languages as html and pdf with opsi style/theme:
-```shell
-python3 tools/create_docu.py -s opsi -t opsi
+```
+./tools/make-books.sh -l en -m -n manual
 ```
 
-Build opsi manual in english and german as html:
-```shell
-python3 tools/create_docu.py -l en,de -o html -s opsi -f opsi-manual-v4.2
+### Checking for valid links
+
+With the script `tools/check_links.py` the build documentation is scanned for broken links.
+This script requires Python 3.
+
+To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
+
+
+## Accept changes from external
+
+Changes made via docs.opsi.org generate a merge request on gitlab.uib.de. 
+Queries and discussions can take place via the GitLab interface on gitlab.uib.de. 
+If the changes are to be adopted, gitlab.uib.de is first entered as the second remote in the local opsidoc repository: 
+
+```
+git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
 ```
 
-Build getting started pdf in english:
-```shell
-python3 tools/create_docu.py -l en -o pdf -t opsi -f opsi-getting-started-v4.2
-```
+Then the merge to stable can be processed. Once everything has been merged, stable is pushed internally to gitlab.uib.gmbh.
+The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed. 
