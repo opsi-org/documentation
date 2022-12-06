@@ -1,12 +1,12 @@
 
 
-.define_vars_multi.opsiscript: Variablen deklaration
+.declarations.opsiinc: Variable Declaration
 [source,winst]
 ----
-; ----------------------------------------------------------------
+
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 
 ; -------------------------------------
@@ -14,43 +14,38 @@
 ; Define all variables here
 ;---------------------------
 DefVar $arch$
-DefVar $distCodeName$
-DefVar $distRelease$
-DefVar $distroName$
-DefVar $distrotype$
 DefVar $errorstring$
 DefVar $exitcode$
 DefVar $iconfile$
+DefVar $installerSourceDir$
 DefVar $installCommand$
 DefVar $installSuccess$
 DefVar $installdir$
 DefVar $installdir1$
 DefVar $installdir2$
 DefVar $installerfile$
-DefVar $licensekey$
-DefVar $licensepool$
-DefVar $licenserequired$
 DefVar $minimumspace$
-DefVar $msiid$
 DefVar $oldProgFound$
 DefVar $os$
 DefVar $osshort$
+DefVar $ProdVersion$
 DefVar $productid$
 DefVar $targetfile$
 DefVar $tmpstr$
-DefVar $uninstallprogram$
+DefVar $PackageName$
 
-DefStringlist $ListOfPackageNames$
-DefStringList $osinfomap$
+DefStringList $ListOfPackageNames$
+
+DefVar $targetprogram$
 ----
 
-.setup.opsiscript: Installationsscript
+.setup.opsiscript: Installation Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
 
@@ -63,20 +58,19 @@ importlib "uib_lin_install.opsiscript"
 
 
 ; All variables are defined here:
-include_insert "define_vars_multi.opsiscript"
+include_insert "declarations.opsiinc"
 
 ; ----------------------------------------------------------------
 ; Please edit the following values:
 ; ----------------------------------------------------------------
-; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
 Set $ProductId$		 = "l-opsi-template"
-Set $MinimumSpace$	 = "1 MB"
 ; the path were we find the product after the installation
-Set $LicenseRequired$ = "false"
-Set $LicensePool$	  = "" 
 ; enter here names of the package at the supported Distributions / Versions
 Set $ListOfPackageNames$ = CreateStringList("<packagename>")
 ; ----------------------------------------------------------------
+
+Message "Installing " + $ProductId$ + " ..."
 
 set $OS$ = GetOS
 
@@ -88,20 +82,18 @@ endif
 comment "Show product picture"
 ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 
-Message "Installing " + $ProductId$ + " ..."
 
-if $LicenseRequired$ = "true"
-	comment "Licensing required, reserve license and get license key"
-	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
-endif
+
+set $installerSourceDir$ = ""
+
 
 comment "Start setup "
-ChangeDirectory "%SCRIPTPATH%\files1"
+ChangeDirectory $installerSourceDir$
 ;----------------------------------------------
 cleanupPackageSystem()
 ;----------------------------------------------
 ; To create a new repo: described in the opsi-script manual (Linux)
-; 
+;
 ; install a package from a existing repo:
 ; set $installSuccess$ = linuxInstallOneOf($ListOfPackageNames$)
 ; set $exitcode$ = boolToGenericExitcode($installSuccess$)
@@ -118,6 +110,8 @@ else
 	Comment $ErrorString$
 endif
 
+
+
 comment "Copy files"
 Files_install
 
@@ -126,18 +120,20 @@ Files_install
 ;
 ; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
 
+
+
 ; ----------------------------------------------------------------
 ; ----------------------------------------------------------------
 ----
 
 
-.uninstall.opsiscript: Deinstallations-Skript
+.uninstall.opsiscript: Deinstallation Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
 
@@ -151,20 +147,20 @@ importlib "uib_lin_install.opsiscript"
 
 
 ; All variables are defined here:
-include_insert "define_vars_multi.opsiscript"
+include_insert "declarations.opsiinc"
 
 ; ----------------------------------------------------------------
 ; Please edit the following values:
 ; ----------------------------------------------------------------
-; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
 Set $ProductId$		 = "l-opsi-template"
 ; the path were we find the product after the installation
 Set $InstallDir$	= "<none>"
-Set $LicenseRequired$ = "false"
-Set $LicensePool$	  = ""
 ; enter here names of the package at the supported Distributions / Versions
 Set $ListOfPackageNames$ = CreateStringList("<packagename>")
 ; ----------------------------------------------------------------
+
+Message "Uninstalling " + $ProductId$ + " ..."
 
 set $OS$ = GetOS
 
@@ -176,26 +172,21 @@ endif
 comment "Show product picture"
 ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 
-Message "Uninstalling " + $ProductId$ + " ..."
 
-if FileExists("%ScriptPath%\delsub.opsiscript")
-	comment "Start uninstall sub section"
-	Sub "%ScriptPath%\delsub.opsiscript"
-endif
 
-if $LicenseRequired$ = "true"
-	comment "Licensing required, free license used"
-	Set $tmpstr$ = FreeLicense($LicensePool$)
+if FileExists("%ScriptPath%\delinc.opsiinc")
+	comment "Start uninstall part"
+	include_insert "%ScriptPath%\delinc.opsiinc"
 endif
 ----
 
-.delsub.opsiscript: Deinstallations-SubSkript
+.delinc.opsiinc: Deinstallation Include Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
 
@@ -224,7 +215,7 @@ if $oldProgFound$ = "true"
 	else
 		Comment $ErrorString$
 	endif
-		
-	endif
+	
 endif
+;----------------------------------------------
 ----
