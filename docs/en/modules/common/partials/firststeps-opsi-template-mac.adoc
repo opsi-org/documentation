@@ -1,12 +1,12 @@
 
 
-.define_vars_multi.opsiscript: Variablen deklaration
+.declarations.opsiinc: Variable Declaration
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 
 ; -------------------------------------
@@ -14,43 +14,35 @@
 ; Define all variables here
 ;---------------------------
 DefVar $arch$
-DefVar $distCodeName$
-DefVar $distRelease$
-DefVar $distroName$
-DefVar $distrotype$
 DefVar $errorstring$
 DefVar $exitcode$
 DefVar $iconfile$
+DefVar $installerSourceDir$
 DefVar $installCommand$
 DefVar $installSuccess$
 DefVar $installdir$
 DefVar $installdir1$
 DefVar $installdir2$
 DefVar $installerfile$
-DefVar $licensekey$
-DefVar $licensepool$
-DefVar $licenserequired$
 DefVar $minimumspace$
-DefVar $msiid$
 DefVar $oldProgFound$
 DefVar $os$
 DefVar $osshort$
+DefVar $ProdVersion$
 DefVar $productid$
 DefVar $targetfile$
 DefVar $tmpstr$
-DefVar $uninstallprogram$
 
-DefStringlist $ListOfPackageNames$
-DefStringList $osinfomap$
+DefVar $targetprogram$
 ----
 
-.setup.opsiscript: Installationsscript
+.setup.opsiscript: Installation Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
 
@@ -63,20 +55,19 @@ importlib "uib_macosinstalllib.opsiscript"
 
 
 ; All variables are defined here:
-include_insert "define_vars_multi.opsiscript"
+include_insert "declarations.opsiinc"
 
 ; ----------------------------------------------------------------
 ; Please edit the following values:
 ; ----------------------------------------------------------------
-; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
 Set $ProductId$		 = "m-opsi-template"
-Set $MinimumSpace$	 = "1 MB"
 ; the path were we find the product after the installation
 ;Set $InstallDir$	= "/Applications/<product.app>"
 Set $InstallDir$		= "/Applications/<productid.app>"
-Set $LicenseRequired$ = "false"
-Set $LicensePool$	  = "" 
 ; ----------------------------------------------------------------
+
+Message "Installing " + $ProductId$ + " ..."
 
 set $OS$ = GetOS
 
@@ -89,22 +80,21 @@ comment "Show product picture"
 ShowBitmap "%ScriptPath%/" + $ProductId$ + ".png" $ProductId$
 
 
-if FileExists("%ScriptPath%/delsub.opsiscript")
-	comment "Start uninstall sub section"
-	Sub "%ScriptPath%/delsub.opsiscript"
+
+if FileExists("%ScriptPath%\delinc.opsiinc")
+	comment "Start uninstall part"
+	include_insert "%ScriptPath%\delinc.opsiinc"
 endif
 
 Message "Installing " + $ProductId$ + " ..."
 
-if $LicenseRequired$ = "true"
-	comment "Licensing required, reserve license and get license key"
-	set $LicenseKey$ = get_licensekey_byPool($LicensePool$)
-endif
+set $installerSourceDir$ = ""
 
-comment "Start setup "
-ChangeDirectory "%SCRIPTPATH%/files1"
+
+comment "Start installer "
+ChangeDirectory $installerSourceDir$
 ;----------------------------------------------
-set $installSuccess$ = install_macos_generic("%SCRIPTPATH%/files1/<my macos install file>") 
+set $installSuccess$ = install_macos_generic("%SCRIPTPATH%/files1/<my macos install file>")
 ;----------------------------------------------
 if $installSuccess$  = "false"
 	LogError "Installation failed"
@@ -113,25 +103,33 @@ else
 	Comment "Installation success"
 endif
 
+
+
 comment "Copy files"
 Files_install
+
+[Files_uninstall]
+del -sf "$InstallDir$/"
+
 
 [Files_install]
 ; Example of recursively copying some files into the installation directory:
 ;
 ; copy -s "%ScriptPath%\files\*.*" "$InstallDir$"
 
+
+
 ; ----------------------------------------------------------------
 ; ----------------------------------------------------------------
 ----
 
-.delsub.opsiscript: Ausgelagerte Deinstallations-Sub-Sektion
+.delinc.opsiinc: Deinstallation Include Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
 
@@ -143,28 +141,27 @@ if directoryExists($InstallDir$)
 	set $oldProgFound$ = "true"
 endif
 
-if $oldProgFound$ = "true"
-	Message "Uninstalling " + $ProductId$ + " ..."
-	if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown') or ($InstallDir$ = '/Applications/'))
+f $oldProgFound$ = "true"
+comment "Is the Installdir in the Applications directory ?"
+if "1" = strPos(lower($InstallDir$),lower("/Applications/"))
+	comment "Do not delete the whole /Applications dir ..."
+	if not(lower($InstallDir$) = lower('/Applications/'))
+		Message "Uninstalling " + $ProductId$ + " ..."
 		Files_uninstall
 	endif
 endif
-
-[Files_uninstall]
-del -sf "$InstallDir$/"
-;-----------------------------------------------------
+endif;-----------------------------------------------------
 ----
 
-.uninstall.opsiscript: Deinstallations-Skript
+.uninstall.opsiscript: Deinstallation Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.0.10
+; This code was originally created by opsi-setup-detector 4.2.1.5
 ; ----------------------------------------------------------------
 encoding=utf8
-
 
 [Actions]
 requiredOpsiscriptVersion >= "4.12.4.23"
@@ -175,19 +172,19 @@ importlib "uib_macosinstalllib.opsiscript"
 
 
 ; All variables are defined here:
-include_insert "define_vars_multi.opsiscript"
+include_insert "declarations.opsiinc"
 
 ; ----------------------------------------------------------------
 ; Please edit the following values:
 ; ----------------------------------------------------------------
-; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a seperator
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
 Set $ProductId$		 = "m-opsi-template"
 ; the path were we find the product after the installation
 ;Set $InstallDir$	= "/Applications/<product.app>"
 Set $InstallDir$	= "/Applications/<productid.app>"
-Set $LicenseRequired$ = "false"
-Set $LicensePool$	  = ""
 ; ----------------------------------------------------------------
+
+Message "Uninstalling " + $ProductId$ + " ..."
 
 set $OS$ = GetOS
 
@@ -201,16 +198,18 @@ ShowBitmap "%ScriptPath%/" + $ProductId$ + ".png" $ProductId$
 
 
 
-Message "Uninstalling " + $ProductId$ + " ..."
-
-if FileExists("%ScriptPath%/delsub.opsiscript")
-	comment "Start uninstall sub section"
-	Sub "%ScriptPath%/delsub.opsiscript"
+if FileExists("%ScriptPath%\delinc.opsiinc")
+	comment "Start uninstall part"
+	include_insert "%ScriptPath%\delinc.opsiinc"
 endif
 
-if $LicenseRequired$ = "true"
-	comment "Licensing required, free license used"
-	Set $tmpstr$ = FreeLicense($LicensePool$)
-endif
+
+
+[Files_uninstall]
+del -sf "$InstallDir$/"
+
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
 ----
 

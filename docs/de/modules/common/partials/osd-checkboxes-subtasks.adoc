@@ -1,0 +1,242 @@
+
+[[opsi-setup-detector-support_custom_directory]]
+==== Opsi-setup-detector:  Support custom directory
+
+Der opsi-setup-detector enthält in dem Tab "Produkt Konfiguration 1" die Checkbox: +
+*Unterstütze custom directory* : Das Produkt erhält ein zusätzliches Verzeichnis 'custom' welches Kunden spezifische Dateien enthalten kann. Bei der Installation einer neuen Version des Paketes auf dem Server wird das vorhandene custom Verzeichnis erhalten. Der Code enthält Vorlagen um Dateien aus diesem Verzeichnis in die Installation einzufügen. +
+
+In die setup.opsiscript wird eingefügt: +
+Der Aufruf einer Files Sektion um Dateien vom 'custom' Verzeichnis auf den Client zu kopieren:
+
+[source,winst]
+----
+; copy custom files to install dir
+Files_copy_from_custom_dir
+----
+
+sowie die dazugehörige Sektion. In diesem Beispiel wird der Inhalt das 'custom' Verzeichnisses in das Installationsverzeichnis kopiert:
+
+[source,winst]
+----
+[Files_copy_from_custom_dir]
+copy -s "%scriptPath%\custom\*" "$installdir$"
+----
+
+Weiterhin wird das 'custom' Verzeichnis selbst erzeugt und eine OPSI\preinst und OPSI\postinst Datei, welche dafür sorgen, das der Inhalt des 'custom' Verzeichnisses auf dem Depot bei Installationen von Produktupdates erhalten bleibt.
+
+[[opsi-setup-detector-install_from_local_temp_dir]]
+==== Opsi-setup-detector:  Installiere von lokalem, temporären Verzeichnis
+
+Der opsi-setup-detector enthält in dem Tab "Produkt Konfiguration 1" die Checkbox: +
+*Installiere von lokalem, temporären Verzeichnis* : Die installationsdateien werden zunächst in ein lokales, temporäres Verzeichnis kopiert und dann aus diesem Verzeichnis heraus installiert. Insbesondere sinnvoll für alles was bei der Installation die Netzwerkverbindung beeinträchtigen könnte (z.B. Treiber).
+
+Es wird ein zusätzliches boolsches Property erzeugt: _install_from_local_tmpdir_ mit dem Default 'False' und der Beschreibung: 'Bestimmt ob die Installationsdateien nach lokal kopiert werden'.
+
+In die setup.opsiscript wird eingefügt: +
+Der Aufruf einer Files Sektion um die Installerdateien vom $installerSourceDir$ Verzeichnis auf den Client zu kopieren. Sowie den Aufruf um nach der Installation die temporären Dateien wieder zu löschen:
+
+[source,winst]
+----
+set $Install_from_local_tmpdir$ = GetProductProperty("Install_from_local_tmpdir","False")
+
+; before the installation:
+if $Install_from_local_tmpdir$ = "true"
+	; copy installer files to tempdirectory
+	Files_copy_installer_to_temp
+	; set $installerSourceDir$ to tmpdir
+	set $installerSourceDir$ = forcePathDelims("%opsiTmpDir%\"+$ProductId$)
+endif
+
+; do the installation
+
+; after the installation
+if $Install_from_local_tmpdir$ = "true"
+	; cleanup installer tempdirectory
+	Files_del_installer_from_temp
+endif
+----
+
+sowie die dazugehörigen Sektionen. 
+
+[source,winst]
+----
+; copy installer files to tempdirectory
+[Files_copy_installer_to_temp]
+copy -s "$installerSourceDir$\*.*" "%opsiTmpDir%\$ProductId$"
+
+; cleanup installer tempdirectory
+[Files_del_installer_from_temp]
+del -sf "%opsiTmpDir%\$ProductId$\"
+----
+
+[[opsi-setup-detector-handle_license_key]]
+==== Opsi-setup-detector:  Behandle Lizenzkeys
+
+Der opsi-setup-detector enthält in dem Tab "Produkt Konfiguration 1" die Checkbox: +
+*Behandle Lizenzkeys* : Fügt Property und Code zur Behandlung von Lizenzkeys hinzu.
+
+Es wird ein zusätzliches Property erzeugt: _secretlicense_or_pool_ mit dem Default '' und der Beschreibung: 'Lizenzkey oder opsi Lizenzpool'. Das Schlüsselwort 'secret' im Propertynamen führt dazu, dass im opsi-configed, der Wert des Properties nur maskiert angezeigt wird.
+
+In die setup.opsiscript wird eingefügt: +
+Der Aufruf von get_licensekey_byPoolOrKey prüft ob der Propertywert evtl. ein Lizenzpool name aus der opsi-Erweiterung Lizenzmanagement ist. +
+Wenn ja, so wird ein Lizenzkey aus diesem Pool geliefert. +
+Wenn nein, so wird der Inhalt des Property als Lizenzkey geliefert.
+
+[source,winst]
+----
+DefVar $LicenseHandledByScript$ = "true"
+
+set $LicenseOrPool$ = GetConfidentialProductProperty("SecretLicense_or_Pool","")
+
+; before the installation:
+; ---------------------------------------------------------------
+comment "handle license "
+; ----------------------------------------------------------------
+if $LicenseHandledByScript$ = "true"
+	comment "we should handle license"
+	;reserve license and get license key
+	set $LicenseKey$ = get_licensekey_byPoolOrKey($LicenseOrPool$)
+	; here the section or function calls should follow which
+	; make use of the license key resp the license reservation
+endif
+----
+
+In die uninstall.opsiscript wird eingefügt: +
+
+[source,winst]
+----
+DefVar $LicenseHandledByScript$ = "true"
+
+set $LicenseOrPool$ = GetConfidentialProductProperty("SecretLicense_or_Pool","")
+
+; after the uninstallation
+
+; ---------------------------------------------------------------
+comment "handle license "
+; ----------------------------------------------------------------
+if $LicenseHandledByScript$ = "true"
+	comment "we should free license used"
+	Set $tmpstr$ = FreeLicense($LicenseOrPool$)
+endif
+----
+
+[[opsi-setup-detector-desktopicon]]
+==== Opsi-setup-detector:  DesktopIcon
+
+Der opsi-setup-detector enthält in dem Tab "Produkt Konfiguration 1" die Checkbox: +
+*DesktopIcon* : Fügt Property und Code zur Behandlung von Desktop Icons hinzu.
+
+Es wird ein zusätzliches boolsches Property erzeugt: _desktopicon_ mit dem Default 'False' und der Beschreibung: 'Soll es ein Desktopicon geben ?'.
+
+In die setup.opsiscript wird eingefügt: +
+Der Aufruf einer Linkfolder Sektion zum Erstellen oder Entfernen des Desktop Icon:
+
+[source,winst]
+----
+set $desktopicon$ = GetProductProperty("desktopicon", "False")
+
+
+; after the installation
+; handle desktop icon
+if $DesktopIcon$ = "true"
+	comment "Create Desktop Icon"
+	Linkfolder_create_desktop_icon
+else
+	comment "Remove Desktop Icon"
+	Linkfolder_remove_desktop_icon
+endif
+----
+
+sowie die dazugehörigen Sektionen, welche auch in die uninstall.opsiscript eingefügt werden:
+
+[source,winst]
+----
+[Linkfolder_remove_desktop_icon]
+; check delete_element
+set_basefolder common_desktopdirectory
+set_subfolder ""
+delete_element $productId$
+
+[Linkfolder_create_desktop_icon]
+; check name, target and working_dir
+set_basefolder common_desktopdirectory
+set_subfolder ""
+set_link
+	name: $productId$
+	target: $Installdir$\$targetprogram$
+	parameters:
+	working_dir: $Installdir$
+	icon_file:
+	icon_index:
+end_link
+----
+
+In die delinc.opsiinc wird eingefügt: +
+
+[source,winst]
+----
+comment "Start Remove Desktop Icon Handling :"
+Linkfolder_remove_desktop_icon
+----
+
+[[opsi-setup-detector-customize_profile]]
+==== Opsi-setup-detector:  Customize Profile
+
+Der opsi-setup-detector enthält in dem Tab "Produkt Konfiguration 1" die Checkbox: +
+
+*Customize Profile* : Ergänzt den Code um eine 'Profileactions' Sektion um Anpassungen in den lokalen Userprofilen durchzuführen. Diese Funktionalität wird auch über ein loginscript für 'Roaming Profiles' bereitgestellt. +
+
+Über die OPSI/control Datei wird das setup.opsiscript nicht nur als 'setupScript', sondern auch als 'userLoginScript' bereitgestellt.
+
+In die setup.opsiscript wird eingefügt: +
+Der Aufruf einer ProfileActions Sektion. Diese wird je nach Aufruftyp für alle lokalen Profile oder für den gerade eingeloggtem Benutzer ausgeführt:
+Für Details siehe : https://docs.opsi.org/opsi-docs-de/4.2/manual/modules/user-profile.html
+
+[source,winst]
+----
+; Run the customization for user profiles
+ProfileActions
+----
+
+sowie die dazugehörigen Sektionen, welche templates für Aufrufe zur Manipulation der User Profiles sind.:
+
+[source,winst]
+----
+[ProfileActions]
+; all section that called from [ProfileActions]
+; will be executed for all user profiles
+;
+; if this script runs as loginscript
+; only the [ProfileActions] will be executed
+
+; copy some files to every user profile
+Files_copy_to_user_profiles
+
+; make entries in every currentuser hive
+Registry_current_user
+
+; modify or create ini files in all user profiles
+;Patches_in_user_profiles  "%UserProfileDir%\Appdata\Roaming\<path_to_ini_file>"
+Patches_in_user_profiles  "%UserProfileDir%\Appdata\Roaming\osd_profile_example\osd_profile_example.ini"
+
+[Files_copy_to_user_profiles]
+; example structure:
+;copy "%Scriptpath%\profile_files\*.*" "%UserProfileDir%\Appdata\Roaming\<path_to_application_dir>"
+; example:
+;copy "%Scriptpath%\profile_files\*.*" "%UserProfileDir%\Appdata\Roaming\osd_profile_example"
+
+[Registry_current_user]
+; example structure:
+;openkey [HKCU\Software\<application key>]
+;set "<var name>" = "<var value>"
+; example:
+;openkey [HKCU\Software\osd_profile_example]
+;set "osd_profile_example_entry" = "example_value"
+
+[Patches_in_user_profiles]
+; example structure:
+; set [<section name>] <key name>=<value>
+; example:
+;set [example_section] example_key=example_value
+----
+
