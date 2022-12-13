@@ -63,48 +63,38 @@ NOTE: In larger environments, 256{nbsp}MB of RAM may not be sufficient. Adjust t
 [[opsi-manual-dircon-requirements-software]]
 === Software Requirements
 
-The installation and operation is only supported on Linux.
-Support for Windows is not planned.
+Installation and operation of the Directory Connector is only supported on Linux. Support for Windows systems is not planned.
 
-By using standardized protocols for communication, no additional opsi- or directory service-specific components are required.
-
+Since the extension uses standard protocols for communication over the network, no any additional opsi or directory service-specific components are required.
 
 [[opsi-manual-dircon-installation]]
 == Installation
 
-To install the connector please add the opsi repository as described in the `Getting Started` document.
+To install the Directory Connector, first add the opsi repository (see the chapter xref:getting-started:getting-started.adoc[Getting Started], sections on xref:getting-started:server/base-installation.adoc#opsi-getting-started-installation-base-deb[Debian/Ubuntu], xref:getting-started:server/base-installation.adoc#opsi-getting-started-installation-base-deb[openSUSE/SLES], and xref:getting-started:server/base-installation.adoc#opsi-getting-started-installation-base-centos-rhel[CentOS/RHEL]). Next, install the package `opsi-directory-connector` via the package manager of your distribution.
 
-Then use the package manager of the operating system to install the package `opsi-directory-connector`.
-
-On a Debian-based machine the installation can be done as follows:
+For example, on Debian-based systems, use this command:
 
 [source,prompt]
 ----
 apt-get install opsi-directory-connector
 ----
 
-
 [[opsi-manual-dircon-configuration]]
 == Configuration
 
-The connector uses a number of configuration options and can be adapted to a wide variety of environments.
+The Directory Connector offers a wide range of settings to adapt it to very different environments. The configuration file `/etc/opsi/opsidirectoryconnector-custom.conf` is in JSON format and must contain valid JSON (key-value pairs). For boolean values use `true` or `false`; text is enclosed in double quotes (e.g. `"this is text"`).
 
-The configuration is done via a configuration file in JSON format, which must contain valid JSON.
-To specify Boolean values, please use `true` or `false`.
-Text has to be entered with double quotation marks, for example `"this is text"`.
-
-An example configuration is provided as `/usr/share/opsi-directory-connector/opsi-directory-connector.example.conf`
-This file can be used as a template for your own configuration.
+TIP: Our package contains an example configuration. You can use the file `/usr/share/opsi-directory-connector/opsi-directory-connector.example.conf` as a template for your own configuration:
 
 [source,prompt]
 ----
-cp `/usr/share/opsi-directory-connector/opsi-directory-connector.example.conf /etc/opsi/opsi-directory-connector-custom.conf
+cp /usr/share/opsi-directory-connector/opsi-directory-connector.example.conf /etc/opsi/opsidirectoryconnector-custom.conf
 ----
 
 [[opsi-manual-dircon-conf-dir]]
-=== Directory settings
+=== Connection to the Directory Service (`directory`)
 
-These settings are required to establish a connection to the directory service and to limit the search scope to specific areas and objects.
+In the `directory` section you configure the connection to the directory service. Here you can also limit the search scope to certain areas and objects.
 
 [source,json]
 ----
@@ -125,43 +115,36 @@ These settings are required to establish a connection to the directory service a
 }
 ----
 
-Under `address` you have to specify at which address the server can be contacted.
-If the protocol `ldaps` or the port `636` is used a SSl connection to the directory is opened. Example:
+Enter the address of the LDAP server after `address`. If the protocol `ldaps` or the port `636` is used, then the communication is SSL-encrypted:
 
 [source,json]
 ----
         "address": "192.168.12.34:636",
 ----
 
-`User` and `password` are used for authentication to the directory.
-If a value is given for `passwordFile`, this is interpreted as the path to a file that contains the password.
-The content of this file will be used as the password.
-This means that the password does not have to be stored in plain text in the configuration file.
-This will override the value set for `password`, if the file can be read.
+In addition, enter the user name (`user`) and password (`password`) for authentication to the directory service.
 
-TIP: We recommend using a dedicated user account.
+TIP: To increase security, we recommend using a dedicated user account.
 
-NOTE: Depending on the directory software used and its configuration, the format for the username can be different. +
-Besides _Down-Level Logon Name_ in the style of `DOMAIN\\username`, the format can also be _User Principal Name_ in the style of `user@domain`, or a _Distinguished Name_ (DN) like `uid=opsiconnect,cn=users,dc=test,dc=intranet`.
+Instead of a password, you can enter the path to a file containing the password after `passwordFile`. The advantage of this is that the password is not stored in plain text in the configuration file. A password read from `passwordFile` overwrites any values set for `password`.
 
-With `search_base` you specify from which point the connector looks for matching entries.
+NOTE: The format of the user name depends on the directory service application in use and its configuration: +
+*Down-Level Logon Name*: `DOMAIN\username` +
+*User Principal Name (UPN)*: `user@domain` +
+*Distinguished Name (DN)*: `uid=opsiconnect,cn=users,dc=test,dc=intranet`
+
+Specify the point from which the connector looks for matching entries behind `search_base`.
 The filter used to search for clients can be configured via `search_query_computers`.
 
-Through the optional parameter `identifying_attribute` it is possible to set which attribute should be used for the unique identification of a client. This is possible since version 23.
-The standard used here is `dn`.
-A common alternative to `dn` is the value `distinguishedName`, this variant is often used in Microsoft Active Directory.
+From version 23, the optional key `identifying_attribute` specifies which attribute should be used for the unique identification of a client. The default setting is `dn`. A common alternative is `distinguishedName`, which is mainly used in the Microsoft's Active Directory.
 
-The `connection_options` parameter contains additional options for configuring the connection.
-The `verify` parameter determines whether or not the certificate should be verified for an SSL connection. In addition, the path to a CA file can be specified. If a file is specified, verification is performed via this file.
-If the connection is started via the unencrypted port 389, then `start_tls` can be used to control whether a secure connection is started after logging on to the directory. By default, `start_tls` is activated on 389, but the certificate is not checked. 
+The key `connection_options` defines additional options for the connection. For example, you can determine via `verify` whether or not the certificate is to be validated for an SSL connection. In addition, you can specify the path to a Certificate Authority (CA); enter the name of the file you want to use for verification here. If the connection is started via the unencrypted port 389, then `start_tls` determines whether a secure connection is started after the login. By default, `start_tls` is enabled for port 389, but the certificate is not checked.
 
-If the optional parameter `paged_search_limit` is present and if its value is an integer, multiple queries are used to read the elements from the directory. The maximum number of elements an answer contains is controlled by this value.
-This behavior has been supported since version 20.
+If multiple queries are used to read the elements from the directory, then define the number behind the optional key `paged_search_limit`. The value must be an integer. The feature has been supported since version 20.
 
-NOTE: Additional connection options will be implemented on request.
+NOTE: Are you missing a connection option? If possible, we will implement further features on request. Please feel free to contact us via mailto:info@uib.de[email].
 
-Since version 14 it is possible to test the connection to the directory via the parameter `--check-directory`, without establishing a connection to the opsi server.
-
+TIP: Since version 14 it is possible to test the connection to directory via the parameter `--check-directory` without connecting to the {opsi-server}.
 
 [[opsi-manual-dircon-conf-dir-ucs]]
 === Connection to Univention Corporate Server
