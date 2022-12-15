@@ -126,7 +126,7 @@ In addition, enter the user name (`user`) and password (`password`) for authenti
 
 TIP: To increase security, we recommend using a dedicated user account.
 
-Instead of a password, you can enter the path to a file containing the password after `passwordFile`. The advantage of this is that the password is not stored in plain text in the configuration file. A password read from `passwordFile` overwrites any values set for `password`.
+Instead of a password, you can enter the path to a file containing the password after `passwordFile`. The advantage is that the password is not stored in plain text in the configuration file. A password read from `passwordFile` overwrites any values set for `password`.
 
 NOTE: The format of the user name depends on the directory service application in use and its configuration: +
 *Down-Level Logon Name*: `DOMAIN\username` +
@@ -255,9 +255,9 @@ TIP: A short description of all configuration options can also be found in the s
 
 
 [[opsi-manual-dircon-conf-mapping]]
-=== Mappings
+=== Matching Attributes (`mapping`)
 
-With a system as flexible as a directory service, the connector needs information about which attributes in the directory should be matched to which attributes in opsi.
+Since a directory service is an extremely flexible system, the Directory Connector needs precise information about the attributes and which of them are to be matched to the attributes in opsi itself. For this reason there is a mapping for client attributes.
 
 [source,json]
 ----
@@ -278,17 +278,19 @@ With a system as flexible as a directory service, the connector needs informatio
 }
 ----
 
-There is a mapping for client attributes.
-The key of the mapping is the attribute in opsi and the value is the attribute from the directory service. If the value (in the mapping) is empty, no mapping will be done.
+The key is always the attribute in opsi, and the value is the attribute from the directory service. If the value is empty, no mapping takes place.
 
-NOTE: If the value read from the directory for the ID of the client is not recognizable as a FQDN, a corresponding FQDN will be created.
-The domain part for this is formed from the DC values of the element.
+NOTE: If the value read from the directory for the client ID is not recognisable as FQDN, a corresponding FQDN is created. The domain part is generated from the DC values of the element.
 
-TIP: On Univention Corporate Server (UCS), the value for `hardwareAddress` can be set to `macAddress` if the connection is established via LDAP (port 7389 or 7636).
+TIP: On Univention Corporate Server (UCS), the value `macAddress` can be specified for `hardwareAddress` if the connection is established via LDAP (port 7389 or 7636).
 
-In the "mapping" area, the assignment of clients to depots can be defined. Currently there is only the mapping type "network"..
-With the "network" type, a client is assigned to a depot if the ip address of the client matches the network address range ("networkAddress") of the depot.
-Alternatively, a list of network ranges can be assigned to a depot.
+==== Mapping clients and depots
+
+In the `mapping` section you can also define the mapping of clients to depots. Currently there is only one mapping type, `network`.
+
+A client is assigned to a depot if the IP address of the client matches the network address range (`networkAddress`) of the depot.
+
+TIP: Alternatively, you can also assign a list of network ranges to a depot:
 
 [source,json]
 ----
@@ -309,19 +311,13 @@ Alternatively, a list of network ranges can be assigned to a depot.
 
 
 [[opsi-manual-dircon-conf-mapping-groupnames]]
-=== Manual assignment of group names
+=== Manually assign Group Names
 
-Group names can usually abe used without any major adjustments.
-However, it can happen that group names exist which are invalid in opsi.
+Group names are usually applied without modifications.
+However, it's possible that you encounter group names which are invalid in opsi.
+In this case you can assign group names manually. This is possible from version 23.
 
-For these special cases, a manual assignment of group names can be made, which allows these cases to be handled.
-
-To configure this, an entry `group_name` is created in `mapping`, which holds the mapping from the directory service to opsi.
-The name is not changed for groups that do not appear in this assignment.
-Group names are always processed in lower case letters, which is why the entries here must be made in lower case letters.
-This is possible since version 23.
-
-The following example maps the group `_server` originating from the directory service to the group `server` in opsi.
+To do this, define a subsection `group_name` in the `mapping` section. Now assign the names from the directory service to the names of the opsi environment. Always use lower case letters for the group names. The following example assigns the opsi group `server` to the group `_server` from the directory service:
 
 [source,json]
 ----
@@ -339,13 +335,13 @@ The following example maps the group `_server` originating from the directory se
 }
 ----
 
-WARNING: Please be careful with this feature as it may introduce undesirable side effects. Therefore, this option should only be used for special cases.
+WARNING: Please be careful when assigning the names manually, as this may have undesired side effects. Therefore, use this mapping option only in exceptional cases!
 
 
 [[opsi-manual-dircon-conf-conect]]
-=== opsi connection settings
+=== Connection to opsi (`opsi`)
 
-This controls how the connector connects to opsi.
+In the `opsi` section you define how the Directory Connector connects to opsi.
 
 [source,json]
 ----
@@ -364,60 +360,45 @@ This controls how the connector connects to opsi.
 }
 ----
 
-Enter the address of the opsi server under `address`.
-Do not forget to specify the port!
+The {opsi-server} address is specified after `address`. Don't forget to enter the port!
 
-NOTE: A proxy for the connection can be set via the environment variable 'HTTPS_PROXY'.
+NOTE: A proxy server for the connection can be set via the environment variable `HTTPS_PROXY`.
 
-`User` and `password` are used for authentication to the opsi server.
-If a value is given for `passwordFile`, this is interpreted as the path to a file that contains the password.
-The content of this file will be used as the password.
-This means that the password does not have to be stored in plain text in the configuration file.
-This will override the value set for `password`, if the file can be read.
+The two keys `username` and `password` contain the credentials for authentication at {opsi-server}. Instead of a password, you can enter the path to a file containing the password after `passwordFile`. The advantage is that the password is not stored in plain text in the configuration file. A password read from `passwordFile` overwrites any values set for `password`.
 
-TIP: We recommend using a dedicated user account. The creation of additional users is described in the _Getting Started_ manual.
+TIP: To increase security, we recommend using a dedicated user account.
 
-If the parameter `exit_on_error` is set to `true`, then any problem when updating the data in opsi - this can also be triggered by submitting values that are invalid in opsi - results in a break.
-If this is set to `false`, errors are logged, but the execution is not terminated.
+If the key `exit_on_error` is set to `true`, then problems updating the data in opsi will cause the connection to be terminated. This happens, for example, when invalid values are transmitted. On the other hand, if this is set to `false`, errors are logged, but the connection stays open.
 
-Under `connection_options` options for the connection to the opsi server can be set.
-The verification of the server certificate is controlled by means of `verify_certificate`.
-This value should be set to `false` when using self-signed certificates.
+Specify options for the connection to the {opsi-server} under `connection_options`. Enable the `verify_certificate` setting to validate the server certificate. This value should be set to `false` when using self-signed certificates.
 
-Since version 14 it is possible to test the connection to the opsi server via the parameter `--check-opsi`, without establishing a connection to the directory service.
+TIP: Since version 14 it is possible to test the connection to the {opsi-server} via the parameter `--check-opsi` without establishing a connection to the directory service.
 
 
 [[opsi-manual-dircon-run]]
-== Running the connector
+== Running the Dierectory Connector
 
-After the installation a binary called `opsi-directory-connector` will be present on the system.
-
-It is required to pass an argument `--config` together with the path to the configuration file.
+The installation package contains the binary `opsi-directory-connector`. It expects the path to the configuration file after the `--config` switch:
 
 [source,prompt]
 ----
 opsi-directory-connector --config /etc/opsi/opsi-directory-connector-custom.conf
 ----
 
-NOTE: The user running the binary does not require any access to opsi as this is all stored in the configuration file.
+NOTE: The user running the command does not need access to the opsi system because the credentials are stored in the configuration file.
 
+The Directory Connector synchronises the data every time it runs. To set up a regular synchronisation, you can either use systemd or create a cronjob. The next two sections show how to set this up.
 
 [[opsi-manual-dircon-run-systemd]]
-=== Example: recurring runs with systemd
+=== Recurring Synchronisation: how to set up systemd Units
 
-The connector currently does one synchronisation run when executed, but the chances are good that you want to have a constant synchronisation of data.
+We recommend setting up systemd units because, unlike cronjobs, systemd prevents simultaneous runs. The example shown here executes the Directory Connector five minutes after a machine has started. After that, it runs regularly every hour.
 
-It's easy to automate the execution of repetitive runs.
+To do this, set up two user-defined systemd units in the `/etc/systemd/system/` directory, a `timer` unit and a `service` unit.
 
-We will be using systemd for this.
-In contrast to cronjobs, systemd will prevent simultaneous runs from occurring, which is why systemd is a good choice.
+==== `Timer` Unit
 
-The following example will set up the connector to run five minutes after the machine starts, and every hour thereafter.
-
-The following two files must be stored under `/etc/systemd/system/`, the directory for user-defined units.
-One file is the timer, which calls our job repeatedly and the other is for the job itself.
-
-Please fill the file `opsi-directory-connector.timer` with the following content:
+The `Timer` unit defines the recurring execution of the job; the file `/etc/system/system/opsi-directory-connector.timer` has the following content:
 
 [source,configfile]
 ----
@@ -432,7 +413,9 @@ OnUnitActiveSec=1hour
 WantedBy=timers.target
 ----
 
-And this is the content of `opsi-directory-connector.service`:
+==== `Service` Unit
+
+The job itself is defined in the file `/etc/system/system/opsi-directory-connector.service`:
 
 [source,configfile]
 ----
@@ -445,7 +428,9 @@ Type=oneshot
 ExecStart=/usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
 ----
 
-To enable the timer and start it right away, the following commands can be used:
+==== Activate `Timer` Unit
+
+To enable the timer and start it right away, enter the following two commands:
 
 [source,prompt]
 ----
@@ -453,26 +438,28 @@ systemctl enable opsi-directory-connector.timer
 systemctl start opsi-directory-connector.timer
 ----
 
-If the timer does not get started, it will start to run the next time the machine is restarted.
-
+Otherwise, the timer runs the first time after the next reboot of the machine.
 
 [[opsi-manual-dircon-run-cronjob]]
-=== Example: recurring runs as cronjob
+=== Recurring Synchronisation: how to set up a Cronjob
 
-It is easy to automate the execution of recurring runs through a crobjob.
+As an alternative to the two systemd units, you can automate the regular synchronisation with the Directory Connector via a cronjob.
 
-Please note that simultaneous runs can take place, which is why it is best to choose a larger synchronisation interval.
-To avoid this problem, it is recommended to use *systemd* instead of *cron*!
+NOTE: Select the synchronisation interval so that no simultaneous synchronisation can run. Alternatively, use systemd as shown in the previous section.
 
-The cronjob file can usually be edited through `crontab -e`.
-For a synchronisation that happens every hour the following can be used:
+Call the command `crontab -e` to create a new crontab or edit an existing one. The crontab contains information about the executable program. You also define when and how often a cronjob should run. In our example, we add the following line:
 
 [source,prompt]
 ----
 0 * * * * /usr/bin/opsidirectoryconnector --config /etc/opsi/opsidirectoryconnector-custom.conf
 ----
 
-=== command line arguments
+In this case, synchronisation always takes place on the hour. The first field defines `minute 0`; all other fields (hour, day, month, and weekday) contain `*` as a placeholder.
+
+
+=== Command Line Arguments
+
+The Directory Connector supports the following parameters and options:
 
 [source,prompt]
 ----
@@ -526,15 +513,15 @@ optional arguments:
                               Path to the config. (default: None)
 ----
 
-Starting with version 39 the opsi-directory-connector uses the OPSI logger with loglevel 0-9. By default logs are written to `/var/log/opsi-directory-connector` and to `stderr`. With the parameters `--log-level-stderr`, `--log-level-file` the log level of the respective log can be set. `--log-file` defines the log file.
+From version 39, the Directory Connector uses the opsi logger (log level 0 to 9). By default, the tool logs to `/var/log/opsi-directory-connector` and writes errors to `stderr`. To influence the log level for the two logs, use the parameters `--log-level-stderr` or `--log-level-file`. The switch `--log-file` defines a different log file.
 
-The log file is rotated after a specified size (default 5 MB) and by default one of these rotated log files is kept. The parameters `--max-log-size` and `--keep-rotated-logs` can be used to override the default values.
+By default, the log file is rotated when it reaches 5{nbsp}MB, and one of the rotated logs is kept at a time. The parameters `--max-log-size` and `--keep-rotated-logs` override these default values.
 
-In addition to the command line parameters, the values can also be set in the configuration file or via environment variables. The following applies here:
+NOTE: In addition to the command line parameters, you can also set some of the values as keys in the configuration file or via environment variables. The following order applies:
 
-- Parameters overwrite everything
-- Environment variables overwrite configuration and default
-- Configuration overwrites default
+- Parameters overwrite everything.
+- Environment variables overwrite the configuration file and the default values.
+- The configuration file overwrites the default values.
 
 Example configuration:
 
@@ -549,9 +536,9 @@ Example configuration:
 }
 ----
 
-If the directory connector is started with the `--dry-run` option, the individual steps are output without making any changes in OPSI.
-With `dry-run`, in contrast to the configuration parameter `write_changes_to_opsi: false`, the output is adjusted,
-to give a better overview of the actions. Example output:
+=== Test Run (`--dry-run`)
+
+You can call `opsi-directory-connector` with the parameter `--dry-run` to start a test run. You will see the individual steps in the output; changes in opsi will not be made:
 
 [source,prompt]
 ----
@@ -574,33 +561,33 @@ Adding 4 clients to a new group.
 ----------------------------------
 ----
 
-== Delete Clients from the directory
+Unlike the setting `"write_changes_to_opsi": false`, which does not write any data to opsi, the switch `--dry-run` adjusts the output. This gives a better overview of the actions.
 
-In the standard case the opsi-directory-connector has only read access to the directory. With the start parameter `--delete-clients` an independent run is started, which tries to delete the given objects from the directory.
-For example:
+== Deleting Clients from the Directory
+
+By default, the Directory Connector has read-only access to the directory. If you call the program with the parameter `--delete-clients`, an independent run starts which tries to delete the given objects from the directory:
 
 [source,prompt]
 ----
 opsi-directory-connector --config config.conf --delete-clients client1
 ----
 
-The objects can be specified more precisely:
+In this case, the Directory Connector searches for objects with `cn=client1` in the defined search area. If there is a single hit, then the object is deleted. If, however, the program finds several matching objects, then it prints an error message and does not delete anything.
+
+You can specify the objects to be deleted even more precisely:
 
 [source,prompt]
 ----
 opsi-directory-connector --config config.conf --delete-clients computers/test-clients/client1
 ----
 
-This call would fit on object `cn=client1,ou=test-clients,ou=computers,dc=example,dc=org`, but not
-`cn=client1,ou=clients,ou=computers,dc=example,dc=org`. So the first object will be deleted.
+The object `cn=client1,ou=test-clients,ou=computers,dc=example,dc=org` would be a hit and deleted, but `cn=client1,ou=clients,ou=computers,dc=example,dc=org` would not.
 
-Multiple clients can also be specified:
+You can also specify multiple clients:
 
 [source,prompt]
 ----
 opsi-directory-connector --config config.conf --delete-clients computers/clients/client1 client2 client3
 ----
 
-WARNING: The `delete-clients` function should be used with caution.
-
-TIP: The `dry-run` function can also be used with `delete-clients`.
+WARNING: Always use the parameter `--delete-clients` with caution! For safety, you can combine the switch with `--dry-run` and check beforehand whether the correct objects are found.
