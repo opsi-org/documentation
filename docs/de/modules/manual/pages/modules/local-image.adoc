@@ -380,37 +380,18 @@ Auf der Backup-Partition finden Sie unter anderem folgende Daten:
 ** `opsi-local-image-win7-x64`: 13{nbsp}GByte
 
 [[opsi-manual-localimage-wimcapture]]
-== Capture Images (WIM) erstellen und verteilen
+== Integration von Windows Imaging Format (`opsi-local-image-wim-capture`)
 
-[[opsi-manual-localimage-wimcapture-introduction]]
-=== Capture Images (WIM) Einführung
+Microsoft hat mit NT6 ein neues Image-Format zur Installation eingeführt. Ein WIM (_Windows Imaging Format_) speichert die Installations-Einstellungen, inklusive aller Software, Hotfixes und Konfigurationen von einem bestehenden Computer; es ist also ein Archiv für Dateien und Metadaten und kein Festplatten- oder Partitions-Image. Sie können dieses WIM dann als Basis für zukünftige Installationen auf anderen Computern verwenden, was den gesamten Prozess deutlich einfacher und schneller macht.
 
-Microsoft hat mit NT6 (also ab Vista) zur Installation ein neues Imageformat,
-das *Windows Imaging Format (WIM)* eingeführt.
-Ein WIM Image ist kein Platten- oder Partitionsimage, sondern mehr ein Dateien und Metadaten Archiv. Eine WIM Datei kann mehrere Images enthalten. Die normale Installation eines NT6 Rechners basiert darauf, dass die setup.exe ein Image aus der Datei install.wim auspackt und dieses danach konfiguriert und mit zusätzlichen Treibern versieht.
-
-Von einem existierender Rechner kann das Windows inklusive installierter Software, Hotfixes und Konfigurationen ausgelesen und in Form eines WIM abgespeichert werden. Ein solches WIM kann dann wieder die Basis für neue Installationen sein.
+Ein WIM kann mehrere Images enthalten. Die normale Installation eines NT6-Rechners basiert darauf, dass die Datei `setup.exe` ein Image aus der Datei `install.wim` auspackt, dieses danach konfiguriert und mit zusätzlichen Treibern versieht.
 
 [[opsi-manual-localimage-wimcapture-components]]
-=== Capture Images (WIM) Komponenten
+=== WIM-Komponenten
 
-Für die Erstellung eines Capture Images im Wim Format benötigen Sie ab den Produktversionen 4.1 nur noch das Produkt:
+NOTE: Zum Erfassen eines Images im WIM-Format benötigen Sie ab Version 4.1 nur noch das Produkt `opsi-local-image-wim-capture`. Die vorherigen Produkte `opsi-local-image-capture` und `opsi-local-image-sysprep` sind damit obsolet und können gelöscht werden.
 
-* `opsi-local-image-wim-capture`
-
-Die vorherigen Produkte:
-
-* `opsi-local-image-capture`
-
-* `opsi-local-image-sysprep`
-
-Sind damit obsolet und können gelöscht werden.
-////
-* `opsi-set-wim-imagenames`
-* `opsi-del-wim-images`
-////
-
-Ergänzend gibt es die 'Zielprodukte' welche dafür gedacht sind, das gecapturte Image aufzunehmen:
+Ergänzend gibt es die Target-Produkte, die das erfasste Image aufnehmen:
 
 * `opsi-local-image-win7-capture`
 * `opsi-local-image-win7-x64-capture`
@@ -420,231 +401,74 @@ Ergänzend gibt es die 'Zielprodukte' welche dafür gedacht sind, das gecapturte
 * `opsi-local-image-win10-x64-capture`
 
 [[opsi-manual-localimage-wimcapture-proceedings]]
-=== Capture Images (WIM) Abläufe
+=== Unterschied zwischen `opsi-local-image-wim-capture` und `opsi-wim-capture`
 
-Die Abläufe und Einstellungen beim Produkt `opsi-local-image-wim-capture` entsprechen denen des Produktes `opsi-wim-capture` welches hier: xref:modules/wim-capture#opsi-manual-wimcap[opsi WIM Capture] beschrieben ist. Die Properties von `opsi-wim-capture` sind hier: xref:modules/wim-capture#opsi-manual-wimcap-products-main[Hauptprodukt opsi-wim-capture] beschrieben.
+Die Abläufe und Einstellungen des Produkts `opsi-local-image-wim-capture` entsprechen denen von `opsi-wim-capture` (siehe xref:modules/wim-capture#opsi-manual-wimcap[Windows Imaging Format (opsi-wim-capture)]). Die Propertys sind in Abschnitt xref:modules/wim-capture#opsi-manual-wimcap-products-main[Hauptprodukt opsi-wim-capture] beschrieben.
 
-Der wesentliche Unterschied zwischen den beiden Produkten ist: +
-`opsi-local-image-wim-capture` verwendet zur Sicherung und Wiederherstellung der zu capturten Partition den Mechanismus von `opsi-local-image-backup`/`opsi-local-image-restore`.
-Für den selben Zweck verwendet `opsi-wim-capture` das Produkt `opsi-clonezilla`
+Der wesentliche Unterschied zwischen den beiden Produkten ist: `opsi-local-image-wim-capture` verwendet zur Sicherung und Wiederherstellung der Partition den Mechanismus von `opsi-local-image-backup`/`opsi-local-image-restore`. `opsi-wim-capture` setzt dazu auf das Produkt `opsi-clonezilla`.
 
-HINWEIS::`opsi-local-image-wim-capture` schlägt fehl, wenn Sie Ihr System mit einer Datenpartition angelegt haben. Installieren Sie in diesem Fall den Rechner neu mit dem opsi-local-image-prepare Property data_partition_size=0.
-
-
-////
-*Übersicht:* +
-Folgende Reihenfolge ist einzuhalten:
-
-. Initale Vorbereitung des Rechners mit `opsi-local-image-prepare`
-. Installation des Betriebssystems mit `opsi-local-image-win*`
-. Installation und Konfiguration weiterer Software mit 'opsi' und / oder per Hand
-. Einstellen der Produktproperties des netbootproduktes `opsi-local-image-capture` (aber nicht auf setup stellen)
-. Starten des Localboot Produktes `opsi-local-image-sysprep`
-. `opsi-local-image-sysprep` startet (je nach Property Einstellung) ein `opsi-local-image-backup`
-. `opsi-local-image-sysprep` führt Sysprep zur Depersonalisierung aus
-. `opsi-local-image-sysprep` startet (je nach Property Einstellung) `opsi-local-image-capture`
-. `opsi-local-image-capture` konfiguriert die winpe Partition für das capturen und als Bootpartition
-. Der PC bootet das winpe und führt den capture Vorgang aus
-
-*Erstellen des Masterrechners:* +
-
-Dieser wird mit 'opsi-local-image' als Rechner erstellt und kann dabei Software und Konfigurationen sowohl per opsi als auch von Hand bekommen.
-
-*Sysprep: Depersonalisieren des Masters:* +
-
-Damit ein capture Image als Basis für eine Installation dienen kann, muss es zunächst dafür vorbereitet werden. Dabei wird der Rechner depersonalisiert, d.h. Der Rechner hat danach keine Identität mehr und ist gut geeignet als Vorlage für eine Neuinstallation aber als Rechner selber kaum noch brauchbar. +
-Daher kann beim opsi-local-image-sysprep Produkt über Produkt Properties gesteuert werden, ob vor der eigentlichen Depersonalisierung noch ein Backup angelegt werden soll:
-
-* `always_backup_before_sysprep`: +
-(true/false), Default=true, +
-Startet immer ein Backup vor dem sysprep Vorgang.
-
-[NOTE]
-===============================
-`always_backup_before_sysprep`='true' bedeutet, das Produkt `opsi-local-image-backup` wird auf setup gestellt und ein Reboot durchgeführt.
-Um eine Endlosschleife zu vermeiden, wird nun ein Rebootflag gesetzt, damit nach Beendigung des Backup erkannt werden kann, dass dieser Schritt bereits erledigt ist.
-
-Technischer Hinweis: Hier entseht das Problem, dass der Rebootflag auch in dem Backup landet, aber nach einem Restore nicht mehr erwünscht ist. Daher wird der Rebootflag als Timestamp gesetzt. Ein Rebootflag, der älter als 0,1 Tage (=2,4 Stunden) ist wird ignoriert.
-===============================
-
-* `abort_on_no_backup`: +
-(true/false), Default=true, +
-Prüft, ob auf der Backuppartition ein Backup zu diesem Produkt vorhanden ist und bricht ab falls nicht. +
-Nach dem sysprep Vorgang wird üblicherweise der eigentliche capture Vorgang gestartet, der durch das netboot Produkt 'opsi-local-image-capture' durchgeführt wird. Ob der Start automatisch durchgeführt wird entscheidet das Property:
-* `startcapture`: +
-(true/false), Default=true, +
-Setze das Produkt `opsi-local-image-capture` auf 'setup' und rebootet den Rechner
-* `disabled`: +
-(true/false), Default=false, +
-Wenn true, wird das Produkt nicht ausgeführt. Dies dient dazu, Endlosschleifen zu vermeiden wenn ein Image restored wird, in dessen Meta-Daten `opsi-local-image-sysprep` auf `setup` steht.
-
-.Capture Images: Configed: opsi-local-image-sysprep
-image::oli-capture-configed-sysprep.jpg["Capture Images: Configed: opsi-local-image-sysprep", width=500]
-
-*Capture: Die vorhandene Installation auslesen und zur Installation bereitstellen:* +
-
-Im Rahmen dieses Mehrstufigen Prozesses wird der vorhandene Rechner ausgelesen und als WIM Image in ein vorhandenes opsi Windows Installationsprodukt integriert. Daher gibt es naheliegenderweise ein Produktproperty über das angegeben werden kann, in welches Produkt das ausgelesene Image integriert werden soll:
-
-* `target_product`: +
-Name des Ziel Produktes  (Default = pass:[''])
-
-IMPORTANT: Dieses Property ist nicht 'schlau', es wird nicht überprüft ob das ausgelesene Image zum Zielprodukt passt. Sie können also ohne Fehlermeldung ein win7-32Bit Image in ein Win81-64Bit Produkt schreiben. Das sollten Sie aber nicht! Wir empfehlen die Verwendung von gesonderten Produkten, welche nur als Ziel dienen (z.B. `opsi-local-image-win81-x64-capture`).
-
-Das Zielprodukt muss genauso wie ein normales Produkt zur Windows Installation vorbereitet werden. Als Zieldatei innerhalb des Zielproduktes dient die `install.wim` Datei (`installfiles/sources/install.wim`) welche auch die von Microsoft gelieferten Images enthält. Ob das ausgelese Image nun an diese Datei angehängt werden soll oder eine neue install.wim erzeugt werden soll, steuert das Property:
-
-* `capture_mode`: +
-(append/always_create) Default='append':
-
-Bei `append` wird das neu erstellte Image an die vorhandene install.wim angehängt.
-
-IMPORTANT: Enthält die install.wim schon ein Image gleichen Namens wird dieses *ohne Nachfrage gelöscht*. Bei `always_create` wird eine neue install.wim erstellt. +
-`always_create` funktioniert nicht mit winpe installationen die auf Windows < 8 basieren.
-
-Die Install.wim Datei ist ein Container der mehrere Images enthalten kann. Die Images haben einen Namen und eine Beschreibung. Der Name und die Beschreibung des neu erstellten Images werden durch die folgenden Properties gesteuert:
-
-* `imagename`: +
-Default = pass:['']
-
-* `image_description`: +
-Default = pass:['']
-
-* Das Property `start_after_capture` +
-ist ein Liste von Produkten, welche nach dem Abschluss des Capturevorgangs auf 'setup' gestellt werden sollen. Eine gute Idee ist hier zum Beispiel opsi-local-image-restore, welches das vor dem sysprep erstellte backup wiederherstellt.
-
-.Capture Images: Configed: opsi-local-image-capture
-image::oli-capture-configed-capture.jpg["Capture Images: Configed: opsi-local-image-capture", width=500]
-
-.Capture Images: Schema: sysprep
-image::oli-capture-sheme-sysprep.png["Capture Images: Schema: sysprep", width=500]
-
-.Capture Images: opsi-local-image-sysprep 1 : Start
-image::oli-capture-sysprep1.jpg["Capture Images: opsi-local-image-sysprep 1 : Start", width=350]
-
-.Capture Images: opsi-local-image-sysprep 2 : Backup vor sysprep
-image::oli-capture-sysprep1-backup.jpg["Capture Images: opsi-local-image-sysprep 2 : Backup vor sysprepp", width=350]
-
-.Capture Images: opsi-local-image-sysprep 3 : Deaktivierung des opsi-client-agent
-image::oli-capture-sysprep2a.jpg["Capture Images: opsi-local-image-sysprep 3 : Deaktivierung des opsi-client-agent", width=350]
-
-.Capture Images: opsi-local-image-sysprep 4 : Eigentlicher sysprep Vorgang
-image::oli-capture-sysprep2b.jpg["Capture Images: opsi-local-image-sysprep 4 : Eigentlicher sysprep Vorgang", width=350]
-
-Gesteuert durch das Property `startcapture` kann der Capturevorgang direkt im Anschluss an das sysprep gestartet werden. +
-Der Capture Vorgang besteht grob aus zwei Phasen: +
-Der eigentliche Capture Vorgang soll durch das winpe auf der Platte durchgeführt werden. Hierfür muss dieses aber erst präpariert werden und dies ist die erste Phase:
-
-* Aktivierung des WinPE als bootbare Partition, Erstellung der nötigen bootrecords und soweit nötig die Deaktivierung von Laufwerksbuchstaben bei anderen Partitionen
-
-* Auslesen der opsi-Metadaten über Installierte Produkte auf dem Client und Speicherung dieser Daten auf dem Client in einem temporären Verzeichnis.
-
-* Einige Aufräumarbeiten auf dem auszulesenden System.
-
-* Schreiben einer Kommandodatei welches die Capturevorgänge beim nächsten WinPE start initiiert.
-
-* Bereitstellen weiterer Daten für die Abläufe im WinPE wie z.B. Liste der Produkte aus dem Property `start_after_capture`
-
-* Reboot des Clients
-
-.Capture Images: Schema: Capture 1
-image::oli-capture-scheme-capture1.png["Capture Images: Schema: Capture 1", width=500]
-
-In der zweiten Phase startet das WinPE und führt nun den eigentlichen Capturevorgang durch. Im Detail:
-
-* Mounten des opsi_depot_rw shares damit auf diesen auch geschrieben werden kann.
-
-* Prüfen der Architektur des WinPE (32/64 Bit) und Start des opsi-script in der entsprechenden Architektur.
-
-* Herstellung der Verbindung zum opsi-webservice
-
-* Reaktivierung der Laufwerksbuchstaben
-
-* Im Falle von `append` mode: Überprüfen ob ein Image mit diesem Namen schon vorhanden ist und gegebenenfalls dieses löschen.
-
-* Start des Capturevorgangs. Dabei wird in Abhängigkeit der Windows Version des WinPE bei Windows 7 das Programm imagex aus dem 'opsi-local-image-capture' Produkt verwendet. Bei Windows 8 wird das Programm dism aus dem WinPE verwendet (mit Fallback zu imagex).
-
-* Die entstandenen Logfiles werden zusammengeführt.
-
-* Überprüfung der Liste der Images im Modifizierten install.wim und setzten dieser Namensliste in das Produktproperty `Imagenames` des Zielproduktes, so das das neu erstellte Image auch zur Installation ausgewählt werden kann.
-
-* Setzen der Produkte aus `start_after_capture` auf 'setup'.
-
-* Deaktivierung der WinPE Partition und Aktivierung der Systempartition (Windows). Bei UEFI Umstellung auf Netboot soweit möglich.
-
-* Schreiben der Logdatei zum Server. Dort wird diese an die Logdatei des opsi-local-capture bootimage Laufs angehängt.
-
-* Reboot
-
-.Capture Images: Schema: Capture 2
-image::oli-capture-scheme-capture2.png["Capture Images: Schema: Capture 2", width=500]
-
-.Capture Images: Capture: Löschen eines existierenden Images
-image::oli-capture-del-existing-image.jpg["Capture Images: Capture: Löschen eines existierenden Images", width=350]
-
-.Capture Images: Capture: Capture und Anhängen (Append) des neuen Images
-image::oli-capture-append-image-dism.jpg["Capture Images: Capture: Capture und Anhängen (Append) des neuen Images", width=350]
-////
+CAUTION: `opsi-local-image-wim-capture` schlägt fehl, wenn Sie Ihr System mit einer Datenpartition angelegt haben. Installieren Sie in diesem Fall den Rechner neu mit dem `opsi-local-image-prepare`-Property `data_partition_size=0`.
 
 [[opsi-manual-localimage-wimcapture-rollout]]
-== Windows Installation von einem Targetprodukt aus
-(Ausrollen des gecapturten Images)
+== Windows-Installation von einem Target-Produkt aus
 
-*Wiederherstellung der opsi Metadaten zu installierten Produkten*
+Dieser Abschnitt beschreibt, wie Sie die opsi-Metadaten zu installierten Produkten wiederherstellen.
 
 *Das Problem:*
 
-Wenn Sie ein Windows mit opsi neu installieren, z.B. aus `win7-x64`, dann werden bei der Installation des opsi-client-agent alle Localboot-Produkte, welche bei diesem Rechner vorher auf `installed` standen, automatisch auf setup gestellt und damit später erneut installiert. +
-Dies kann beim Ausrollen eines 'gecapturten' Images nicht ganz genauso durchgeführt werden. +
-Im Image befindet sich das Backup der opsi-Daten, das dort während des capture Vorgangs abgelegt wurde. Dieses wird bei der Installation des opsi-client-agent entdeckt, und wieder in den opsi-server eingespielt. Damit stehen die Produkte, die in dem 'gecapturten' Image installiert waren, jetzt für den frisch installierten Rechner auf `installed`.
-Würden jetzt alle Produkte, welche auf `installed` stehen auf `setup` gesetzt, würde dies dazu führen, dass alle schon im Image installierten Produkte nochmal installiert werden. Dies ist nicht erwünscht.
+Wenn Sie mit opsi ein Windows-System neu installieren, werden bei Installation des `opsi-client-agent` alle Localboot-Produkte, die auf dem Rechner vorher auf `installed` standen, automatisch auf `setup` gesetzt und damit später erneut installiert. Beim Ausrollen der WIM-Images funktioniert das etwas anders:
 
+* Im Image befindet sich das Backup der opsi-Daten, das dort während der Erstellung abgelegt wurde.
+* Bei der `opsi-client-agent`-Installation wird das Backup entdeckt und zurück auf den opsi-Server gespielt.
+* Damit haben die Produkte, die im Image zum Zeitpunkt der Erfassung installiert waren, auf dem frisch installierten Rechner den Zustand `installed`. 
 
-Bei der Wiederherstellung der opsi Metadaten zu installierten Produkten gibt es ab opsi 4.0.7 zwei Varianten: +
+Würden jetzt alle Produkte, die auf `installed` stehen, auf `setup` gesetzt, würden alle im Image installierten Produkte noch einmal installiert -- das ist nicht erwünscht.
+
+Ab Version 4.0.7 gibt es daher zwei Varianten zur Wiederherstellung der opsi-Metadaten installierter Produkte:
 
 * Variante 1: +
-Zurückspielen der Metadaten und Beibehaltung von 'setup'-Actionrequests. +
-Produkte die auf 'installed' stehen werden *nicht* auf 'setup' gestellt. +
-Dies ist der Default und das Verhalten vor opsi 4.0.7
+Zurückspielen der Metadaten und Beibehaltung von `setup`-Action-Requests +
+Produkte, die auf `installed`, stehen werden *nicht* auf `setup` gesetzt (Standardverhalten, opsi < 4.0.7). +
 
 * Variante 2: +
-Zurückspielen der Metadaten. Produkte die auf 'installed' stehen werden auf 'setup' gestellt außer denen, welche in den restorten Metadaten enthalten waren. +
+Zurückspielen der Metadaten. +
+Produkte, die auf `installed` stehen, werden auf `setup` gesetzt. Ausgenommen sind Produkte, die in den wiederhergestellten Metadaten enthalten sind. +
 
-*Variante 1* +
-Beim Ausrollen eines 'gecapturten' Images werden nach der Installation des Images nur die Produkte automatisch installiert, welche schon vor dem Beginn der Betriebssystem-Installation auf `setup` standen. Dies kann durch Ihren Eingriff oder das Property `setup_after_install` erfolgt sein.
-Daher werden in diesem Fall auch nur die Produkte installiert, welche vor der Installation des Betriebssystems auf `setup` standen. +
-Dies ist der Default und das Verhalten vor opsi 4.0.7
+=== Variante 1
 
-*Variante 2* +
-Die Variante 2 verhält sich vom Ergebnis ähnlich, wie es bei Installationen aus nicht gecapturten Images der Fall ist: +
-* Zurückspielen der Metadaten. +
-* Produkte, die auf 'installed' stehen, werden auf 'setup' gestellt außer denen, welche in den restorten Metadaten enthalten waren. +
-Dieses Verhalten steht erst ab opsi 4.0.7 zur Verfügung und ist nicht der Default. Variante 2 ist durch Erweiterungen am opsi-script möglich geworden und ist Bestandteil des opsi-client-agent von 4.0.7. +
-Um dieses Verhalten zu verwenden, muss ein 'config' ('Hostparameter') gesetzt werden: +
-Der boolsche Konfigurationseintrag: `clientconfig.capture.switch_installed_products_to_setup`. Hat dieser Eintrag für den Client den Wert 'true', dann wird Variante 2 verwendet, ansonsten Variante 1. +
+Beim Ausrollen eines WIM-Images werden nach der Installation nur die Produkte automatisch installiert, die schon vor dem Beginn der Betriebssystem-Installation auf `setup` standen. Das kann entweder durch einen manuellen Eingriff oder durch Setzen des Propertys `setup_after_install` erfolgt sein.
 
-Über diese '{opsi-config-objects}' können dann Events Client-spezifisch aktiviert bzw. deaktiviert werden.
-Die '{opsi-config-objects}' können über den '{opsi-configed}' oder '{opsi-admin}' angelegt werden.
+In diesem Fall werden daher nur die Produkte installiert, die vor der Installation des Betriebssystems auf `setup` standen. Das ist das Standardverhalten vor opsi 4.0.7.
 
-Zum Anlegen der '{opsi-config-objects}' über '{opsi-admin}' sind die folgenden Befehle auf dem '{opsi-configserver}' auszuführen:
+=== Variante 2
+
+Variante 2 führt zu ähnlichen Ergebnissen wie Installationen aus "nicht-gecapturten" Images. Nach dem Zurückspielen der Metadaten werden Produkte, die auf `installed` stehen, auf `setup` gesetzt. Ausgenommen sind Produkte, die in den wiederhergestellten Metadaten enthalten sind.
+
+NOTE: Dieses Verhalten steht erst ab opsi 4.0.7 zur Verfügung und nicht der Standard. Variante 2 ist durch Erweiterungen von `opsi-script` möglich geworden und ist Bestandteil des `opsi-client-agent`.
+
+Um Variante 2 zu verwenden, konfigurieren Sie den `Hostparameter` entsprechend und setzen den Eintrag `clientconfig.capture.switch_installed_products_to_setup` auf `true`. Steht er auf `false`, wird Variante 1 verwendet.
+
+Über diese `{opsi-config-objects}` können dann Events für den jeweiligen Client aktiviert bzw. deaktiviert werden. Die `{opsi-config-objects}` legen Sie über `opsi-configed` oder `opsi-admin` an. Das entsprechende `opsi-admin`-Kommando autete so:
 
 [source,prompt]
 ----
 opsi-admin -d method config_createBool clientconfig.capture.switch_installed_products_to_setup "capture.switch_installed_products_to_setup" true
 ----
-Damit stellen Sie für *alle* Rechner 'Variante 2' ein.
 
-Zum Anlegen der '{opsi-config-objects}' über den '{opsi-configed}' wählen Sie dort 'Serverkonfiguration' / 'clientconfig' / Auf der Rechten Seite mit der rechten Maustaste: `Boolschen Konfigurationseintrag hinzufügen`.
+Beachten Sie, dass Sie damit die zweite Variante für alle Rechner aktivieren.
 
-
+Im `opsi-configed` legen Sie die `{opsi-config-objects}` über _Serverkonfiguration_ / _clientconfig_ an. Aus dem Kontextmenü der rechten Maustaste wählen Sie dazu _Booleschen Konfigurationseintrag hinzufügen_.
 
 [[opsi-manual-localimage-wim-info]]
-== Hilfsprodukt opsi-wim-info
+== Hilfsprodukt `opsi-wim-info`
 
-Das Produkt `opsi-wim-info` kann verwendet werden, um schnell informationen über die in einer install.wim gespeicherten Images auszulesen. Diese Informationen werden dann in der Logdatei gespeichert. +
-Properties:
+Mit dem Produkt `opsi-wim-info` können Sie schnell Informationen aus den in `install.wim` gespeicherten Images auslesen. Diese Informationen werden dann in der Logdatei gespeichert.
 
-* `target_produkt` +
-ProductId des Produktes in dem die 'install.wim' gesucht wird.
+Propertys:
 
+* `target_produkt`: ProductId des Produkts, in dem die Datei `install.wim` gesucht wird.
+
+////
 [[opsi-manual-localimage-ubuntumirror]]
 == Erstellen eines eigenen Ubuntu 'Proxy'
 Eine brauchbare Anleitung zur Erstellung eines eigenen Ubuntu Proxy finden Sie hier:
@@ -652,3 +476,4 @@ Eine brauchbare Anleitung zur Erstellung eines eigenen Ubuntu Proxy finden Sie h
 * link:http://wiki.ubuntuusers.de/Lokale_Paketquellen/Apt-Cacher-ng[]
 
 * link:http://www.gambaru.de/blog/2011/10/26/apt-cacher-ng-ein-proxy-server-fur-debian-und-ubuntu/[]
+////
