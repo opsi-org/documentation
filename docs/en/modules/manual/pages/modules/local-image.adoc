@@ -14,167 +14,160 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      11.01.2021
+:Date:      24.01.2023
+:Revision:  4.1
+:toclevels: 6
 :doctype: book
 
 include::common:partial$opsi_terms.adoc[]
 
 
 [[opsi-manual-localimage]]
-= _opsi local image_
+= Local Images (`opsi-local-image`)
+
+With this extension you can quickly restore many opsi clients to a certain state -- for example in the coffee break during a training or in the classroom after class. The administrator controls everything in a central place: first, the extension creates an image, then it saves it on a separate hard disk partition. This image is then used for fast recovery, with minimal impact on network performance.
 
 [[opsi-manual-localimage-preconditions]]
-== Requirements for the opsi extension _opsi local image_
+== Prerequisites
 
-This module is currently a
-link:https://www.opsi.org/product/extensions-of-opsi/[cofunding project]. +
-Some conditions have to be met to use this module. This means that you need an activation file to use it. You will receive this activation if you buy the extension. For evaluation purposes, we also provide a time-limited activation free of charge (-> mail to info@uib.de). +
+NOTE: This module is currently a link:https://www.opsi.org/product/extensions-of-opsi/[paid extension]. This means that you need an activation file to unlock it. You will receive this file after you have purchased the extension. For evaluation purposes, we're happy to provide you with a temporary license free of charge. Please contact us via mailto:info@uib.de[email].
 
-Further details can be found in xref:modules/modules.adoc#opsi-manual-modules[opsi Extensions].
+More details can be found in xref:modules/modules#opsi-manual-modules[opsi Extensions].
 
-With the permission to use opsi-local-image you also acquire the right to use the extension opsi-vhd-reset (see xref:modules/vhd.adoc#opsi-manual-vhd[opsi vhd reset]).
+`opsi-local-image` comes bundled with the `opsi-vhd-reset` extension (see xref:modules/vhd#opsi-manual-vhd[Virtual Hard Disk (opsi-vhd-reset)]).
 
-A technical requirement is opsi 4.0.3 with package versions:
+The extension requires opsi 4.0.3 or newer. The following table lists the required opsi packages:
 
-.Required packages
+.Required Packages
 [options="header"]
 |==========================
-|opsi package|version
-|opsi-linux-bootimage|>= 20130207-1
+|opsi Package|Version
+|`opsi-linux-bootimage`|>= 20130207-1
 |==========================
 
-CAUTION: For the product `opsi-local-image-capture` the share `opsi_depot_rw` must have write permission for 'pcpatch'. Check your Samba configuration.
-
+CAUTION: The product `opsi-local-image-capture` requires that the share `opsi_depot_rw` is writable for the user `pcpatch`. Therefore please check your Samba configuration.
 
 [[opsi-manual-localimage-introduction]]
 == Introduction
 
-Opsi offers a good basis for the automated installation and maintenance of Windows computers - especially when it comes to heterogeneous hardware. The package-based installation technology supported by opsi is not fast enough to use computers in training rooms within a short time, e.g. to put it back into a defined state during a break between two courses. Therefore, a concept is presented here in which the package-based installation is saved locally on a second partition as an image copy and from there a quick recovery is possible.
+opsi is a great tool to install and maintain Windows computers in an automated way -- also and especially if heterogeneous hardware is involved. However, a package-based opsi installation is not fast enough to bring computers back to a predefined state within a short time, e.g. during trainings or in a classroom during a break. This chapter therefore introduces a concept which stores the package-based installation locally on a second partition as an image and allows a fast recovery from there.
 
-. Initial installation finishing with a local image backup
+Here's how this works:
+
+. Initial installation followed by a local image backup
 . Fast recovery based on different techniques
-. System maintenance finishing with a local image backup
-. Integration of capturing of existing installations to WIM
-. Integration of Linux clients in the Backup/Restore process.
+. System maintenance followed by a local image backup
+. Integration of WIM capture
+. Integration of Linux clients into the backup/restore process
 
 [[opsi-manual-localimage-concept]]
 == Concept
 
-The requirements of educational computer networks differ in part from those of other networks. An essential requirement, which is discussed in the following part, is the quick restoration of computers to a defined state, which has been changed because of a temporary use. Specifically, it is about the provision of computers in class rooms, whereby the problem also applies to commercial computer rooms or university computer pools.
+The requirements of educational computer networks differ from those of other networks. Especially in schools, universities and other educational institutions, it is important to quickly restore many computers to a defined state. This restoration should happen within a short time (about 15 minutes), and it should also be possible to install the computer with a different system if necessary. In addition to the installation of certain Windows or Linux versions, continuous maintenance of the systems with security updates should also be ensured.
 
-The restore should take place within a short time (approx. 15 minutes) and should, as far as possible, not only 'reset' a computer but also switch to another base installation (e.g. Win XP / Win 7 / Linux). +
-It must also be possible to ensure that the systems are continuously updated with security updates.
+The usual techniques for installing PCs have advantages and disadvantages:
 
-The usual techniques for installing PCs have several specific advantages and disadvantages:
-
-.Advantages and disadvantages of unattended and image based solutions
+.Advantages and Disadvantages of Unattended and Image-based Solutions
 [options="header"]
 |==========================
-| Feature | Unattend | Image
+| Feature | Unattended | Image
 | Performance | (-) slow | (+) fast
 | Sensitivity to heterogenous Hardware | (+) low | (-) high
-| Network load | (-) high | (-) high
+| Network Load | (-) high | (-) high
 |==========================
 
-The concept of opsi-local-image tries to combine the advantages of both approaches:
+The concept of `opsi-local-image` tries to combine the advantages of both approaches:
 
-.opsi-local-image
+.`opsi-local-image`
 [options="header"]
 |==========================
-| Feature | Unattend
+| Feature | Unattended
 | Performance | (+) fast
 | Sensitivity to heterogeneous Hardware | (+) low
-| Network load | (+) low
+| Network Load | (+) low
 |==========================
 
-The concept can be summarized in the following key points:
+The concept consists of four main steps:
 
-* Initial Windows installation via PXE boot, package-based with individual driver integration using the opsi-Linux-Bootimage
-
-* Store this initial installation in a backup image on another partition on the local hard drive using the opsi-Linux-Bootimage
-
-* Quick restore the productive installation from the local image using the opsi-Linux-Bootimage
-
-* Maintenance of the local installation (security updates) via the opsi software distribution and backup of the updated system to the local backup image using the opsi-Linux-Bootimage
+. initial package-based Windows installation via PXE boot with individual driver integration (opsi Linux boot image)
+. backup of this initial installation in an image on a separate partition of the local hard drive (opsi Linux boot image)
+. fast restore of the installation from the local image (opsi Linux boot image)
+. maintenance of the local installation (security updates) via the opsi software distribution and backup of the updated system to the local backup image (opsi Linux boot image) 
 
 [[opsi-manual-localimage-concept-technical]]
 == Technical Concept
 
-The workstation is used with a static partition table. You can work with either 3 or 4 partitions:
+The machines in the computer pools use a static partition table and have with either three or four partitions:
 
 * Partition 1 (System) +
-Holds the currently used operating system (Windows / Linux) +
-The size of this partition is set during partitioning via a property of the product `opsi-local-image-prepare`.
+The operating system currently in use (Windows/Linux) is located here. +
+The size of this partition is controlled by the `opsi-local-image-prepare` product during partitioning via a property.
 
-* Optional: Partition 2 (sysdata) +
-This can be for example be used to store user data, which is not overwritten during a restore. The formatting is NTFS. +
-The size of this partition is set during partitioning via a property of the product `opsi-local-image-prepare`.
+* Optional: Partition 2 (`sysdata`) +
+User data that should not be overwritten during recovery may be located here. The partition is formatted with NTFS. +
+The size of this partition is controlled by the `opsi-local-image-prepare` product during partitioning via a property.
 
-* Partition 3 (winpe / swap) +
-The size of this partition is static and set to 4GB. +
-This partition is not used on Windows XP. +
-On NT6 (Windows 7) this partition is used for the winpe required during installation and is not visible during normal operation. +
-On Linux this partition is used as swap.
+* Partition 3 (`winpe`/`swap`) +
+The size of this partition is set to 4{nbsp}GB. +
+On Windows XP, this partition is not used. +
+On NT6 (Windows 7), this partition is used for the Windows PE required during installation; it is not visible during actual operation. +
+On Linux, this partition is used as a swap partition.
 
-* Partition 4 (backup) +
-This partition is used to store the backup images and their metadata. +
-The size of this partition is the free space still available after the other partitions have been created.
+* Partition 4 (`backup`) +
+This partition is used to store the backed up images and their metadata. +
+The size of the partition results from the free space left after the other partitions have been created.
 
-The netboot products for operating system installations use only the first two or three partitions (XP uses only the first) and leave the last backup partition untouched. This means that the images on partition 4 (backup) are retained even when installing a new operating system.
+The netboot products for OS installation use only the first two or three partitions and leave the last backup partition untouched. Thus, the images located on partition 4 (`backup`) are preserved even when a new operating system is installed.
 
 [[opsi-manual-localimage-proceedings]]
-== Process steps
+== Proceedings
 
 [[opsi-manual-localimage-proceedings-initial]]
 === Initial Installation
 
-The necessary static partitioning is first created using the product `opsi-local-image-prepare`.
+First create the necessary static partitions with the product `opsi-local-image-prepare`.
 
-.schema: static partitioning with opsi-local-image-prepare
-image::oli-prepare.png["schema: static partitioning with opsi-local-image-prepare", width=332]
+.Scheme: Image Restore with `opsi-local-image-restore`
+image::oli-prepare.png["Scheme: Image Restore with `opsi-local-image-restore`", width=332]
 
-Then the products `opsi-local-image-win*` or others can be used to install several operating systems with different configurations and different application software.
+Next, you can use `opsi-local-image-win*` and other products to install the operating systems and provide them with different application software.
 
-.schema: OS installation with opsi-local-image-win*
-image::oli-os-install.png["schema: OS installation with opsi-local-image-win*", width=332]
+.Schema: OS Installation with `opsi-local-image-win*`
+image::oli-os-install.png["Schema: OS Installation with `opsi-local-image-win*`", width=332]
 
 By default, these are automatically saved as an image after installation.
 
-.schema: image backup with opsi-local-image-backup
-image::oli-backup-1.png["schema: image backup with opsi-local-image-backup", width=332]
+.Schema: Image Backup with `opsi-local-image-backup`
+image::oli-backup-1.png["Schema: Image Backup with `opsi-local-image-backup`", width=332]
 
 
 [[opsi-manual-localimage-proceedings-restore]]
-=== Restoring an image
+=== Restoring an Image
 
-Executing the product `opsi-local-image-restore` automatically restores the last created image. If a different image is to be restored, this has to be specified in the property `imagefile`.
+Invoke the `opsi-local-image-restore` product; this will automatically restore the last image created. To restore a different image, specify it in the `imagefile` property.
 
-.schema: image restore with opsi-local-image-restore
-image::oli-restore-image.png["schema: image restore with opsi-local-image-restore", width=332]
+.Schema: Image Restore with `opsi-local-image-restore`
+image::oli-restore-image.png["Schema: Image Restore with `opsi-local-image-restore`", width=332]
 
 [[opsi-manual-localimage-proceedings-delete]]
-=== Deleting an image
+=== Deleting an Image
 
 .Schema: Deleting an Image
-image::oli-delete-image.png["Schema: Deleteing an Image", width=332]
+image::oli-delete-image.png["Schema: Deleting an Image", width=332]
 
 By executing the product `opsi-local-image-delete`, the image specified in the property `imagefile` will be deleted.
 
 [[opsi-manual-localimage-proceedings-update]]
-=== Updating an image: automatic work flow with opsi-auto-update
+=== Updating an Image
 
-.Schema: Automatic upgrade of a saved image
-image::oli-image-upgrade-flow.png["Schema: Automatic upgrade of a saved image", width=332]
+To simplify the maintenance of the clients, you can use the product `opsi-auto-update`.
 
-`opsi-auto-update` is a product to simplify the maintenance of the clients.
+.Schema: Automatic Upgrade of a saved Image
+image::oli-image-upgrade-flow.png["Schema: Automatic Upgrade of a saved Image", width=664]
 
-In essence, this product can be used to ensure that the installed products are up to date. +
-The product sets all installed products,
-whose version is not identical to that on the server,
-for the client to setup.
+The main purpose of the `opsi-auto-update` product is to keep the installed products up to date. To do this, it sets all installed products whose version differs from the one on the server to `setup` on the client.
 
-Since this product can not only be used in the context of 'opsi-local-image', it is described in the chapter 'opsi standard products' / 'opsi-auto-update': +
-xref:products/localboot-products#opsi-manual-localboot-opsi-auto-update[opsi-auto-update]
+NOTE: This product is useful, not just in the context of `opsi-local-image`. For a detailed description, see the xref:products/localboot-products[opsi-products] chapter, section xref:products/localboot-products#opsi-manual-localboot-opsi-auto-update[opsi-auto-update].
 
 [[opsi-manual-localimage-components]]
 == The opsi-local-image products
