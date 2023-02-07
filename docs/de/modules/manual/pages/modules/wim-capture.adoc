@@ -14,90 +14,100 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      14.03.2018
+:Date:      12.01.2023
 :Revision:  4.0.7
 :toclevels: 6
+:doctype:   book
 
 ifeval::["{mode}" == "antora"]
 include::common:partial$opsi_terms.adoc[]
 endif::[]
 
 [[opsi-manual-wimcap]]
-= opsi WIM Capture
+= Windows Imaging Format (opsi-wim-capture)
+
+Eine Neuinstallation eines Rechners kann sehr zeitintensiv sein, besonders wenn viele Hotfixes und/oder andere Software installiert werden müssen. Mit `opsi-wim-capture` können Sie jedoch die Installations-Einstellungen, inklusive aller Software, Hotfixes und Konfigurationen von einem bestehenden Computer erfassen und in einem WIM (_Windows Imaging Format_) speichern. Sie können dieses WIM dann als Basis für zukünftige Installationen auf anderen Computern verwenden, was den gesamten Prozess deutlich einfacher und schneller macht.
 
 [[opsi-manual-wimcap-preconditions]]
-== Vorbedingungen für die opsi Erweiterung _opsi wim capture_
+== Voraussetzungen
 
-Dieses Modul ist momentan eine
-http://www.uib.de/www/kofinanziert/index.html[kofinanzierte opsi Erweiterung]. +
-Es sind eine Reihe von Vorbedingungen nötig, um dieses Modul einsetzen
-zu können. Das bedeutet, dass Sie zum Einsatz eine Freischaltdatei benötigen. Diese Freischaltung erhalten Sie, wenn Sie die Erweiterung kaufen. Zu Evaluierungszwecken stellen wir Ihnen auch eine zeitlich befristete Freischaltung kostenlos zur Verfügung ( -> mail an info@uib.de). +
+NOTE: Dieses Modul ist momentan eine https://www.uib.de/de/opsi-erweiterungen/erweiterungen[kostenpflichtige Erweiterung]. Das heißt, dass Sie eine Freischaltdatei benötigen. Sie erhalten diese, nachdem Sie die Erweiterung gekauft haben. Zu Evaluierungszwecken stellen wir Ihnen kostenlos eine zeitlich befristete Freischaltung zur Verfügung. Bitte kontaktieren Sie uns dazu per mailto:info@uib.de[E-Mail].
 
+=== Allgemeine Anforderungen
 
-Weitere Details hierzu finden Sie in xref:modules/modules#opsi-manual-modules[Freischaltung kostenpflichtiger Module].
-
-
-
-Technische Voraussetzungen sind opsi 4.0.6 mit den Paketständen:
+Um die Erweiterung installieren zu können, benötigen Sie opsi 4.0.6 oder neuer. Weiterhin sollten die folgenden Pakete installiert sein:
 
 .Benötigte Pakete
 [options="header"]
 |==========================
 |opsi-Paket|Version
-|opsi-linux-bootimage|>= 20160111
-|opsi-client-agent|>= 4.0.6.3-8
+|`opsi-linux-bootimage`|>= 20160111
+|`opsi-client-agent`|>= 4.0.6.3-8
 |Windows Netboot >=7|>= 4.0.6.1-3
-|opsi-clonezilla|
-|win10-sysprep-app-update-blocker|
+|`opsi-clonezilla`|
+|`win10-sysprep-app-update-blocker`|
 |==========================
 
-CAUTION: Für das Produkt `opsi-wim-capture` muß der share `opsi_depot_rw` für 'pcpatch' beschreibbar sein. Prüfen Sie Ihre Samba Konfiguration!
+CAUTION: Um `opsi-wim-capture` verwenden zu können, muss die Freigabe `opsi_depot_rw` für `pcpatch` les- und schreibbar sein. Bitte überprüfen Sie Ihre Samba-Konfiguration.
 
-* UEFI Rechner werden ab der opsi-wim-capture Version 4.1.x unterstützt
+Für das Produkt `opsi-wim-capture` muß der share `opsi_depot_rw` für 'pcpatch' beschreibbar sein. Prüfen Sie Ihre Samba Konfiguration!
 
-* install.esd (statt install.wim) wird als Format im Target ab der opsi-wim-capture Version 4.1.x unterstützt
+* Ab `opsi-wim-capture` 4.1.x unterstützt die Erweiterung UEFI.
 
-== Quick Info
+* Ab `opsi-wim-capture` 4.1.x unterstützt die Erweiterung `install.esd` (statt `install.wim`) wird als Format im Target.
 
-Für die ganz Eiligen folgt hier eine Kurzanleitung. Ausführliche Informationen sind weiter unten zu finden.
+== Kurzinfo
 
-*Vorbereitungen:*
+Für alle, die es eilig haben, folgt hier eine Kurzanleitung. Ausführliche Informationen finden Sie weiter unten.
 
-* Rechner im Bios auf PXE-Boot / LAN-Boot als 1. Bootoption einstellen
+=== Vorbereitungen
 
-* Rechner sollte mit den folgenden Property-Einstellungen im Netboot-Produkt aufgesetzt werden: +
-'boot_partition_size=0' +
-'preserve_winpe_partion = true' +
-'windows_partition_label = WINDOWS' +
-'windows_partition_size=100%' +
+* Stellen Sie im BIOS als erste Bootoption PXE-Boot/LAN-Boot ein.
+
+* Stellen Sie sicher, dass der Rechner mit den folgenden Property-Einstellungen im Netboot-Produkt aufgesetzt wird:
++
+[source]
+----
+'boot_partition_size=0' 
+'preserve_winpe_partion = true' 
+'windows_partition_label = WINDOWS'
+'windows_partition_size=100%'
 'setup_after_install=win10-sysprep-app-update-blocker'
+----
 
-* Target-Produkt vervollständigen: +
-Als Target-Produkt wird in der Regel eines der zur Verfügung gestellten Capture-Produkte verwendet, zB.: 'win10-x64-capture' +
-Winpe- und Drivers-Verzeichnis können als symbolische Links vom Standard-Produkt erstellt werden. +
-Das Installfiles-Verzeichnis ist zu kopieren, da hierin die 'install.wim' angepasst werden soll. +
-Zudem sollten ggfls. Dateien aus dem `custom` Verzeichnis kopiert oder verlinkt werden, zB.: 'unattend.xml'
+* Vervollständigen Sie das Target-Produkt: +
+Als Target-Produkt verwenden Sie in der Regel eines der zur Verfügung gestellten Capture-Produkte, z.{nbsp}B. `win10-x64-capture`.
++
+Das WinPE-Verzeichnis (Windows Preinstallation Environment) und das Treiberverzeichnis, die normalerweise Teil des Capture-Produkts sind, können Sie als symbolische Links vom Standard-Produkt erstellen.
++
+Das Verzeichnis mit den Installationsdateien kopieren Sie und passen die darin enthaltene Datei `install.wim` an.
++
+Falls nötig, kopieren oder verlinken Sie Dateien wie `unattend.xml` aus dem benutzerdefinierten Verzeichnis. 
 
-* opsi-clonezilla Property 'imageshare = auto' (ist der default, veraltet //<servername>/opsi_images) +
-'imagefile' und 'runcommand' werden vom `opsi-wim-capture` automatisch gesetzt
+* Der Standard für die `opsi-clonezilla`-Property ist `imageshare = auto` (veraltet: `//<servername>/opsi_images`).
+ `opsi-wim-capture` setzt automatisch die Werte für `imagefile` und `runcommand`.
 
-* Installieren Sie alle verfügbaren Windows-Updates oder aber verwenden Sie config-win10 in Kombination mit mshotfix zur Aktualisierung.
+* Installieren Sie alle verfügbaren Windows-Updates oder verwenden Sie `config-win10` in Kombination mit `mshotfix` zur Aktualisierung.
+
 * Sämtliche Software, die in das Image integriert werden soll, muss auf dem Rechner installiert werden.
 
-*Start des Produktes `opsi-wim-capture`:*
+=== Produkt `opsi-wim-capture` starten
 
-* Folgende Properties anpassen: +
-'image_description = <Image Beschreibung>' +
-'imagename = <imagename>' +
+* Passen Sie die folgenden Propertys an: 
++
+[source]
+----
+'image_description = <Image Beschreibung>' 
+'imagename = <imagename>' 
 'target_product = win10-x64-captured'
+----
 
-* `opsi-wim-capture` auf 'setup' setzen.
+* Setzen Sie `opsi-wim-capture` auf `setup`.
 
-*Rechner mit neuem Image installieren:*
+=== Rechner mit neuem Image installieren
 
-* Target-Product (z.B. 'win10-x64-captured') mit folgender Anpassung auf setup setzen: +
-'imagename =' (hier den Namen aus dem gleichnamigen Property aus dem `opsi-wim-capture` Produkt übernehmen)
-
+* Setzen Sie das Target-Produkt (z.{nbsp}B. `win10-x64-captured`) mit folgender Anpassung auf `setup`: +
+`'imagename ='` (hier den Namen aus der gleichnamigen Property aus dem `opsi-wim-capture`-Produkt übernehmen)
 
 [[opsi-manual-wimcap-introduction]]
 == Einführung
