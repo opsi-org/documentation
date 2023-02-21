@@ -44,52 +44,56 @@ Zur Zeit (Januar 2023) gibt es folgende opsi-Erweiterungen:
 * MySQL-Backend: xref:server/opsi-backends#opsi-manual-backends-mysql-configdata-overview[Datenbank-Backend für Konfigurationsdaten]
 * Scalability: xref:modules/scalability/opsi-manual-scalability[Mehrere Worker-Prozesse]
 
-NOTE: Für die kostenpflichtigen Erweiterungen benötigen Sie eine Freischaltdatei. Sie erhalten diese, nachdem Sie die Erweiterung gekauft haben. Zu Evaluierungszwecken stellen wir Ihnen kostenlos eine zeitlich befristete Freischaltung zur Verfügung. Bitte kontaktieren Sie uns dazu per mailto:info@uib.de[E-Mail].
+NOTE: Für die kostenpflichtigen Erweiterungen benötigen Sie eine Freischaltdatei. Sie erhalten diese, nachdem Sie die Erweiterung gekauft haben. Zu Evaluierungszwecken stellen wir Ihnen kostenlos eine zeitlich befristete Freischaltung zur Verfügung. Bitte kontaktieren Sie uns dazu per mailto:sales@uib.de[E-Mail].
 
-Die Freischaltdatei `/etc/opsi/modules` auf dem opsi-Server legt fest, welche Erweiterungen verwendet werden dürfen. Es handelt sich um eine einfache Textdatei, die definiert, welche Erweiterungen (für wie viele Clients) aktiviert sind. Eine digitale Signatur schützt die Datei vor Veränderungen. Wenn keine Angaben in der Datei vorliegen, werden die Standardwerte verwendet. Wenn die Freischaltdatei fehlt, sind nur die in der Voreinstellung freien opsi-Komponenten aktiv. Bei einer befristeten Freischaltung enthält die Datei auch Angaben zur Frist.
+Die Module werden über Lizenz-Dateien freigeschaltet.
+Diese Dateien besitzen die Endung `.opsilic` und werden im Verzeichnis `/etc/opsi/licenses` auf dem opsi-Configserver abgelegt.
+Die Lizenz-Dateien können manuell in diesem Verzeichnis abgelegt oder über das opsiconfd-Admin-Interface hochgeladen werden (https://<configserver>:4447/admin/#licensing). Auf dieser Seite werden auch Informationen über die aktuelle Lizenzierung angezeigt.
 
-Nachdem Sie von uns die Datei `modules` erhalten haben, kopieren Sie diese ins Verzeichnis `/etc/opsi`. 
-Führen Sie danach den folgenden Befehl aus, um die korrekten Zugriffsrechte zu setzen:
+In der Vergangenheit wurden die Module über die Datei `/etc/opsi/modules` freigeschaltet.
+Diese Datei behält auch weiterhin ihre Gültigkeit.
+Neue Lizenzen werden jedoch nur noch im neuen Format ausgestellt.
 
-[source, prompt]
-----
-opsi-setup --set-rights /etc/opsi
-----
-
-Starten Sie danach den `opsiconfd` neu.
+Sind keine Lizenz-Dateien vorhanden, sind nur die freien Komponenten von opsi aktiv.
 
 [[opsi-manual-modules-check]]
 == Freischaltung für opsi-Erweiterungen überprüfen
 
 Überprüfen Sie die Freischaltung mithilfe einer der folgenden Methoden:
 
-* In der Management-Oberfläche (`opsi-configed`) rufen Sie aus dem Menü _Hilfe_ den Eintrag _Installierte opsi-Module_ auf.
+* Im opsiconfd-Admin-Interface (https://<configserver>:4447/admin/#licensing) werden Lizenzierungs-Informationen angezeigt.
+
+* In der Management-Oberfläche (`opsi-configed`) rufen Sie aus dem Menü _Hilfe_ den Eintrag _Validierungsstatus der opsi-Module_ auf.
 +
 .Status der Freischaltung in der Management-Oberfläche anzeigen
-image::modules-status.png["Status der Freischaltung in der Management-Oberfläche anzeigen",width=200]
+image::configed_validierung-opsi-module.png["Status der Freischaltung in der Management-Oberfläche anzeigen", pdfwidth=70%]
 
-* Verwenden Sie das Tool `opsi-admin` und rufen die Methode `backend_info` auf, um zu überprüfen, welche Module freigeschaltet sind.
+* Verwenden Sie das Tool `opsi-cli` und rufen die Methode `backend_getLicensingInfo` auf, um zu überprüfen, welche Module freigeschaltet sind.
 
-[source, prompt]
+== Überschreitung der Lizenzierung
+Vor Überschreitung der Anzahl lizenzierter Clients erscheint im opsi-configed eine entsprechende Warnung.
+Die Warnung wird hierbei über einen prozentualen und einen absoluten Grenzwert gesteuert.
+
+Die Standardwerte sind hierbei:
+
+* Prozentual: Warnung wenn die Client-Anzahl 95% der lizenzierten Client-Anzahl erreicht.
+* Absolut: Warnung wenn die absolute Anzahl der freien Client-Lizenzen auf oder unter 5 Clients fällt.
+* Tage: Warnung wenn die verbleibende Lizenzlaufzeit unter 30 Tagen fällt.
+
+Die Grenzwerte können über die Config-Parameter `licensing.client_limit_warning_percent`, `licensing.client_limit_warning_absolute` und `licensing.client_limit_warning_days` gesteuert werden.
+
+Diese Werte können beispielweise über `opsi-admin` festgelegt werden:
+[source,prompt]
 ----
-$ opsi-admin -d method backend_info
-{
-	"opsiVersion" : "4.0.1",
-	"modules": {
-		"customer" : "uib GmbH",
-		"vista" : true,
-		"vpn" : true,
-		"license_management" : true,
-		"expires" : "never",
-		"valid" : true,
-		"multiplex" : true,
-		"signature" : "DIES-IST-KEINE-ECHTE-SIGNATUR",
-		"treeview" : true,
-		"mysql_backend" : true
-	}
-}
-----
+# Warnung beim Erreichen von 95% der lizenzierten Clients:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_percent "licensing - client limit warning percent" 95 95
+# Warnung wenn nur noch 5 freie Client-Lizenzen existieren:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_absolute "licensing - client limit warning absolute" 5 5
+# Warnung wenn nur noch 30 Tage bis Lizenzende verbleiben:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_days "licensing - client limit warning days" 30 30
 
-NOTE: Geben Sie weder die Freischaltdatei noch die Ausgabe dieses Befehls an andere weiter -- zumindest nicht, ohne die Signatur zu löschen.
+----
+Wird die lizenzierte Client-Anzahl eines Moduls überschritten, wird das entsprechende Modul abgeschaltet.
+Andere Module bleiben jedoch aktiv.
 
 Mehr Informationen zu diesem Thema finden Sie unter link:https://www.uib.de/de/opsi-erweiterungen/erweiterungen/[opsi-Erweiterungen als Kofinanzierungsprojekte].
