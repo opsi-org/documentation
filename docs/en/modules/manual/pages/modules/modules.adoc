@@ -1,4 +1,4 @@
-﻿////
+////
 ; Copyright (c) uib gmbh (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
@@ -15,7 +15,7 @@
 :Author:    uib gmbh
 :Email:     info@uib.de
 :Revision:  4.1
-:Date:      12.01.2023
+:Date:      21.02.2023
 :toclevels: 6
 :doctype:   book
 
@@ -45,52 +45,61 @@ Currently (January 2023) there are the following opsi extensions:
 * Scalability: xref:modules/scalability/opsi-manual-scalability[Multiple Worker Processes]
 
 
-NOTE: For the paid extensions you need an activation file to unlock them. You will receive this file after you have purchased the extension. For evaluation purposes, we're happy to provide you with a temporary license free of charge. Please contact us via mailto:info@uib.de[email].
+NOTE: For the paid extensions you need an activation file to unlock them. You will receive this file after you have purchased the extension. For evaluation purposes, we're happy to provide you with a temporary license free of charge. Please contact us via mailto:sales@uib.de[email].
 
-The activation file `/etc/opsi/modules` on the opsi server defines which extensions may be used. It is a simple text file describing which extensions are enabled (for how many clients). A digital signature protects the file from changes. If there are no specifications in the file, the default values are used. If the activation file is missing, only the free opsi components are available. If you're using an extension with a temporary license, the file also includes the expiration date.
+[[opsi-basic-license]]
+== opsi Basic License
 
-After you have received the file `modules` from us, copy it into the directory `/etc/opsi`.
-Then run the following command to set the correct access rights:
+From February 2023 there is a new, free opsi Basic license, which makes it possible to use (almost) all paid extensions on up to 30 clients.
 
-[source, prompt]
-----
-opsi-setup --set-rights /etc/opsi
-----
+NOTE: The following extensions are excluded: Scalability, WAN and macOS support.
 
-After that, restart the `opsiconfd`.
+The Basic license is valid for the current calendar year. If you want to continue using the opsi Basic license after December 31, you will need to obtain a new activation file. To make the process as simple as possible, we will always publish the new activation file on October 1 of the current year. 
+
+You can get the license and an activation file free of charge from our website:  https://www.uib.de/en/opsi-basic
+
+== Activation via License Files
+
+To unlock the modules you need license files. These files have the extension `.opsilic` and are located on the opsi server in the directory `/etc/opsi/licenses`. You can either copy the files there manually or upload them via the opsiconfd admin interface (https://<configserver>:4447/admin/#licensing). This page also shows information about currently installed modules and their licensing.
+
+TIP: In the past, modules were unlocked via the `/etc/opsi/modules` file. This file remains valid, but we issue new licenses only in the new format.
+
+If there are no license files, only the free opsi components are active.
 
 [[opsi-manual-modules-check]]
 == Check Activation for opsi Extensions
 
 You can verify the activation by using one of the following methods:
 
-* In the management interface (`opsi-configed`) open the entry _Installed opsi modules_ from the _Help_ menu.
+* Information about the licenses is displayed in the opsiconfd admin interface (https://<configserver>:4447/admin/#licensing).
+
+* In the management interface (`opsi-configed`) open the entry _Validation status of the opsi modules_ from the _Help_ menu.
 +
 .Displaying the activation status in the management interface
-image::modules-status.png["Displaying the activation status in the management interface",width=200]
+image::configed_validation-opsi-modules.png["{opsi-configed}: Displaying the activation status in the management interface", pdfwidth=70%]
 
-* Use the `opsi-admin` tool and call the `backend_info` method to check which modules are enabled.
+* Use the `opsi-cli` tool and call the `backend_getLicensingInfo` method to check which modules are enabled.
+
+== Exceeding the Licensing
+
+Before exceeding the number of licensed clients, `opsi-configed` shows a warning message. There is a percentage and an absolute limit. The following default values apply:
+
+* **Percentage**: Warning when client count reaches 95% of licensed clients.
+* **Absolute**: Warning when the absolute number of free client licenses falls to or below 5 clients.
+* **Days**: Warning when the remaining term of the licenses is less than 30 days.
+
+You can control these limits using the parameters `licensing.client_limit_warning_percent`, `licensing.client_limit_warning_absolute`, and `licensing.client_limit_warning_days` and set them for example with `opsi-admin`:
 
 [source, prompt]
 ----
-$ opsi-admin -d method backend_info
-{
-	"opsiVersion" : "4.0.1",
-	"modules": {
-		"customer" : "uib GmbH",
-		"vista" : true,
-		"vpn" : true,
-		"license_management" : true,
-		"expires" : "never",
-		"valid" : true,
-		"multiplex" : true,
-		"signature" : "THIS-IS-NO-VALID-SIGNATURE",
-		"treeview" : true,
-		"mysql_backend" : true
-	}
-}
+# Warning when 95% of licensed clients are reached:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_percent "licensing - client limit warning percent" 95 95
+# warning if there are only 5 free client licenses left:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_absolute "licensing - client limit warning absolute" 5 5
+# warning when there are only 30 days left until the end of the license:
+opsi-admin -d method config_createUnicode licensing.client_limit_warning_days "licensing - client limit warning days" 30 30
 ----
 
-NOTE: Do not share the unlock file or the output of this command with others -- at least not without deleting the signature.
+If the licensed number of clients for an extension is exceeded, the corresponding module is automatically deactivated. The other extensions are not affected and remain activated.
 
 More information on this topic can be found at link:https://www.uib.de/en/opsi-extensions/extensions[opsi Extensions].
