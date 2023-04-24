@@ -6,5 +6,5 @@ npm install
 
 # Antora-UI
 cd antora-ui
-sudo npm install -g gulp-cli
+npm install gulp gulp-cli
 npm install
