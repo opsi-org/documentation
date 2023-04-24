@@ -14,176 +14,107 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      11.01.2021
-:doctype: book
-:getstarted:  getting started
+:Date:      24.04.2023
+:Revision:  4.2
+:toclevels: 6
+:doctype:   book
+:icons: font
+:xrefstyle: full
 
+ifeval::["{mode}" == "antora"]
 include::common:partial$opsi_terms.adoc[]
-
+endif::[]
 
 [[opsi-getting-started-requirements]]
-= Requirements
+= Prerequisites
 
-Subsequently the requirements for the installation of an {opsi-server} will be described.
-
-// Add the support matrix
-// :leveloffset: -1
-include::common:partial$supportmatrix.adoc[leveloffset-1]
-// :leveloffset: 0
-
+This chapter describes the requirements for the installation of the opsi server on Linux. A list of supported distributions can be found in chapter xref:supportmatrix:supportmatrix.adoc[Supported Systems].
 
 [[opsi-getting-started-requirements-hardware]]
-== Hardware requirements
+== Hardware
 
-For an {opsi-Server} on real hardware is needed:
+These are the prerequisites for an opsi server on real hardware:
 
 * x86-64 or ARM64 system.
-* At least 2GB RAM
-* At least 2 CPU cores
-* Disk space requirements depend heavily on the number of opsi packages. For productive systems the following applies:
-** There should always be at least 15GB of free space in the '/tmp' directory.
-** The directory '/var/lib/opsi' should have at least 60GB and should be flexible expandable.
+* 2{}GB RAM or more
+* 2 CPU cores or more
 
-How many opsi clients access an opsi server at the same time depends on the configuration and the daily routines in the respective environment.
-In large environments, with many simultaneous client connections, the RAM and CPU requirements can increase significantly.
+How much hard disk space the server needs depends, among other things, on the number of installed opsi packages. For productive systems the following recommendations apply:
 
-The central opsi service 'opsiconfd' needs about 250MB RAM per worker process.
-There should be about one worker process available for 20 simultaneous connections.
-The number of CPU cores should be about half the number of worker processes.
+* Make sure that there is always at least 15{nbsp}GB of free space available in the `/tmp` directory.
+* In the `/var/lib/opsi` directory, you need at least 60{nbsp}GB; the folder must be flexibly expandable.
 
-In the standard configuration, additional resources for Samba, MySQL and Redis should be planned on the same system.
+Depending on the configuration and the daily routines, varying numbers of opsi clients will access an opsi server. RAM and CPU requirements can increase significantly in large environments with many simultaneous client connections.
 
-
-[[opsi-getting-started-introduction-hardware-requirements-hints]]
-=== Notes on determining hardware requirements
-
-Hardware requirements depend heavily on usage.
-So here are a few tips to calculate the system requirements.
-
-
-[[opsi-getting-started-introduction-hardware-requirements-ram]]
-==== Memory requirements
-
-Each active Samba connection starts its own Samba process.
-Estimates vary between 800 kB and 4 MB.
-How many opsi clients access an opsi server at the same time depends heavily on the daily routines in your environment.
-
-The following values ​​were recommended for link:https://www.samba.org/samba/docs/man/Samba3-ByExample/secure.html[Samba 3]:
-
-|==========================
-| Process | 1 user | 130 users | 500 users
-| smbd    | 4 MB   | 520 MB    | 2000 MB
-|==========================
-
-Since we do not have any values ​​for current Samba versions, the above figures can only be regarded as a rough estimate and should be extended with a safety margin of 50%.
-
-The memory consumption of opsiconfd depends heavily (but not only) on the number of clients.
-The following minimum memory consumption can be derived from existing installations.
-The specified number of users are not active users at the same time, but the total number.
-
-|==========================
-| Process   | 100 users | 2000 users | 4000 users
-| opsiconfd | 500 MB    | 1000 MB    | 2000 MB
-|==========================
-
-You should also implement a safety margin here.
-
-
-[[opsi-getting-started-introduction-hardware-requirements-hints-cpu]]
-==== CPU
-
-Opsiconfd currently uses only one core.
-This core is only fully loaded when many opsi clients (> 100) access the server exactly at the same time.
-But the operating system, Samba, the database, etc. also require computing time.
-
-I.e. with 500 clients two CPU cores should be sufficient, with 1000 clients four CPU cores should be provided.
-
-Also note that opsi-depots put a strain on the opsi-configserver, which is significantly larger than that of a single client.
-
+TIP: The central opsi service `opsiconfd` requires approx. 250{nbsp}MB RAM per worker process. We recommend to allocate one worker process for 20 simultaneous connections. The number of CPU cores should be about half the number of worker processes. In the default configuration, you should plan for additional resources for Samba, MySQL and Redis.
 
 [[opsi-getting-started-introduction-software-and-configuration-preconditions]]
-== Configuration requirements
+== Configuration
 
-Your server and your network have to comply to the following requirements to install and work with opsi:
-
+To install opsi, certain network and language settings are required. The next sections explain necessary DNS (Domain Name System) and localization settings.
 
 [[opsi-getting-started-requirements-software-dns-domainname]]
-=== Valid DNS domain name
+=== Valid Domain Name
 
-Your DNS domain name must consist of at least one domain and one toplevel domain.
-In other words: the fully qualified domain name must contain at least one point.  Furthermore, the toplevel domain must consist of at least two characters.
+The domain name must consist of at least a domain and a top-level domain (TLD), i.e. must consist of at least the host name, a dot and a top-level domain (two characters):
 
-Valid domain names are e.g.: 'domain.local' , 'uib.de', 'subdomain.domain.de'.
-An invalid example: 'mydomain.d' because this is only one character at the top-level domain
-An invalid example: 'mydomain' because this is only a top-level domain +
+* For example, `domain.local`, `uib.de`, `subdomain.domain.de` are valid.
+* *Not* allowed are `mydomain.d` (TLD has only one character) or `mydomain` (TLD is missing).
 
-see also: +
-
-* https://en.wikipedia.org/wiki/Domain_name
-* https://en.wikipedia.org/wiki/Hostname
-
+TIP: For more information, visit https://en.wikipedia.org/wiki/Domain_name.
 
 [[opsi-getting-started-requirements-software-dns-hostname]]
-=== Valid DNS hostname
+=== Valid Hostname
 
-The hostnames (also of the clients) must comply with the guidelines.
-This includes, for example, that they must not contain any underscores.
+iThe opsi server and also the opsi clients must have a valid hostname. Letters (a to z, A to Z), numbers and the hyphen are allowed. The underscore and other special characters are not allowed.
 
-Make sure that at your {opsi-Server}, returns a 'fully qualified domainname', in which at least come two dots, e.g. 'opsiserver.domain.local':
+On Linux, check the settings with the `hostname` command. Use the `-f` parameter to display the Fully Qualified Domain Name (FQDN):
 
 [source,prompt]
 ----
 hostname -f
 ----
 
-Should the result not look like this (e.g. '127.0.0.1' or 'localhost') then you check your '/etc/hosts' directory or the name resolution first.
+The output should return an FQDN with at least two dots in it, e.g. `opsiserver.domain.local`. If the result looks different and you get something like `127.0.0.1` or `localhost` as response, first correct the `/etc/hosts` file or your name resolution (see the next section).
 
-see also: +
-* https://en.wikipedia.org/wiki/Hostname
-
+TIP: Further information on valid hostnames can be found here: https://en.wikipedia.org/wiki/Hostname
 
 [[opsi-getting-started-requirements-software-dns-resolving]]
-=== Correct name resolution for the server
+=== Correct Name Resolution for the Server
 
-Check the entry for the {opsi-Server} in the file '/etc/hosts', or check the output of:
+Check the entry for the opsi server in the `/etc/hosts` file or enter the following command on the command line:
 
 [source,prompt]
 ----
 getent hosts $(hostname -f)
 ----
 
-The result should look like the following example: +
-'192.168.1.1 server.domain.tld server'
+For example, the result should look like this:
 
-Here the IP address should belong to the network interface, to which the Clients will be connecting.
+[source,prompt]
+----
+192.168.1.1 server.domain.tld server
+----
 
-If the result looks different from the above example (contains eg. '127.0.0.1' or 'localhost'), or the full qualified hostname does not contain one or more dots, then you must correct your name resolution (DNS or `/etc/hosts` file).
+This should list the IP address of the network interface to which the clients will later connect. If you see only entries for `localhost`, `127.0.0.1`, or `127.0.0.2` in the `/etc/hosts` file, then correct the name resolution before you proceed.
 
-NOTE: The names must be in accordance of the rules of a DNS system but a DNS server is not required for the usage of opsi.
-
-NOTE: opsi does not require _Active Directory_ or similar. Integrating opsi is possible but not required.
-
+NOTE: Even if the names have to comply with the defaults of a DNS system, you don't need a DNS server to run opsi. opsi doesn't require an Active Directory or similar either, even if an integration into a directory service is possible.
 
 [[opsi-getting-started-requirements-software-lang]]
-=== Localization settings
+=== Language Settings (`locale`)
 
-opsi requires configured language settings ('locale') on the server.
-It is recommended to use an UTF-8 compatible locale.
+opsi needs the language to be set on the server via `locale`. To check the language settings, you can enter the following command, for example:
 
-The following command performs a simplified check:
 [source,prompt]
 ----
 test -e /etc/default/locale && echo "ok" || (echo "Check locales:" && locale)
 ----
 
-If the output is _ok_ locales are set.
-If the output is _check locales:_ you should check if the following list
-has settings for _LANG_ or _LC_ALL_ that are according to your used language.
+If you see `ok` as a response, everything is fine. If, on the other hand, `check locales:` appears, then set the settings via the `LANG` or `LC_ALL` environment variables.
 
-For English we recommend `en_GB.UTF-8` or `en_US.UTF-8`.
+TIP: We recommend a localization with UTF-8 support, e.g. `en_GB.UTF-8` or `en_US.UTF-8`.
 
-The following commands show how these settings can be changed if nothing or an
-undesired value is set:
+The following commands show how these settings can be changed if nothing or an unwanted value is set:
 
 [source,prompt]
 ----
@@ -191,102 +122,62 @@ sudo locale-gen en_GB.UTF-8
 update-locale LANG=en_GB.UTF-8
 ----
 
-To apply these settings systemwide the server should be restarted.
-
-For more information please consult the documentation of your Linux distribution.
-
+For more information, please consult the documentation of your Linux distribution.
 
 [[opsi-getting-started-installation-config-ports]]
-== Needed network ports
+== == Network Protocols and Ports used
 
-This is an overview of the used ports and network protocols.
+opsi and its services use the following network protocols and ports:
 
-Config server = central opsi-server to manage all clients. +
-Depot server = opsi-server in the individual locations. +
-If there is only one opsi-server, it takes both roles.
-
-* opsi-server web service: 4447/tcp +.
-Client to config and depot server, depot server to config server, also connections via localhost.
-
-* opsi-client web service: 4441/tcp +
-Config server to client, connection from client to itself via localhost.
-
-* opsi-client Notifier: 45000-45099/tcp +
-Connection from client to itself via localhost. +
-A random port from the given range is selected.
-
+* opsi server, web service: 4447/tcp +.
+client to config and depot server, depot server to config server, also connections via `localhost`
+* opsi client, web service: 4441/tcp +
+config server to client, connection from client to itself via `localhost`
+* opsi client, notifier: 45000/tcp to 45099/tcp +
+connection from client to itself via `localhost`, selection of a random port from the given range
 * TFTP: 69/udp +
-Connection from the client to the depot server.
-
-* TFTP: 1024-65535/udp +
-Connection from the depot server to the client.
-
-* CIFS/SMB: 445/tcp +
-Client to depot server.
-
-* CIFS/SMB: 445/tcp + connection from
-Depot server to client. +
-Only necessary if opsi-deploy-client-agent (winexe, smbclient) is used for Windows clients.
-
-* Grafana web service: 3000/tcp +
-Connection from client to config server. +
-Only if the management web page of the config server is to be accessed from the client.
-
+connection from client to depot server
+* TFTP: 1024/udp to 65535/udp +
+connection from depot server to client
+* CIFS/SMB: 445/tcp + 
+connection from client to depot server
+* CIFS/SMB: 445/tcp + 
+connection from depot server to client (only necessary if `opsi-deploy-client-agent` (`winexe`, `smbclient`) is used for Windows clients)
+* Grafana, web service: 3000/tcp +
+connection from client to config server (only when client accesses config server management website)
 * SSH: 22/tcp +
-Connection from client to Config server. +
-Management access to Config and Depot server.
-
-* SSH: 22/tcp +
-Connection from depot server to client. +
-Only necessary if opsi-deploy-client-agent is used for Linux / MacOS clients.
-
-* DNS: 53/tcp, 53/udp +.
-All servers / clients must be able to reach your DNS.
-
+connection from client to config server and depot server
+* SSH: 22/tcp + connection from
+connection from depot server to client (only when using `opsi-deploy-client-agent` on Linux and macOS)
+* DNS: 53/tcp, 53/udp +
+All servers and clients must be able to reach your DNS service.
 * Wake-on-LAN (WoL): 7/udp, 9/udp, 12287/udp +
-Connection from config server to client. These ports are configurable.
-
+connection from config server to client; ports are configurable
 * HTTP: 80/tcp +
-Config and depot server to the Internet. +
-To load e.g. server updates from http://download.opensuse.org.
+config and depot server to the Internet, e.g. to load server updates from http://download.opensuse.org
+* HTTPS: 443/tcp + 
+config and depot server to the internet, for example to load packages from https://download.uib.de (`opsi-package-updater`)
 
-* HTTPS: 443/tcp + Config and depot server to the Internet.
-Config and depot server to the Internet. +
-To load e.g. packages from https://download.uib.de (opsi-package-updater).
-
+NOTE: The config server is the central opsi server to manage all clients. The depot server is the server that holds the installation packages of the deployed software. If there is only one opsi server, it assumes both roles.
 
 [[opsi-getting-started-installation-config-proxy]]
-== Proxy settings
+== Proxy Settings
 
-If a HTTP-proxy is used, the proxy settings should be configured system-wide using environment variables.
-These environment variables are usually stored in the `/etc/environment` file.
-The following environment variables should be created, all lowercase.
+If you are using an HTTP proxy, then configure the system-wide proxy settings with environment variables (`/etc/environment` file).
 
-=== http_proxy
-The environment variable `http_proxy` configures which proxy should be used for HTTP connections.
-A complete URL should be used, not only hostname and port.
-If the proxy requires authentication, this can be specified in the URL.
+NOTE: Please note that the names of the environment variables use lowercase letters only.
 
+* `http_proxy`: configures the proxy for HTTP connections, requires a full URL (not just hostname and port); if authentication is required, it can be defined in the URL: +
 `http_proxy=http://<user>:<password>@<proxy-address>:<port>`
-
-Example: `http_proxy=http://10.10.10.10:3128`
-
-=== https_proxy
-Like `http_proxy`, but for HTTPS connections.
-
-Example: `https_proxy=https://10.10.10.10:3128`
-
-
-=== no_proxy
-The environment variable `no_proxy` defines for which addresses no proxy should be used.
-Multiple addresses are separated by commas.
-The following rules should be observed for the individual addresses:
-* Use lower case throughout.
-* Only IP addresses should be used if access is also made directly to the IP address. No name resolution takes place when evaluating the exceptions.
-* No IP address ranges (CIDR matching, such as: 192.168.0.0/24) may be used.
-* Exceptions must also be defined for local addresses and loopback addresses, such as `localhost` and `127.0.0.1`.
-* No wildcards, such as `*` or regular expressions, may be used.
-* Each name is evaluated as a suffix, so `domain.com` defines an exception for all hostnames ending with `domain.com`.
-* For each address, optionally, a port can be specified after a colon. Then the exception applies only to the specified port.
-
-Example: `no_proxy=127.0.0.1,localhost,mydomain.example,hostname.domain.com:8080`.
+* `https_proxy`: like `http_proxy`, but for HTTPS connections: +
+`https_proxy=https://<proxy-address>:<port>` 
+* `no_proxy`: defines for which addresses no proxy should be used; multiple addresses are separated by commas: +
+`no_proxy=127.0.0.1,localhost,mydomain.example,hostname.domain.com:8080` +
+The following rules apply to the addresses:
+** Use lowercase letters only. 
+** Only note IP addresses if the IP address is also accessed directly. No name resolution takes place when evaluating exceptions.
+** IP address ranges (CIDR matching, such as `192.168.0.0/24`) are not allowed.
+** You must also define exceptions for local addresses (`localhost`) and loopback addresses (`127.0.0.1`).
+** Wildcards and regular expressions are not allowed. 
+** Each name is evaluated as a suffix, so `domain.com` defines an exception for all hostnames ending in `domain.com`.
+** For each address, you can optionally specify a port after a colon for which the exception applies.
