@@ -30,8 +30,9 @@ RUN apt update \
 
 RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
 	&& sudo apt install -y nodejs \
-	&& npm install --location=global npm \
-	&& npm install --location=global gulp gulp-cli
+	&& npm -g config set user root \
+	&& npm install --global npm \
+	&& npm install --global gulp gulp-cli
 
 RUN gem install asciidoctor \
 	&& gem install compass \

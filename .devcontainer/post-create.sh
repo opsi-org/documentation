@@ -6,5 +6,4 @@ npm install
 
 # Antora-UI
 cd antora-ui
-npm install gulp gulp-cli
 npm install
