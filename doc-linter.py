@@ -3,9 +3,10 @@
 import re
 import sys
 import argparse
+from functools import lru_cache
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator
+from typing import Generator, Union
 
 @dataclass
 class Term():
@@ -25,26 +26,31 @@ class LintingError:
 		return f"{self.file}:{self.line}:{self.column}: {self.message}{fixed}"
 
 
-DOCS_DIR = Path("docs")
+DOCS_DIR = "docs"
 RE_TERM = re.compile(r"^:(?P<term_name>[^:]+):\s*(?P<term_value>\S+.*)\s*$")
 
 class Linter:
-	def __init__(self, doc_path: Path, auto_fix: bool):
-		self.doc_path = doc_path
-		self.auto_fix = auto_fix
-		self.terms: list[Term] = []
+	def __init__(self, start_path: Union[Path, str], auto_fix: bool, verbose: bool):
+		if not isinstance(start_path, Path):
+			start_path = Path(start_path)
+		self._start_path = start_path
+		self._auto_fix = auto_fix
+		self._verbose = verbose
 		self.errors: list[LintingError] = []
 
-	def run(self):
-		for language in DOCS_DIR.iterdir():
-			if language.is_dir():
-				self.check_docs(language)
+	def verbose(self, message: str):
+		if self._verbose:
+			print(message)
 
+	@lru_cache(maxsize=0)
 	def load_terms(self, terms_file: Path):
-		self.terms = []
+		self._terms = []
 		for line in terms_file.read_text().splitlines():
 			if match := RE_TERM.match(line):
-				self.terms.append(Term(match.group("term_name"), match.group("term_value")))
+				if match.group("term_value").startswith("{") and match.group("term_value").endswith("}"):
+					# Reference to other term
+					continue
+				self._terms.append(Term(match.group("term_name"), match.group("term_value")))
 
 	def find_word(self, content: str, word: str) -> Generator[tuple[int, int, int, int], None, None]:
 		search_idx = 0
@@ -63,12 +69,25 @@ class Linter:
 			column_number = start_idx - line_start
 			yield start_idx, end_idx, line_number, column_number
 
+	@lru_cache(maxsize=1000)
+	def find_terms_file(self, start_path: Path) -> Path:
+		terms_file = None
+		while start_path.parent != start_path:
+			terms_file = start_path.joinpath("modules/common/partials/opsi_terms.adoc")
+			if terms_file.exists():
+				return terms_file
+			start_path = start_path.parent
+		if not terms_file or not terms_file.exists():
+			raise FileNotFoundError("Terms file not found")
+
 	def check_terms(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
+		self.load_terms(self.find_terms_file(file.parent))
+
 		errors = []
-		for term in self.terms:
+		for term in self._terms:
 			for start_idx, end_idx, line_number, column_number in self.find_word(content, term.value):
 				error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
-				if self.auto_fix:
+				if self._auto_fix:
 					content = f"{content[:start_idx]}{{{term.name}}}{content[end_idx:]}"
 					error.fixed = True
 				errors.append(error)
@@ -76,21 +95,27 @@ class Linter:
 
 	def check_caution_used(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
 		errors = []
-		for start_idx, end_idx, line_number, column_number in self.find_word(content, ":CAUTION"):
-			error = LintingError(file, line_number, column_number,f":CAUTION used")
-			if self.auto_fix:
-				content = f"{content[:start_idx]}:WARNING{content[end_idx:]}"
-				error.fixed = True
-			errors.append(error)
+		for word in "[CAUTION]", "CAUTION:":
+			for start_idx, end_idx, line_number, column_number in self.find_word(content, word):
+				replace = word.replace("CAUTION", "WARNING")
+				error = LintingError(file, line_number, column_number,f"{word!r} used")
+				if self._auto_fix:
+					content = f"{content[:start_idx]}{replace}{content[end_idx:]}"
+					error.fixed = True
+				errors.append(error)
 		return errors, content
 
-	def check_docs(self, doc_path: Path):
-		self.load_terms(doc_path / "modules/common/partials/opsi_terms.adoc")
-		# Iterate over all files ending with .asiicoc
-		for file in doc_path.glob("**/*.asciidoc"):
+	def run(self):
+		if self._start_path.is_file():
+			files = [self._start_path]
+		else:
+			files = list(self._start_path.rglob("*.asciidoc")) + list(self._start_path.rglob("*.adoc"))
+		for file in files:
+			self.verbose(f"Checking file: {file}")
 			content = file.read_text(encoding="utf-8")
 			orig_content = content
 			errors, content = self.check_terms(file, content)
+			self.errors.extend(errors)
 			errors, content = self.check_caution_used(file, content)
 			self.errors.extend(errors)
 			if orig_content != content:
@@ -100,9 +125,11 @@ def main():
 	# Get option --fix with argparse
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--auto-fix", action="store_true")
+	parser.add_argument("--verbose", "-v", action="store_true")
+	parser.add_argument("path", nargs="?")
 	args = parser.parse_args()
 
-	linter = Linter(DOCS_DIR, args.auto_fix)
+	linter = Linter(args.path or DOCS_DIR, args.auto_fix, args.verbose)
 	linter.run()
 	for error in linter.errors:
 		print(error)
