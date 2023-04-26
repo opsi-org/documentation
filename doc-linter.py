@@ -53,14 +53,14 @@ class Linter:
 				self._terms.append(Term(match.group("term_name"), match.group("term_value")))
 
 	def find_word(self, content: str, word: str) -> Generator[tuple[int, int, int, int], None, None]:
-		search_idx = 0
+		# Search from end of file backwards
+		end_search_idx = len(content)
 		while True:
-			start_idx = content.find(word, search_idx)
+			start_idx = content.rfind(word, 0, end_search_idx)
 			if start_idx < 0:
 				break
-
+			end_search_idx = start_idx
 			end_idx = start_idx + len(word)
-			search_idx = end_idx
 			if content[start_idx-1] not in (" ", "\t", "\n") or content[start_idx + len(word)] not in (" ", "\t", "\n"):
 				# Part of a word
 				continue
