@@ -298,72 +298,82 @@ Der opsi-Server kann als DHCP-Server arbeiten und angeschlossene Clients automat
 [[opsi-getting-started-installation-config-dhcp-at-opsi]]
 === DHCP auf dem opsi-Server
 
-NOTE: Die vorkonfigurierte virtuelle Maschine ist bereits mit einem DHCP-Server ausgestattet, der keine freien Leases hat, also keine IP-Adressen an Rechner vergibt. Wenn Sie über die Management-Oberfläche `opsi-configed` einen Client erzeugen, geben Sie daher dessen IP- und die MAC-Adresse an.
+NOTE: Die vorkonfigurierte virtuelle Maschine ist bereits mit einem DHCP-Server ausgestattet, der keine freien Leases hat, also keine IP-Adressen an Rechner vergibt. Wenn Sie über die Management-Oberfläche `opsi-configed` einen Client erzeugen, geben Sie daher dessen IP- und die MAC-Adresse an, die dann in die Konfigurationsdatei `/etc/dhcp/dhcpd.conf` eingetragen werden.
 
+Nach einer solchen Änderung starten Sie den DHCP-Dienst neu:
 
-Wenn Sie im {opsi-configed} einen Client erzeugen, müssen Sie daher IP-Nummer und MAC-Adresse angeben, da diese in die `/etc/dhcp/dhcpd.conf` eingetragen und danach der DHCP Dienst neu gestartet wird.
+[source,prompt]
+----
+systemctl restart isc-dhcp-server
+----
 
-.Eigene Installation:
-Wenn Sie den opsi-Server als DHCP-Server verwenden möchten, müssen Sie daher das entsprechende Paket manuell nachinstallieren
+Wenn Sie den opsi-Server selbst installiert haben und als DHCP-Server verwenden möchten, installieren Sie das Paket nach. Seit opsi 4.0.3 wird dieses nicht mehr automatisch installiert.
 
-z.B. mit
+Auf Debian-basierten Systemen geben Sie dazu das folgende Kommando ein:
+
 [source,prompt]
 ----
 apt install isc-dhcp-server
 ----
 
-Nach der Installation muss die Konfigurationsdatei noch angepasst werden mit dem Befehl:
+TIP: Je nach Distribution heißt das Paket auch `dhcp-server` (RHEL, Rocky Linux, AlmaLinux, SLES usw.) -- schauen Sie im Zweifelsfall im Handbuch nach.
+
+Nach der Installation passen Sie die Konfigurationsdatei an; dazu können Sie das Tool `opsi-setup` verwenden:
+
 [source,prompt]
 ----
 opsi-setup --auto-configure-dhcpd
 ----
-Um den DHCP Server neu zu starten, so wie in `/etc/opsi/backends/dhcpd.conf` beschrieben, ist ein entsprechender Eintrag in der `/etc/sudoers` notwendig. Dieser wird mit folgendem Befehl erstellt.
-[source,prompt]
-----
-opsi-setup --patch-sudoers-file
-----
-Die Rechte der `/etc/dhcp/dhcpd.conf` sollten wie folgt aussehen.
+
+Die Rechte der Datei `/etc/dhcp/dhcpd.conf` sollten wie folgt aussehen:
+
 [source,prompt]
 ----
 -rw-r--r-- 1 opsiconfd opsiadmin 80174 Dec 22 14:37 /etc/dhcp/dhcpd.conf
 ----
 
-
 [[opsi-getting-started-installation-config-at-other-server]]
 === Externen DHCP-Server nutzen
 
-.Vorkonfigurierte VM:
-Wenn Sie die opsi-VM verwenden dann können Sie den DHCP-Server deinstallieren.
+NOTE: Den DHCP-Server der vorkonfigurierten virtuellen Maschine deinstallieren Sie mit dem folgenden Befehl:
 
-Dazu führen Sie den folgenden Befehl aus:
 [source,prompt]
 ----
 apt remove isc-dhcp-server
 ----
 
-.Eigene Installation:
-Bei einer eigenen Installation wird seit opsi 4.0.3 nicht mehr automatisch ein DHCP-Server installiert.
-
-Nun müssen Sie den externen DHCP-Server so konfigurieren, dass er ein PXE-Boot über den {opsi-Server} ermöglicht. Wenn Ihr DHCP-Server auf einem Linux läuft, sind folgende Einträge in der Konfigurationsdatei des dhcpd (z.B. `/etc/dhcp/dhcpd.conf`) für die Clients notwendig:
+Gibt es in Ihrem Netzwerk bereits einen DHCP-Server, dann konfigurieren Sie diesen so, dass er ein PXE-Boot über den opsi-Server ermöglicht. Läuft der Dienst auf einem Linux-Rechner, dann passen Sie die Konfigurationsdatei `/etc/dhcp/dhcpd.conf` an und tragen Folgendes ein:
 
 [source,configfile]
 ----
-next-server <ip of opsi-server>;
+next-server <IP-opsi-Server>;
 filename "linux/pxelinux.0";
 ----
 
-Wobei '<ip of opsi-server>' durch die IP-Adresse des {opsi-Server}s zu ersetzen ist.
+Ersetzen Sie `<IP-opsi-Server>` durch die IP-Adresse Ihres opsi-Servers.
 
-Läuft der opsi-Server auf openSUSE oder SLES, so ist `filename=opsi/pxelinux.0`. +
-Läuft der opsi-Server auf UCS, so ist `filename=pxelinux.0`.
+Unter openSUSE und SLES lautet die zweite Zeile so:
 
-Bei einem Windows-Server sind die entsprechenden Einträge 'Startserver (Option 66)' und 'Startfile (Option 67)'.
+[source,configfile]
+----
+filename=opsi/pxelinux.0
+----
 
-Wenn Sie im {opsi-configed} einen Client erzeugen, müssen Sie die MAC-Adresse angeben, aber keine IP-Nummer.
+Unter UCS lautet die Zeile so:
+
+[source,configfile]
+----
+filename=pxelinux.0
+----
+
+Bei einem Windows-Server sind die entsprechenden Einträge `Startserver (Option 66)` und `Startfile (Option 67)`.
+
+NOTE: Wenn Sie einen externen DHCP-Server nutzen, geben Sie beim Erstellen eines Clients in der Management-Oberfläche `opsi-configed` dessen MAC-Adresse an, aber keine IP-Adresse.
 
 
 [[opsi-getting-started-installation-config-dhcp-backend]]
-=== Überprüfung/Anpassung Backendkonfiguration für DHCP-Nutzung
+=== Backend anpassen
+
 
 Je nachdem ob der interne oder ein externer DHCP-Server verwendet wird, muss die Konfiguration von opsi angepasst werden.
 
