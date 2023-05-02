@@ -173,7 +173,7 @@ Die Standardeinstellung nach der Installation ist: Das File-Backend steht an ers
 
 CAUTION: Achten Sie darauf, dass die erste Zeile (`backend_.*`) alle verwendeten Backends auflistet!
 
-Wenn Sie die Datei `dispatch.conf` bearbeitet haben, führen Sie anschließend die folgenden Befehle aus:
+Wenn Sie die Datei `dispatch.conf` bearbeitet haben, führen Sie anschließend die folgenden Befehle aus, um die Konfiguration zu initialisieren und opsi neu zu starten:
 
 [source,prompt]
 ----
@@ -298,16 +298,9 @@ Der opsi-Server kann als DHCP-Server arbeiten und angeschlossene Clients automat
 [[opsi-getting-started-installation-config-dhcp-at-opsi]]
 === DHCP auf dem opsi-Server
 
-NOTE: Die vorkonfigurierte virtuelle Maschine ist bereits mit einem DHCP-Server ausgestattet, der keine freien Leases hat, also keine IP-Adressen an Rechner vergibt. Wenn Sie über die Management-Oberfläche `opsi-configed` einen Client erzeugen, geben Sie daher dessen IP- und die MAC-Adresse an, die dann in die Konfigurationsdatei `/etc/dhcp/dhcpd.conf` eingetragen werden.
+NOTE: Die vorkonfigurierte virtuelle Maschine ist bereits mit einem DHCP-Server ausgestattet, der keine freien Leases hat, also keine IP-Adressen an unbekannte Clients vergibt. Wenn Sie über die Management-Oberfläche `opsi-configed` einen Client erzeugen, geben Sie daher dessen IP- und die MAC-Adresse an, um sie in die Konfigurationsdatei `/etc/dhcp/dhcpd.conf` einzutragen und den DHCP-Dienst neu zu starten.
 
-Nach einer solchen Änderung starten Sie den DHCP-Dienst neu:
-
-[source,prompt]
-----
-systemctl restart isc-dhcp-server
-----
-
-Wenn Sie den opsi-Server selbst installiert haben und als DHCP-Server verwenden möchten, installieren Sie das Paket nach. Seit opsi 4.0.3 wird dieses nicht mehr automatisch installiert.
+Wenn Sie den opsi-Server selbst installiert haben und als DHCP-Server verwenden möchten, installieren Sie das Paket `isc-dhcp-server` bzw. `dhcp-server`. Seit opsi 4.0.3 wird dieses nicht mehr automatisch installiert.
 
 Auf Debian-basierten Systemen geben Sie dazu das folgende Kommando ein:
 
@@ -316,7 +309,7 @@ Auf Debian-basierten Systemen geben Sie dazu das folgende Kommando ein:
 apt install isc-dhcp-server
 ----
 
-TIP: Je nach Distribution heißt das Paket auch `dhcp-server` (RHEL, Rocky Linux, AlmaLinux, SLES usw.) -- schauen Sie im Zweifelsfall im Handbuch nach.
+TIP: Auf vielen Distributionen heißt das Paket stattdessen `dhcp-server` (RHEL, Rocky Linux, AlmaLinux, SLES usw.) -- schauen Sie im Zweifelsfall im Handbuch bzw. in den Paketquellen des Linux-Systems nach.
 
 Nach der Installation passen Sie die Konfigurationsdatei an; dazu können Sie das Tool `opsi-setup` verwenden:
 
@@ -325,7 +318,7 @@ Nach der Installation passen Sie die Konfigurationsdatei an; dazu können Sie da
 opsi-setup --auto-configure-dhcpd
 ----
 
-Die Rechte der Datei `/etc/dhcp/dhcpd.conf` sollten wie folgt aussehen:
+Die Rechte der Datei der DHCP-Server-Konfigurationsdatei sollten wie folgt aussehen:
 
 [source,prompt]
 ----
@@ -359,7 +352,7 @@ Unter openSUSE und SLES lautet die zweite Zeile so:
 filename=opsi/pxelinux.0
 ----
 
-Unter UCS lautet die Zeile so:
+Unter UCS sieht die Zeile so aus:
 
 [source,configfile]
 ----
@@ -370,23 +363,20 @@ Bei einem Windows-Server sind die entsprechenden Einträge `Startserver (Option 
 
 NOTE: Wenn Sie einen externen DHCP-Server nutzen, geben Sie beim Erstellen eines Clients in der Management-Oberfläche `opsi-configed` dessen MAC-Adresse an, aber keine IP-Adresse.
 
-
 [[opsi-getting-started-installation-config-dhcp-backend]]
 === Backend anpassen
 
 Je nachdem, ob Sie den DHCP-Server auf dem opsi-Server oder als externen Dienst verwenden, sieht die Backend-Konfiguration anders aus. In der Datei `/etc/opsi/backendManager/dispatch.conf` legen Sie fest, welche opsi-Backends zum Einsatz kommen (siehe auch Abschnitt <<opsi-getting-started-installation-config-backend>>).
 
-Die beiden Zeilen `backend_.*` und `host_.*` steuern, ob der opsi-Server die Zuweisung von IP-Adressen zu den MAC-Adressen der Netzwerkkarten übernimmt. ## 
+Die beiden Zeilen `backend_.*` und `host_.*` steuern, ob der opsi-Server auch die lokale DHCP-Konfiguration, also die Zuweisung von IP-Adressen zu den MAC-Adressen der Netzwerkkarten, übernimmt. Das ist dann notwendig, wenn die DHCP-Einträge der opsi-Clients durch die opsi-Konfigurations-Aufrufe erzeugt werden sollen. In dem Fall sehen die beiden Zeilen in der Datei `dispatch.conf` so aus:
 
-In den Zeilen `backend_.*` und `host_.*` wird u.a. gesteuert, ob der {opsi-Server} auch die lokale DHCP-Konfiguration – also die Zuweisung von Internet-Adressen zu den Hardware-Adressen der Netzwerkkarten – mit übernimmt.
-Dies muss so eingerichtet sein, wenn für die {opsi-Client}s die DHCP-Einträge durch die opsi-Konfigurationsaufrufe erzeugt werden sollen. Der entsprechende Eintrag mit `file` Backend muss dann z.B. lauten:
 [source,configfile]
 ----
 backend_.*         : file, opsipxeconfd, dhcpd
 host_.*            : file, opsipxeconfd, dhcpd
 ----
 
-Wenn der {opsi-Server} den DHCP-Dienst nicht bereitstellen soll (weil ein anderer Server im lokalen Netz diese Aufgabe übernimmt und auch für die {opsi-Client}s gepflegt wird), so wird das Backend `dhcpd` nicht benötigt:
+Stellt der opsi-Server den DHCP-Dienst nicht bereit (weil ein anderer Server im lokalen Netz diese Aufgabe übernimmt), dann benötigen Sie das Backend `dhcpd` nicht:
 
 [source,configfile]
 ----
@@ -394,7 +384,7 @@ backend_.*         : file, opsipxeconfd
 host_.*            : file, opsipxeconfd
 ----
 
-Nach Anpassung der Backendkonfiguration muss die Konfiguration initialisiert und der {opsiconfd} neu gestartet werden:
+NOTE: Wenn Sie die Datei `dispatch.conf` bearbeitet haben, führen Sie anschließend die folgenden Befehle aus, um die Konfiguration zu initialisieren und opsi neu zu starten:
 
 [source,prompt]
 ----
@@ -403,7 +393,6 @@ opsi-set-rights
 systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 ----
-
 
 [[opsi-getting-started-installation-config-nameresolution]]
 == Namensauflösung

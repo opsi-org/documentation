@@ -173,7 +173,7 @@ The default setting after the installation is: The file backend comes first and 
 
 CAUTION: Make sure that all used backends are listed in the line starting with `backend_.*`.
 
-If you have edited the `dispatch.conf` file, then run the following commands:
+If you have edited the `dispatch.conf` file, then run the following commands to initialize the configuration and restart opsi:
 
 [source,prompt]
 ----
@@ -291,95 +291,92 @@ TIP: `opsi-set-rights` is equivalent to `opsi-setup --set-rights`.
 [[opsi-getting-started-installation-config-dhcp]]
 == DHCP Configuration
 
-A correctly working name resolution and DHCP are essential for the correctly functioning of opsi.
-To simplify the setup the {opsi-server} VM is supplied with a working DHCP server.
-On the other hand, in many environments there often already exists a DHCP server, which will be used with opsi.
-Both alternatives are described below.
+A properly configured name resolution (see section <<opsi-getting-started-installation-config-nameresolution>>) and DHCP (Dynamic Host Configuration Protocol) are important for opsi to work correctly. This section focuses on DHCP: the protocol ensures that newly integrated devices in the network are automatically configured. This includes, for example, the dynamic assignment of IP addresses, netmask, gateway, etc. 
 
+The opsi server can work as a DHCP server and configure connected clients automatically (section <<opsi-getting-started-installation-config-dhcp-at-opsi>>). In many environments, a DHCP server is already present; therefore, section <<opsi-getting-started-installation-config-at-other-server>> describes how to use that.
 
 [[opsi-getting-started-installation-config-dhcp-at-opsi]]
-=== Using a DHCP Server at the {opsi-server}
+=== DHCP on the opsi Server
 
-.Using the opsi-Server VM:
-The preconfigured opsi VM already has a DHCP server installed. +
-The DHCP server on the {opsi-server} VM is configured with no free leases, so no unknown clients will get an IP address from this DHCP server. +
-If you create a client on the {opsi-server} using {opsi-configed}, you must supply the IP address and MAC address of the client. This will be entered into `/etc/dhcp/dhcpd.conf` and the DHCP service will be restarted.
+NOTE: The preconfigured virtual machine is already equipped with a DHCP server that has no free leases, i.e. it doesn't assign IP addresses to unknown clients. Therefore, when you create a client through the `opsi-configed` management interface, you specify its IP address and the MAC address, which are then entered in the `/etc/dhcp/dhcpd.conf` configuration file. The DHCP service will be restarted after that.
 
-.Your own installation:
-If you want to use the opsi server as a DHCP server, you have to install the corresponding DHCP server package.
+If you have installed the opsi server yourself and want to use it as DHCP server, install the package `isc-dhcp-server` respectively `dhcp-server`. Since opsi 4.0.3 this is no longer installed automatically.
 
-e.g.
+On Debian-based systems, use the fowllowing command:
+
 [source,prompt]
 ----
 apt install isc-dhcp-server
 ----
 
-After the installation the dhcp configuration file has to be adjusted. This is done by the following command:
+TIP: On many distributions, the package is called `dhcp-server` instead (RHEL, Rocky Linux, AlmaLinux, SLES, etc.)--if in doubt, check the manual or the Linux system's package sources.
+
+After the installation, adjust the configuration file; you can use the `opsi-setup` tool for this:
+
 [source,prompt]
 ----
 opsi-setup --auto-configure-dhcpd
 ----
-To restart the DHCP server, as described in `/etc/opsi/backends/dhcpd.conf`, an entry in `/etc/sudoers` is required. This is created using the command:
-[source,prompt]
-----
-opsi-setup --patch-sudoers-file
-----
-The permissions for the dhcpd configuration file should look similar to this:
+
+The permissions of the DHCP server configuration file should be as follows:
+
 [source,prompt]
 ----
 -rw-r--r-- 1 opsiconfd opsiadmin 80174 Dec 22 14:37 /etc/dhcp/dhcpd.conf
 ----
 
-
 [[opsi-getting-started-installation-config-at-other-server]]
 === Using an External DHCP Server
 
-.Using the opsi-Server VM:
-If you use an external DHCP server, then you can uninstall the DHCP server on the {opsi-server}.
+NOTE: To uninstall the DHCP server of the preconfigured virtual machine, use the following command:
 
-This is done by entering this command:
 [source,prompt]
 ----
 apt remove isc-dhcp-server
 ----
 
-.Your own installation:
-Since opsi 4.0.3 a DHCP server will not be installed automatically in this situation.
-
-You have to configure the external DHCP server, so a PXE boot from the {opsi-server} is possible. If your external DHCP runs on Linux, then you need the following entries for the clients in the DHCP daemon configuration file (i.e. `etc/dhcp/dhcpd.conf`):
+If there is a DHCP server in your network, then configure it to enable PXE boot via the opsi server. If the service runs on a Linux machine, adjust the configuration file `/etc/dhcp/dhcpd.conf` and enter this:
 
 [source,configfile]
 ----
-next-server <ip of opsi-server>;
+next-server <IP-opsi-Server>;
 filename "linux/pxelinux.0";
 ----
 
-Replace '<ip of opsi-server>' with the IP address of your {opsi-server}.
+Replace `<IP-opsi-Server>` with the opsi server's IP address.
 
-If the opsi server runs on openSUSE or SLES, then `filename=opsi/pxelinux.0`. +
-If the opsi server runs on UCS, then `filename=pxelinux.0`.
+On openSUSE and SLES, the second line is like this:
 
-If you are using a Windows DHCP server, then the corresponding entries are 'bootserver (Option 66)' and 'bootfile (Option 67)'.
+[source,configfile]
+----
+filename=opsi/pxelinux.0
+----
 
-If you create a client on the {opsi-server}, then you only have to supply the MAC-address, but not the IP address.
+On UCS, the line looks like this:
 
+[source,configfile]
+----
+filename=pxelinux.0
+----
+
+On a Windows server, the corresponding entries are `bootserver (Option 66)` and `bootfile (Option 67)`.
+
+NOTE: If you are using an external DHCP server, when you create a client in the `opsi-configed` management interface, specify its MAC address, but not its IP address.
 
 [[opsi-getting-started-installation-config-dhcp-backend]]
-=== Checking the Backend Configuration for DHCP Entries
+=== Adjusting the Backend
 
-Regardless of whether or not you use an external DHCP server, the configuration of the {opsi-server} must be changed.
+Depending on whether you use the DHCP server on the opsi server or as an external service, the backend configuration looks different. In the file `/etc/opsi/backendManager/dispatch.conf` you define which opsi backends are used (see the section <<opsi-getting-started-installation-config-backend>>).
 
-The file `/etc/opsi/backendManager/dispatch.conf` defines which backends are used (i.e. 'file', 'mysql').
+The two lines `backend_.*` and `host_.*` control whether the opsi server also handles the local DHCP configuration, i.e. the assignment of IP addresses to the MAC addresses of the network cards. This is necessary if the DHCP entries of the opsi clients should be generated by the opsi configuration calls. In this case the two lines in the file `dispatch.conf` look like this:
 
-The lines with the `backend_.*` and `host_.*` entries configure whether or not the {opsi-server} should work with the local DHCP configuration.
-If you are using the DHCP server on the {opsi-server}, then the backend dhcpd has to be added here. The corresponding entry with `file` backend must then look like this:
 [source,configfile]
 ----
 backend_.*         : file, opsipxeconfd, dhcpd
 host_.*            : file, opsipxeconfd, dhcpd
 ----
 
-If the local DHCP service on the {opsi-server} isn't used (because another server in the local network performs this task, and is also used for the {opsi-Client}s), then the backend `dhcpd` is not required:
+If the opsi server does not provide the DHCP service (because another server in the local network handles this task), then you do not need the backend `dhcpd`:
 
 [source,configfile]
 ----
@@ -387,7 +384,7 @@ backend_.*         : file, opsipxeconfd
 host_.*            : file, opsipxeconfd
 ----
 
-After editing the backend configuration, the configuration has to be initialised and the {opsiconfd} service has to be restarted:
+NOTE: If you have edited the `dispatch.conf` file, then run the following commands to initialize the configuration and restart opsi:
 
 [source,prompt]
 ----
@@ -397,9 +394,8 @@ systemctl restart opsiconfd.service
 systemctl restart opsipxeconfd.service
 ----
 
-
 [[opsi-getting-started-installation-config-nameresolution]]
-== Configuration of the name resolution
+== Name Resolution
 
 To install software on the clients before login, generally only the clients have to know how to contact the {opsi-server}.
 
