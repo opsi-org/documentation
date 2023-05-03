@@ -22,7 +22,7 @@ LANGUAGE=de
 ACTION=
 VERSION=
 FAILURE_LEVEL=
-DEFAULT_VERSION="4.2"
+DEFAULT_VERSION="4.3"
 DRY_RUN=false
 FONTS_DIRECTORY="fonts"
 MANUAL_NAME=
@@ -54,7 +54,7 @@ if command -v git &> /dev/null; then
     then
         DEFAULT_VERSION=${currentbranch}
     else
-        DEFAULT_VERSION='4.2'
+        DEFAULT_VERSION='4.3'
     fi
 fi
 
