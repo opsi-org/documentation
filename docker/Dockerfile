@@ -1,4 +1,4 @@
-FROM debian:bullseye AS opsidoc-antora
+FROM debian:bookworm AS opsidoc-antora
 
 LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
@@ -13,7 +13,6 @@ RUN apt update \
 		bash-completion \
 		sudo \
 		make \
-		python2 \
 		python3 \
 		build-essential \
 		curl \
@@ -24,22 +23,20 @@ RUN apt update \
 		libgraphicsmagick1-dev \
 		graphicsmagick-libmagick-dev-compat \
 		musl-dev \
-		gcc \
 		vim \
 	&& apt clean
 
-RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_19.x | bash - \
 	&& sudo apt install -y nodejs \
-	&& npm -g config set user root \
 	&& npm install --global npm \
 	&& npm install --global gulp gulp-cli
 
 RUN gem install asciidoctor \
 	&& gem install compass \
 	&& gem install prawn-gmagick \
-	&& gem install public_suffix -v 4.0.7 \
+	&& gem install public_suffix \
 	&& gem install zurb-foundation \
-	&& gem install asciidoctor-pdf -v 1.6 \
+	&& gem install asciidoctor-pdf \
 	&& gem install asciidoctor-interdoc-reftext \
 	&& gem install sass \
 	&& gem install rouge

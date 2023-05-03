@@ -1,4 +1,4 @@
-FROM docker.uib.gmbh/opsi/opsidoc-antora:latest AS opsidoc-dev-container
+FROM docker.uib.gmbh/opsi/opsidoc-antora:bookworm AS opsidoc-dev-container
 
 LABEL maintainer Fabian Kalweit <f.kalweit@uib.de>
 
