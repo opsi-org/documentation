@@ -1,5 +1,4 @@
-# image: docker.uib.gmbh/opsi/opsidoc-asciidoctor:latest
-image: docker.uib.gmbh/fabian/opsidoc-antora:latest
+image: docker.uib.gmbh/opsi/opsidoc-antora:latest
 
 stages:
   - build
@@ -39,33 +38,27 @@ stages:
 #       - build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
 #     expire_in: 2 days
 
+.install_toolchain: &install_toolchain |
+  # Antora
+  npm install
+  # Antora-UI
+  cd antora-ui
+  npm install
+  cd ..
+
 .build_template: &build_template
   stage: build
-  script: |
-    sudo apt update
-    sudo apt install -y curl git
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-    sudo apt update
-    sudo apt install -y nodejs
-    sudo apt install -y build-essential
-    pwd 
-    ls
-    git --version
-    npm config set fetch-retry-mintimeout 20000
-    npm config set fetch-retry-maxtimeout 120000
-    npm i
-    npm install asciidoctor-interdoc-reftext
-    gem install asciidoctor-interdoc-reftext
-    gem install rouge
-    ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
-    echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi-$DOCUMENT.pdf"
-    if [[ "${DOCUMENT}" == "opsi"* ]]; then
-      test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-      test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
-    else
-      test -f build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
-      test -f build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
-    fi
+  script:
+    - *install_toolchain
+    - ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
+    - echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi-$DOCUMENT.pdf"
+    - if [[ "${DOCUMENT}" == "opsi"* ]]; then
+    -   test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
+    -   test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+    - else
+    -   test -f build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
+    -   test -f build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
+    - fi
   artifacts:
     paths:
       - build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
@@ -77,24 +70,14 @@ stages:
 
 build-antora-bonifax:
   stage: build
-  script: | 
-    sudo apt update
-    sudo apt install -y curl git
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-    sudo apt update
-    sudo apt install -y nodejs
-    sudo apt install -y build-essential
-    pwd 
-    ls
-    git --version
-    npm config set fetch-retry-mintimeout 20000
-    npm config set fetch-retry-maxtimeout 120000
-    npm i
-    npm install asciidoctor-interdoc-reftext
-    gem install asciidoctor-interdoc-reftext
-    gem install rouge
-    npx antora -v
-    npx antora --log-level=debug bonifax-playbook.yml
+  script:
+    - *install_toolchain
+    - cd antora-ui
+    - gulp bundle
+    - gulp bundle:pack
+    - cd ..
+    - npx antora -v
+    - npx antora --log-level=debug bonifax-playbook.yml
   artifacts:
     paths:
       - build/bonifax/site
@@ -102,24 +85,14 @@ build-antora-bonifax:
 
 build-antora:
   stage: build
-  script: | 
-    sudo apt update
-    sudo apt install -y curl git
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-    sudo apt update
-    sudo apt install -y nodejs
-    sudo apt install -y build-essential
-    pwd 
-    ls
-    git --version
-    npm config set fetch-retry-mintimeout 20000
-    npm config set fetch-retry-maxtimeout 120000
-    npm i
-    npm install asciidoctor-interdoc-reftext
-    gem install asciidoctor-interdoc-reftext
-    gem install rouge
-    npx antora -v
-    npx antora --log-level=debug antora-playbook.yml
+  script:
+    - *install_toolchain
+    - cd antora-ui
+    - gulp bundle
+    - gulp bundle:pack
+    - cd ..
+    - npx antora -v
+    - npx antora --log-level=debug antora-playbook.yml
   artifacts:
     paths:
       - build/docs-opsi-org/site
