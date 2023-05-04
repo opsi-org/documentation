@@ -75,13 +75,18 @@ class Linter:
 		while start_path.parent != start_path:
 			terms_file = start_path.joinpath("modules/common/partials/opsi_terms.adoc")
 			if terms_file.exists():
-				return terms_file
+				return terms_file.resolve()
 			start_path = start_path.parent
 		if not terms_file or not terms_file.exists():
 			raise FileNotFoundError("Terms file not found")
 
 	def check_terms(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
-		self.load_terms(self.find_terms_file(file.parent))
+		file = file.resolve()
+		terms_file = self.find_terms_file(file.parent)
+		if terms_file == file:
+			# Do not process the term file itself
+			return
+		self.load_terms(terms_file)
 
 		errors = []
 		for term in self._terms:
