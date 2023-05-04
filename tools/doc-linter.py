@@ -82,13 +82,12 @@ class Linter:
 
 	def check_terms(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
 		file = file.resolve()
+		errors = []
 		terms_file = self.find_terms_file(file.parent)
 		if terms_file == file:
 			# Do not process the term file itself
-			return
+			return errors, content
 		self.load_terms(terms_file)
-
-		errors = []
 		for term in self._terms:
 			for start_idx, end_idx, line_number, column_number in self.find_word(content, term.value):
 				error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
