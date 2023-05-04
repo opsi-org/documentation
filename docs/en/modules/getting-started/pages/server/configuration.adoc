@@ -75,7 +75,7 @@ sudo opsi-package-updater -v install
 
 Enter the password for the user `adminuser` at the prompt.
 
-The command updates current opsi packages, including the templates for OS deployments, from the opsi repositories. 
+The command updates current opsi packages, including the templates for OS deployments, from the opsi repositories.
 
 .Install the standard products on your opsi server.
 image::opsi-package-updater.png["Install the standard products on your opsi server.", pdfwidth=80%]
@@ -87,127 +87,21 @@ TIP: On our preconfigured virtual machine, you can alternatively double-click th
 
 In the virtual machine you can start the management interface `opsi-configed` by double-clicking on the desktop icon _Opsi Configuration Editor_. More information about this graphical application can be found in xref:manual:configed.adoc[Management Interface `opsi-configed`].
 
-[[opsi-getting-started-installation-config-backend]]
-== Backend Configuration
+[[opsi-getting-started-installation-configure-mysql]]
+== MySQL configuration
 
-opsi supports different backends. For data storage, there are basically these two:
-
-* *file*: data storage in files
-* *mysql*: data storage in a MySQL database
-
-NOTE: Some distributions use MariaDB instead of MySQL. The MySQL backend also works with MariaDB. The MySQL backend for inventory data is free. Read more about our paid extensions in chapter xref:manual:modules/modules.adoc[opsi Extensions].
-
-In addition, these backends exist for special purposes:
-
-* *opsipxeconfd*: the service for opsi network boot
-* *dhcpd*: for communication with the DHCP service on the opsi server
-* *jsonrpc*: execute {json-rpc} methods on an opsi server
-
-By default, the MySQL backend is used for inventory data. It is possible to use the file backend for inventory--this is significantly slower, though.
-
-=== MySQL Backend Configuration
-
-The following sections show how to set up the MySQL backend. We assume that you have installed and configured the MySQL server and that you know the credentials of the database administrator.
-
-TIP: If you use our preconfigured virtual machine, the password for the database administrator is `linux123`. For security reasons, you should change this in a production environment. For more information about MySQL, please refer to the manuals of your distribution.
-
-To initially configure the MySQL backend, enter the following command; it requires root privileges:
+If the MySQL service runs on the same machine as the opsiconfd, the configuration of the MySQL server usually takes place fully automatically. If necessary, manual configuration can be done at any time by calling the following command:
 
 [source,prompt]
 ----
-opsi-setup --configure-mysql
+opsiconfd setup --configure-mysql
 ----
 
-You'll see the following dialog:
-
-.Configure the MySQL backend for the opsi server.
-image::mysql-config-input-mask.png["Configure the MySQL backend for the opsi server.", pdfwidth=80%]
-
-Enter `localhost` in the `Database host` field, the `Database admin user` is `root` (if not configured otherwise), and in the `Database admin password` field you have to enter the administrator password set up during the MySQL server installation. You can accept the other default settings. Use the [Tab] key to navigate to `OK` and press [Enter].
-
-After that the new database `opsi` and a new user `opsi` with appropriate permissions for this database will be created.
-
-.The new database and a user have been created.
-image::mysql-config-output.png["The new database and a user have been created.", pdfwidth=80%]
-
-You should see the message `MySQL Backend configuration done`.
-
-=== Assigning Methods and Backends
-
-opsi can store different data in different backends. For some actions (such as method calls) more than one backend is involved. For this purpose, the configuration file `/etc/opsi/backendManager/dispatch.conf` assigns the opsi methods to the backends.
-
-Here's an example:
-[source,configfile]
-----
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-# =      backend dispatch configuration                                     =
-# = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-#
-# This file configures which methods are dispatched to which backends.
-# Entries has to follow the form:
-# <regular expression to match method name(s)> : <comma separated list of backend name(s)>
-#
-# Backend names have to match a backend configuration
-# file basename <backend name>.conf beneath /etc/opsi/backends.
-# For every method executed on backend dispatcher
-# the first matching regular expression will be decisive.
-
-# Recommended standard configuration (dhcpd not at the opsi server)
-#    file as main backend, mysql as hw/sw invent
-#     and license management backend and {opsipxeconfd} backend:
-backend_.*         : file, mysql, {opsipxeconfd}
-host_.*            : file, {opsipxeconfd}
-productOnClient_.* : file, {opsipxeconfd}
-configState_.*     : file, {opsipxeconfd}
-license.*          : mysql
-softwareLicense.*  : mysql
-audit.*            : mysql
-.*                 : file
-----
-
-The first few lines contain comments (behind a hashtag symbol), followed by example setups and explanations. At the bottom, in the lines that are not commented out, you can see the name of the opsi methods (with wildcard `.*`), a colon and then a list of backends used by that opsi method.
-
-For every method call opsi uses this list to check which backends it has to address. It uses the first line that matches the name of the method. The last line (`.*`) matches all opsi method calls.
-
-The default setting after the installation is: The file backend comes first and is the main backend, except for license management and hardware/software inventory. Here, the MySQL backend takes over. 
-
-WARNING: Make sure that all used backends are listed in the line starting with `backend_.*`.
-
-If you have edited the `dispatch.conf` file, then run the following commands to initialize the configuration and restart opsi:
-
-[source,prompt]
-----
-opsi-setup --init-current-config
-opsi-set-rights
-systemctl restart opsiconfd.service
-systemctl restart opsipxeconfd.service
-----
-
-The commands apply the change to the opsi database, set the permissions and restart the two services `opsiconfd` and `opsipxeconfd`.
-
-[[opsi-getting-started-installation-config-passwords]]
-== Samba Configuration
-
-To ensure that the Samba shares required for opsi are available, please run the following command:
-
-[source,prompt]
-----
-opsi-setup --auto-configure-samba
-----
-
-After that restart the samba services:
-
-[source,prompt]
-----
-systemctl restart smbd.service
-systemctl restart nmbd.service
-----
-
-TIP: If you are asked if you want to overwrite the `smb.conf` file when you upgrade the opsi server packages, confirm this. If you changed the `/etc/samba/smb.conf` file before the upgrade, keep it and merge the files later.
+The program then guides you interactively through the setup.
 
 === Password for User `pcpatch`
 
-A pseudo user `pcpatch` exists on the opsi server. Clients log in with this account to install software and to get access to the installation files on the Samba shares. The `pcpatch` user requires a password that applies to the system account, the Samba account, and the opsi account. You can set this password for all three accounts with one single `opsi-admin` command:
+A user `pcpatch` exists on the opsi server. When using CIFS for access to the opsi depot the clients use this account when installing software packages and have access to the installation files on the designated shares after logging in. The `pcpatch` user requires a password that applies to the system account, the Samba account, and the opsi account. You can set this password for all three accounts with one single `opsi-admin` command:
 
 [source,prompt]
 ----
@@ -248,14 +142,14 @@ Next, add the `adminuser` account to the `opsiadmin` group:
 
 [source,prompt]
 ----
-usermod -aG {opsi-admin-group} adminuser
+usermod -aG opsiadmin adminuser
 ----
 
 You can use the `getent` command to check that this was successful:
 
 [source,prompt]
 ----
-getent group {opsi-admin-group}
+getent group opsiadmin
 opsiadmin:x:1001:opsiconfd,adminuser,root
 ----
 
@@ -268,30 +162,22 @@ All users who package (`opsi-makepackage`), install (`opsi-package-manager`) or 
 
 [source,prompt]
 ----
-usermod -aG {opsi-file-admin-group} adminuser
+usermod -aG opsifileadmins adminuser
 ----
 
 Again, you can use `getent` to check the result:
 
 [source,prompt]
 ----
-getent group {opsi-file-admin-group}
+getent group opsifileadmins
 opsifileadmins:x:999:adminuser,root
 ----
 
-To allow members of the `opsifileadmins` group to run `sudo opsi-set-rights`, run the following command:
-
-[source,prompt]
-----
-opsi-setup --patch-sudoers-file
-----
-
-TIP: `opsi-set-rights` is equivalent to `opsi-setup --set-rights`.
 
 [[opsi-getting-started-installation-config-dhcp]]
 == DHCP Configuration
 
-A properly configured name resolution (see section <<opsi-getting-started-installation-config-nameresolution>>) and DHCP (Dynamic Host Configuration Protocol) are important for opsi to work correctly. This section focuses on DHCP: the protocol ensures that newly integrated devices in the network are automatically configured. This includes, for example, the dynamic assignment of IP addresses, netmask, gateway, etc. 
+A properly configured name resolution (see section <<opsi-getting-started-installation-config-nameresolution>>) and DHCP (Dynamic Host Configuration Protocol) are important for opsi to work correctly. This section focuses on DHCP: the protocol ensures that newly integrated devices in the network are automatically configured. This includes, for example, the dynamic assignment of IP addresses, netmask, gateway, etc.
 
 The opsi server can work as a DHCP server and configure connected clients automatically (section <<opsi-getting-started-installation-config-dhcp-at-opsi>>). In many environments, a DHCP server is already present; therefore, section <<opsi-getting-started-installation-config-at-other-server>> describes how to use that.
 
@@ -300,30 +186,16 @@ The opsi server can work as a DHCP server and configure connected clients automa
 
 NOTE: The preconfigured virtual machine is already equipped with a DHCP server that has no free leases, i.e. it doesn't assign IP addresses to unknown clients. Therefore, when you create a client through the `opsi-configed` management interface, you specify its IP address and the MAC address, which are then entered in the `/etc/dhcp/dhcpd.conf` configuration file. The DHCP service will be restarted after that.
 
-If you have installed the opsi server yourself and want to use it as DHCP server, install the package `isc-dhcp-server` respectively `dhcp-server`. Since opsi 4.0.3 this is no longer installed automatically.
+If you have installed the opsi server yourself and want to use it as DHCP server, install the package `isc-dhcp-server` respectively `dhcp-server`.
 
-On Debian-based systems, use the fowllowing command:
+On Debian-based systems, use the following command:
 
 [source,prompt]
 ----
 apt install isc-dhcp-server
 ----
 
-TIP: On many distributions, the package is called `dhcp-server` instead (RHEL, Rocky Linux, AlmaLinux, SLES, etc.)--if in doubt, check the manual or the Linux system's package sources.
-
-After the installation, adjust the configuration file; you can use the `opsi-setup` tool for this:
-
-[source,prompt]
-----
-opsi-setup --auto-configure-dhcpd
-----
-
-The permissions of the DHCP server configuration file should be as follows:
-
-[source,prompt]
-----
--rw-r--r-- 1 {opsiconfd} {opsi-admin-group} 80174 Dec 22 14:37 /etc/dhcp/dhcpd.conf
-----
+TIP: On many distributions, the package is called `dhcp-server` instead (RHEL, Rocky Linux, AlmaLinux, SLES, etc.) -- if in doubt, check the manual or the Linux system's package sources.
 
 [[opsi-getting-started-installation-config-at-other-server]]
 === Using an External DHCP Server
@@ -339,7 +211,7 @@ If there is a DHCP server in your network, then configure it to enable PXE boot 
 
 [source,configfile]
 ----
-next-server <IP-opsi-Server>;
+next-server <IP-opsi-server>;
 filename "linux/pxelinux.0";
 ----
 
