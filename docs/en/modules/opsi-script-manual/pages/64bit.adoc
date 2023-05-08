@@ -31,6 +31,40 @@ But a access to `c:\program files` will be *not* redirected to `c:\program files
 
 A registry access to '[HKLM\software\opsi.org]' will be redirected to '[HKLM\software\wow6432node\opsi.org]'
 
+.Registry Redirection basic rule
+[cols="30,13"]
+|==========================
+|Key | Windows Server 2008 R2, Windows 7, and Newer
+|HKEY_LOCAL_MACHINE\SOFTWARE | Redirected
+|HKEY_CURRENT_USER\SOFTWARE	| Shared
+|==========================
+
+This basic rule you should keep in mind. +
+Looking to the details it is more complicated. A hive that is redirected may have a sub hive that is not redirected (_shared_). And these hives may have sub hives ther are redirected again.
+
+.Registry Redirection more details
+[cols="30,13"]
+|==========================
+|Key | Windows Server 2008 R2, Windows 7, and Newer
+|HKEY_LOCAL_MACHINE\SOFTWARE | Redirected
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes | Shared
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes\CLSID | Redirected
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes\DirectShow | Redirected
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Interface | Redirected
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes\Media Type | Redirected
+|HKEY_LOCAL_MACHINE\SOFTWARE\Classes\MediaFoundation | Redirected
+|HKEY_CURRENT_USER | Shared
+|HKEY_CURRENT_USER\SOFTWARE\Classes\CLSID | Redirected
+|HKEY_CURRENT_USER\SOFTWARE\Classes\DirectShow | Redirected
+|HKEY_CURRENT_USER\SOFTWARE\Classes\Interface | Redirected
+|HKEY_CURRENT_USER\SOFTWARE\Classes\Media Type | Redirected
+|HKEY_CURRENT_USER\SOFTWARE\Classes\MediaFoundation | Redirected
+|==========================
+
+This table does still not show the complete situation. The complete table with all details you will find here: +
+https://learn.microsoft.com/en-us/windows/win32/winprog64/shared-registry-keys#redirected-shared-and-reflected-keys-under-wow
+
+
 Therefore _{opsi-script}_ installs as 32 bit program scripts, that run on 32 bit system fine, on 64 bit system correct without any change.
 
 For the installation of 64 bit programs some constants like `%ProgramFilesDir%` returns the wrong values. Therefore we have since _{opsi-script}_ 4.10.8 some new features:
@@ -101,108 +135,3 @@ Example:
 DosInAnIcon_do_64bit_stuff winst /64Bit
 ----
 
-In addition to these _{opsi-script}_ functions, we copy at the installation of the opsi-client agent the (64 bit) file `c:\windows\system32\cmd.exe` to `c:\windows\cmd64.exe`. Using this `cmd64.exe` with 'ExecWith' sections you may call any 64 bit operations on the command line.
-
-Examples:
-
-File handling:
-[source,opsiscript]
-----
-if $INST_SystemType$ = "64 Bit System"
-	comment ""
-	comment "------------------------------"
-	comment "Testing: "
-	message "64 Bit redirection"
-	Files_copy_test_to_system32
-	if FileExists("%System%\dummy.txt")
-		comment "passed"
-	else
-		LogWarning "failed"
-		set $TestResult$ = "not o.k."
-	endif
-	ExecWith_remove_test_from_system32 'cmd.exe' /C
-	Files_copy_test_to_system32 /64Bit
-	if FileExists64("%System%\dummy.txt")
-		comment "passed"
-	else
-		LogWarning "failed"
-		set $TestResult$ = "not o.k."
-	endif
-	ExecWith_remove_test_from_system32 '%SystemRoot%\cmd64.exe' /C
-endif
-----
-
-Registry Handling:
-[source,opsiscript]
-----
-message "Write to 64 Bit Registry"
-if ($INST_SystemType$ = "64 Bit System")
-	set $ConstTest$ = ""
-	set $regWriteValue$ = "64"
-	set $CompValue$ = $regWriteValue$
-	Registry_opsi_org_test /64Bit
-	ExecWith_opsi_org_test "%systemroot%\cmd64.exe" /c
-	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-	set $regWriteValue$ = "32"
-	set $CompValue$ = $regWriteValue$
-	Registry_opsi_org_test
-	ExecWith_opsi_org_test "cmd.exe" /c
-	set $ConstTest$ = GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-	set $ConstTest$ = GetRegistryStringValue("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-else
-	set $regWriteValue$ = "32"
-	set $CompValue$ = $regWriteValue$
-	Registry_opsi_org_test /64Bit
-	ExecWith_opsi_org_test "cmd.exe" /c
-	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByWinst")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-	set $ConstTest$ = GetRegistryStringValue64("[HKEY_LOCAL_MACHINE\SOFTWARE\opsi.org\test] bitByReg")
-	if ($ConstTest$ = $CompValue$)
-		comment "passed"
-	else
-		set $TestResult$ = "not o.k."
-		comment "failed"
-	endif
-endif
-
-if ($INST_SystemType$ = "64 Bit System")
-	set $regWriteValue$ = "64"
-	Registry_hkcu_opsi_org_test /AllNtUserDats /64Bit
-	set $regWriteValue$ = "32"
-	Registry_hkcu_opsi_org_test /AllNtUserDats
-else
-	set $regWriteValue$ = "32"
-	Registry_hkcu_opsi_org_test /AllNtUserDats
-	Registry_hkcu_opsi_org_test /AllNtUserDats /64Bit
-endif
-----
