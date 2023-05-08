@@ -1,0 +1,1397 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      17.03.2023
+:Revision:  4.2
+:toclevels: 6
+
+
+ifeval::["{mode}" == "antora"]
+include::common:partial$opsi_terms.adoc[]
+endif::[]
+
+
+[[opsi-manual-configuration-tools]]
+= opsi-Kommandozeilen-Werkzeuge und Prozesse
+
+[[opsi-manual-configuration-tools-opsi-cli]]
+== Werkzeug: _opsi-cli_
+
+opsi hat mit der Zeit einige Kommandozeilen Befehle und opsi-python Skripte erhalten. Darunter fallen unter anderem `opsi-setup` oder `opsi-admin` und weitere. Da nicht alle Kommandozeilenbefehle zur gleichen Zeit entstanden sind, hat jedes eine eigene Parameterbehandlung und unterschiedlichste Ausgaben. Vieler dieser Komponenten nutzen für Backend-Operationen das Standard RPC-Interface, während viele den {opsi-webservice} umgehen und direkt auf dem Backend arbeiten. Die neue opsi-cli hat als Ziel dies alles zur Verfügung zu stellen und darüber hinaus noch viel mehr. Gleichzeitig wurde mit opsi-cli ein Plugin-System implementiert, welches den opsi-Anwendern ermöglicht durch eigene Plugins die Funktion von opsi-cli zu erweitern. Im Folgenden wird beschrieben, wie die neue `opsi-cli` genutzt werden kann.
+
+[[opsi-manual-configuration-tools-opsi-cli-installation]]
+=== _opsi-cli_ Installation
+
+`opsi-cli` wird offiziell mit dem opsi-utils Paket auf den opsi-Servern installiert. Somit ist eine manuelle Installation nicht nötig. `opsi-cli` lässt sich als Clientkomponente auch außerhalb des {opsi-server}s einsetzen, die Kommunikation findet ausschließlich über den {opsi-webservice} statt. Deshalb ist das opsi-cli auch für Linux, Windows und MacOS als opsi-Paket verfügbar.
+
+INFO: Um die opsi-cli außerhalb des {opsi-server}s ein zu setzen müssen Zugangsdaten zum {opsi-webservice} übergeben werden. Eine Möglichkeit ist über die Optionen `--service`, `--username`, `--password` oder man speichert die Zugangsdaten lokal auf dem Client (siehe `opsi-cli config service add --help`)
+
+`opsi-cli` ist ein direkt lauffähiges Binary und kann portabel eingesetzt werden. Wenn man das Binary auf einem Client in den Pfad installieren möchte, kann man `opsi-cli` selbst dafür nutzen:
+
+[source,prompt]
+----
+opsi-cli self --help
+----
+
+image::opsi-cli-self-help.png["Ausgabe: opsi-cli self --help", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-usage]]
+=== _opsi-cli_ Nutzung
+
+`opsi-cli` ist ein Python-Binary, welches über Kommandos gesteuert wird. Ähnlich wie bei docker oder kubectl. Dabei kann jedes Kommando einen oder mehrere Unterkommandos enthalten (im weiteren als Subkommando bezeichnet). Im folgenden werden erst die Grundfunktionalitäten und dann die schon verfügbaren Kommandos (`Commands`) vorgestellt. An jeder Stelle des Aufrufs gibt es die Möglichkeit sich eine Hilfeseite anzeigen zu lassen, zum Beispiel: `opsi-cli --help` oder `opsi-cli config --help`.
+
+Der allgemeine Aufruf von opsi-cli sieht folgendermaßen aus:
+
+[source,prompt]
+----
+opsi-cli [OPTIONS] COMMAND [ARGS]...
+----
+
+Die Optionen direkt nach dem `opsi-cli` Aufruf selbst gelten als globale Konfiguration und gelten auch für alle Subkommandos. Es gibt drei Hauptkategorien bei den globalen Optionen.
+
+[[opsi-manual-configuration-tools-opsi-cli-globaloptions]]
+==== Allgemeine Optionen
+
+In diesem Segment lässt sich der allgemeine Ablauf und das Logverhalten beeinflussen.
+
+image::opsi-cli-general-options.png["Ausgabe: opsi-cli general options", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-formatoptions]]
+==== Ausgabeoptionen
+
+Mit opsi-cli lässt sich die Ausgabe aller Subkommandos vereinheitlichen und bietet diverse Formate und Filtermöglichkeiten.
+
+image::opsi-cli-io-options.png["Ausgabe: opsi-cli io options", pdfwidth=90%]
+
+Im folgenden noch ein Beispiel, wie sich die Ausgabe beeinflussen lässt:
+
+[source,prompt]
+----
+opsi-cli jsonrpc execute host_getObjects [] '{"id":"client*.domain.local"}'
+----
+
+[source,json]
+----
+[
+  {
+    "description": "",
+    "notes": "Created by opsi-deploy-client-agent at Mon, 26 Sep 2022 17:19:29",
+    "id": "client-linux.domain.local",
+    "hardwareAddress": "08:00:27:f5:1d:8e",
+    "ipAddress": "192.168.56.11",
+    "inventoryNumber": "",
+    "systemUUID": null,
+    "opsiHostKey": null,
+    "created": "2022-09-26 17:19:29",
+    "lastSeen": "2023-03-08 12:13:10",
+    "oneTimePassword": null,
+    "type": "OpsiClient",
+    "ident": "client-linux.domain.local"
+  },
+  ...
+]
+----
+
+Der selbe Aufruf mit verschiedenen Formaten und auf drei Attribute gefiltert:
+
+[source,prompt]
+----
+opsi-cli --output-format table --attributes id,type,lastSeen jsonrpc execute host_getObjects [] '{"id":"client*.domain.local"}'
+----
+
+image::opsi-cli-table-format.png["Tabellenformat", pdfwidth=70%]
+
+[source,prompt]
+----
+opsi-cli --output-format csv --attributes id,type,lastSeen jsonrpc execute host_getObjects [] '{"id":"client*.domain.local"}'
+...
+id;lastSeen;type
+client-linux.domain.local;2023-03-08 12:13:10;OpsiClient
+client-macos.domain.local;2023-03-15 14:55:37;OpsiClient
+client-win10.domain.local;2023-03-15 15:13:46;OpsiClient
+----
+
+Durch die Option `--output-file` lässt sich ebenfalls die Ausgabe direkt in eine Datei schreiben.
+
+[[opsi-manual-configuration-tools-opsi-cli-serviceoptions]]
+==== Service Optionen
+
+Bei einem Einsatz außerhalb des {opsi-server}s müssen Zugangsdaten für den {opsi-webservice} genutzt werden. Mit folgenden Optionen lassen sich die Zugangsdaten direkt beim Aufruf zu übergeben (alternativ dazu kann man die Zugangsdaten lokal auf dem Client speichern. Für mehr Informationen zu dieser Alternative: `opsi-cli config service add --help`). Es lassen sich auch verschiedene Service-Konfigurationen als Profile hinterlegen, falls mehr als ein opsi-System gemanaged werden soll.
+
+image::opsi-cli-service-options.png["Ausgabe: opsi-cli service options", pdfwidth=90%]
+
+[[opsi-manual-configuration-tools-opsi-cli-commands]]
+=== Kommandos
+
+Im Folgenden werden die aktuell verfügbaren Kommandos erläutert.
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-config]]
+==== config
+
+Über dieses Kommando lässt sich die `opsi-cli`-Konfiguration anpassen:
+
+[source,prompt]
+----
+opsi-cli config --help
+----
+
+image::opsi-cli-config-help.png["Ausgabe: opsi-cli config --help", pdfwidth=90%]
+
+Mit folgendem Befehl kann man sich die aktuelle Konfiguration und deren Defaulteinstellungen ausgeben lassen:
+
+[source,prompt]
+----
+opsi-cli config list
+----
+
+image::opsi-cli-config-list.png["Ausgabe: opsi-cli config list", pdfwidth=90%]
+
+Um einen Wert persistent zu setzen, kann man `opsi-cli config set <name> <value>` verwenden. Dieser Wert gilt dann für alle folgenden Aufrufe von `opsi-cli`. Um ihn wieder zu entfernen, gibt es `opsi-cli config unset <name>`. Für die Verwaltung von gespeicherten service-Zugängen gibt es `opsi-cli config service` mit den Befehlen `add`, `list` und `remove`.
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-jsonrpc]]
+==== jsonrpc
+
+Mit diesem Kammando erhält man direkten Zugriff auf die Opsi-Webservice-API. Damit ist `opsi-cli` ein komplettes "Drop-In-Replacement" für den opsi-admin. jsonrpc hat zwei Subkommandos. Mit `opsi-cli jsonrpc methods` erhält man eine Liste von allen verfügbaren API-Methoden und Parameter. In dieser Liste wird ebenfalls angezeigt, ob die Methode als "deprecated" markiert ist und in diesem Fall auch eine alternative Methode als empfohlene Ausweichmöglichkeit angegeben. Diese Methoden erscheinen auch im Log. Allerdings hat die Erfahrung gezeigt, dass diese Meldungen in der Praxis nicht wahrgenommen werden. Hier hat man direkt Zugriff auf den aktuellen Stand. Das zweite Subkammando `execute` führt die API-Methode aus. Die Syntax für den Auruf selbst ähnelt dabei stark der Nutzung mit opsi-admin.
+
+Im Folgenden ein direkter Vergleich:
+
+[source,bash]
+----
+opsi-cli jsonrpc execute authenticated
+----
+
+Alte Variante:
+[source,bash]
+----
+opsi-admin method authenticated
+----
+
+Die Methodenparameter werden dabei absolut identisch übergeben. Hier noch ein etwas komplizierteres Beispiel zur Verdeutlichung:
+
+[source,bash]
+----
+opsi-cli jsonrpc execute host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+Alte Variante:
+[source,bash]
+----
+opsi-admin method host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+Bei den Beispielen wurde bewusst auf die Option -d von opsi-admin verzichtet. Die Umgehung des {opsi-webservice} hat in der Vergangenheit zu Problemen innerhalb des opsi-Systems geführt. Deshalb ist der Weg zur API nur noch über den {opsi-webservice} möglich und `opsi-cli` unterstützt diesen Modus erst gar nicht. Auf einem {opsi-server} direkt braucht man keine Zugangsdaten, diese werden aus der Serverkonfiguration automatisch ausgelesen. Dadurch das alles nur noch über den {opsi-webservice} geht, kann man opsi von überall managen. Um `opsi-cli` in Skripten oder Cronjobs außerhalb des {opsi-server}s zu nutzen müssen vorher die Zugangsdaten hinterlegt werden.
+
+Auch hier lassen sich die Ausgabeformate wie überall bei `opsi-cli` beeinflussen:
+
+[source,bash]
+----
+opsi-cli --output-format table --attributes id,created,lastSeen jsonrpc execute host_getObjects '["created","lastSeen"]' '{"id":"testclient01.uib.local"}'
+----
+
+Für die Verwendung unter Windows sollte man beachten, dass ggfs Escape-Sequenzen genutzt werden müssen, da einfache und doppelte Anführungszeichen von cmd und powershell anders interpretiert werden. Das folgende Beispiel verdeutlicht das unterschiedliche Verhalten (und listet alle Depots in einer Umgebung auf):
+
+unix shell:
+[source,bash]
+----
+opsi-cli jsonrpc execute host_getObjects [] '{"type":"OpsiDepotserver"}'
+----
+
+cmd:
+[source,cmd]
+----
+opsi-cli jsonrpc execute host_getObjects [] {\"type\":\"OpsiDepotserver\"}
+----
+
+powershell (vor Version 7):
+[source,powershell]
+----
+opsi-cli jsonrpc execute host_getObjects [] '{\"type\":\"OpsiDepotserver\"}'
+----
+
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-client-actions]]
+==== client-action
+
+Das Kommando `client-action` gibt die Möglichkeit die opsi-Clients zu managen. `client-action` bietet selbst in erster Linie Optionen, um die Liste der Clients zu beeinflussen, auf die sich die Aktionen auswirken:
+
+[source,prompt]
+----
+opsi-cli client-action --help
+----
+
+image::opsi-cli-client-action-help.png["Ausgabe: opsi-cli client-action --help", pdfwidth=90%]
+
+Aktuell unterstützt dieses Kammando ein weiteres Subkommando `set-action-request`, welches {product-actions} für Clients setzt. Es ist vergleichbar mit den tasks von opsi-admin, arbeitet aber nach einem Auschlussprinzip. Das heißt ohne expizite Angabe und Filterung der Clients und Produkte wirk sich die Aktion auf alles aus. Unterhalb dieses Subkommandos gibt es weitere Optionen, um die Produkte zu filtern, auf diese die Aktion eine Auswirkung hat:
+
+[source,prompt]
+----
+opsi-cli client-action set-action-request --help
+----
+
+image::opsi-cli-set-action-request-help.png["Ausgabe: opsi-cli client-action set-action-request --help", pdfwidth=90%]
+
+Hier einige Beispiele:
+
+WARNING: Beim Aufruf ohne explizite Angabe von Clients und Produkten, wirkt sich der Befehl auf alle Clients und alle Produkte aus. Um Fehlern vorzubeugen, lässt opsi-cli nicht zu, dass set-action-request ohne mindestens eins von "--where-outdated", "--where-failed", "--products", "--product-groups" ausgeführt wird.
+
+Um für alle Clients alle veralteten Produkte auf `setup` zu setzen:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --where-outdated
+----
+
+Um für einen Client ein bestimmtes Produkt auf `setup` zu setzen:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products {opsi-client-agent}
+
+[5] [2022-10-28 12:54:59.998] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 12:55:00.055] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 12:55:00.065] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+Der Produktstatus `setup` ist dabei der Default, wenn man das selbe Paket auf uninstall setzen möchte:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products {opsi-client-agent} --request-type uninstall
+
+[5] [2022-10-28 12:57:06.848] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 12:57:06.904] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 12:57:06.914] [               ] Setting 'uninstall' ProductActionRequest: {opsi-client-agent} -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+Um einen Actionrequest für einen Client für ein bestimmtes Produkt zurück zu setzen wird der schalter `None` verwendet (`none` wird ebenfalls akzeptiert):
+
+[source,bash]
+----
+opsi-cli -l5 client-action --clients test-98.domain.tld set-action-request --products {opsi-client-agent} --request-type None
+
+[5] [2022-10-28 14:12:50.538] [               ] Selected clients: ['test-98.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 14:12:50.574] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 14:12:50.580] [               ] Setting 'None' ProductActionRequest: {opsi-client-agent} -> test-98.domain.tld   (set_action_request_worker.py:134)
+----
+
+Im Falle, dass ein Fehler in einem Produkt gefunden wird, sollte man alle {product-actions} auf den Clients temporär zurücknehmen, damit das fehlerhafte Produkt nicht weiter verteilt wird:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --products {opsi-client-agent} --request-type None
+----
+
+Sollte das Produkt wieder fehlerfrei zur Verfügung stehen, können alle veralteten oder fehlerhaften Produktstati wieder auf setup gesetzt werden:
+
+[source,bash]
+----
+opsi-cli client-action set-action-request --where-outdated --where-failed
+----
+
+Um für eine Clientgruppe ein bestimmtes Produkt auf setup zu setzen:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --client-groups testclients set-action-request --products {opsi-client-agent}
+
+[5] [2022-10-28 13:03:24.100] [               ] Selected clients: ['test-1.domain.tld', 'test-2.domain.tld', 'test-3.domain.tld', 'test-4.domain.tld', 'test-5.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 13:03:24.159] [               ] Handling products ['opsi-client-agent']   (set_action_request_worker.py:105)
+[5] [2022-10-28 13:03:24.169] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:03:24.170] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-5.domain.tld   (set_action_request_worker.py:134)
+----
+
+Um für die Clientgruppe eine Produktgruppe auf setup zu setzen:
+
+[source,bash]
+----
+opsi-cli -l5 client-action --client-groups testclients set-action-request --product-groups testproducts
+
+[5] [2022-10-28 13:05:53.147] [               ] Selected clients: ['test-1.domain.tld', 'test-2.domain.tld', 'test-3.domain.tld', 'test-4.domain.tld', 'test-5.domain.tld']   (client_action_worker.py:48)
+[5] [2022-10-28 13:05:53.225] [               ] Handling products ['hwaudit', 'opsi-client-agent', 'swaudit']   (set_action_request_worker.py:105)
+[5] [2022-10-28 13:05:53.236] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-1.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.237] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-2.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.238] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-3.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-4.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: hwaudit -> test-5.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.239] [               ] Setting 'setup' ProductActionRequest: {opsi-client-agent} -> test-5.domain.tld   (set_action_request_worker.py:134)
+[5] [2022-10-28 13:05:53.240] [               ] Setting 'setup' ProductActionRequest: swaudit -> test-5.domain.tld   (set_action_request_worker.py:134)
+----
+
+Bei den Automatismen `--where-outdated` und `--where-failed` wird stillschweigend eine Liste von festen Paketen ausgeschlossen. Diese Pakete sind im Moment "opsi-winst", "opsi-auto-update","opsi-script", "shutdownwanted", "windows10-upgrade", "activate-win", "opsi-script-test", "opsi-bootimage-local", "opsi-uefi-netboot", "opsi-wan-config-on", "opsi-wan-config-off", "opsi-winpe", "win10-sysprep-app-update-blocker", "windomain". Es ist möglich, weitere Produkte (oder Produktgruppen) auszuschließen. Noch sicherer ist es, eine Produktgruppe zu pflegen und explizit anzugeben, um die Änderungen auf diese Gruppe zu beschränken.
+
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-plugin]]
+==== plugin
+
+Das Kommando `plugin` dient zur Verwaltung der Plugins. Alle Kommandos in `opsi-cli` sind als Plugins eingebunden, dass betrifft auch das Kommando `plugin` selbst. Es ist möglich neue Plugins von außen auf das System hierüber zu installieren, aber auch auf dem System laufende Plugins aus dem System zu extrahieren.
+
+[source,prompt]
+----
+opsi-cli plugin --help
+----
+
+image::opsi-cli-plugin-help.png["Ausgabe: opsi-cli plugin --help", pdfwidth=90%]
+
+Ein template für ein neues Plugin kann generiert werden mittels
+
+[source,prompt]
+----
+opsi-cli plugin new
+----
+
+Nachdem man Angaben zu Name, Version und Beschreibung gemacht hat, wird ein Verzeichnis mit dem gewählten Namen angelegt. Darin enthalten sind die Verzeichnisse `python` und `data`.
+`python` repräsentiert ein python-package und kann mit dem code für das neue Plugin gefüllt werden. Der entrypoint dafür ist in der `__init__.py` und ist schon vorgefüllt mit einem Kommando, einem Subkommando und ein paar Optionen als Beispiel. `data` beinhaltet statische Ressourcen für das Plugin und kann in der Regel ignoriert werden.
+
+Nachdem das template mit Inhalt gefüllt wurde, kann der code als Plugin der laufenden `opsi-cli`-Instanz hinzugefügt werden.
+
+[source,prompt]
+----
+opsi-cli plugin add <directory>
+----
+
+Falls <directory> validen python-code beinhaltet, ist anschließend das enthaltene Kommando als Plugin in `opsi-cli` verfügbar (`opsi-cli plugin list` zeigt alle registrierten Plugins an).
+Ein Plugin lässt sich auch wieder exportieren in ein Archiv, was wiederum in einer anderen `opsi-cli`-Instanz importiert werden kann (`opsi-cli plugin add <archive>`).
+
+[source,prompt]
+----
+opsi-cli plugin export <name>
+----
+
+Archiv- und Verzeichnis-Repräsentation eines Plugins können mittels `opsi-cli plugin compress <directory>` und `opsi-cli plugin extract <archive>` ineinander umwandeln.
+
+Möchte man ein importiertes Plugin ändern, kann man die Verzeichnis-Repräsentation (wie mit `opsi-cli plugin new` angelegt) anpassen und erneut `opsi-cli plugin add <directory>` aufrufen. Das vorherig vorhandene Plugin gleichen Namens wird dadurch überschrieben.
+
+Um ein Plugin von einer `opsi-cli`-Instanz zu entfernen, gibt es:
+
+[source,prompt]
+----
+opsi-cli plugin remove <name>
+----
+
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-self]]
+==== self
+
+Das Kommando `self` dient zur Verwaltung der `opsi-cli`-Instanz selbst. Darüber kann `opsi-cli` auf dem system installiert und deinstalliert werden, die shell-auto-Vervollständigung eingerichtet und die eigene Kommandostruktur angezeigt werden.
+
+[source,prompt]
+----
+opsi-cli self --help
+----
+
+image::opsi-cli-self-help.png["Ausgabe: opsi-cli self --help", pdfwidth=90%]
+
+Ausgehend von einem einzelnen `opsi-cli`-binary kann mittels `opsi-cli self install` auf dem system `opsi-cli` installiert werden. Konkret bedeutet das, dass das binary an einen Ort kopiert wird, der global Verfügbar ist (bzw unter windows per PATH verfügbar gemacht wird) und eine Konfigurationsdatei angelegt wird, in der persistente Konfigurationen gespeichert werden. Die installation kann nutzerspezifisch oder systemweit (option `--system`) erfolgen. Analog funktioniert die Deinstallation via `opsi-cli self uninstall`.
+
+TIP: Bei Installation des `opsi-cli` opsi-Pakets auf einem Client oder des `opsi-utils` server-Pakets findet die Installation automatisch statt.
+
+Die Kommando-Struktur mit allen Kommandos (und ihrer Versionen) und Subkommandos lässt sich durch den folgenden Aufruf ausgeben.
+
+[source,prompt]
+----
+# opsi-cli self command-structure
+opsi-cli (4.2.0.5)
+┣━━ client-action (0.1.0)
+┃   ┗━━ set-action-request
+┣━━ config (0.1.0)
+┃   ┣━━ list
+┃   ┣━━ show
+┃   ┣━━ set
+┃   ┣━━ unset
+┃   ┗━━ service
+┃       ┣━━ list
+┃       ┣━━ add
+┃       ┗━━ remove
+┣━━ jsonrpc (0.1.0)
+┃   ┣━━ methods
+┃   ┗━━ execute
+┣━━ plugin (0.1.1)
+┃   ┣━━ add
+┃   ┣━━ export
+┃   ┣━━ extract
+┃   ┣━━ compress
+┃   ┣━━ list
+┃   ┣━━ remove
+┃   ┗━━ new
+┣━━ self (0.1.1)
+┃   ┣━━ setup-shell-completion
+┃   ┣━━ install
+┃   ┣━━ uninstall
+┃   ┗━━ command-structure
+┣━━ support (0.1.0)
+┃   ┗━━ health-check
+┗━━ terminal (0.1.1)
+----
+
+`opsi-cli` bietet die Möglichkeit ein auto-Vervollständigung für shells einzurichten. Der Aufruf dazu lautet
+
+[source,prompt]
+----
+opsi-cli self setup-shell-completion
+----
+
+Nach einem Neustart der aktuell aktiven shell kann man dann per TAB-Taste verschiedene Unterstützungen auslösen:
+
+* Liste verfügbarer (Sub-)Kommandos anzeigen (ggfs. TAB TAB)
+* Liste verfügbarer Optionen anzeigen (nach `-`)
+* Das aktuell anfangene (Sub-)Kommando, Option oder Parameter vervollständigen, sofern eindeutig
+
+Diese Unterstützungen können den Umgang mit `opsi-cli` deutlich beschleunigen.
+
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-support]]
+==== support
+
+Das Kommando `opsi-cli support` soll Möglichkeiten zur Problem-Analyse und -Lösung innerhalb einer opsi-Umgebung bereitstellen. Im Moment umfasst es nur ein Subkommando. `opsi-cli support health-check` überprüft verschiedene Aspekte, die das reibungsfreie laufen einer opsi-Umgebung beeinträchtigen können und stellt einen Bericht zusammen.
+Das folgende Beispiel zeigt eine kompakte Darstellung des Berichts. Ohne die Einschränkung der Attribute (`--attributes=id,status,message`) werden zu den warnings und errors noch genauere Informationen gezeigt.
+
+[source,prompt]
+----
+opsi-cli --attributes=id,status,message support health-check
+----
+
+image::opsi-cli-health-check.png["Ausgabe: opsi-cli support health-check", pdfwidth=90%]
+
+
+[[opsi-manual-configuration-tools-opsi-cli-commands-terminal]]
+==== terminal
+
+Das Kommando `opsi-cli terminal` ist ein minimaler terminal-client, mit dem eine Verbindung zu opsi-servern aufbauen kann. Das Verhalten ist dabei analog zu einer ssh/Putty-Konsole.
+Der opsi-server, der kontaktiert werden soll, kann als fqdn (bzw opsi host id) angegeben werden. Der config-server ist auch erreichbar mit
+
+[source,prompt]
+----
+opsi-cli terminal configserver
+----
+
+Die Verbindung schließt sich, sobald das terminal auf dem Ziel-server geschlossen wird. Also z.B. durch `exit<Enter>` oder die Tastenkombination `STRG+D`.
+
+
+[[opsi-manual-configuration-tools-opsi-setup]]
+== Werkzeug: _opsi-setup_
+
+Das Programm _opsi-setup_ ist das "Schweizer Taschenmesser" zur Einrichtung von opsi.
+
+So greifen zum Beispiel die Pakete zur Installation von opsi auf dem Server auf dieses Skript zurück, um opsi korrekt einzurichten. Da dieses Skript auch extern aufrufbar ist, lassen sich damit diverse Wartungsarbeiten und Korrekturen durchführen:
+
+* Registrierung eines opsi-servers als Depotserver
+* Verzeichnisrechte korrigieren
+* Backends initialisieren
+* Backends upgraden
+* '{MySQL-Backend}' konfigurieren
+* Default-Konfigurationen anpassen
+* Backends bereinigen
+* Samba-Konfiguration anpassen
+* DHCP-Konfiguration anpassen
+
+Der Befehl `opsi-setup --help` zeigt die Programmoptionen:
+
+[source,prompt]
+----
+# opsi-setup --help
+
+Usage: opsi-setup [options]
+
+Options:
+   -h, --help     show this help
+   -l             log-level 0..9
+   -V, --version  Show version info and exit.
+
+   --log-file <path>             path to log file
+   --backend-config <json hash>  overwrite backend config hash values
+   --ip-address <ip>             force to this ip address (do not lookup by name)
+   --register-depot              register depot at config server
+   --set-rights [path]           set default rights on opsi files (in [path] only)
+   --init-current-config         init current backend configuration
+   --update-from=<version>       update from opsi version <version>
+   --update-mysql                update mysql backend
+   --update-file                 update file backend
+   --configure-mysql             configure mysql backend
+   --file-to-mysql               migrate file to mysql backend and adjust dispatch.conf
+     --no-backup                 do not run a backup before migration
+     --no-restart                do not restart services on migration
+   --edit-config-defaults        edit global config defaults
+   --cleanup-backend             cleanup backend
+   --auto-configure-samba        patch smb.conf
+   --auto-configure-dhcpd        patch dhcpd.conf
+   --patch-sudoers-file	        patching sudoers file for tasks in {opsi-admin} context.
+----
+
+Die Funktionen und Parameter im Einzelnen:
+
+* `--ip-address <ip>` +
+Diese Option dient dazu, eine IP-Addresse für den _{opsi-server}_ vorzugeben und damit die Namensauflösung zu umgehen.
+
+* `--register-depot` +
+Diese Option dient dazu, einen _{opsi-server}_ an einem anderen _{opsi-server}_
+(_{opsi-configserver}_) als Depotserver anzumelden. Details hierzu vgl. xref:opsi-modules:multidepot.adoc#opsi-manual-multidepot-installation[Erstellung und Konfiguration eines Depot-Servers].
+
+* `--set-rights [path]` +
+Setzt bzw. korrigiert die Dateizugriffsrechte in den wesentlichen opsi-Verzeichnissen:
++
+** `/tftpboot/linux`
+** `/var/log/opsi`
+** `/var/lib/opsi`
+** `/var/lib/opsi/depot`
+** `/var/lib/opsi/workbench` (oder der abweichend für das Depot konfigurierte Workbench-Pfad)
+** `/etc/opsi`
++
+Als Parameter kann auch ein Verzeichnis übergeben werden.
+Dann werden unterhalb dieses Verzeichnisses die Rechte aller opsi-relevanten Verzeichnisse und Dateien gesetzt, +
+z.B.: +
+`opsi-setup --set-rights /var/lib/opsi/depot/winxppro/drivers`
+
+* `--init-current-config` +
+Initialisiert die eingestellte Backendkonfiguration. Sollte nach jeder Änderung an der +
+`/etc/opsi/backendManager/dispatch.conf` +
+aufgerufen werden.
+
+* Die Befehle +
+`--update-mysql` +
+`--update-file` +
+dienen zum Upgrade des jeweiligen Backends (z.B. von opsi 3.4 auf opsi 4). +
+Details siehe _releasenotes-upgrade-Handbuch_.
+
+* `--configure-mysql` +
+Dient zur erstmaligen Initialisierung des _{MySQL-Backend}_. +
+Details vgl. xref:opsi-backends.adoc#opsi-manual-backends-mysql-initializing[Initialisierung des MySQL-Backends].
+
+* `--file-to-mysql` +
+Migriert eine Umgebung mit aktiviertem {file-backend} automatisch zu einem MySQL-Backend.
+Vor der Migration wird hierbei automatisch ein Backup angelegt und die opsi-Services beendet. Nach der Migration werden die Services wieder gestartet und verwenden dann automatisch das MySQL-Backend.
+
+Folgende Parameter können hierbei verwendet werden:
+
+``--no-backup``: Kein Backup erstellen. +
+``--no-restart``: Services weder stoppen noch starten.
+
+Der Aufruf gibt folgende Exit-Codes zurück: +
+**0**: Migration erfolgreich durchgeführt. +
+**1**: Bei der Migration ist ein Fehler aufgetreten. +
+**2**: Die Migration wurde bereits durchgeführt.
+
+* `--edit-config-defaults` +
+Zum Editieren der Defaultwerte der Config wie im _{opsi-configed}_ in der Serverkonfiguration angezeigt.
++
+.Eingabemaske: `opsi-setup --edit-config-defaults`
+image::opsi-setup_editconfigdefaults.png["Eingabemaske: opsi-setup --edit-config-defaults", pdfwidth=90%]
++
+z.B.:
++
+clientconfig.depot.id :: Der Name des Default-Depotservers.
++
+clientconfig.depot.drive :: Der Laufwerksbuchstabe, auf welchem der Share mit den Installationsdaten verbunden wird. Hier kann ein Laufwerksbuchstabe fest gewählt werden oder über *dynamic* die automatische Auswahl ausgewählt werden. Bei dieser Variante wird versucht selbstständig einen freien Laufwerksbuchstaben zu finden.
++
+license-management.use :: Bestimmt, ob Netboot-Produkte Lizenzkeys aus dem Lizenzmanagement oder aus den Properties holen.
++
+product_sort_algorithm :: Bestimmt, nach welchem Algorithmus die Installationsreihenfolge ermittelt wird.
+
+* `--cleanup-backend` +
+Überprüft die aktuellen Backends auf Integrität und verwirft obsolete oder unreferenzierte Einträge. +
+Entfernt werden dabei bspw. Produkte ohne Referenz (nicht auf Client / Depot installiert), Gruppen ohne Parent sowie ConfigStates ohne zugehörige Config. +
+
+NOTE: Es ist gängige, gute Praxis vor dem Aufräumen des Backends ein Backup durch _opsi-backup_ zu erstellen.
+
+* `--auto-configure-samba` +
+Erzeugt in der Samba-Konfigurationsdatei `/etc/samba/smb.conf` die von opsi benötigten shares.
+
+* `--auto-configure-dhcpd` +
+Erzeugt in der Konfigurationsdatei des DHCP-Dienstes die von opsi benötigten Eintragungen. +
+Nur verwenden, wenn der DHCP-Server auf dem opsi Server laufen soll. +
+Details hierzu im DHCP-Kapitel des 'opsi-getting-started' Handbuchs.
+
+[[opsi-manual-configuration-tools-opsi-makepackage]]
+== Werkzeug 'opsi-makepackage': opsi-Pakete bauen
+
+Mit opsi-makepackage können sie die Dateien eines opsi Produktes zu einem opsi Paket zusammen bauen. Der einfachste Weg ist: +
+Gehen Sie dazu in das Stammverzeichnis des Produkts und rufen Sie `opsi-makepackage` auf. Es wird nun das Produkt gepackt.
+
+
+`opsi-makepackage` kennt einige Optionen, die sein Verhalten modifizieren:
+
+[source,prompt]
+----
+$ opsi-makepackage --help
+usage: opsi-makepackage [--help] [--version] [--quiet] [--verbose]
+                        [--log-level {0,1,2,3,4,5,6,7,8,9}] [--no-compression]
+                        [--archive-format {cpio,tar}] [--follow-symlinks]
+                        [--custom-name custom name | --custom-only custom name]
+                        [--temp-directory directory] [--md5 | --no-md5]
+                        [--zsync | --no-zsync] [--no-pigz] [--keep-versions]
+                        [--package-version packageversion]
+                        [--product-version productversion]
+                        [source directory]
+
+Provides an opsi package from a package source directory. If no source
+directory is supplied, the current directory will be used.
+
+positional arguments:
+  source directory
+
+optional arguments:
+  --help                Show help.
+  --version, -V         show program's version number and exit
+  --quiet, -q           do not show progress
+  --verbose, -v         verbose
+  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                        Set log-level (0..9)
+  --no-compression, -n  Do not compress
+  --archive-format {cpio,tar}, -F {cpio,tar}
+                        Archive format to use. Default: cpio
+  --follow-symlinks, -h
+                        follow symlinks
+  --custom-name custom name, -i custom name
+                        custom name (add custom files)
+  --custom-only custom name, -c custom name
+                        custom name (custom only)
+  --temp-directory directory, -t directory
+                        temp dir
+  --md5, -m             Create file with md5 checksum.
+  --no-md5              Do not create file with md5 checksum.
+  --zsync, -z           Create zsync file.
+  --no-zsync            Do not create zsync file.
+  --no-pigz             Disable the usage of pigz
+
+Versions:
+  Set versions for package. Combinations are possible.
+
+  --keep-versions, -k   Keep versions and overwrite package
+  --package-version packageversion
+                        Set new package version
+  --product-version productversion
+                        Set new product version for package
+----
+
+Es ist zu empfehlen die Pakete gleich mit einer zugehörigen md5-Prüfsummendatei zu erstellen.
+Diese Datei wird unter anderem vom `opsi-package-updater` genutzt, um nach der Paketübertragung die Paketintegrität sicher zu stellen.
+Eine solche Datei wird automatisch erstellt, aber für besondere Einsatzszenarien kann die Erstellung unterdrückt werden.
+
+Bei der Übertragung von Paketen auf {opsi-depotserver} kann auf 'zsync' zurück gegriffen werden, um nur Unterschiede zwischen verschiedenen Paketen zu übertragen.
+Damit dieses Verfahren verwendet werde kann, wird eine besondere `.zsync`-Datei benötigt.
+Eine solche Datei wird automatisch erstellt, aber für besondere Einsatzszenarien kann die Erstellung unterdrückt werden.
+
+Wenn es beim Erstellen großer Pakete zu Platzproblemen im temporären Verzeichnis `/tmp` kommt, ist es möglich mittels `--temp-directory` ein abweichendes temporäres Verzeichnis anzugeben.
+
+Wenn schon ein Paket dieser Version existiert, so zeigt `opsi-makepackage` eine Rückfrage:
+
+[source,prompt]
+----
+Package file '/var/lib/opsi/workbench/mytest/mytest_3.14-1.opsi' already exists.
+Press <O> to overwrite, <C> to abort or <N> to specify a new version:
+----
+
+Mit `o` wählen Sie überschreiben, mit `c` brechen Sie den Vorgang ab und mit `n` können Sie wählen, dass Sie nach einer neuen Product- bzw. Package-Version gefragt werden.
+
+Das gepackte Paket können Sie mit `opsi-package-manager --install <paketdatei>` auf dem Server installieren.
+
+
+
+[[opsi-manual-configuration-tools-opsi-package-manager]]
+== Werkzeug 'opsi-package-manager': opsi-Pakete (de-)installieren
+
+Der _opsi-package-manager_ dient zur (De-) Installation von {opsi-product-packages}n auf einem {opsi-server}.
+
+Beim Aufruf von _opsi-package-manager_ zur Installation
+muss das zu installierende Paket für den Systemuser _opsiconfd_ lesbar sein.
+Es wird daher dringend empfohlen, {opsi-product-packages} aus `/var/lib/opsi/workbench/` bzw. einem Unterverzeichnis hiervon zu installieren.
+
+Die Logdatei des _opsi-package-manager_ ist _/var/log/opsi/package.log_
+
+Paket installieren (ohne Fragen neu installieren):
+
+[source, prompt]
+----
+opsi-package-manager -i softprod_1.0-5.opsi'
+----
+
+Paket installieren (mit Fragen nach Properties):
+
+[source, prompt]
+----
+opsi-package-manager -p ask -i softprod_1.0-5.opsi
+----
+
+Paket installieren (und für alle auf Setup stellen, bei denen es installiert ist):
+
+[source, prompt]
+----
+opsi-package-manager -S -i softprod_1.0-5.opsi
+----
+
+Paket installieren (und für alle mit Abhängigkeiten auf Setup stellen, bei denen es installiert ist):
+
+[source, prompt]
+----
+opsi-package-manager -s -i softprod_1.0-5.opsi
+----
+
+oder:
+
+[source, prompt]
+----
+opsi-package-manager --setup-with-dependencies --install softprod_1.0-5.opsi
+----
+
+Paket deinstallieren:
+
+[source, prompt]
+----
+opsi-package-manager -r softprod
+----
+
+Paket extrahieren und umbenennen:
+
+[source, prompt]
+----
+opsi-package-manager -x opsi-template_<version>.opsi --new-product-id myprod
+----
+
+Es ist möglich ein Paket mit einer abweichenden 'Product ID' zu installieren.
+Das ist besonders dann hilfreich, wenn vorher ein Windows-Netboot-Produkt aus
+einem bestehenden Paket abgeleitet wurde und dieses Paket in der Zwischenzeit
+aktualisiert wurde.
+
+[source, prompt]
+----
+opsi-package-manager --install win7-x64_1.2.3.opsi --new-product-id win7-x64-custom
+----
+
+NOTE: Bitte beachten Sie, dass `opsi-package-updater` derartig installierte Produkte nicht automatisch aktualisiert.
+
+
+Eine Übersicht über alle Optionen liefert die Option `--help`.
+
+Zu beachten:
+
+* Die Optionen `-d` bzw. `--depots` sind für den Betrieb mehrerer Depotserver gedacht.
+
+* Bei der Verwendung von -d wird das zu installierende Paket
+zunächst nach `/var/lib/opsi/repository` kopiert.
+Dort muss ausreichend Platz zur Verfügung stehen. +
+Siehe hierzu auch: opsi-server mit mehreren Depots <<opsi-manual-multidepot>>
+
+* Falls es beim Installieren neuer Pakete zu Platzproblemen im temporären Verzeichnis kommt, kann mit der Option `--temp-dir` ein abweichender Ort angegeben werden.
+
+
+[source, prompt]
+----
+# opsi-package-manager --help
+
+Usage: opsi-package-manager [options] <command>
+
+Manage opsi packages
+
+Commands:
+  -i, --install      <opsi-package> ...      install opsi packages
+  -u, --upload       <opsi-package> ...      upload opsi packages to repositories
+  -l, --list         <regex>                 list opsi packages matching regex
+  -D, --differences  <regex>                 show depot differences of opsi packages matching regex
+  -r, --remove       <opsi-product-id> ...   uninstall opsi packages
+  -x, --extract      <opsi-package> ...      extract opsi packages to local directory
+  -V, --version                              show program's version info and exit
+  -h, --help                                 show this help message and exit
+
+Options:
+  -v, --verbose                           increase verbosity (can be used multiple times)
+  -q, --quiet                             do not display any messages
+  --log-file         <log-file>           path to debug log file
+  --log-file-level   <log-file-level>     log file level (default 4)
+  -d, --depots       <depots>             comma separated list of depot ids to process
+                                             all = all known depots
+  -p, --properties   <mode>               mode for default product property values
+                                             ask     = display dialog
+                                             package = use defaults from package
+                                             keep    = keep depot defaults (default)
+  --purge-client-properties               remove product property states of the installed product(s)
+  -f, --force                             force install/uninstall (use with extreme caution)
+  -U, --update                            set action "update" on hosts where installation status is "installed"
+  -S, --setup                             set action "setup" on hosts where installation status is "installed"
+  -s, --setup-with-dependencies           set action "setup" on hosts where installation status is "installed" with dependencies
+  -o, --overwrite                         overwrite existing package on upload even if size matches
+  -n, --no-delta                          full package transfers on uploads (do not use librsync)
+  -k, --keep-files                        do not delete client data dir on uninstall
+  -t, --temp-dir     <path>               tempory directory for package install
+  --max-transfers    <num>                maximum number of simultaneous uploads
+                                             0 = unlimited (default)
+  --max-bandwidth    <kbps>               maximum transfer rate for each transfer (in kilobytes per second)
+                                             0 = unlimited (default)
+  --new-product-id   <product-id>         Set a new product id when extracting opsi package or
+                                          set a specific product ID during installation.
+  --suppress-pcf-generation               Suppress the generation of a package content file during package
+                                          installation. Do not use with WAN extension!
+----
+
+[[opsi-manual-configuration-tools-opsi-package-updater]]
+== Werkzeug: 'opsi-package-updater'
+
+Das Kommandozeilen-Werkzeug `opsi-package-updater` dient dazu, komfortabel
+{opsi-products} aus einem oder mehreren Repositories zu laden und auf dem Server zu installieren.
+Es ist dafür gedacht zeitgesteuert (bspw. als cronjob) aufgerufen zu werden und so zur automatischen Synchronisation von opsi-Servern bzw. für automatische Updates verwendet zu werden.
+
+Repositories sind die Quellen, von denen sich der {opsi-server} die Pakete holt.
+Jedes Repository kann in Hinblick auf Zugang und Verhalten einzeln konfiguriert werden.
+
+Die allgemeinen Konfigurationseinstellungen werden in `/etc/opsi/opsi-package-updater.conf` vorgenommen.
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-usage]]
+=== Einsatz
+
+Mittels `--help` kann die Hilfe angezeigt werden.
+`opsi-package-updater` arbeitet mit verschiedenen Modi, welche jeweils eine eigene Hilfe mitbringen.
+
+[source, prompt]
+----
+# opsi-package-updater --help
+usage: opsi-package-updater [-h] [--version] [--config CONFIGFILE]
+                            [--verbose | --log-level {0,1,2,3,4,5,6,7,8,9}]
+                            [--force-checksum-calculation]
+                            [--repo repository_name]
+                            [--use-inactive-repository] [--ignore-errors]
+                            [--no-zsync]
+                            {install,update,download,list} ...
+
+Updater for local opsi products. Operates in different MODEs: install, update,
+download and list. Each mode has their own options that can be viewed with
+MODE -h
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --config CONFIGFILE, -c CONFIGFILE
+                        Location of config file
+  --verbose, -v         Increase verbosity on console (can be used multiple
+                        times)
+  --log-level {0,1,2,3,4,5,6,7,8,9}, -l {0,1,2,3,4,5,6,7,8,9}
+                        Set the desired loglevel for the console.
+  --force-checksum-calculation
+                        Force calculation of a checksum (MD5) for every
+                        package. Default is to use existing checksums from the
+                        .md5-file of a package if possible.
+  --repo repository_name
+                        Limit the actions the given repository.
+  --use-inactive-repository
+                        Force the activation of an otherwise disabled
+                        repository. The repository must be given through
+                        --repo.
+  --ignore-errors       Continue working even after download or installation
+                        of a package failed.
+  --no-zsync            Forces to not use zsync. Instead the fallback command
+                        is used.
+
+Mode:
+  {install,update,download,list}
+    install             Install all (or a given list of) downloadable packages
+                        from configured repositories (ignores excludes)
+    update              Update already installed packages from repositories.
+    download            Download packages from repositories. This will not
+                        install packages.
+    list                Listing information
+
+# opsi-package-updater download --help
+usage: opsi-package-updater download [-h] [--force]
+                                     [productID [productID ...]]
+
+positional arguments:
+  productID   Limit downloads to products with the given IDs.
+
+optional arguments:
+  -h, --help  show this help message and exit
+  --force     Force the download of a product even though it would otherwise
+              not be required.
+
+# opsi-package-updater list --help
+usage: opsi-package-updater list [-h]
+                                 [--repos | --active-repos | --packages | --packages-and-installationstatus | --package-differences | --updatable-packages | --search-package text]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --repos               Lists all repositories
+  --active-repos        Lists all active repositories
+  --packages, --products
+                        Lists the repositories and the packages they provide.
+  --packages-and-installationstatus, --products-and-installationstatus
+                        Lists the repositories with their provided packages
+                        and information about the local installation status.
+  --package-differences, --product-differences
+                        Lists packages where local and remote version are
+                        different.
+  --updatable-packages, --updatable-products
+                        Lists packages that have updates in the remote
+                        repositories.
+  --search-package text, --search-product text
+                        Search for a package with the given name.
+
+----
+
+Es gibt eine Reihe von allgemeinen Optionen.
+
+- `--verbose` erhöht die Menge an sichtbaren Ausgaben. Dies kann mehrfach angegeben werden, um mehr Ausgabe zu erhalten. Ein bestimmter Log-Level kann über `--log-level` angegeben werden. Beide Optionen beeinflussen nur die Ausgaben im Terminal.
+- `--repo <Name eines Repositories>` schränkt die Aktionen auf das angegebene Repository ein. Die Namen der verfügbaren Repositories können über `list --active-repos` ermittelt werden.
+
+Die verschiedenen Modi haben unterschiedliche Auswirkungen auf das Verhalten.
+Die Modi `install`, `update` und `download` laden Pakete aus einem Repository, wohingegen mit `list` Informationen angezeigt werden.
+
+Der Modus `install` installiert neue Pakete.
+Der Modus `update` aktualisiert vorhandene Pakete.
+Beide Modi benötigen keine weiteren Parameter.
+
+Beispiel: Das Installieren aller in den Repositories vorhandenen Pakete:
+
+[source,prompt]
+----
+opsi-package-updater install
+----
+
+
+Bei den Modi `install` und `update` kann die Arbeit auf bestimmte Produkte eingeschränkt werden indem deren Produkt ID angegeben wird.
+
+Beispiel: Aktualisieren der Pakete für die Produkte 'firefox' und 'javavm':
+
+[source,prompt]
+----
+opsi-package-updater -vv update firefox javavm
+----
+
+In Verbindung mit dem Schalter `--repo` lässt sich gezielt Einschränken, woher ein Paket bezogen werden soll.
+
+Beispiel: Die Installation des Pakets 'ubuntu' aus dem Repository 'uib_linux':
+
+[source,prompt]
+----
+opsi-package-updater -vv --repo uib_linux install ubuntu
+----
+
+Der Modus `download` erlaubt das Herunterladen von Paketen, ohne dass diese anschließend installiert werden.
+Über den Schalter `--force` kann der Download erzwungen werden, selbst wenn diese Version schon auf dem Server installiert ist.
+
+Mittels `list --active-repos` werden die aktivierten Repositories angezeigt.
+Die gezeigten Informationen sind der Name, die Adresse des Repositories und sofern vorhanden die Beschreibung des Repositories.
+
+Über `list --products` wird angezeigt welche Produkte im Repository vorhanden sind.
+
+Zum Anzeigen der verfügbaren Aktualisierungen kann `list --updatable-products` verwendet werden.
+Dabei werden nur die bereits installierten Produkte berücksichtigt.
+Anschließend kann die Aktualisierung über `update` angestoßen werden.
+
+[source,prompt]
+----
+opsi-package-updater list --updatable-packages
+opsi-package-updater -v update
+----
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-repositories]]
+=== Repository Konfiguration: Zugang
+
+Konfigurationsdateien für die einzelnen Repositories sind unter `/etc/opsi/package-updater.repos.d/` zu finden.
+Eine kommentierte Vorlage mit allen Einstellungsmöglichkeiten findet sich dort als `example.repo.template`.
+
+Es gibt zwei Arten von Repositories, _Internet-Repositories_ und _opsi-Server_.
+
+*Internet-Repositories*
+
+Das wichtigste Beispiel ist das uib-Repository mit der URL http://download.uib.de
+
+Internet-Repositories sind gekennzeichnet durch die Parameter
+
+- _baseURL_ (z.B. `http://download.uib.de`)
+- _dirs_ (Eine kommaseparierte Liste von Verzeichnissen z.B. `opsi4.0/products/localboot`)
+- sowie für Passwort-geschützte Repositories _username_ und _password_
+- alternativ zum passwortgeschützten Zugriff wird auch eine zertifikatsbasierte Authentifizierung unterstützt. Dafür müssen 'authcertfile' und _authkeyfile_ in der Repository-Konfiguration mit vollem Pfad zu dem Clientzertifikat und dessen Key angegeben werden.
+- Soll im Fall von HTTPS-Verbindungen die Signatur des Servers geprüft werden, muss _verifyCert_ auf _true_ gesetzt werden. Der Default hierfür ist aktuell 'false'.
+
+Bei Bedarf kann Zugang über einen Proxy konfiguriert werden.
+Falls ein gemeinsamer Proxy verwendet werden soll, kann dieser für alle Repositories in `opsi-package-updater.conf` eingetragen werden.
+Dies benötigt mindestens opsi-utils 4.1.1.33.
+Alle Repositories ohne eigene Proxy-Konfiguration werden diesen verwenden.
+
+[source,configfile]
+----
+baseUrl = http://download.uib.de
+dirs = opsi4.0/products/localboot
+username =
+password =
+proxy =
+----
+
+*opsi-server*
+
+Ein Repository hat den Typ _opsi-server_, wenn in der Repository-Konfigurationsdatei unter dem Punkt _opsiDepotId_ die ID eines anderen {opsi-server}s eingetragen wird.
+
+[source,configfile]
+----
+opsiDepotId = mainserver.my.lan
+----
+
+In der Regel ist bei einem _{opsi-depotserver}_ an dieser Stelle der zentrale _{configserver}_ einzutragen.
+Damit bezieht der Depotserver seine Pakete vom zentralen Server.
+Der `opsi-package-updater` bezieht die Pakete aus dem Verzeichnis `/var/lib/opsi/repository` des angegebenen Servers.
+
+
+[[opsi-manual-configuration-tools-opsi-package-updater-actions]]
+=== Repositry Konfiguration: Verhalten
+
+Für jedes Repository kann eingestellt werden:
+
+* _autoupdate_: Aktuellere Versionen installierter Pakete werden geholt und installiert.
+
+* _autoinstall_: Auch bis jetzt nicht installierte Pakete werden geholt und installiert
+
+* _autosetup_: Die geholten und installierten Pakete werden für alle Clients,
+auf denen dieses Produkt installiert ist, auf 'setup' gesetzt.
+
+* _onlyDownload_: Neue Pakete werden nur heruntergeladen, es finden aber keine weiteren Aktionen damit statt. +
+Ein beliebter Anwendungsfall ist diese Option in Verbindung mit aktivierten Benachrichtigungen zu verwenden, so dass nach dem Download eine Mail versendet wird und die Installation zu einem späteren Zeitpunkt manuell durch einen Administrator erfolgt.
+
+* _ignoreErrors_: Versucht, den update/download-Vorgang fortzusetzen, auch wenn Fehler auftreten und einzelne Pakete scheitern.
+
+Zusätzlich ist es möglich, die Aktualisierung
+der Pakete auf den Clients über einen konfigurierbaren Wake-On-Lan-Mechanismus
+anzustoßen.
+In Verbindung mit dem {opsi-product} _shutdownwanted_
+kann dafür gesorgt werden,
+dass die Clients nacheinander geweckt, die Software verteilt
+und die Clients danach wieder heruntergefahren werden.
+Hierdurch kann man seine Clients zum Beispiel
+außerhalb der Geschäftszeiten mit Updates und Software versorgen
+und die Anwender können am nächsten Morgen direkt mit der Arbeit beginnen.
+
+
+[[opsi-manual-configuration-tools-opsi-admin-overview]]
+== Werkzeuge zum Zugriff auf die opsi API: opsi-admin & opsi interface page
+
+Opsi enthält eine Python-Bibliothek für die zentralen Zugriffsfunktionen
+auf die opsi-Datenhaltung. Eine API-Dokumentation zu python-opsi link:https://docs.opsi.org/python-docs/python-opsi[https://docs.opsi.org/python-docs/python-opsi]
+und opsicommon link:https://docs.opsi.org/python-docs/python-opsi-common[https://docs.opsi.org/python-docs/python-opsi-common] liegt unter docs.opsi.org.
+
+Nach außen bietet _opsiconfd_ diese als API an, mit der ihre Funktionen
+genutzt werden können.
+Es gibt mehrere Wege darauf zuzugreifen.
+
+
+[[opsi-manual-configuration-tools-opsi-interface-page]]
+=== Im Browser: opsi admin page
+
+In Version 4.2 wurden die _interface page_ und die _info page_ in der _admin page_ zusammengefasst. Die Seite wird über die URL _https://<opsi-server>:4447/admin_ aufgerufen. Um die Seite zu öffnen müssen Sie sich als Mitglied der Gruppe _opsiadmin_ authentifizieren.
+
+Auf der Seite werden gesperrte Clients als Liste angezeigt. Einzelne Clients können über die IP-Adresse oder über den Knopf _unblock_ in der Liste freigegeben werden.
+Es gibt auch einen Möglichkeit alle Clients aufeinmal freizugeben. Hierzu wird die Zeile _Unblock all clients_ verwendet.
+
+Zum Löschen von allen Sessions auf einem Client, wird in der Zeile _Delete client sessions_ die Adresse des Clients angegeben und der Vorgang mit _Execute_ bestätigt.
+
+Rückmeldung bekommt der Benutzer in einer Textbox unter den Eingabefeldern. Außerdem wird die JSON-Response des Servers ausgegeben.
+
+.'opsiconfd': Gesperrte Clients
+image:opsi-webinterface-blocked-clients.png["opsiconfd: Gesperrte Clients", pdfwidth=90%]
+
+
+Im Reiter *RPC-Info* befindet sich eine Tabelle der letzten RPC-Aufrufe. Die Tabelle lässt sich durch einen Klick auf die Header-Leiste sortieren.
+
+._opsiconfd_: RPC-Liste
+image:opsi-webinterface-rpc-list.png["opsiconfd: RPC Liste", pdfwidth=90%]
+
+
+Die ehemalige _interface page_ befindet sich jetzt auf der Adminseite im Reiter *RPC-Interface*. Über das RPC-Interface können Anfragen an die API gestellt werden. Die Anfrage und das Ergebnis werden auf der Seite als JSON dargestellt.
+
+._opsiconfd_: RPC-Interface
+image:opsi-webinterface-rpc-interface.png["opsiconfd: RPC-Interface", pdfwidth=90%]
+
+Im Reiter *Redis-Interface* können Anfragen an Redis gestellt werden. Die Antwort des Servers wird als JSON angezeigt.
+
+._opsiconfd_: Redis-Interface
+image:opsi-webinterface-redis.png["opsiconfd: Redis-Interface", pdfwidth=90%]
+
+
+// [[opsi-manual-configuration-tools-serverprocesses-info]]
+// === 'opsiconfd'-Überwachung: grafana
+
+Der Tab *Grafana* leitet den Benutzer zum Grafana-Dashboard des opsiconfds weiter. Dort sind grafisch
+aufbereitete Informationen über den Lastverlauf des _opsiconfd_ zu finden.
+
+.opsiconfd info: _opsiconfd_-Werte der letzten 3 Stunden
+image::opsiconfd-grafana-hour.png["opsiconfd grafana: opsiconfd-Werte der letzten 3 Stunden", pdfwidth=90%]
+
+.opsiconfd info: _opsiconfd_-Werte des letzten Tages
+image::opsiconfd-grafana-day.png["opsiconfd grafana: opsiconfd-Werte des letzten Tages", pdfwidth=90%]
+
+Wenn der Grafana Server auf dem gleichen Host wie der _opsiconfd_ läuft und mit der Konfigurationvariablen `grafana_internal_url` kein Benutzer und Password festgelegt wurde, wird ein neuer Grafana Benutzer in der Datenbank angelegt und die Variable `grafana_internal_url` angepasst (Beispiel: http://opsiconfd:passwort@<host>:3000). Das Anlegen des Benutzer findet beim Starten des _opsiconfds_ oder beim Aufrufen von `opsiconfd setup` statt. Grafana kann über die Adminseite (https://<opsi-server>:4447/admin) aufgerufen werden. Beim Klick auf den entsprechenden Tab findet eine Weiterletung zu https://<opsi-server>:4447/metrics/grafana/dashboard. Der Endpoint _metrics/grafana/dashboard_ legt das Dashboard in Grafana an und öffnet es. Bei der Weiterletung wird auch, wenn er nicht existiert, der Benutzer `opsidashboard` angelegt. Der opsidashbord Benutzer wird für die automatische Anmeldung in Grafana verwendet und bekommt bei jeden Aufruf ein zufälliges Password.
+
+
+
+[[opsi-manual-configuration-tools-opsi-admin]]
+=== Auf der Kommandozeile: opsi-admin
+
+Auf der Kommandozeile kann mit dem Befehl `opsi-admin` auf die opsi API zugegriffen werden.
+Dabei bietet _opsi-admin_ einen interaktiven und einen nicht-interaktiven Modus, z.B. zum Einsatz in Skripten.
+
+Der Aufruf von `opsi-admin --help` zeigt eine Hilfe zu den Optionen:
+[source,prompt]
+----
+$ opsi-admin --help
+
+Verwendung: opsi-admin [options] [command] [args...]
+Optionen:
+  -h, --help           Diesen Hilfetext anzeigen
+  -V, --version        Versionsnummer ausgeben und beenden
+  -u, --username       Benutzername (standard: momentaner Benutzer)
+  -p, --password       Passwort (standard: Passwort interaktiv abfragen)
+  -a, --address        URL des {opsiconfd} (standard: https://localhost:4447/rpc)
+      --opsirc         Pfad zur zu verwendende opsirc-Datei (Standard: ~/.opsi.org/opsirc)
+                       Eine opsirc-Datei beinhaltet Zugangsdaten für die Web API.
+  -d, --direct         {opsiconfd} umgehen
+      --no-depot       Depotserver-Backend nicht verwenden
+  -l, --log-level      Protokollierungsstufe (Standard: 3)
+                       0=nichts, 1=essenziell, 2=kritisch, 3=Fehler, 4=Warnungen
+                       5=Hinweise, 6=Informationen, 7=debug, 8=debug2, 9=vertraulich
+  -f, --log-file       Pfad zur Protokolldatei
+  -i, --interactive    Im interaktiven Modus starten
+  -c, --colorize       Farbige Ausgabe
+  -S, --simple-output  Einfache Ausgabe (nur für Skalare und Listen)
+  -s, --shell-output   Shell-Ausgabe
+  -r, --raw-output     Rohdaten-Ausgabe
+  --exit-zero          Beende immer mit Exit-Code 0.
+----
+
+´opsi-admin´ kann auf einen {opsi-webservice} zugreifen oder direkt auf der Datenhaltung arbeiten.
+Für die Arbeit über den Webservice müssen neben der URL auch 'username' und 'password' angegeben werden.
+Als Benutzername wird der Name des aktuell angemeldeten Benutzers verwendet.
+Ein abweichender Name kann mittels `--username` angegeben werden.
+
+Für die Verwendung in Scripten wird man besonders das Kennwort nicht direkt über die Kommandozeile
+angeben wollen, weil die Gefahr besteht, dass diese Werte in der Prozessliste von
+anderen Benutzern gesehen werden können.
+Es bietet sich dabei an eine <<opsi-manual-configuration-tools-opsi-admin-opsirc,opsirc-Datei>> zu verwenden.
+Als Alternative kann der direkte Datenzugriff über die Option `-d` verwendet werden.
+
+`opsi-admin` bietet einen interaktiven Modus an, welcher mit `-i` gestartet wird.
+In der Regel wird man diesen zusätzlich mit `-c` zur farbigen Anzeige und manchmal zusätzlich mit `-d` für direkten Datenzugriff starten wollen - der Befehl lautet dann `opsi-admin -i -c -d`, kurz `opsi-admin -idc`.
+Im interaktiven Modus erhalten Sie Eingabe-Unterstützung durch die Tabtaste.
+Betätigen der Tabtaste führt auf eine Auswahl der der möglichen Fortsetzungen der Eingabe
+bzw. die Angabe des Datentyps der nächsten erwarteten Eingabe.
+In der Liste der möglichen Eingaben können Sie mit Bild-auf und Bild-ab blättern.
+
+Die Optionen `-s` und `-S` erzeugen eine Form der Ausgabe welche sich leichter in Skripten weiterverarbeiten lässt.
+
+Außer den Methodenaufrufen (eingeleitet mit `method`), welche direkt die API widerspiegeln, gibt
+es Aufrufe (eingeleitet mit `task`),
+die intern auf eine Kombination von Methodenaufrufen zur Erledigung
+einer bestimmten Aufgabe abgebildet werden.
+
+
+[[opsi-manual-configuration-tools-opsi-admin-opsirc]]
+=== Verwendung einer Verbindungskonfigurationsdatei - opsirc
+
+Seit Version 4.1.1.30 bietet `opsi-admin` die Möglichkeit die Konfiguration
+für die Verbindung zum opsi Webservice in einer Datei zu speichern.
+Damit ist es möglich eine Verbindung über den Webservice zu verwenden,
+ohne dass Benutzername und Kennwort auf der Kommandozeile angegeben werden.
+
+Eine solche Datei wird standardmäßig in `~/.opsi.org/opsirc` gesucht.
+Mit der Option `--opsirc` kann der Pfad zur zu verwendenden Datei angegeben werden.
+Dadurch können mehrere, unterschiedlich konfigurierte Verbindungen
+vorbereitet werden.
+
+Eine _opsirc_-Datei hat den folgenden Aufbau:
+[source,ini]
+----
+address = https://seeing.the.ramp:4447/rpc
+username = tony
+password file = ~/.opsi.org/tonys_secret
+----
+
+Alle Angaben in einer opsirc-Datei sind optional.
+Falls die Datei leer oder nicht vorhanden ist, so werden die Standard-Einstellungen verwenden.
+
+In vorangegangenen Beispiel ist das Kennwort in der Datei `~/.opsi.org/tonys_secret` hinterlegt
+und wird von dort ausgelesen.
+Diese Datei enthält nur das Kennwort.
+
+Es ist ebenfalls möglich das Passwort direkt anzugeben:
+[source,ini]
+----
+address = https://seeing.the.ramp:4447/rpc
+username = tony
+password = first900
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage]]
+=== Typische Verwendung
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setup]]
+.Ein Produkt für alle Clients auf setup stellen, welche dieses Produkt installiert haben:
+
+[source,prompt]
+----
+opsi-admin -d task setupWhereInstalled "softprod"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-clientlist]]
+.Liste aller Clients
+
+[source,prompt]
+----
+opsi-admin -d method host_getIdents
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-delete-client]]
+.Client löschen
+
+[source,prompt]
+----
+opsi-admin -d method host_delete <clientname>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method host_delete "pxevm.uib.local"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-create-client]]
+.Client anlegen
+
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient <full qualified clientname>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method host_createOpsiClient "pxevm.uib.local"
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setProductActionRequest]]
+.Action Request setzen
+
+[source,prompt]
+----
+opsi-admin -d method setProductActionRequest <productId> <clientId> <actionRequest>
+----
+
+z.B.:
+
+[source,prompt]
+----
+opsi-admin -d method setProductActionRequest win7 pxevm.uib.local setup
+----
+
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-setHostDescription]]
+.Beschreibungen den Clients zuordnen
+
+[source,prompt]
+----
+opsi-admin -d method setHostDescription "dpvm02.uib.local" "virtueller Client"
+----
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-usage-list-host-ids]]
+.IDs aller Clients auflisten
+
+Hierzu wird die Option `-S` verwendet, um zu erreichen, dass jeder Client in einer eigenen Zeile ausgeben wird. Durch die Eingrenzung auf den Typ `OpsiClient` wird verhindert, dass {opsi-server} mit ausgegeben werden.
+
+Diese Ausgabe eignet sich zur Weiterverwendung in anderen Aufrufen.
+
+[source,prompt]
+----
+opsi-admin -dS method host_getIdents '' '{"type": "OpsiClient"}'
+----
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-list-installed-products]]
+.Auflisten der auf Clients installierten Produkte
+
+[source,prompt]
+----
+opsi-admin -d method productOnClient_getObjects '["productVersion", "packageVersion", "installationStatus"]' '{"installationStatus": "installed"}'
+----
+
+[[opsi-manual-configuration-tools-opsi-admin-typical-setPcpatchPassword]]
+.Pcpatch-Passwort setzen
+
+[source,prompt]
+----
+opsi-admin -d task setPcpatchPassword
+----
+
+Setzt das Passwort von pcpatch für Unix, samba und opsi.
+
+
+[[opsi-manual-configuration-tools-serverprocesses]]
+== Serverprozesse: {opsiconfd} und {opsipxeconfd}
+
+Der 'opsipxeconfd' dient zur Bereitstellung von 'named pipes' im `tftpboot`-Bereich,
+welche den Bootvorgang eines PCs über das PXE-Protokoll steuern.
+
+Die zugehörige Konfigurationsdatei ist `/etc/opsi/opsipxeconfd.conf`, die Logdatei
+`/var/log/opsi/opsipxeconfd.log`.
+
+Der 'opsiconfd' dient zur Bereitstellung der {opsi-server}-API als JSON-Webservice
+und nimmt noch eine Reihe weiterer Aufgaben wahr.
+
+Dieser Dienst ist damit der zentrale opsi-Dienst.
+Über ihn wird z.B. sämtliche Kommunikation zwischen den Clients und dem Server abgewickelt.
+
+Daher ist die Möglichkeit, diesen Prozess und seine Last zu überwachen, ein wichtiges Werkzeug.
+
+
+
+
+[[opsi-manual-configuration-tools-serverprocess-tftpd]]
+== Serverprozess: opsi-tftpd-hpa
+
+Der opsi-tftpd-hpa ist ein standard tftpd-hpa, welche um die Fähigkeit erweitert wurde mit _named pipes_ umzugehen.
+
+Per default wird der opsi-tftpd-hpa so installiert, daß er standardmäßig läuft und per systemd service file gestartet oder gestoppt werden kann.
+
+Für gewöhnlich startet der Dienst mit einem Verbose Parameter. Zur Fehlersuche oder zur weiteren Analyse kann der Dienst mehr loggen. Hierfür muss folgender Befehl eingegeben werden:
+[source,prompt]
+----
+# systemctl edit --full opsi-tftpd-hpa.service
+----
+Nun muss der Parameter '-v' durch den Parameter '--verbosity 7' ersetzt werden. Daraufhin genügt es den Dienst neu zu starten
+[source,prompt]
+----
+# service opsi-tftpd-hpa restart
+----
+
+WARNING: auf Debian 8 ist die Operation _edit_ nicht verfügbar. Hier die Befehle zum Ändern des Parameters:
+[source,prompt]
+----
+# cp /lib/systemd/system/opsi-tftpd-hpa.service /etc/systemd/system/opsi-tftpd-hpa.service
+# vi /etc/systemd/system/opsi-tftpd-hpa.service
+# systemctl daemon-reload
+# service opsi-tftpd-hpa restart
+----
