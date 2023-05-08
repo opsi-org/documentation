@@ -14,697 +14,448 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      11.01.2021
+:Date:      10.02.2023
+:Revision:  4.1.0
+:toclevels: 6
 :doctype: book
 
 include::common:partial$opsi_terms.adoc[]
 
-
 [[opsi-manual-licensemanagement]]
-= opsi License Management
+= License Management
+
+License management or software license management ensures the legal handling of proprietary software in companies and organizations. Ideally, license management supports different license models and helps those responsible to maintain an overview of the software used in the company and the existing licenses. Using a good license management system, you can avoid penalties and unnecessary licensing costs.
 
 [[opsi-manual-licensemanagement-preconditions]]
-== Conditions for using the opsi License Management extension
+== Prerequisites
 
-This module currently is a co-funded extension and therefore not free.
-For more details see xref:modules/modules.adoc#opsi-manual-modules[opsi Extensions].
+NOTE: This module is currently a https://www.uib.de/de/opsi-erweiterungen/erweiterungen[paid extension]. This means that you need an activation file to unlock it. You will receive this file after you have purchased the extension. For evaluation purposes, we’re happy to provide you with a temporary license free of charge. Please contact us via mailto:info@uib.de[email].
+
+More details can be found in xref:modules/modules#opsi-manual-modules[opsi Extensions].
 
 [[opsi-manual-licensemanagement-overview]]
 == Overview
 
+The license management module simplifies the time-consuming and complex administration of licenses of non-free software installed on clients managed with opsi.
+
 [[opsi-manual-licensemanagement-overview-features]]
-=== Main features
+=== Main Features
 
-The opsi license management module is designed for managing the software licenses for proprietary software installed on opsi clients.
+The main features of this opsi extension are:
 
-The main features are:
+* The configuration of the license management takes place in the same interface as the software distribution and operating system installation (see chapter xref:configed[opsi Management GUI: `opsi-configed`]).
 
-* Providing license management functions from within the _opsi-configed_ management interface.
+* You can easily generate reports about the installed licenseable software, even for software not distributed via opsi. The latter uses the information from the software inventory as a basis.
 
-* Easy generation of reports about installed license-bound software, for non-opsi-managed software, based on the software inventory
+* You can reconcile installations and existing license agreements.
 
-* Reconciliation of software installations and license contracts
+* Optionally you can automatically provision, allocate and reserve licenses and license keys.
 
-* Optionally automated supplying, assigning, and reserving licenses and license keys.
+=== Software Licensing Models
 
-* The following license models can be used:
+A licensing model defines who may use a software in which form (see section <<opsi-manual-licensemanagement-createlicense-model>>). There are various approaches as to how the software manufacturers handle this:
 
-- standard single license  - one installation, possibly identified by a license key, on one computer
+* Standard Single License: one installation on one computer (with individual license key).
 
-- volume (or campus) license - a certain or unlimited number of installations for which one license key is provided
+* Volume License: maximum number of installations is fixed; as campus license the key is valid for an unlimited number of installations
 
-- computer bound license - a single license for use on a fixed hardware
+* OEM License: license bound to one computer, key is valid only for specific hardware
 
-- concurrent license - the installations are not limited, the real usage is managed by a license server
+* Concurrent User License: any installation of the software, a license server regulates the number of usages
 
-*  When uninstalling an opsi managed software the assignment of a license (key) is released as well.
-
-* In addition, license assignments can be edited manually or even by a script, for example, if licenses for software that is not opsi-managed should be integrated.
-
+If the opsi server controls the allocation of licenses, it is ensured that the license and if necessary the key are released again when the software is uninstalled. Furthermore, the allocation of licenses can also be done manually or even script-controlled, e.g. if a license has not been distributed with opsi.
 
 [[opsi-manual-licensemanagement-database-tables]]
-=== Overview database model
+=== Database Model for License Management
 
-In the world of non-free software, license management is a complex subject. To represent it, opsi has to implement a relatively complex database model.
+License management is a complex topic. To represent it, opsi has to implement a relatively complex database model to manage the licenses and their keys. For a better overview the following diagram represents the involved tables. The blue line marks the border between tables which are automatically generated by the software audit functions and tables with data that is collected or assigned specifically for license management.
+Only the license pool table has connections to both spheres. This fact hints at the importance of this construct.
 
-The involved tables in the opsi database are sketched in the following diagram. The meaning of the different relations should _peu à peu_ become clear by the following explanations of the opsi LICENSE management concepts and usages.
+.Database Tables relevant for License Management
+image::mysql-schema-licensemanagement.png["Database Tables relevant for License Management"]
 
-The blue line in the diagram marks the border of the tables which are automatically generated by the software audit functions and the data which is constructed especially for license management. Only the license pool table has connections to both spheres. This fact hints at the importance of this construct.
-
-.Database tables relevant for license management
-image::mysql-schema-licensemanagement.png["Database tables relevant for license management"]
-
+The diagram also shows the meaning of license pools, which the <<opsi-manual-licensemanagement-licensepools>> section explains in detail.
 
 [[opsi-manual-licensemanagement-overview-start]]
-=== Invoking the license management from the _opsi-configed_
+=== Lizenzmanagement im `opsi-configed`
 
-A separate window in the _opsi-configed_ management GUI is used for the license management.
-It is available by pressing the button "licenses" at the top right corner of the _opsi-configed_ management GUI. If the license management module is disabled,
-then a note will be displayed. (See the entry for "license management" in the main menu under _/Help/Modules_).
+The management interface `opsi-configed` offers a separate window for license management. You can access the dialog via the _Licenses_ button in the main window. The prerequisite is that the extension is installed and activated. To check this, go to the _Help_ / _Modules_ menu in the main window.
 
-.opsi-configed: Menu bar with the button "licenses" (rightmost)
-image::opsi-configed-mode-selection.png["top right corner of the opsi-configed interface: Menu bar with the button 'licenses' (rightmost)", pdfwidth=50%]
+.`opsi-configed`: You can reach the license management via the rightmost icon (_Licenses_).
+image::opsi-configed-mode-selection.png["`opsi-configed`: You can reach the license management via the rightmost icon (_Licenses_).", pdfwidth=50%, width=400]
 
-The opsi license management module is an opsi extension module.
+The license management dialog box displays six tabs at the top:
 
+* License pools
+* New license
+* Edit licenses
+* Licenses usage
+* Reconsiliation
+* Statistics
+
+The following sections explain the individual dialogs and their various features.
 
 [[opsi-manual-licensemanagement-licensepools]]
-== _license-pools_
+== License Pools
 
-The license management frame is constructed similarly to the mainframe, showing a line of tabs that lead to subframes, each subframe handling a specific task.
-
-The first subframe introduces the topic "license pools", and defines their relationship to the data on installed software and opsi packages.
+The tab _License pools_ shows the associations of the license pools with the information of the opsi database about installed software and installation packages.
 
 [[opsi-manual-licensemanagement-licensepools-concept]]
-=== What is a _license-pool_?
+=== What's a License Pool?
 
-A _license-pool_ has to be defined if licensing is needed to be managed for some kind of software.
+For each type of license you want to manage with this extension, you need to set up a separate license pool. This pool describes the summary of rights, which are needed to install a certain kind of software legally. The license pool is the center of all opsi license management activities:
 
-The _license-pool_ is a construction that denotes the collection of all allowances for installing some kind of software.
+* On the one hand, it refers to the installed software items and opsi installation packages.
+* On the other hand, it combines legal and technical constructions of the installation permissions.
 
-The _license-pool_ is the central element of the opsi license management since it encloses two sides, on one hand, references to installed software items and opsi installation packages, on the other hand, references to the legal and technical constructions of the installation permissions.
-
-.License management: "License pools" tab from the license management window
-image::licensemanagement-licensepools.png["License management: 'license pools' tab", pdfwidth=90%]
+.The tab _License pools_
+image::licensemanagement-licensepools.png["The tab _License pools_", pdfwidth=80%]
 
 [[opsi-manual-licensemanagement-licensepools-creation]]
-=== Administration of _license-pools_
+=== Managing License Pools
 
-At the top of the _license-pools_ window is a table of available _license-pools_.
+At the very top of the _License pools_ dialog you can see a two-column table listing all available license pools. You can edit the _description_ field and enter your own descriptions there.
 
-The field _description_ can be edited here. More editing functions are available from the context menu (right mouse button). The most important is: creating a _New license-pool_ by adding a new row to the table.
+Further editing functions can be accessed via the context menu of the right mouse button. Use the entries displayed there to create a new pool, delete an existing one, save or discard the changes, and reload the data.
 
-When inserting a row, a (unique) _licensePoolId_ must be entered, e.g. following the scheme _softprod_pool_.
+When creating a new pool, i.e. when creating a new table row, enter a (unique) _licensePoolId_ in the corresponding field, for example `pool_for_x`.
 
-Please do not use special characters. When saving the new entry, any capital letter will be converted to lower case, therefore avoiding capitals from the beginning is recommended.
+NOTE: Please do not use special characters for the IDs. Upper case letters are automatically converted to lower case!
 
-The new _licensePoolId_ cannot be changed after it is saved because it is used as the primary key.
+Unlike the description, you can edit the pool ID only until you save it for the first time. After that, it cannot be changed because it's used as the primary key. Deleting an entry is only possible if there is no reference to this key in other tables. Recursive search for such references is currently not supported.
 
-After any changes to the data in the window, the green checkmark changes to red, and the cancel option is enabled.
-The changes can be saved by clicking the red checkmark, or changes can be canceled by clicking the cancel button (also available from the context menu).
+Each editing operation changes the status display of the two buttons _OK_ and _Cancel_. The green check mark of the _OK_ button turns red and the _Cancel_ button is enabled. Press one of the two buttons or select the corresponding entry from the context menu of the right mouse button to save or cancel your changes.
 
 [[opsi-manual-licensemanagement-licensepools-opsiproducts]]
-=== _license-pools_ and _opsi-products_
+=== License Pools and opsi Products
 
-The standard method to manage licenses is to include the license, from a single _license-pool_, when installing the software (i.e. using the _opsi-product_ installation software to install _Acrobat Writer_).
+In general, only one license pool belongs to an opsi product which installs a software requiring a license and which is to use the license management. The required licenses are drawn from this pool. It's possible, though, that several products refer to the same license pool if those are variants of the same software. For example, the products `win10-x64` and `opsi-local-image-win10-x64` both use the pool `p_win10-x64`.
 
-Not unusual is the case that multiple products share the same license pool. This is normal if these products are variants of the same software. For example: the products _win10-x64_ and _opsi-local-image-win10-x64_ using the license pool _p_win10-x64_).
+The situation is less clear, if an opsi product installs several software products requiring licenses from several license pools. Assuming that a package called _Design-Programs_ includes Adobe Photoshop and Adobe Writer, the opsi product must request licenses from two different pools. Basically, these assignments are based on an n:m scheme. 
 
-A more complicated situation (which you should avoid) might occur while installing software that requires licenses from several _license-pools_ (i.e. "Designer tools" which installs _Adobe Photoshop_ as well as _Acrobat Writer_).  In this case, the _opsi-product_ requests licenses from several _license-pools_. At the same time, there might be other _opsi-products_ requesting licenses from the same _license-pools_
-(e.g. the _Acrobat Writer_ _license-pool_).
-So the relation between _opsi-products_ and _license-pools_ can be ambiguous. This can be avoided by using unambiguous policies when building _opsi-products_.
+TIP: To keep things easy, please assign only one software which needs a license to an opsi product. Assign this product to the corresponding license pool. This restriction is mandatory if you use the license management module together with the xref:modules/wan-support#opsi-manual-wansupport[WAN/VPN Support] extension.
 
-TIP: Do not integrate more than one license needing software in one opsi product. Assign this product to the license pool which holds the licenses for this product. (Without this assignment the license management will not work together with the opsi WAN extension. See also chapter xref:modules/wan-support.adoc#opsi-manual-wansupport[WAN Support] )
+The second table in the _License pools_ tab (see <<licensemanagement-licensepools.png>>) manages the relationship between the license pools and the product IDs of the opsi products. Click on the _licensePoolId_ or _productId_ column title to sort the table. This way you can show the connections between opsi products and a license pool or all license pools assigned to an opsi product.
 
-
-The second part of the _license-pool_ tab manages the relationship between _license-pools_ and productIds (from _opsi-products_).
-
-All tables in the license management module can have their columns sorted by clicking on the column header. Clicking again inverts the order (ascending or descending).
-
-Sorting can be used to display the connections between _opsi-products_ and _license-pools_.
-Sorting by _opsi-product_ displays all _license-pools_ connected to a certain _opsi-product_, whereas sorting by _license-pool_ shows which _opsi-products_ are connected to a _license-pool_.
-
-The context menu provides an option for inserting a new relationship between _opsi-product_ and _license-pool_.
-An empty row is inserted on top of the table. Clicking into the field _licensePoolId_ or _productId_ displays a dropdown with the available options.
+You can create a new entry, i.e. a new assignment of a license pool to a product ID, via the context menu of the right mouse button. After clicking into the table field you will see a list of available options.
 
 [[opsi-manual-licensemanagement-licensepools-softwareids]]
-=== _license-pools_ and installed software
+=== License Pools and installed Software
 
-The third section of the _license-pools_ tab deals with the correlation between _license-pools_ and installed software found on computers in the opsi network, either installed via opsi or otherwise.
+The lower half of the  _License pools_ tab (see <<licensemanagement-licensepools.png>>) represents the correlation between license pools and the installed software on the opsi clients, either installed with opsi tools or in another way. In the individual columns you can see a unique ID, which is constructed from combining all attributes and acts as a unique key. This is followed by information about the software, including the name, the version number, the operating system, the architecture etc.
 
-By default, the table in this section contains the identifying attributes of all captured software items. The ID, which is constructed from combining all attributes, acts as a unique key for every software item installed on any computer. The values are determined and transferred to the server via opsi software audit. They are saved in the `SOFTWARE_CONFIG` table of the opsi database and added to the collective `SOFTWARE` table, provided they are not yet present. This database table is the base for the table shown in the license management and is of importance outside of the license management as well.
+The opsi software audit determines the values (see section xref:manual/pages/products/localboot-products#opsi-manual-localboot-swaudit_hwaudit[Products for Hardware and Software Audit: `hwaudit` and `swaudit`]); it retrieves information from the registry and reports it back to the opsi server. The table _SOFTWARE_CONFIG_ of the opsi database stores the values for each client. If not already present, they are added to the table _SOFTWARE_. This forms the basis for the table displayed in the license management.
 
-The display of the software table is configured by two lists of options. The first one enables the possibility to restrict the display on certain data:
+Two different views determine which data you can see in the table at the bottom of the _License pools_ dialog:
 
-* Show all software names
-* Show software names without uniform assignments
-* Show software names without any assignments
-
-The other defines what the selection of a row entails:
-
-* Selection = Complete list of SW items assigned/to assign
-* Selection = SW items to assign (additionally)
-
+* Only show specific data (_Show all_, _Don't show software assigned to other pools_, _Only software items not yet assigned to any pool_); this is the default.
+* Description of what the highlighting of rows means (_Selection = Complete list of SW items assigned/to assign_, _Selection = SW items to assign (additionally)_).
 
 [[sw-table-configuration]]
-.Software table configuration
-image::licensemanagement-sw-table-configuration.png["Software table configuration"]
+.Software Table: configuring the view
+image::licensemanagement-sw-table-configuration.png["Software Table: configuring the view", pdfwidth=80%]
 
-The first option in both lists is always set by default.
-The software items (from the `SOFTWARE` database table ) that are assigned to the selected _license-pool_ (from the `LICENSE_POOL` table) are shown by highlighting the respective rows in the tables. This allocation is precisely the data from the `AUDIT_SOFTWARE_TO_LICENSE_POOL` table.
+So here you can see all assignments of software items (from the database table _SOFTWARE_) to a license pool (table _LICENSE_POOL_). All entries belonging to the license pool selected in the upper table appear as highlighted rows with a colored background. This allocation is precisely the data from the _AUDIT_SOFTWARE_TO_LICENSE_POOL_ table.
 
-The assignment of software items to the _license-pool_ can be edited by changing the highlighted rows:
+TIP: Change the selection to edit the assignment of software items to the individual license pools. Use [Ctrl]+click or [Shift]+click to select multiple rows in the software table. A single click in a row restarts the selection.
 
-TIP: The assignment of software items to _license-pools_ is edited by changing the various selections, either with _Ctrl + click_ or _Shift + click_. A single _mouse click_ resets the selection.
-
-If there is an entry for an allocation of a software item to a _license-pool_ in the database but the software does not seem to exist anymore, then the _Missing_ button is set to active. By clicking the button a new window opens and lists the referred software that seems to be missing. It offers the possibility to tidy up and delete the allocation (from the 'AUDIT_SOFTWARE_TO_LICENSE_POOL' table).
-
+NOTE: If there is still an assignment of a software item to a license pool in the database, but the software no longer exists according to the database, the _Missing_ button is activated. Press the button to open a new dialog window. It lists the referenced but apparently no longer existing software and offers to remove the allocation from the _AUDIT_SOFTWARE_TO_LICENSE_POOL_ table.
 
 [[opsi-manual-licensemanagement-licensepools-softwarei-navigation]]
 === Navigating the Software Table
 
-The navigation of the software table deviates from the usual since selecting an item in the software table entails a change in item allocation. Therefore the location of the cursor in the table is not illustrated by a highlighted row but as a red star at the beginning of the row.
+A change in the rows highlighted in blue means a change in data. Therefore, the functions for navigating in the table behave differently than usual. A red asterisk at the beginning of the line marks the location of the cursor.
 
+.Software Table: Cursor in the Row
+image::licensemanagement-table-sw-rowcursor.png["Software Table: Cursor in the Row", pdfwidth=80%]
 
-.Row cursor in the software table
-image::licensemanagement-table-sw-rowcursor.png["Row cursor sw table", pdfwidth=75%]
+In order to reposition the cursor, you have the following options:
 
-The star, meaning the row cursor, changes position by
-
-* an implicit search of a table entry (e.g. automatically when showing the assigned software items when the _license-pool_ entry in the _license-pools_ table above is changed),
-* a manual search using the search bar,
-* using the red arrow buttons located directly above the table,
-* clicking directly into the assigned column for the star (the very first column) of the desired row (while clicking any other column of that row resets the entire selection).
-
+* Search for a value (e.g. by showing the assigned software items when changing the license pool).
+* Use the search field above the table.
+* Use the buttons with the red arrows above the table for navigation.
+* Click the column of the row marked with the asterisk. (Attention: Clicking into the data itself resets the row selection!)
 
 [[opsi-manual-licensemanagement-softwareids-based-audit]]
-=== The allocation of software items to license-pools as a basis for a compliance check
+=== Performing a Compliance Check
 
-The main principle is simple: When a software pool is established, the utilized software items for this pool are selected with a few mouse clicks. This forms the data basis (for example for the compliance check from Microsoft) to determine the number of installations linked to a pool. The result of this evaluation can be found in the _Statistics_ tab (<<opsi-manual-licensemanagement-statistics>>).
+By allocating software items to license pools, you have already established the base for a compliance check required by Microsoft. This is how it works: Use the mouse to mark the software items in a pool. To determine the total number of installations assigned to a pool, open the _Statistics_ tab (see section <<opsi-manual-licensemanagement-statistics>>).
 
-The allocation of software items to _license-pools_ has to be maintained meticulously to receive correct results. Especially when software from a _license-pool_ is installed, the specific software item has to be registered to the respective pool.
-
-The different possible configurations of the displays are used to provide functions to support various policies and best practice in data maintenance.
-
+NOTE: To get correct results, it is important to carefully maintain the assignments of software items to a license pool. It is imperative that these are complete. Thus, when a new licensable application is added, the software must be assigned to the pool.
 
 [[opsi-manual-licensemanagement-softwareids-filtered-by-assignment]]
-=== Function: Filtering the assigned software items
+=== Filtering the Software Table
 
-The context menu of the table provides the option to switch between viewing all entries (including the highlighted rows) or exclusively the marked ones. Thereby one obtains a list of all assigned software items in the default configuration. This can be helpful since the rows of assigned software items do not necessarily follow each other directly in the overall software list.
+Use the context menu of the right mouse button to access functions for filtering the assigned software items. You can either display all items or only the selected ones.
 
-.Software table, overall software list with context menu
-image::licensemanagement-table-sw-contextmenu01.png["context menu software table", pdfwidth=80%]
+.Software Table: the context menu of the right mouse button
+image::licensemanagement-table-sw-contextmenu01.png["Software Table: the context menu of the right mouse button", pdfwidth=80%]
 
-After switching to viewing only the marked items:
+This can be helpful since the rows of assigned software items are not necessarily consecutive in the software table. Select _Show only marked items_, and the view changes:
 
-.Software table reduced to the software items assigned to the selected license-pool
-image::licensemanagement-table-sw-contextmenu02.png["context menu software table", pdfwidth=80%]
+.Software Table: displaying software items assigned to a pool
+image::licensemanagement-table-sw-contextmenu02.png["Software Table: displaying software items assigned to a pool", pdfwidth=80%]
 
-Instead of using the context menu, one can also click on the filter icon next to the search bar which gives the same result. When all rows are shown this icon appears as an open filter, and when only the highlighted rows are shown the icon appears as a closed filter.
+Alternatively, use the filter icon next to the search field. When a filter is active, the icon appears crossed out.
 
-In the filtered view the allocations can be edited as well. In this case, allocated items can only be removed.
+TIP: Even when the filter is active, you can edit the assignments, or more precisely: remove assignments.
 
 [[opsi-manual-licensemanagement-completeness-by-softwarename-policy]]
-=== Function: Completing the allocations to a software name
+=== Completing Assignments to Software Names
 
-When a manufacturer of a software releases a new version or patch, the new version receives a new windowsSoftwareId and therefore shows up as a new entry in the software table (with a new ID). In most cases, the new software can be treated the same way for licensing as the previous version. If a license agreement was required for the old version, the same likely holds for the new one. This means the demand for a license has to be registered via the same _license-pool_ for both versions. Covering the demand can then be organized via the shared _license-pool_.
+When the software manufacturer distributes a new version, an update or a patch, the new variant also receives a new Windows software ID and therefore shows up as a new entry in the software table (with a new ID). In most cases, the new software can be treated the same way as far as the license is concerned. If a license agreement was required for the old version, one probably exists for the new one. This means that the need for licensing for both editions must be registered in the same license pool. Coverage is then organized via the common license pool.
 
-It is important to make sure when rolling out a new version that an allocation is added to the respective _license-pool_. Besides, some software updates itself without active involvement. Then after the update, the correct allocation might be missing maybe even unnoticed. That is why (since version 4.1.9.8) the _opsi-configed_ includes an auxiliary function to simplify the completion of allocations.
+When rolling out new versions, you should therefore remember to add an assignment to the correct license pool. Of course, there is also software which installs updates without your intervention. As a result, the correct allocation may be missing after the update. That is why the management interface `opsi-configed` (since version 4.1.9.8) offers a separate dialog to simplify the completion of allocations. You can open the window by clicking on the _Name -> Pool_ button in the lower half of the _License pools_ tab.
 
-As a basis for this we assume that the data field _name_ is often sufficient to identify the _license-pool_, and differences in components of the software ID can (often) be ignored in this regard.
-The functions and options in the gray box with the label _Alternative view_ serve for working with this hypothesis. The button _Name -> Pool_ opens an additional window.
+.Allocation of IDs, Names and Pools
+image::licensemanagement-table-sw-name2pool.png["Allocation of IDs, Names and Pools", pdfwidth=90%]
 
-.Inverse Allocation Name - Software ID(s) - Pool
-image::licensemanagement-table-sw-name2pool.png["Inverse Allocation", pdfwidth=90%]
+TIP: Usually the data field _name_ is sufficient for identifying the required license pool, so you can ignore differences in other components of the software ID.
 
-The additional window contains two auxiliary tables.
-When prior to calling the window the default setting was left at _Show all software names_, the first column of the first table now displays the software names in alphabetical order. The second column lists all IDs that are associated with the respective name (although the first part of the ID, being the exact software name, is not repeated for simplicity reasons).
+The dialog displays two auxiliary tables. If you have activated the default setting _Show all software names_ before opening that window, the first column of the first table shows the names in alphabetical order. The second column lists all IDs associated with the respective name (although the first part of the ID, i.e. the exact software name, is not repeated for simplicity reasons).
 
-When selecting a name in the first table, the dependent second table displays the corresponding IDs individually and specifies if an allocation to a pool exists, and if so to which pool. The _license-pool_ allocations can be unified across all rows of the table in three ways:
+The second table lists the IDs for the name selected in the first table. For each ID, it shows whether there is an allocation to a license pool and what it is called. This allows you to standardize the license pool assignments:
 
-* Remove all allocations,
+* remove all assignments
+* assign the pool selected in the main window to all ID variants (probably the standard case)
+* assign everything to the selected pool if the variants are allocated to different pools
 
-* Allocate the currently (in the main window of the license management) selected pool to all ID variations (this is presumably the standard case),
+.Main Window: Options for assigning IDs, Names and Pools
+image::licensemanagement-table-sw-alternative-view.png["Main Window: Options for assigning IDs, Names and Pools", pdfwidth=80%, width=400]
 
-* When the different variations are currently assigned to different pools, assign all of them to the pool belonging to the selected row.
+NOTE: If such unresolved assignments exist, a small _i_ appears in this gray box as an indicator. We have deliberately chosen a subtle design because it may well be correct and necessary that variants of a software are licensed differently.
 
-
-.Options for Allocations Name - Software ID - Pool
-image::licensemanagement-table-sw-alternative-view.png["Options for alternative Allocation", pdfwidth=80%]
-
-Since one would like to systematically check the _license-pool_ allocations, it is recommended to click the option to _show software names without uniform assignments_ prior to calling the window. When this option is set, the upper table is reduced to the software names that correspond to multiple IDs where those IDs are _also_ assigned to different _license-pools_.
-
-If such allocation differences exist, an "i" in a small Box within the gray Box of the license management appears as an indicator. This information is designed discreetly, since, depending on the licensing case, it can be correct or even needed to have different software variations licensed differently.
-
-To search for possible forgotten license allocations, the additional window can be opened with the third and final option _show software names without any assignment_.
-
+The third option (_Show software without any assignments_) allows you to search for any forgotten license assignments.
 
 [[opsi-manual-licensemanagement-softwareids-total-assignment-policy]]
-=== Function: Recognizing non allocated Software
+=== Detecting Software Not Yet Assigned
 
-Instead of relying on the previously depicted process, thorough license management can also be achieved by assigning _every_ registered software to a _license-pool_.
+Of course, it is possible to assign all installed applications to a license pool -- including free software. If you then install a new software or a new version of an existing one, previously unassigned software items are easily identifiable.
 
-For this to work in practice, pseudo _license-pools_ like "free Software" or "Operating System components" are needed to which software items that do not have or require any separate licensing can be assigned to.
+TIP: For such an approach to work in reality, you need pseudo license pools such as _Free Software_ or _Operating System Components_. You then allocate software items to these pools for which no licensing exists or is required.
 
-To simplify the implementation of this strategy, the _opsi-configed_ offers this additional display option (cf. <<sw-table-configuration>>):
+`opsi-configed` provides additional display options for such scenarios (see also <<sw-table-configuration>>):
 
-.Options for displaying software items
-image::licensemanagement-table-sw-modi-primary.png["Options for displaying software items", pdfwidth=80%]
+.Software Table: Options for displaying Software Items
+image::licensemanagement-table-sw-modi-primary.png["Software Table: Options for displaying Software Items", pdfwidth=80%, width=400]
 
-Assuming the initial situation is that the previously registered software has universally been assigned to _license-pools_, then the following sequence of steps are expedient:
+Assuming you have assigned all software to a license pool until now, the individual steps look like this:
 
-. Installing a (new) software on a computer.
-. Running _swaudit_ on the computer.
-. If the software is indeed new, the software table receives a new entry; there
-can also be multiple entries (for example when libraries are installed).
-. When preselecting a suitable _license-pool_ and activating the option _Show software names without uniform assignments_, then the new table entries are the only highlighted ones.
-. If the preselected _license-pool_ is suitable, a new entry for this _license-pool_ can be added to the previously registered with "Ctrl + click".
+. You install a (new) software on an opsi client.
+. On the client, you start the opsi product `swaudit`.
+. If the software is new indeed, a new entry appears in the software table. It's possible that you see several entries there, for example for additionally installed libraries.
+. Select a suitable license pool and activate the option _Show software names without uniform assignments_. The new table entries are now the only ones highlighted.
+. If the selected license pool is suitable, then add a new entry with [Ctrl]+click.
 
-For the distribution of arbitrary, initially not determined software items to _license-pools_, the following procedure can be used:
+The steps are different if you want to distribute arbitrary, not yet assigned software items to license pools:
 
 . Activate the option _Show software names without any assignments_
-. Change to edit mode _Selection = SW items to assign (additionally)_
-. Select and highlight rows using "Ctrl + click"
-. Select the _license-pool_ that the highlighted software items should be assigned to. The save button is now active.
-. Save the changes
-. Reset the edit mode to _Selection = Complete list of SW items assigned/to assign_
+. In the section _Edit mode_, select _Selection = SW items to assign (additionally)_.
+. Use [Ctrl]+click to select the relevant rows; optionally, you can use the search function or a filter.
+. Now select the license pool to which you want to assign the highlighted software items.
+. Press the now green _OK_ button to save.
+. Finally, set the _Edit mode_ back to _Selection = Complete list of SW items assigned/to assign_.
 
-TIP: Please note that when the table filter is active, the functions described here act differently.
-
+NOTE: Please note that the functions described here (seem to) behave differently when a filter is active for the table.
 
 [[opsi-manual-licensemanagement-createlicense]]
-== Setting up licenses
+== Setting up Licenses (_New license_)
 
-Setting up a license or supplying a license to a _license-pool_ requires several steps. These can be performed in the 'New license' tab, the second tab in the license management window.
+Change to the _New license_ tab to set up licenses and then make them available via a license pool. The dialog window shows a (non-editable) table with all available license pools in the upper area. Select a pool that the new license is to be assigned to.
 
-At the top there is a table of available _license-pools_ to select the _license-pool_ that the new license is to be assigned to.
-
-.License management: "New license" tab from the license management window
-image::licensemanagement-createlicense.png["'New license' tab", pdfwidth=90%]
-
-Before continuing with the next steps, some basic concepts and terms of license management have to be introduced:
-
+.The tab _New license_
+image::licensemanagement-createlicense.png["The tab _New license_", pdfwidth=80%]
 
 [[opsi-manual-licensemanagement-createlicense-concepts]]
-=== Some aspects and terms of the license concept
+=== The Licensing Concept
 
-*Licensing* means the actual deployment of a permission to use software by installing the software on a client. This might (but does not have to) include the use of a special *license key* _(license key)_.
+First, let's clarify some important terms:
 
-The *software license* is the permission to install and use a software as defined by the license contract.
-Within the opsi database, a _software license_ is identified by a _softwareLicenseId_.
+* *Licensing*
+* *License Key*
+* *Software License*
+* *Licensing Model*
+* *License Contract*
+* *Licensing Option*
+* *License Usage*
 
-There are several types of software licenses (volume license, OEM license, time-limited license, etc.) which are the different *license models*.
-A software license is based on a *license contract*, which defines and documents the juristic aspects of the license.
+*Licensing* means the actual deployment of a permission to use software by installing the software on a client. Sometimes, but not always, this includes using a special *license key*.
 
-A *license option* defines the option to use a software license for a selected _license-pool_.
-Within opsi, the license option is defined by a combination of _softwareLicenseId_ and _licensePoolId_.
-This includes the actual _licenseKey_ (if required).
+The *software license* is the permission to install and use a software as defined by the license contract. In the opsi database the _software license_ corresponds to the licensing right and is identified by a _softwareLicenseId_. The *licensing model* describes the licensing right in more detail and determines, for example, for how many computers and how long a license is valid. The *license contract* states and documents the licensing right in the legal sense.
 
-Finally, the *license usage* documents the use of a license by assigning the license option to a client.
-This is the legal and implemented licensing of software, defined by the combination of _softwareLicenseId_, _licensePoolId_, the unique client name _hostId_, and (if required) the _licenseKey_.
+A *licensing option* describes the possibility to apply a licensing right for a specific license pool. opsi defines the licensing option by a combination of _softwareLicenseId_ and _licensePoolId_. If required, this includes the actual _licenseKey_.
+
+Finally, the *license usage* documents the use of a license by assigning the licensing option to a client, it's the completed and authorized licensing of a software installation. The description is composed of _softwareLicenseId_, _licensePoolId_, and _hostId_ (unique name of the opsi client). If required, it also notes the _licenseKey_.
 
 [[opsi-manual-licensemanagement-createlicense-contract]]
-=== Registering the license contract
+=== Registering the License Contract
 
-The next step after selecting the _license-pool_ for the new license option is to register the license contract that the license should be based on.
-Under "Select or enter license contract" (in the "New license" tab) an existing contract can be selected or a new one can be created.
+After you have decided on a license pool for which you want to create a licensing option, you select the license contract. In the table _Select or enter license contract_ you can choose an existing contract or create a new contract record.
 
-The license contract dataset comes with the data fields _partner_, _conclusion date_, _notification date_, and _expiration date_.
-The entry field _notes_ can hold some additional information like the location where the contract document is kept.
-The unique contract ID (licenseContractId) is for identifying the license contract in the license management database.
-When entering a new license contract, a new unique ID is automatically constructed based on the current date and time stamp.
-The default setting can be used if the license contract is implied by purchasing the software or the contract is documented and traceable some other way.
-Otherwise, the data can and should be edited to ensure orderly tracking of the underlying contract which can be for example through reference to a file number in the _notes_ field.
+The first column shows the _licenseContractId_, which is used to identify the license contract in the database. This is followed by information about the contract partner (_partner_), the conclusion date (_conclusionDate_), the notification date (_notificationDate_) and the expiration date (_expirationDate_). The last field (_notes_) can hold some additional information. For example, here you can write down the location of the documents belonging to the contract or a file number.
 
-The contract ID can only be changed before saving the new data set.
-When saving the data, the opsi service checks whether the ID is unique.
-In case it is not, a new ID is generated and cannot be changed anymore.
+Use the context menu of the right mouse button to create a new record. A new unique ID (based on the current date and time stamp) is automatically created. You can use the default setting if purchasing the software implies the license contract or if the contract is documented and traceable in some other way. Otherwise, the data can and should be edited to ensure orderly tracking of the underlying contract, for example, by entering a file number in the _notes_ field.
 
+NOTE: You can only change the contract ID as long as the data record has not yet been saved. When saving the data, the opsi service checks whether the ID is unique. If it isn't, a new ID is generated and cannot be changed anymore.
 
 [[opsi-manual-licensemanagement-createlicense-model]]
-=== Configuring the license model
+=== Configuring the Licensing Model
 
-The third part of the "New license" tab, "Configure license", is for registering the license model and license data.
+In the _Configure license_ section of the _New license_ tab, you can register the licensing model. Use one of the four buttons to select the licensing model: 
 
-Several types of license models are available:
+* _Standard_: Installation on any computer (with individual license key, which is also used only once).
+* _Volume_: Maximum number of installations is fixed; one volume license legitimizes _n_ installations (possibly with a single license key); _n=0_ means that the key is valid for an unlimited number of installation (campus license).
+* _OEM_: License is bound to a computer, key is only valid for certain hardware (often for PCs with pre-installed operating system).
+* _Concurrent_: From opsi's point of view, this is an unlimited volume license which may be used as often as desired; de facto, however, the number of licenses used is controlled differently, e.g. by a license server.
 
-* Standard license
-* Volume license
-* OEM license
-* Concurrent license
+In all four cases, the automatically generated data includes a unique ID (based on the current date and time stamp). You can accept or modify the default value. Depending on the license model you have chosen, you can adjust the other fields or not.
 
-Each option is represented by a button.
-By clicking one of the buttons the form is filled with data for that type of license model.
+NOTE: Please note that the file _Expiration date_ defines the validity of the licensing right. The _expirationDate_ field in table above (_Select or enter license contract_) shows the same value, but is currently used for documentation purposes only. This may change in the future.
 
-The license model *Standard license* means, that this license is valid for a single installation on an arbitrary client.
-So the license key (if any) is valid for a single installation only.
+Hit the _Send_ button to submit the data to the opsi service and to add it to the database. This will create records for a software license based on the selected contract and licensing option. You can see these at the very bottom of the tab in the _Available license options_ section. After saving your changes, the table will be reloaded and the newly generated option will be automatically highlighted.
 
-A *Volume license* is valid for a certain number _n_ of installations.
-In this case, the optional license key is used for that number of installations.
-Setting _n_ = 0 means, that the number of installations is unlimited within the same network (campus license).
-
-In the case of an *OEM license*, the license is valid for a dedicated client only.
-Clients that come with a vendor pre-installed operating system often have this type of license for the pre-installed OS and software packages.
-
-The *Concurrent license* means that a certain number of licenses is available for a variable set of clients.
-Within opsi, this situation is handled like an unlimited Volume license.
-The number of actual installations in use has to be managed by some external license server.
-
-After clicking a button, the automatically generated data include a unique generated ID (derived from date and time stamp). This ID can be changed as desired.
-
-It depends on the type of license model, which of the other fields can or cannot be changed.
-
-The field "Expiration date" defines the expiration date of the license in a technical sense.
-(This column of the license is for future use).
-
-[[opsi-manual-licensemanagement-createlicense-finish]]
-=== Saving the data
-
-The "Send" button sends the data to the opsi service to save them permanently to the opsi database (if they are consistent and no errors occur).
-
-While proceeding with this, data records will be generated for the new software license based on the selected software contract and the new license option assigned to that.
-
-The list of available license options at the bottom of the window will be refreshed with the new license option selected. If necessary, the license key can be changed then.
+TIP: If necessary, you can correct the entered license key via this table.
 
 [[opsi-manual-licensemanagement-editlicense]]
-== Editing licenses
+== Edit Licenses
 
-In ninety percent of the use cases editing the license data with help of the tabs "License pools" and "New license" will do.
-But there might be some special cases where more specific and explicit editing of the license data is needed.
-For this, the "Edit licenses" tab presents the license data in three tables, representing the internal data structure and allowing to adapt the data for some special cases.
+In 90% of the cases, the features on the two tabs _License pools_ and _New license_ should be sufficient to enter and edit licensing options, but you might encounter situations where you need to tweak some data. The third tab _Edit license_ contains three tables which allow you to view internals of the licensing options and adjust them if necessary.
 
-.License management: "Edit licenses" tab from the license management window
-image::licensemanagement-editlicense.png["License management: 'Edit licenses' tab", pdfwidth=90%]
-
-Based on this direct data access, the following chapter shows how to configure a special license, like the Microsoft Vista or Windows 7 Professional downgrade option for installing Windows XP.
+.The tab _Edit licenses_
+image::licensemanagement-editlicense.png["The tab _Edit licenses_", pdfwidth=80%]
 
 [[opsi-manual-licensemanagement-editlicense-downgrade-option]]
-=== Example downgrade option
+=== Example: Configuring a Downgrade Option
 
-The downgrade option means, that instead of the purchased software, the preceding version can also be installed.
-For instance, installing Windows XP based on a Windows Vista license.
-In this case, the license key can also be used for an installation, which it was not meant for originally.
+The following example shows how to configure a license with downgrade option. In other words, instead of the purchased software, the preceding version may also be installed. Thus, an existing license key may be used for an additional installation for which it was not originally legitimized.
 
-In the opsi license model this case can be configured like this:
+The opsi model maps this construction as follows: on the tab _New license_ you register the license. As a result, you receive a new licensing option (displayed in the lower table), which is based on a likewise newly created licensing right (_softwareLicenseId_). You need this value for the following steps. Either you copy the value to the clipboard or you look for it in the second table on the tab _Edit licenses_.
 
-From the "New license" tab the Vista license is to be registered, as usual, resulting in a new license option, which is displayed in the list of license options at the bottom of the window.
-This new license option is based on a new software license identified by _softwareLicenseId_.
+TIP: Via the context menu of the right mouse button and the entry _Transfer Licensing ID to license option row_ you can copy the ID.
 
-.License management: copying the license-ID to the license options from the context menu
-image::licensemanagement-editlicense-copying-license-id.png["License management: copying the license ID", pdfwidth=90%]
+._Edit licenses_: Copying the license ID via the context menu
+image::licensemanagement-editlicense-copying-license-id.png["_Edit licenses_: Copying the license ID via the context menu", pdfwidth=80%]
 
-This _softwareLicenseId_ is needed for further configuration steps. You can keep it in mind or copy it with drag&drop.
-You can look for the ID in the "Available license options" list of the "Edit licenses" tab as well.
-The context menu also supports copying the ID.
+Next, connect the existing licensing right to another license pool:
 
-The important step now is to connect this _softwareLicenseId_ to an additional _license-pool_.
+. Create a new record in the first table (_Available license options_) of the _Edit licenses_ tab.
+. Enter the ID of the licensing right (_softwareLicenseId_) and the ID of the additional license pool.
+. Save the changes; now you have registered two licensing options based on the same software license.
 
-For this, a new record has to be registered from the "Available license options" table of the "Edit licenses" tab.
-The fields of the new record have to be filled with the _softwareLicenseId_ and the ID of the additional _license-pool_ (in this case the pool for Windows XP licenses).
-To install Windows XP based on this license, an applicable Windows XP license key that is already in use by another client has to be added.
+NOTE: The opsi service counts each application of one of the two options against the maximum number of installations granted by the licensing right. Therefore, in case of such a downgrade option for single PC licenses with `maxInstallations = 1`, the opsi service always returns the key for only one license.
 
-After saving the new record, there are two different license options based on the same software license!
-The opsi service counts the use of both of them as an installation deducting from the maximum installation count.
-So in case of a downgrade license (with maxInstallations = 1), the opsi service delivers a license key for a Vista installation _or_ for an XP installation, but not for both of them.
+[[opsi-manual-licensemanagement-usages-manually]]
+== Licenses usage
+
+On the tab _Licenses usage_ you can view the licenses registered via the opsi service.
+
+.The tab _Licenses usage_ 
+image::licensemanagement-usages.png["The tab _Licenses usage_", pdfwidth=80%]
+
+Additionally, you can manage the use of the licenses manually on this tab. For example, this makes sense if a software is to be installed only manually on just a few clients and is not part of the opsi deployment:
+
+* Mark a table row and select _Delete row_ from the context menu of the right mouse button to release a licensing option.
+
+* If you edit the _licenseKey_ field in the upper table, you can (re)determine the key used for licensing.
+
+* The _Reserve license for client_ section at the bottom of the dialog is used to request and allocate a licensing option.
+
+TIP: When reinstalling a PC, previously assigned licensing options will remain unless you have explicitly deleted them. Release such an option either in this tab or with `opsi-script` (see section <<opsi-manual-licensemanagement-usages-opsiservice>>).
+
+[[opsi-manual-licensemanagement-reconciliation]]
+== Reconciliation 
+
+The table _Reconsiliation to software audit_ shows for each client (_hostID_) and license pool (_licensePoolId_) whether the opsi license management is responsible or not (column _used_by_opsi_). The last column (_SWinventory_used_) reveals if a (Windows) software is installed on a client according to the software inventory (`swaudit`) and if it requires a license from the pool.
+
+.The tab _Reconciliation_
+image::licensemanagement-reconciliation.png["The tab _Reconciliation_" pdfwidth=80%]
+
+To evaluate the results of `swaudit`, the corresponding software IDs (client registry) must be assigned to the correct license pools (tab _License pools_).
+
+NOTE: The license management extension counts a maximum of 1 occurrence per client and license pool when matching with the software inventory. For example, if a license pool _office2010_ is associated with 10 different patterns from the software inventory, all of which indicate that an MS Office 2010 is installed, this will only be counted as one installation--even if all 10 patterns are found on one client.
+
+To display additional information about the clients in the table, edit the server's host parameters page in `opsi-configed` and extend `configed.license_inventory_extradisplayfields` accordingly.
+
+TIP: You can copy{nbsp}&{nbsp}paste the data into a spreadsheet or print it via the context menu of the right mouse button. This requires the `opsi-configed` to have the appropriate permissions. It cannot run as an applet sandbox in the browser, but must run as a standalone application.
+
+[[opsi-manual-licensemanagement-statistics]]
+== Statistics
+
+The last tab gives you an overview of the general status of the licensing. Among other things, you can see the used and still free licensing options of the different license pools.
+
+.The tab _Statistics_
+image::licensemanagement-statistics.png["The tab _Statistics_", pdfwidth=80%]
+
+In addition to the registered licenses (_used_by_opsi_) and the remaining free licenses (_remaining_opsi_), you can see the total number of actual installations which need a license (_SWinventory_used_). The data of the column _SWinventory_used_ is based on the clients' registry scans by the opsi product `swaudit`. The allocations of the determined software IDs to the respective license pools can be managed on the tab _License pools_ (see section <<opsi-manual-licensemanagement-licensepools>>).
+
+TIP: You can copy{nbsp}&{nbsp}paste the data into a spreadsheet or print it via the context menu of the right mouse button. This requires the `opsi-configed` to have the appropriate permissions. It cannot run as an applet sandbox in the browser, but must run as a standalone application.
+
+[[opsi-manual-licensemanagement-statistics-downgrade-option]]
+=== Example: Configuring a Downgrade Option
+
+If you have configured a downgrade option (see section <<opsi-manual-licensemanagement-editlicense-downgrade-option>>), the _Usage of licenses, overview_ table represents that as well. A downgrade license grants one licensing option each for (at least) two license pools. Only one of the two can actually be used. Therefore, as soon as a licensing option is used, the value in the _remaining_opsi_ column in *both* rows decreases by 1. So apparently the number of available licenses decreases by 2--this is completely correct, however, and reflects the actual authorization situation.
 
 [[opsi-manual-licensemanagement-usages]]
-== Assignment and release of licenses
+== Allocation and Release by Script
 
-Using a license option by installing the software on a client results in the actual licensing.
+Whenever you install a software on a computer and assign a licensing option to a client, this leads to a license usage. In an opsi environment these installations are script-based and automatic. The script sends calls to the centrally running opsi service.
 
-In the opsi context, installations are done script-based and automatically.
-The client running the Winst script then invokes calls to the central opsi service.
+NOTE: This is done with the program `opsi-script` (formerly `opsi-winst` under Windows). The script takes care of the automatic software installation and configuration, but you can also use it as a standalone program. More information about the script language and the individual commands can be found in the xref:opsi-script-manual[`opsi-script` Manual].
 
-The following chapters introduce some of these service calls, which are relevant for license management.
-For further information about Winst and opsi commands see the documentation on Winst and opsi.
-
+The next sections introduce the `opsi-script` commands relevant for license management.
 
 [[opsi-manual-licensemanagement-usages-opsiservice]]
-=== opsi service calls for requesting and releasing a license
+=== Requesting and Releasing Licenses
 
-The opsi service call for requesting a license option and retrieving the license key for doing the installation (as transmitted by a Winst script) is
-`getAndAssignSoftwareLicenseKey`.
+There are two functions for license management (see the section xref:opsi-script-manual/prim-section#opsi-script-string-functions-license[(String) Functions for Licence Management [W/L/M]]):
 
-The parameters to be passed are the client _hostId_ (hostID of the client where the software is to be installed) and the ID of the _license-pool_ that the license is requested from.
-Instead of the _licensePoolId_, an _opsi-product_ ID or a Windows Software ID can also be passed if they are connected to a _license-pool_ within the opsi license management.
+* `DemandLicenseKey(poolId [, productId [,windowsSoftwareId]])` +
+Use the function `getAndAssignSoftwareLicenseKey` to query the opsi service whether there is a reserved license for the computer. For example you can "pull" a licensing option with the setup script of an operating system installation and retrieve the key you need.
+* `FreeLicense(poolId [, productId [,windowsSoftwareId]]])` +
+Use the function `freeSoftwareLicense` to release a license and return it to the pool of unused licensing options.
 
-The use of a license option can be released by calling `deleteSoftwareLicenseUsage`.
+Instead of the license pool ID, you can specify the product ID or a Windows software ID as a parameter.
 
-Again the parameters to be passed are the _hostId_ and alternatively the _licensePoolId_, _productId_ or Windows Software ID.
-Calling this method releases the license option and returns it to the pool of available license options.
+NOTE: If you reinstall a software and the script requests a license via `DemandLicenseKey`, then the previously assigned licensing option will continue to be used, so the function returns the same key as before. If this is not what you want, remove the usage by `FreeLicense` with the call `deleteSoftwareLicenseUsage`. Accordingly, the license usage will be preserved during a new installation. You release it with `deleteAllSoftwareLicenseUsages` (together with the host ID of the respective PC as parameter).
 
-For the complete documentation of opsi service calls see below.
+TIP: The boolean function `opsiLicenseManagementEnabled` checks whether license management is enabled (see xref:opsi-script-manual/prim-section#opsi-script-commands-if-else-bool-functions[Boolean Expressions]]).
 
-[[opsi-manual-licensemanagement-usages-winst]]
-=== _opsi-winst_ script calls for requesting and releasing of licenses
+[[opsi-manual-licensemanagement-service-methods]]
+== Service Methods for License Management
 
-The _opsi-winst_ provides the client-related calls as _opsi-winst_ commands.
+You can call service methods for license management with the tool `opsi-admin` (see xref:manual/server/configuration-tools#opsi-manual-configuration-tools-opsi-admin[ On the Command Line: `opsi-admin`]), e.g. to read license keys from a file with a script.
 
-An _opsi-winst_ script can make a call to the function  `DemandLicenseKey`
-to get a license key for installing. The parameters to be passed are:
-
-`DemandLicenseKey (poolId [, productId [, windowsSoftwareId]])`
-
-The return value is the license key (which can be empty) as a string:
-
-[source, winst]
-----
-set $mykey$ = DemandLicenseKey ("pool_office2007")
-----
-
-The returned license key can be used by other script commands for installing the software.
-
-For releasing a license option and license key (as to be used in an _opsi-winst_
-deinstallation script) the command `FreeLicense` is available with the following syntax:
-
-`FreeLicense (poolId [, productId [, windowsSoftwareId]])`
-
-The boolean function `opsiLicenseManagementEnabled` can be used to check
-whether the opsi license management is enabled and can be used for scripting:
-
-[source, winst]
-----
-if opsiLicenseManagementEnabled
-	set $mykey$ = DemandLicenseKey ("pool_office2007")
-else
-	set $mykey$ = IniVar("productkey")
-----
-
-The service calls can be invoked from the command-line tool `opsi-admin`.
-
-Parameters marked with '*' are optional.
+You can find examples in the `license-test-\*.opsi` products at https://download.uib.de/opsi4.1/misc/license-management/. To install these packages, use the `opsi-package-manager -i` command. Afterwards you will find the corresponding scripts (`create_license-\*.sh`) in the directory `/var/lib/opsi/depot/<product>`.
 
 [[opsi-manual-licensemanagement-service-methods-contracts]]
-=== License contracts
+=== Editing License Contracts with `opsi-admin`
 
-[source, prompt]
+You call the service methods for example with `opsi-admin`; parameters marked with `\*` are optional:
+
+[source,prompt]
 ----
 method createLicenseContract(*licenseContractId, *partner, *conclusionDate, *notificationDate, *expirationDate, *notes)
 ----
 
-This method registers a new license contract record with the ID 'licenseContractId'.
-If no 'licenseContractId' is passed, it will be generated automatically.
-Using the 'licenseContractId' of an existing contract, this contract can be edited.
+The method creates a new license contract record with the ID `licenseContractId` or edits an existing one. If you don't specify the ID, it will be generated automatically. The two parameters `partner` (contract partner) and `notes` (notes on the contract) are user-defined strings. Specify `conclusionDate` (date of conclusion of the contract), `notificationDate` (reminder) and `expirationDate` in the format `YYY-MM-DD`, e.g. `2023-02-28`.
 
-The parameters partner (co-contractor) and notes are strings and can be filled with any information desired.
-The parameters 'conclusionDate' (date of conclusion of the contract), 'notificationDate' (date for a reminder) and 'expirationDate' (expiration date of the contract) are passed in the format `YYYY-MM-DD` (e.g. 2009-05-18).
+You can use the string functions `getLastServiceErrorClass` and `getLastServiceErrorMessage` to react to an error, e.g. if no free license is available anymore:
 
-The method returns the 'licenseContractId' of the contract.
-
-[source, winst]
-----
-	set $mykey$ = DemandLicenseKey ("pool_office2007")
-else
-	set $mykey$ = IniVar("productkey")
-----
-
-With the string returning functions `getLastServiceErrorClass` and `getLastServiceErrorMessage` error states can be detected and handled, e.g. if there is no license available:
-
-[source, winst]
+[source]
 ----
 if getLastServiceErrorClass = "None"
-	comment "no error"
+        comment "kein Fehler aufgetreten"
 endif
 ----
 
-The error class `LicenseMissingError` is returned if a license has been demanded but there is no license available.
-The error class `LicenseConfigurationError` is returned if the current configuration does not allow assignment of a license pool to a software.
-This could be the case if either no assignment exists or no distinct assignment is possible.
-
-[[opsi-manual-licensemanagement-usages-manually]]
-=== Manual administration of license usage
-
-Within the opsi config editor, the licenses registered by the opsi service are listed on the tab "License usages":
-
-.License management: "License usages" tab from the license management window
-image::licensemanagement-usages.png["License management: License usages tab", pdfwidth=90%]
-
-From this tab, licenses can also be managed manually.
-This can be useful, if a licensed software is not integrated into the opsi deployment, but installed manually on just a few clients.
-
-These are the functions for manual license management in detail:
-
-* "Delete row" (available from the context menu) releases a license option.
-
-* "Reserve license for client" at the bottom of the window to create a license reservation for a dedicated client.
-
-* By editing the field "licenseKey" from the "Usage of licenses" table, the license key can be changed.
-
-[[opsi-manual-licensemanagement-usages-kept]]
-=== Preservation and deletion of license usages
-
-If a software packet is reinstalled, the call to the _opsi-winst_ function DemandLicenseKey will return the same license option and license key as used before.
-
-In case this is not favored, the former license option has to be released by calling the _opsi-winst_ command `FreeLicense`, or by calling the opsi service call `deleteSoftwareLicenseUsage`, or deleting the license use manually.
-
-So, if not explicitly deleted, the license usages are preserved when reinstalling a client.
-
-To release the licenses, they can be deleted from the "License usage" tab or deleted by the service call `deleteAllSoftwareLicenseUsages` by passing the client host name as a parameter.
-
-
-[[opsi-manual-licensemanagement-reconciliation]]
-== Reconciliation with the software inventory
-
-The tab "Reconciliation" lists for each client and each _license-pool_ whether the use of this _license-pool_ is registered by opsi ("used_by_opsi") and if the software inventory (_swaudit_) on that client reported a software that requires a license option from that pool ('Swinventory_used').
-
-To evaluate the results from _swaudit_, the relevant software IDs (as found in the client registry) have to be associated with the appropriate _license-pool_ (tab "License pools").
-
-When matching the data with the software inventory, the license management counts not more than one license per client and _license-pool_.
-So for example if the _license-pool_ _office2010_ is connected with ten different patterns from software inventory, indicating that _office2010_ is installed on this client, this is (regarding the license usages count) counted as a single installation, although all of the detection patterns might be found on the client.
-
-.License management: "Reconciliation" (data matching) tab with the inventory
-image::licensemanagement-reconciliation.png["License management: 'Reconciliation' (data matching) tab with the inventory", pdfwidth=90%]
-
-As usual, this table can be copied using _Drag & Drop_ and for instance pasted to a spreadsheet program.
-If the _opsi-configed_ process has the required access rights (running standalone and not from the applet), the table can also be printed from the context menu.
-
-By virtue of the config 'configed.license_inventory_extradisplayfields' which can be edited in the host parameter page of the server, you may add extra data fields for each client to the table.
-
-[[opsi-manual-licensemanagement-statistics]]
-== License usages overview
-
-The tab "Statistics" displays a summary of the different _license-pools_,
-showing the total number of license options ('license_options') and how many of them are in use ('used_by_opsi') or still available ('remaining opsi').
-
-.License management: "Statistics" tab from the license management window
-image::licensemanagement-statistics.png["License management: Statistics tab from the license management window", pdfwidth=90%]
-
-In addition to the number of license-uses registered by opsi ('used by opsi')
-and the currently available licenses ('remaining...'), the overview also shows the total number of detected installations, that require a license ('SWinventory_used').
-
-The data from the column 'SWinventory_used' is based on the registry scans from the _opsi-product_  _swaudit_ and the assignment of the Windows software IDs (as they are found in the registry) to the _license-pools_ (as registered with the opsi license management (tab "License pools", see <<opsi-manual-licensemanagement-licensepools>>).
-
-From the context menu, the table can be printed (because of restricted access rights not available from the applet), and using drag&drop data can be copied to e.g. a spreadsheet.
-
-[[opsi-manual-licensemanagement-statistics-downgrade-option]]
-=== In case of downgrade option
-
-If a downgrade option has been configured (see <<opsi-manual-licensemanagement-editlicense-downgrade-option>>), it appears in the overview and statistics like this:
-
-A single downgrade license results in a license option for at least two different _license-pools_ but only one of them can be requested for an installation.
-So using a downgrade license option decreases the number of available license options ('remaining_opsi') in each of the _license-pools_ concerned by that downgrade option by _1_.
-So it looks like a single installation reduces the number of available license options by _2_, which, in this case, actually is the fact.
-
-[[opsi-manual-licensemanagement-service-methods]]
-== Service methods for license management
-
-The service methods for license management can be called from the command-line tool 'opsi-admin', so they are accessible for scripting, e.g. to read license keys from a file.
-
-Examples can be found in the products 'license-test-....opsi' from https://download.uib.de/opsi4.1/misc/license-management/.
-After installing the packages with opsi-package-manager -i \*.opsi, in the directory /var/lib/opsi/depot/<product name> the corresponding scripts: create_license-*.sh can be found.
-
-As an example here the script `create_license-mixed.sh`
-(the current version comes with the download packet).
-
-[source,prompt]
-----
-#!/bin/bash
-# This is a test and example script
-# (c) uib gmbh licensed under GPL
-
-PRODUCT_ID=license-test-mixed
-# read the license key from a file
-# myretailkeys.txt has one licensekey per line
-MYRETAILKEYS=`cat myretailkeys.txt`
-# myoemkeys.txt has one pair: <licensekey> <hostid.domain.tld> per line
-MYOEMKEYS=`cat myoemkeys.txt`
-# some output
-echo "$PRODUCT_ID"
-
-# this is the function to create the oem licenses
-#############
-createlic ()
-{
-while [ -n "$1" ]
-do
-	#echo $1
-	AKTKEY=$1
-	shift
-	#echo $1
-	AKTHOST=$1
-	shift
-	echo "createSoftwareLicense with oem key: ${PRODUCT_ID}-oem-${AKTKEY} for host ${AKTHOST}"
-	MYLIC=`opsi-admin -dS method createSoftwareLicense "" "c_$PRODUCT_ID" "OEM" "1" "${AKTHOST}" ""`
-	opsi-admin -d method addSoftwareLicenseToLicensePool "$MYLIC" "p_$PRODUCT_ID" "${PRODUCT_ID}-oem-${AKTKEY}"
-done
-}
-#############
-
-# here the script starts
-
-# delete the existing license pool and all connected licenses
-# ATTENTION: never (!) do this on a productive system
-echo "deleteLicensePool p_$PRODUCT_ID"
-opsi-admin -d method deleteLicensePool "p_$PRODUCT_ID" true
-
-# delete the existing license contract
-echo "deleteLicenseContract c_$PRODUCT_ID"
-opsi-admin -d method deleteLicenseContract "c_$PRODUCT_ID"
-
-# create the new license pool
-# the used method has the following syntax:
-# createLicensePool(*licensePoolId, *description, *productIds, *windowsSoftwareIds)
-echo "createLicensePool p_$PRODUCT_ID"
-opsi-admin -d method createLicensePool "p_$PRODUCT_ID" "opsi license test" \'['"'$PRODUCT_ID'"']\' \'['"'$PRODUCT_ID'"']\'
-
-# create the new license contract
-# the used method has the following syntax:
-# createLicenseContract(*licenseContractId, *partner, *conclusionDate, *notificationDate, *expirationDate, *notes)
-echo "createLicenseContract c_$PRODUCT_ID"
-opsi-admin -d method createLicenseContract "c_$PRODUCT_ID" "uib gmbh" "" "" "" "test contract"
-
-# create the new license and add the key(s)
-# the used methods have the following syntax:
-# createSoftwareLicense(*softwareLicenseId, *licenseContractId, *licenseType, *maxInstallations, *boundToHost, *expirationDate)
-# addSoftwareLicenseToLicensePool(softwareLicenseId, licensePoolId, *licenseKey)
-
-# create the retail licenses:
-for AKTKEY in $MYRETAILKEYS
-do
-	echo "createSoftwareLicense with retail key: ${PRODUCT_ID}-retail-${AKTKEY}"
-	MYLIC=`opsi-admin -dS method createSoftwareLicense "" "c_$PRODUCT_ID" "RETAIL" "1" "" ""`
-	opsi-admin -d method addSoftwareLicenseToLicensePool "$MYLIC" "p_$PRODUCT_ID" "${PRODUCT_ID}-retail-${AKTKEY}"
-done
-
-# create the oem licenses
-createlic $MYOEMKEYS
-
-# create the volume licenses
-echo "createSoftwareLicense with volume key: ${PRODUCT_ID}-vol-key"
-MYLIC=`opsi-admin -dS method createSoftwareLicense "" "c_$PRODUCT_ID" "VOLUME" "10" "" ""`
-opsi-admin -d method addSoftwareLicenseToLicensePool "$MYLIC" "p_$PRODUCT_ID" "${PRODUCT_ID}-vol-key"#
-
-----
+The error class `LicenseMissingError` is returned if a license is requested but not available. The error class `LicenseConfigurationError` is returned if the configuration does not allow a unique assignment of a license pool to a software.
 
 [[opsi-manual-licensemanagement-examples]]
-== Example products and templates
+== Sample Products and Templates
 
-In the uib download section at https://download.uib.de/opsi4.1/misc/license-management/ are four example products available.
-One for each type of license model, as there are Retail, OEM and Volume license type, as well as a product combining all of them.
+In our https://download.uib.de/opsi4.1/misc/license-management/[download area], you will find four examples: one product each for using retail, OEM, and volume licenses, as well as one product which combines all three license types.
 
-These example products use as an example some licenses and release them again.
-So using them leaves some marks in the software inventory, that might be of influence to reconciliation and statistics.
+These products allocate licenses during installation and release them again when uninstalling. In addition, the examples leave corresponding tracks in the software inventory which the license management can use for reconciliation.
 
-All of these products contain a shell script to automatically generate _license-pools_, license contracts and license options.
+TIP: As mentioned in the previous section, the products include a shell script that you can use to automatically create the license pools, license contracts, and licenses for testing purposes.
 
-The standard template for _opsi-winst_ scripts 'opsi-template' also contains some examples for using the opsi license management.
