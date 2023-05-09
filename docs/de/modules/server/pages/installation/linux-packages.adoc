@@ -1,0 +1,359 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      24.04.2023
+:Revision:  4.2
+:toclevels: 6
+:doctype:   book
+:icons: font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[opsi-getting-started-installation-base-packages]]
+= Paketbasierte Installation
+
+Sie können den {opsi-server} auch über die jeweilige Paketverwaltung Ihrer Linux-Distribution installieren. Die Abläufe auf den verschiedenen Systemen sind weitgehend gleich:
+
+* fehlende Software installieren
+* unsere Paketquelle (Repository) hinzufügen
+* Liste der installierbaren Pakete aktualisieren
+* eines der opsi-Server-Pakete installieren: `opsi-server-full`, `opsi-server` oder `opsi-server-expert` (siehe Abschnitt <<opsi-getting-started-installation-base-prerequires>>)
+
+[[opsi-getting-started-installation-base-prerequires]]
+== Vorbereitungen
+
+Der {opsi-server} benötigt Zugriff auf eine Redis- und eine Grafana-Instanz. Wir gehen im Folgenden davon aus, dass diese beiden Dienste auch auf dem {opsi-server} laufen. In dem Fall können Sie das Paket `opsi-server-full` installieren, das alle notwendigen Anwendungen einspielt und konfiguriert. Wir bezeichnen das in den einzelnen Abschnitten als _Single-Server-Setup_. Wenn Sie hingegen Dienste wie Redis, MySQL/MariaDB oder Grafana auf einem anderen Server betreiben, spielen Sie stattdessen `opsi-server` oder `opsi-server-expert` ein.
+
+TIP: Nutzen Sie zur Installation von Grafana die offiziellen Grafana-Repositorys. Wenn Sie eine Debian-basierte Distribution einsetzen, beachten Sie, dass die Repositorys im November 2022 von `packages.grafana.com` nach `apt.grafana.com` umgezogen sind. Die alten Adressen funktionieren noch, aber es kann bei der Installation oder Aktualisierung zu Warnungen auf dem System kommen.
+
+=== Debian/Ubuntu/UCS
+
+[source,bash]
+----
+sudo mkdir -p /usr/local/share/keyrings
+REPO_URL=https://apt.grafana.com
+REPO_KEY=/usr/local/share/keyrings/grafana.gpg
+sudo apt-get install -y apt-transport-https software-properties-common curl gpg
+curl -fsSL ${REPO_URL}/gpg.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+echo "deb [signed-by=${REPO_KEY}] ${REPO_URL} stable main" > /etc/apt/sources.list.d/grafana.list
+----
+
+=== SLES/openSUSE
+
+[source,bash]
+----
+zypper install wget
+cd /etc/zypp/repos.d
+cat <<EOF > grafana.repo
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+----
+
+=== RHEL/AlmaLinux/Rocky Linux
+
+[source,bash]
+----
+yum install wget
+cd /etc/yum.repos.d
+cat <<EOF > grafana.repo
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com/
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+EOF
+----
+
+[[opsi-getting-started-installation-base-deb]]
+== Installation unter Debian/Ubuntu
+
+Wir empfehlen zunächst, folgende Pakete zu installieren:
+
+[source,bash]
+----
+apt install host pigz apt-transport-https software-properties-common curl gpg
+----
+
+Falls noch nicht geschehen, legen Sie das Verzeichnis `/usr/local/share/keyrings` an:
+
+[source,bash]
+----
+mkdir -p /usr/local/share/keyrings
+----
+
+
+Fügen Sie nun das opsi-Repository zu den APT-Paketquellen hinzu:
+
+*Debian 11 _Bullseye_:*
+[source,bash]
+[subs="attributes"]
+----
+REPO_URL=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_11
+REPO_KEY=/usr/local/share/keyrings/opsi.gpg
+echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" > /etc/apt/sources.list.d/opsi.list
+curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+----
+
+*Debian 10 _Buster_:*
+[source,bash]
+[subs="attributes"]
+----
+REPO_URL=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/Debian_10
+REPO_KEY=/usr/local/share/keyrings/opsi.gpg
+echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" > /etc/apt/sources.list.d/opsi.list
+curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+----
+
+*Ubuntu 22.04 LTS _Jammy Jellyfish_:*
+[source,bash]
+[subs="attributes"]
+----
+REPO_URL=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_22.04
+REPO_KEY=/usr/local/share/keyrings/opsi.gpg
+echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" > /etc/apt/sources.list.d/opsi.list
+curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+----
+
+*Ubuntu 20.04 LTS _Focal Fossa_:*
+[source,bash]
+[subs="attributes"]
+----
+REPO_URL=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/{release}/xUbuntu_20.04
+REPO_KEY=/usr/local/share/keyrings/opsi.gpg
+echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" > /etc/apt/sources.list.d/opsi.list
+curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+----
+
+Prüfen Sie, ob der Import des GnuPG-Schlüssels erfolgreich war:
+
+[source,bash]
+----
+gpg /usr/local/share/keyrings/opsi.gpg 2>/dev/null
+----
+
+In der Ausgabe sollten unter anderem folgende Zeilen auftauchen:
+
+[source,bash]
+----
+pub   rsa2048 2017-09-30 [SC] [expires: 2023-11-09]
+      2E98F7B5A5B2C8FE7F609705D1F933E6D8361F81
+uid           home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>
+----
+
+Installieren Sie jetzt eines der opsi-Server-Pakete:
+
+*Single-Server-Setup:*
+[source,prompt]
+----
+apt update
+apt install opsi-server-full
+----
+
+
+TIP: Falls bei der Installation eine Frage nach dem TFTP-Basisverzeichnis auftaucht, geben Sie `/tftpboot` ein.
+
+[[opsi-getting-started-installation-base-opensuse-sles]]
+== Installation unter SLES/openSUSE
+
+* Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon `dhcpd` konfiguriert sein und laufen.
+
+So fügen Sie das opsi-Repository per `zypper` hinzu:
+
+*openSUSE Leap 15.4:*
+[source,prompt]
+[subs="attributes"]
+----
+zypper addrepo https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/openSUSE_Leap_15.4/home:uibmz:opsi:4.2:{release}.repo
+----
+
+*SLES 15 SP1:*
+[source,prompt]
+[subs="attributes"]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/SLE_15_SP1/home:uibmz:opsi:4.2:{release}.repo
+----
+
+*SLES 15 SP2:*
+[source,prompt]
+[subs="attributes"]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/SLE_15_SP2/home:uibmz:opsi:4.2:{release}.repo
+----
+
+*SLES 15 SP3:*
+[source,prompt]
+[subs="attributes"]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/SLE_15_SP3/home:uibmz:opsi:4.2:{release}.repo
+----
+
+*SLES 15 SP4:*
+[source,prompt]
+[subs="attributes"]
+----
+zypper addrepo http://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/SLE_15_SP4/home:uibmz:opsi:4.2:{release}.repo
+----
+
+Nach dem Hinzufügen der Repositorys können Sie die Installation starten:
+
+*Single-Server-Setup:*
+[source,prompt]
+----
+zypper refresh
+  Wollen Sie den Schlüssel (a)bweisen, ihm (t)emporär oder (i)mmer vertrauen? [a/t/i/?] (a): i
+zypper -v install opsi-server-full
+----
+
+
+NOTE: Stellen Sie sicher, dass Ihre Firewall-Konfiguration Verbindungen zu den Ports 69/UDP (TFTP) sowie 4447/TCP und 4441/TCP (opsi) zulässt.
+
+
+[[opsi-getting-started-installation-base-centos-rhel]]
+== Installation unter RHEL/AlmaLinux/Rocky Linux
+
+Die Installation unter Red Hat Enterprise Linux (RHEL), AlmaLinux und Rocky Linux läuft weitgehend gleich ab. Unterschiede gibt es lediglich beim verwendeten Repository.
+
+NOTE: Wenn Sie Red Hat Enterprise Linux einsetzen, müssen Sie sich beim Red Hat Network registrieren, um Zugriff auf alle benötigten Pakete zu haben: +
+[source,prompt]
+----
+subscription-manager register
+subscription-manager attach --auto
+----
+
+Notwendige Vorbereitungen:
+
+* Samba und Datenbankserver installieren:
++
+[source,prompt]
+----
+yum install mariadb-server samba samba-client
+----
+
+* Samba und Datenbankserver konfigurieren:
++
+[source,prompt]
+----
+systemctl start smb.service
+systemctl start nmb.service
+systemctl start mariadb.service
+systemctl enable smb.service
+systemctl enable nmb.service
+systemctl enable mariadb.service
+mysql_secure_installation
+----
+
+* Soll die Maschine auch als DHCP-Server eingesetzt werden, muss der Daemon `dhcpd` konfiguriert sein und laufen.
+
+So fügen Sie das opsi-Repository hinzu:
+
+*RHEL 9:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RHEL_9/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*RHEL 8:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RHEL_8/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*AlmaLinux 9:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/AlmaLinux_9/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*AlmaLinux 8:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/AlmaLinux_8/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*Rocky Linux 9:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RockyLinux_9/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+*Rocky Linux 8:*
+[source,prompt]
+[subs="attributes"]
+----
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/home:uibmz:opsi:4.2:{release}/RockyLinux_8/home:uibmz:opsi:4.2:{release}.repo
+yum makecache
+----
+
+Nach dem Hinzufügen der Repositorys können Sie die Installation starten:
+
+*Single-Server-Setup:*
+[source,prompt]
+----
+yum install opsi-server-full
+----
+
+*Manuelles Setup:*
+[source,prompt]
+----
+yum makecache
+yum install redis-server redis-timeseries grafana.x86_64
+systemctl daemon-reload
+systemctl enable grafana-server
+systemctl start grafana-server
+yum install opsi-server
+----
+
+Es kann vorkommen, dass Sie beim Importieren des GnuPG-Schlüssel des Repositorys eine solche Meldung sehen:
+
+[source,prompt]
+----
+   Importing GPG key 0xD8361F81 "home:uibmz OBS Project <home:uibmz@build.opensuse.org>" from http://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/RockyLinux_8/repodata/repomd.xml.key
+   Is this ok [y/N]: y
+----
+
+Geben Sie `y` ein und drücken [Eingabe], um das Hinzufügen des Schlüssels zu bestätigen.
+
+NOTE: Stellen Sie sicher, dass Ihre Firewall und die SELinux-Konfiguration -Konfiguration Verbindungen zu den Ports 69/UDP (TFTP) sowie 4447/TCP und 4441/TCP (opsi) zulässt.
