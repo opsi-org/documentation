@@ -15,13 +15,14 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      20.01.2021
-:Revision:  4.2
+:Date:      08.05.2023
+:Revision:  4.3
 :toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
 
-ifeval::["{mode}" == "antora"]
 include::common:partial$opsi_terms.adoc[]
-endif::[]
 
 
 
@@ -30,17 +31,26 @@ endif::[]
 [[opsi-manual-server-overview]]
 ==  Überblick
 
-Die Funktionalitäten eines _{opsi-server}s_ lassen sich auf vielen Business gängigen Linuxdistributionen installieren.
+*{opsi-configserver}*
+Die zentrale Steuerungs-Komponente jeder opsi-Umgebung ist der {opsi-configserver}.
+Es gibt in jeder Umgebung nur einen {opsi-configserver}.
+Der {opsi-configserver} stellt die Konfigurations- und Statusdaten über eine API zur Verfügung.
+Alle Server-, Client- und Management-Komponenten sind über diese zentrale API gekoppelt.
+Ein {opsi-configserver} übernimmt in der Regel auch zusätzlich die Rolle eines {opsi-depotserver}s.
 
-Grob lassen sich zwei wichtige Funktionalitäten unterscheiden, die auf einem Server vereint sein können:
+*{opsi-depotserver}*
+Ein {opsi-depotserver} stellt Dateien der zu verteilenden Software, Betriebssysteme und Bootimages zur Verfügung.
+Zusätzlich kann er weitere benötigte Dienste (z.B. DHCP-Server) zur Verfügung stellen.
+Der {opsi-depotserver} ist über den opsi-Messagebus mit dem {opsi-configserver} verbunden und wird von diesem gesteuert.
+{opsi-depotserver} kommen oft in Außenstellen zum Einsatz um einen performanten Zugriff auf Dateien und Services im LAN zu gewährleisten.
 
-* _{opsi-configserver}_ +
-Die Funktionalität des configserver umfasst die Speicherung und Verarbeitung der Konfigurationsdaten in unterschiedlichen Backends und deren Bereitstellung über einen Webservice und auf Kommandozeile.
 
-* _{opsi-depotserver}_ +
-Die Funktionalität des depotserver umfasst die Speicherung der eigentlichen Installationsdateien der zu verteilenden Software, Betriebssysteme, Bootimages und deren Bereitstellung für den Client per smb/cifs, https, tftp.
+Hier finden Sie weitere Informationen:
 
-Die aus diesen Diensten entstehenden Hardwareanforderungen sind in der Regel gering, so das ein Betrieb eines opsi-servers in einer Virtualisierungsumgebung kein Problem darstellt.
+* xref:server:installation/installation.adoc[Installation und Inbetriebnahme eines {opsi-server}s]
+
+////
+TODO: Kapitel zu Architektur / technischen Details
 
 Seit Version 4.2 wird die In-Memory-Datenbank Redis eingesetzt (https://redis.io/). Der _{opsi-server}_ speichert folgende Daten in Redis:
 
@@ -130,64 +140,4 @@ Dieses Verzeichnis ist als share _opsi_config_ freigegeben.
 +
 WARNING: Wenn Sie über diesen Share auf den Dateien arbeiten, verwenden Sie keine Editoren die das Dateiformat (Unix/DOS) verändern und entfernen Sie Sicherungsdateien wie z.B. *.bak.
 
-[[opsi-manual-server-opsi-pam-authentification]]
-=== opsi PAM Authentifizierung
-
-opsi verwendet zur Authentifizierung der User diverse `PAM`-Module. Bisher wurden für verschiedene Distributionen verschiedene PAM-Module verwendet. In der folgenden Auflistung werden die eingesetzten PAM Module aufgelistet:
-
-Standard: `common-auth` +
-openSUSE / SLES: `sshd` +
-CentOS und RedHat: `system-auth` +
-RedHat 6: `password-auth`
-
-Wie man aus der Liste erkennen kann, wurden diverse `PAM`-Konfigurationen verwendet, diese können sich aber je nach lokaler `PAM` Konfiguration wieder ändern. Da für diese Anpassungen immer ein Eingriff in den Code nötig war gibt es nun die Möglichkeit unter: `/etc/pam.d/` die Datei `opsi-auth` an zu legen und für opsi eine eigene `PAM`-Konfiguration zu hinterlegen. Wenn es diese Datei gibt, benutzt opsi automatisch diese Konfiguration.
-
-Folgendes einfaches Beispiel soll das Verhalten verdeutlichen: Wenn Sie ein Debian/Ubuntu System betreiben und bei der Anmeldung am _{opsi-configed}_ eine `PAM`-Fehlermeldung bekommen, obwohl mit den selben Benutzerdaten eine SSH Verbindung zum Server geöffnet werden kann, kann man die Datei `/etc/pam.d/opsi-auth` mit folgendem Inhalt erstellen:
-
-[source,configfile]
-----
-@include sshd
-----
-
-Nach einem Neustart von `opsiconfd` benutzt opsi automatisch das `sshd`-`PAM`-Modul zur authentifizierung.
-
-NOTE: Bitte beachten Sie, dass die Anwendung der ACL auf case-sensitive arbeitende Schnittstellen zurückgreift, wohingegen die Authentifizierung über PAM case-insensitiv geschehen kann. Dadurch kann der Fall eintreten, dass trotz erfolgreicher Authentifizierung keine Arbeit mit dem Service möglich ist, da die ACL dies verhindern.
-
-[[opsi-manual-server-opsi-ldap-authentification]]
-=== opsi LDAP/Active Directory Authentifizierung
-Statt PAM für die Authentifizierung zu nutzen, ist es auch möglich einen LDAP-Server bzw. ein Active Directory direkt zu verwenden.
-Hierfür ist die opsi-Erweiterung 'opsi directory connector' notwendig. Dieses Modul ist momentan eine
-link:https://www.uib.de/de/opsi-erweiterungen/erweiterungen[kostenpflichtige opsi Erweiterung].
-
-ifdef::manual[]
-Weitere Details hierzu finden Sie in <<opsi-manual-modules>>.
-endif::manual[]
-
-Die Konfiguration findet über die Datei `/etc/opsi/opsi.conf` statt.
-In der Sektion 'ldap_auth' muss hierfür die Option _ldap_url_ gesetzt werden.
-Die ldap_url besitzt dabei den folgenden Aufbau:
-`ldap[s]://<adresse-des-ldap-servers>[:port]/<base-dn>`
-
-Zusätzlich kann, wenn notwendig, die Option _username_ verwendet werden.
-Damit kann definiert welcher Benutzername bei der Authentifizierung am LDAP/AD übergeben werden soll. Hierbei können die Platzhalter _\{username\}_ und _\{base\}_ verwendet werden.
-
-Beispiel zur Anbindung an ein Active Directory bzw. Samba 4:
-
-[source,ini]
-----
-[ldap_auth]
-ldap_url = ldaps://ad.company.de/dc=ad,dc=company,dc=de
-----
-
-Beispiel zur Anbindung an einen OpenLDAP:
-
-[source,ini]
-----
-[ldap_auth]
-ldap_url = ldaps://ldap.company.org:636/dc=company,dc=org
-username = uid={username},dc=Users,{base}
-----
-
-Damit die Änderungen übernommen werden, muss der {opsiconfd} neu gestartet werden.
-
-NOTE: Bitte beachten Sie, dass die in der Variable admingroup definierte Gruppe auch im LDAP verfügbar ist.
+////

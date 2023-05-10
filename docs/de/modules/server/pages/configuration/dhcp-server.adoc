@@ -1,0 +1,144 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-configuration-dhcp-pxe]]
+== DHCP-Server / PXE-Boot
+Ein DHCP-Server sogt für die automatische Konfiguration von Geräten in einem Netzwerk.
+Dazu gehören etwa die Zuweisung von IP-Adresse, Netzmaske, Gateway, Domain Name Server (DNS) und Netzwerk-Boot (PXE).
+
+Über PXE ist es möglich auf Clients ein Betriebsystem über das Netzwerk zu starten.
+Der Bootvorgang über PXE ist im UEFI-Modus als auch im BIOS-Modus möglich.
+Allerdings unterscheiden sich die hierbei verwendeten Bootloader.
+
+Der {opsi-depotserver} bietet die Funktionalität eines Boot-Servers.
+Damit ermöglicht opsi die Durchführung von automatisierten Prozessen unabhängig von einem, auf dem Client installierten Betriebssystem.
+Dies wird in der Regel hauptsächlich für die Installation eines Betriebsystems auf dem Client verwendet.
+
+Um einen PXE-Boot zu ermöglichen muss ein DHCP-Server dem Netzwerk-Gerät zusätzliche Informationen mitteilen.
+Diese sind, bei Verwendung von TFTP:
+
+* Boot-Server (DHCP-Option 66): IP-Adresse des TFTP-Servers (auch next-server genannt)
+* Boot-Filename (DHCP-Option 67): Der Pfad zum Bootloader auf dem TFTP-Server.
+Diese Option muss für UEFI- und BIOS-Geräte unterschiedlich konfiguriert werden.
+
+
+[[server-configuration-dhcp-on-opsi-server]]
+=== DHCP auf dem {opsi-depotserver}
+
+Ein {opsi-depotserver} kann als DHCP-Server eingesetzt werden.
+Opsi bietet dabei die Möglichkeit die DHCP-Server-Konfiguration automatisch zu verwalten.
+
+Auf dem {opsi-server} uss dafür der ICS-DHCP-Server installiert werden.
+Der Paketname hängt hierbei von der verwendeten Distribution ab, meist `isc-dhcp-server` oder `dhcp-server`.
+Schauen Sie im Zweifelsfall im Handbuch bzw. in den Paketquellen des Linux-Systems nach.
+
+NOTE: Die vorkonfigurierte virtuelle Maschine ist bereits mit einem DHCP-Server ausgestattet.
+Dieser DHCP-Server ist so konfiguriert, dass er IP-Adressen ausschliesslich an bekannte Clients vergibt (keine freien Leases).
+
+Auf Debian-basierten Systemen installieren Sie den DHCP-Server über das folgende Kommando:
+
+[source,prompt]
+----
+sudo apt --yes install isc-dhcp-server
+----
+
+
+[[server-configuration-dhcp-on-opsi-server-autoconf]]
+==== Automatische Verwaltung der DHCP-Konfiguration
+
+Ein auf dem {opsi-server} laufender ISC-DHCP-Server kann von opsi automatisch konfiguriert werden.
+
+Ist die automatische Konfiguration aktiv, werden Client-Einträge von opsi erzeugt und aktualisiert.
+Dafür ist es ausreichend die MAC-Adresse und gegebenenfalls die IP-Adresse in opsi zu hinterlegen.
+Dies kann beispielsweise beim Anlegen eines Clients über die Management-Oberfläche `opsi-configed` erfolgen.
+
+Die Verwaltung der DHCP-Konfiguration wird über die Datei `/etc/opsi/backends/dhcpd.conf` auf dem `opsi-configserver` konfiguriert.
+
+Hier ein Beispiel:
+
+[source,python]
+----
+# -*- coding: utf-8 -*-
+
+module = 'DHCPD'
+
+config = {
+    "enabled":                 True,
+    "dhcpdOnDepot":            True,
+    "fixedAddressFormat":      "FQDN", # or IP
+    "dhcpdConfigFile":         "/etc/dhcp/dhcpd.conf",
+    "reloadConfigCommand":     "sudo service isc-dhcp-server restart",
+    "defaultClientParameters": { "next-server": "10.11.12.13" }
+}
+----
+
+Die Konfigurations-Parameter haben hierbei folgende Bedeutung:
+
+* enabled: +
+`True`: Die automatische Konfiguration ist aktivert. +
+`False`: Die automatische Konfiguration ist deaktivert.
+* dhcpdOnDepot: +
+`False`: Der DHCP-Server auf dem {opsi-configserver} verwaltet alle Clients. +
+`True`: Die Clients verden in der DHCP-Konfiguration des zugeordneten Depots verwaltet.
+* fixedAddressFormat: +
+`FQDN`: Für die Client-Einträge wird der FQDN als Adresse verwendet. +
+`IP`: Für die Client-Einträge wird die IP-Adresse verwendet.
+* dhcpdConfigFile: +
+Der Pfad zur ISC-DHCP-Konfigurationsdatei. Fehlt dieser Eintrag, wird der Pfad automatisch ermittelt (empfohlen und Standard).
+* reloadConfigCommand: +
+Das Kommado, das nach Änderungen an der Konfigurationsdatei ausgeführt wird, um diese zu aktivieren. Fehlt dieser Eintrag, wird der Kommando automatisch ermittelt (empfohlen und Standard).
+* defaultClientParameters: +
+Client-Konfigurationsparameter, die für jeden Client gesetzt werden sollen.
+Fehlt dieser Eintrag, werden diese automatisch ermittelt (empfohlen und Standard).
+
+
+[[server-configuration-external-dhcp-server]]
+=== Konfiguration externer DHCP-Server
+
+Wenn Sie die PXE-Boot-Funktionalität des {opsi-server}s nutzen wollen und bereits ein DHCP-Server in Ihrem Netzwerk existiert, der auch die opsi-Clients verwalten soll, muss die Konfiguration dieses DHCP-Servers angepasst werden.
+
+Die folgenden Konfigurationen müssen angepasst werden:
+
+*Boot-Server (DHCP-Option 66)* +
+Konfigurieren die IP-Adresse Ihres {opsi-depotserver}s als Boot-Server.
+
+*Boot-Filename (DHCP-Option 67)* +
+Konfigurieren Sie Ihren DHCP-Server so, dass er UEFI-Geräten den Boot-Filename `opsi/opsi-linux-bootimage/loader/shimx64.efi.signed` und Legcy-BIOS-Geräten den Boot-Filename `opsi/opsi-linux-bootimage/loader/opsi-netboot.bios` zuweist.
+
+Hier ein Beispiel für die Konfiguration eines ISC-DHCP-Servers:
+
+[source,configfile]
+----
+next-server 10.10.1.2;
+if substring (option vendor-class-identifier, 19, 1) = "0" {
+	# BIOS
+	filename "opsi/opsi-linux-bootimage/loader/opsi-netboot.bios";
+}
+else if substring (option vendor-class-identifier, 19, 1) = "7" {
+	# UEFI
+	filename "opsi/opsi-linux-bootimage/loader/shimx64.efi.signed";
+}
+----
