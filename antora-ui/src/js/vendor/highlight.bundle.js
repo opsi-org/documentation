@@ -32,6 +32,7 @@
   //hljs.registerLanguage('rust', require('highlight.js/lib/languages/rust'))
   //hljs.registerLanguage('scala', require('highlight.js/lib/languages/scala'))
   hljs.registerLanguage('shell', require('highlight.js/lib/languages/shell'))
+  hljs.registerLanguage('prompt', require('highlight.js/lib/languages/shell'))
   hljs.registerLanguage('sql', require('highlight.js/lib/languages/sql'))
   //hljs.registerLanguage('swift', require('highlight.js/lib/languages/swift'))
   hljs.registerLanguage('toml', require('highlight.js/lib/languages/ini'))
