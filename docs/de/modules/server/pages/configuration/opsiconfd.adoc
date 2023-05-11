@@ -1,0 +1,144 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsiconfd]]
+= opsiconfd
+Der opsiconfd ist der zentrale Dienst auf jedem {opsi-server}.
+
+
+[[opsiconfd-server-id-role]]
+== Server-Rolle
+Ein {opsi-server} kann die Rolle eines {opsi-configserver}s oder die eines {opsi-depotserver}s übernehmen.
+Dies wird über die Konfigurationsdatei `/etc/opsi/opsi.conf` gesteuert.
+Auch die ID des Servers wird seit opsi 4.3 hier konfiguriert.
+
+NOTE: Beim Betrieb des {opsi-server}s auf Docker, findet die Konfiguration über Umgebungsvariablen statt.
+
+Beispiel für einen {opsi-configserver}:
+
+[source,toml]
+----
+[host]
+id = "opsi.domain.tld"
+key = "5b4324721a114195098bdaf3fab54a9f"
+server-role = "configserver"
+
+[service]
+url = "https://localhost:4447"
+----
+
+
+Beispiel für einen {opsi-depotserver}:
+[source,toml]
+----
+[host]
+id = "opsi-depot.domain.tld"
+key = "a1b5098fabcaf315b13249cba1a24d17"
+server-role = "depotserver"
+
+[service]
+url = "https://opsi.domain.tld:4447"
+----
+
+NOTE: Mit opsi 4.3 wurde dir `/etc/opsi/backends/jsonrpc.conf` durch die `/etc/opsi/opsi.conf` abgelöst.
+
+
+[[opsiconfd-config]]
+== opsiconfd Konfiguration
+
+Die Konfiguration des opsiconfd kann über Umgebungsvariablen, Konfigurationsdatei (`/etc/opsi/opsiconfd.conf`) und Kommandozeilen-Parameter erfolgen.
+
+Eine Liste der möglichen Konfigurations-Parameter erhalten Sie über den folgenden Befehl:
+
+[source,shell]
+----
+opsiconfd --help
+----
+
+Änderungen an der Konfiguration können in der Regel über den Befehl `opsiconfd reload` in einen laufenden opsiconfd übernommen werden.
+
+NOTE: Einige Konfigurations-Parameter werden nur über einen Neustart des opsiconfd aktiv.
+
+
+[[opsiconfd-logs]]
+== opsiconfd Logs
+Das Logging des opsiconfd findet normalerweise über Redis statt.
+Zusätzlich werden im Verzeichnis `/var/log/opsi/opsiconfd` Log-Dateien abgelegt.
+
+NOTE: Wenn Probleme mit dem Zugriff auf Redis bestehen, findet daher auch kein Logging statt.
+Um in diesem Fall an Log-Meldungen zu kommen, kann das Logging über den Parameter `log-mode` auf `local` gestellt werden.
+
+Opsi unterscheidet 10 verschiedene Log-Level:
+
+* 0 - nothing: Logging komplett deaktiviert
+* 1 - essential: Sehr wichtige Meldungen
+* 2 - critical: Kritische Fehler
+* 3 - error: Fehler
+* 4 - warning: Warnungen
+* 5 - notice: Wichtige Hinweise
+* 6 - info: Weitere Informationen
+* 7 - debug: Meldungen zur Fehlersuche
+* 8 - trace: Sehr hohe Details wie Kommunikationsmitschnitte
+* 9 - secret: Vertrauliche Informationen
+
+Das Log-Level wird über die folgenden Parameter gesteuert:
+
+* `log-level`: Allgemeines Log-Level in Richtung Redis
+* `log-level-stderr`: Level der Ausgaben auf dem Terminal (stderr)
+* `log-level-file`: Log-Level der Logdateien
+
+Weiterhin gliedert der opsiconfd die Logs in Kanäle und Kontexte.
+Damit lassen sich die Meldungen filtern, um nur die gewünschten Informationen im benötigten Detail-Grad zu erhalten.
+
+Mit den Parameter `log-levels` lassen sich Log-Level pro Kanal setzen.
+Über `.*:4,opsiconfd\.headers:8` werden generell nur Warnungen protokolliert,
+Meldungen im Kanal `opsiconfd.headers` jedoch mit Log-Level `trace`.
+
+Die Filterung nach Kontexten erfolgt über den Parameter `log-filter`.
+Im opsiconfd wird im Wesentlichen der Kontext `client_address` verwendet.
+Mittels `client_address=192.168.1.1,192.168.1.2` kann beispielsweise so gefiltert werden,
+dass nur Meldungen angezeigt werden, die im Zusammenhang mit den Clients mit den IP-Adressen
+192.168.1.1 und 192.168.1.2 stehen.
+
+Ein direkter Zugriff auf das aktuelle Logging kann zum Beispiel über das opsiconfd-Admin-Interface erfolgen.
+
+Auf der Kommandozeile können die Logs über den Befehl `opsiconfd log-viewer` direkt auf dem Terminal ausgegeben werden.
+Zum Beispiel:
+
+[source,shell]
+----
+opsiconfd log-viewer -l 6 --log-filter="client_address=192.168.1.1"
+----
+
+IMPORTANT: Der opsiconfd verwendet Redis um die Logs zu schreiben.
+Über den Parameter `log-level` wird gesteuert bis zu welchem Log-Level Meldungen in den Redis-Stream übertragen werden.
+Da `opsiconfd log-viewer` den Log-Stream direkt aus Redis liest, erfolgt auch die Log-Ausgabe maximal bis zur Stufe `log-level`.
+
+
+[[opsiconfd-setup]]
+== opsiconfd setup
+
+include::server:partial$opsiconfd-setup.adoc[]
+
