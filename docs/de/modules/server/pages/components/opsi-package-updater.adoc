@@ -1,0 +1,151 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-components-opsi-package-updater]]
+== opsi-package-updater
+
+Das Kommandozeilen-Werkzeug `opsi-package-updater` dient dazu, {opsi-products} aus einem oder mehreren Repositories zu laden und auf dem {opsi-depotserver} zu installieren.
+Es ist dafür gedacht opsi-Pakete zeitgesteuert automatisch zu aktualisieren (z.B. über einen Cronjob).
+
+Repositories sind die Quellen, von denen die opsi-Pakete heruntergeladen werden.
+Jedes Repository kann in Hinblick auf Zugang und Verhalten einzeln konfiguriert werden.
+
+Die allgemeinen Konfigurationseinstellungen werden in `/etc/opsi/opsi-package-updater.conf` vorgenommen.
+
+Über den Aufruf von `opsi-package-updater --help` kann die Hilfe angezeigt werden.
+
+Standardmäßig produziert der opsi-package-updater keine Ausgaben.
+Über den Parameter `-v` kann der opsi-package-updater gesprächiger gemacht werden.
+Der Parameter kann auch mehrfach verwendet werden (`-vv`, `-vvv`, ...).
+
+Mit dem Parameter `--repo` können die Operationen auf eine einzelnes Repository eingeschränkt werden.
+
+Der `opsi-package-updater` verwendet unterschiedliche Kommandos.
+Diese Kommandos bringen eine eigene Hilfe mit (`opsi-package-updater <command> --help`).
+
+Es existieren die folgenden Kommandos:
+
+* _list_: Verfügbare Repositories oder opsi-Pakete auflisten.
+* _download_: opsi-Pakete aus einem Repository herunterladen.
+* _install_: opsi-Pakete aus einem Repository herunterladen und installieren.
+* _update_: Lokal installierte opsi-Pakete aus den Repositories aktualisieren.
+
+Mit dem Parameter `--repo` können die Operationen auf eine einzelnes Repository eingeschränkt werden.
+
+Es folgen einige Beispiele.
+
+
+Die aktivierten Repositories anzeigen:
+
+[source,shell]
+----
+opsi-package-updater list --active-repos
+----
+
+
+Die in den Repositories verfügbaren Pakete anzeigen:
+
+[source,shell]
+----
+opsi-package-updater list --products
+----
+
+
+Das Paket _ubuntu_ aus dem Repository _uib_linux_ installieren:
+
+[source,shell]
+----
+opsi-package-updater -vv --repo uib_linux install ubuntu
+----
+
+
+Alle in den aktivierten Repositories verfügbaren Pakete herunterladen und installieren:
+
+[source,shell]
+----
+opsi-package-updater install
+----
+
+
+Die verfügbaren Aktualisierungen anzeigen:
+
+[source,shell]
+----
+opsi-package-updater list --updatable-products
+----
+
+
+Die lokal installierten Pakete _firefox_ und _javavm_ aus den Repositories aktualisieren:
+
+[source,shell]
+----
+opsi-package-updater -vv update firefox javavm
+----
+
+
+[[server-components-opsi-package-updater-repositories]]
+=== Repository-Konfiguration: Zugang
+
+Konfigurationsdateien für die einzelnen Repositories sind unter `/etc/opsi/package-updater.repos.d/` zu finden.
+Eine kommentierte Vorlage mit allen Einstellungsmöglichkeiten findet sich dort als `example.repo.template`.
+
+Es gibt zwei Arten von Repositories, _Internet-Repositories_ und _opsi-Server_.
+
+*Internet-Repositories*
+
+Das wichtigste Beispiel ist das uib-Repository mit der URL http://download.uib.de
+
+Internet-Repositories sind gekennzeichnet durch die folgenden Parameter:
+
+- _baseURL_ (z.B. `http://download.uib.de`)
+- _dirs_ (Eine Komma-separierte Liste von Verzeichnissen z.B. `opsi4.3/products/localboot, opsi4.3/products/netboot`)
+- _username_ und _password_ für Passwort-geschützte Repositories
+- _authcertfile_ und _authkeyfile_ für zertifikatsbasierte Authentifizierung
+- _verifyCert_: Aktivierung und Deaktivierung der Server-Zertifikat-Prüfung für HTTPS-Verbindungen
+
+Über die `opsi-package-updater.conf` kann Bedarf ein HTTP-Proxy konfiguriert werden.
+Alternativ kann auch für einzelne Repositories in der jeweiligen Konfigurationsdatei ein Proxy konfiguriert werden.
+
+
+*opsi-Server*
+
+Ein Repository hat den Typ _opsi-server_, wenn in der Repository-Konfigurationsdatei unter dem Punkt _opsiDepotId_ die ID eines anderen {opsi-server}s eingetragen wird.
+In der Regel wird bei einem _{opsi-depotserver}_ an dieser Stelle der zentrale _{opsi-configserver}_ eingetragen.
+Damit bezieht der {opsi-depotserver} Pakete aus dem Repository (`/var/lib/opsi/repository`) des zentralen {opsi-configserver}s.
+
+
+[[server-components-opsi-package-updater-actions]]
+=== Repository-Konfiguration: Verhalten
+
+Für jedes Repository kann eingestellt werden:
+
+* _autoupdate_: Aktuellere Versionen installierter Pakete werden heruntergeladen und installiert.
+* _autoinstall_: Verfügbare Pakete die lokal noch nicht installiert sind werden heruntergeladen installiert.
+* _autosetup_: Neu installierte und aktualisierte Pakete werden für alle Clients, auf denen dieses Paket installiert ist, auf `setup` gesetzt.
+* _onlyDownload_: Neue Pakete werden nur heruntergeladen.
+* _ignoreErrors_: Wenn bei einzelnen Paketen Fehler auftreten führt das nicht zum Abbruch.
+
+NOTE: Ein beliebter Anwendungsfall für _onlyDownload_ ist, in Verbindung mit aktivierten Benachrichtigungen, nach dem Download eine E-Mail zu versenden und die Installation einen Administrator zu überlassen.
