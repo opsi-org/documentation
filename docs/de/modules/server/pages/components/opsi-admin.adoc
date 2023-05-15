@@ -1,0 +1,140 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-components-opsi-admin]]
+== opsi-admin
+
+Über das Kommandozeile-Werkzeug *opsi-admin* kann über die Kommandozeile auf die opsi-API zugegriffen werden.
+Dabei bietet *opsi-admin* einen interaktiven (`-i`) und einen nicht-interaktiven Modus, z.B. zum Einsatz in Skripten.
+
+NOTE: Mittlerweile existiert das deutlich modernere, flexiblere und leistungsfähigere Kommandozeilen-Werkzeug
+xref:server:components/opsi-cli.adoc[opsi-cli], das ähnliche Funktionen bietet.
+Opsi-cli existiert als Binary für Linux, Windows und MacOS.
+
+Für den Zugriff auf die opsi-API wird die Service-URL (`--address`) ein Benutzername (`--username`) und ein Passwort (`--password`) benötigt.
+Wird keine Service-URL angegeben, wird die in der `/etc/opsi/opsi.conf` angegebene Service-URL verwendet.
+Wird kein Benutzername übergeben, erfolgt die Authentifizierung über die Host-ID und den Kost-Key aus der `/etc/opsi/opsi.conf`.
+
+Die Zugangsdaten können auch Benutzer-spezifisch in einer xref:server:components:opsi-admin.adoc#server-components-opsi-admin-opsirc[opsirc-Datei] hinterlegt werden.
+
+
+Opsi-admin bietet einen interaktiven Modus an, welcher mit `-i` gestartet wird.
+In der Regel wird man diesen zusätzlich mit `-c` zur farbigen Anzeige starten wollen - der Befehl lautet dann `opsi-admin -ic`.
+Im interaktiven Modus erhalten Sie eine automatisch Vervollständigung von Befehlen durch die <TAB>-Taste.
+In der Liste der möglichen Eingaben können Sie mit Bild-auf und Bild-ab blättern.
+
+Die Optionen `-s` und `-S` erzeugen eine Form der Ausgabe welche sich leichter in Skripten weiterverarbeiten lässt.
+
+Über den Befehl `method <Methodenname>` können RPC-Methoden der API ausgeführt werden.
+
+Der Befehl `task <Task-Name>` dient zur Ausführung von komplexeren Administrations-Aufgaben.
+
+
+[[server-components-opsi-admin-opsirc]]
+=== Verwendung einer Verbindungskonfigurationsdatei - opsirc
+
+Die Zugangsdaten zum opsi Webservice können in der opsirc-Datei hinterlegt werden.
+Damit ist es möglich eine Verbindung über den Webservice zu verwenden,
+ohne dass Benutzername und Kennwort auf der Kommandozeile angegeben werden müssen.
+
+Eine solche Datei wird standardmäßig in `~/.opsi.org/opsirc` gesucht.
+Mit der Option `--opsirc` kann ein abweichender Pfad verwendenden werden.
+Dadurch können mehrere, unterschiedlich konfigurierte Verbindungen vorbereitet werden.
+
+Eine _opsirc_-Datei besitzt den folgenden Aufbau:
+[source,ini]
+address = https://<opsi-server>:4447/rpc
+username = opsi-user
+password = secret
+----
+
+Alle Angaben in einer opsirc-Datei sind optional.
+Falls die Datei leer oder nicht vorhanden ist, werden die Standard-Einstellungen verwenden.
+
+
+[[server-components-opsi-admin-examples]]
+=== Beispiele
+
+Ein Produkt für alle Clients auf setup stellen, die das Produkt installiert haben:
+
+[source,shell]
+----
+opsi-admin task setupWhereInstalled <product-id>
+----
+
+
+Einfache Liste der IDs aller opsi-Clients ausgeben:
+
+[source,shell]
+----
+opsi-admin -S method host_getIdents str '{"type":"OpsiClient"}'
+----
+
+
+Einen opsi-CLient löschen:
+
+[source,shell]
+----
+opsi-admin method host_delete <client-id>
+----
+
+
+Einen opsi-CLient neu anlegen oder überschreiben:
+
+[source,shell]
+----
+opsi-admin method host_createOpsiClient <client-id> <opsi-host-key> <description> ...
+----
+
+Z.B.:
+
+[source,shell]
+----
+opsi-admin method host_createOpsiClient client1.opsi.internal null "Test client 1"
+----
+
+Einen Product-ActionRequest setzen:
+
+[source,shell]
+----
+opsi-admin method setProductActionRequest <product-id> <client-id> <action-request>
+----
+
+Z.B.:
+
+[source,shell]
+----
+opsi-admin -d method setProductActionRequest opsi-client-agent client1.opsi.internal setup
+----
+
+
+Auflisten der auf Clients installierten Produkte:
+
+[source,shell]
+----
+opsi-admin method productOnClient_getObjects [] '{"installationStatus": "installed"}'
+----
+
