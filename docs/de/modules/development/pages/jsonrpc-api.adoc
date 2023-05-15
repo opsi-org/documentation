@@ -9,45 +9,39 @@
 ; https://creativecommons.org/licenses/by-sa/3.0/
 ; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
-; credits: http://www.opsi.org/credits/
+; credits: https://www.opsi.org/credits/
 ////
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      18.01.2021
-:Revision:  4.2
+:Date:      08.05.2023
+:Revision:  4.3
 :toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
 
-
-ifeval::["{mode}" == "antora"]
 include::common:partial$opsi_terms.adoc[]
-endif::[]
 
-[[opsi-manual-api-datastructure-opsi]]
-= Web service / API Methoden
 
-Seit opsi 4 gibt es zwei unterschiedliche Arten von API Methoden:
+[[development-jsonrpc-api]]
+== JSON-RPC-API
 
-* *Objekt-orientierte* Methoden
-* *Aktions-orientierte* Methoden
+Die Zentrale opsi API basiert auf JSON-RPC (JavaScript Object Notation Remote Procedure Call).
 
-Opsi enthält eine Python-Bibliothek für die zentralen Zugriffsfunktionen
-auf die opsi-Datenhaltung. Eine API-Dokumentation zu python-opsi link:https://docs.opsi.org/python-docs/python-opsi[https://docs.opsi.org/python-docs/python-opsi]
-und opsicommon link:https://docs.opsi.org/python-docs/python-opsi-common[https://docs.opsi.org/python-docs/python-opsi-common] liegt unter docs.opsi.org.
+Die API enthält eine Schnittstellenbeschreibung, die alle RPC-Methoden dokumentiert.
+Diese kann über die RPC-Methode *backend_getInterface* abgerufen werden.
 
-[[opsi-manual-api-datastructure-opsi4]]
-== Web service / API Methoden seit opsi 4.0
+Diese Liste der Methoden ist auch auf der
+xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[opsiconfd Admin-Seite im Tab RPC-Interface]
+einsehbar.
 
-[[opsi-manual-api-datastructure-opsi4-overview]]
-=== Übersicht
-
-Die opsi4-Backends basieren auf Objekten.
+Die JSON-RPC-API basiert auf Objekten.
 Ein Objekt hat eine Reihe von Attributen.
 
-Als Beispiel dient hier das Objekt .
-Das Objekt vom Typ , welches das {opsi-product}  beschreibt sieht z.B. so aus:
+Als Beispiel dient hier ein Objekt vom Typ *Product* das ein {opsi-product} beschreibt:
 
-[source, configfile]
+[source,json]
 ----
 "ident": "javavm;1.6.0.20;2"
 "id": "javavm"
@@ -73,38 +67,36 @@ Das Objekt vom Typ , welches das {opsi-product}  beschreibt sieht z.B. so aus:
 
 Zu jedem Objekt gibt es eine Reihe von Operationen. In der Regel sind dies:
 
-* : Liefert eine Liste von Objekten zurück, die auf den angegebenen Filter passen.
+* *getObjects*: Liefert eine Liste von Objekten zurück, die auf den angegebenen Filter passen.
 Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend befüllt.
-* : Wie , nur dass ungeprüfte Rohdaten aus dem Backend direkt ausgeliefert werden.
-Arbeitet performanter als , ist jedoch mit Vorsicht zu verwenden.
-*  Liefert eine Liste von Objekt-IDs zurück, die auf den angegebenen Filter passen.
-Über den  kann die Datenstruktur der Elemente im Ergebnis gewählt werden.
-Mögliche Werte sind hierbei: ,  und .
-* : Erzeugt ein neues Objekt. Existiert das Objekt bereits, wird es mit den neuen Werten komplett überschrieben.
-Hierbei werden Attribute, die nicht (oder mit dem Wert ) übergeben werden, im Backend auf  gesetzt.
-* : Aktualisiert ein Objekt. Attribute, die nicht (oder mit dem Wert ) übergeben werden,
+* *getHashes*: Wie *getObjects*, nur dass ungeprüfte Rohdaten aus dem Backend direkt ausgeliefert werden.
+Arbeitet performanter als *getObjects*, ist jedoch mit Vorsicht zu verwenden.
+* *getIdents* Liefert eine Liste von Objekt-IDs zurück, die auf den angegebenen Filter passen.
+Über den *returnTyp* kann die Datenstruktur der Elemente im Ergebnis gewählt werden.
+Mögliche Werte sind hierbei: *unicode*, *list* und *hash*.
+* *insertObject*: Erzeugt ein neues Objekt. Existiert das Objekt bereits, wird es mit den neuen Werten komplett überschrieben.
+Hierbei werden Attribute, die nicht (oder mit dem Wert *null*) übergeben werden, im Backend auf *null* gesetzt.
+* *updateObject*: Aktualisiert ein Objekt. Attribute, die nicht (oder mit dem Wert *null*) übergeben werden,
 werden hierbei im Backend *nicht* geändert. Existiert das Objekt nicht, findet keine Änderung statt, es wird *kein* Objekt erzeugt.
-* : Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an  übergeben.
-* : Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an  übergeben falls es noch nicht existiert, andernfalls jedoch an .
-* : Erzeugt ein neues Objekt und nimmt hierbei alle möglichen Attribute als einzelne Parameter entgegen.
-Intern wird hierbei 'createObjects' verwendet. Existierende Objekte werden also komplett überschrieben.
-* : Löscht eine Liste von Objekten. Es muss hierbei zwingend eine Liste übergeben werden. Es werden nur die das Objekt identifizierenden Attribute (//) zur Auswahl der zu löschenden Objekte verwendet.
-* : Löscht das über die angegebenen Parameter identifizierte Objekt.
+* *createObjects*: Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an *insertObject* übergeben.
+* *updateObjects*: Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an *insertObject* übergeben falls es noch nicht existiert, andernfalls jedoch an *updateObject*.
+* *create*: Erzeugt ein neues Objekt und nimmt hierbei alle möglichen Attribute als einzelne Parameter entgegen.
+Intern wird hierbei *createObjects* verwendet. Existierende Objekte werden also komplett überschrieben.
+* *deleteObjects*: Löscht eine Liste von Objekten. Es muss hierbei zwingend eine Liste übergeben werden. Es werden nur die das Objekt identifizierenden Attribute (*type*/*id*/*ident*) zur Auswahl der zu löschenden Objekte verwendet.
+* *delete*: Löscht das über die angegebenen Parameter identifizierte Objekt.
 
 TIP: Zum Aktualisieren eines Objekts bietet sich in der Regel die Verwendung der Methode  an.
-Zum Beispiel kann über updateObjects_ der Zustand eines Pakets auf einem Client aktualisiert werden.
+Zum Beispiel kann über *productOnClient_updateObjects* der Zustand eines Pakets auf einem Client aktualisiert werden.
 Ob das Objekt dabei bereits existiert oder nicht, spielt dann keine Rolle.
 
 Die Namen der Methoden setzen sich zusammen aus:
 
-_<Objekt-Typ>_<Operation>_
+*<Objekt-Typ>_<Operation>*
 
-Dadurch unterscheiden sie sich von den  Methoden aus opsi 3.x welche in der Regel mit ,  oder  anfangen.
+Die *getObjects*-Methoden haben zwei optionale Parameter:
 
-Die -Methoden haben zwei optionale Parameter:
-
-*
-*
+* *attributes*
+* *filter*
 
 Der Parameter  dient dazu, nur bestimmte Attribute des Objektes abzufragen, was Geschwindigkeitsvorteile bringen kann.
 Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend gelesen.
@@ -114,7 +106,7 @@ Wenn alle Attribute ausgelesen werden sollen (default), kann  oder  als  überge
 
 Beispiel für die Methode *product_getObjects*, parametrisiert mit *attributes:["name"]* für das Produkt *javavm*:
 
-[source, configfile]
+[source,json]
 ----
 "onceScript": null,
 "ident": "javavm;1.6.0.20;2",
@@ -142,12 +134,12 @@ Mit dem Parameter *filter* kann die Liste der Objekte gefiltert werden.
 So schränkt für *product_getObjects* der Filter *{"id":"javavm"}* die Rückgabe auf das Object mit der ID *javavm* ein.
 Mehrere übergebene Filter-Attribute werden hierbei -verknüpft.
 Wird für ein Attribut eine Liste von Werten übergeben, resultiert hieraus eine -Verknüpfung.
-Für Strings kann ein `*` als Platzhalter verwendet werden.
+Für Strings kann ein `\*` als Platzhalter verwendet werden.
 Wenn nicht gefiltert werden soll (default), kann *null* oder *{}* als *filter* übergeben werden.
 
 Beispiel für *product_getIdents* mit Filter `{"id":["opsi-client-agent","opsi-script"],"productVersion":"4.1*"}` (*returnType* = *hash*):
 
-[source, configfile]
+[source,json]
 ----
 [
     {
@@ -200,22 +192,23 @@ Die wichtigsten Objekte sind:
 * *softwareLicenseToLicensePool* (Lizenzmanagement)
 * *softwareLicense* (Lizenzmanagement)
 
-Daneben gibt es noch eine Reihe von weiteren Objekten mit speziellen Operationen.
-Das aufgeführte Design ermöglicht es:
+Daneben gibt es noch eine Reihe von weiteren Objekten mit speziellen Operationen,
+die nicht diesem Objekt-Schema folgen, z.B.:
 
-* schnell Informationen zu einer großen Zahl von Objekten zu übertragen,
-* dabei mit einheitlicher Syntax Daten zu filtern,
-* die Informationen auf syntaktische Korrektheit der erzeugten Objekte zu prüfen.
+* `backend_getLicensingInfo`
+* `network_sendBroadcast`
+* `accessControl_userIsAdmin`
 
-Hierdurch wird eine verbesserte Stabilität und höhere Performanz erreicht.
+Weiterhin gibt es Methoden, die kein *<Objekt-Typ>_*-Prefix besitzen.
+Diese sind in der Regel alte Methoden, die zur Wahrung der Abwärts-Kompatibilität beibehalten worden sind.
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-host]]
+[[development-jsonrpc-api-storage-host]]
 === Host  (Server und Clients)
 
 Beispiel für einen OpsiClient:
 
-[source,configfile]
+[source,json]
 ----
  method host_getObjects [] {"id":"xpclient.vmnat.local"}
 [
@@ -236,19 +229,19 @@ Beispiel für einen OpsiClient:
 ]
 ----
 
-Die meisten dieser Daten finden sich im *clients* tab des opsi-configed.
+Die meisten dieser Daten finden sich im *Clients*-Tab des opsi-configed.
 
-Mögliche Werte für `type`:
+Mögliche Werte für *type*:
 
 * *OpsiClient*
-* *OpsiConfigserver* (was bedeutet, dies ist auch ein *OpsiDepotserver*)
 * *OpsiDepotserver*
+* *OpsiConfigserver* (ist auch ein *OpsiDepotserver*)
 
-Der Server type hat andere und mehr Daten als ein Client..
+*OpsiDepotserver* und *OpsiConfigserver* besitzen mehr Attribute als ein *OpsiClient*.
 
-Beispiel für einen server:
+Beispiel für einen *OpsiConfigserver**:
 
-[source,configfile]
+[source,json]
 ----
  method host_getObjects [] {"id":"sepiolina.vmnat.local"}
 [
@@ -276,7 +269,7 @@ Beispiel für einen server:
 ----
 Die meisten dieser Daten finden sich in der *depot configuration* des opsi-configed.
 
-[[opsi-manual-api-datastructure-opsi4-storage-group]]
+[[development-jsonrpc-api-storage-group]]
 === Group (Gruppen Verwaltung)
 
 Beschreibt Gruppen und Ihre hierarchiche Struktur.
@@ -284,7 +277,7 @@ Es existieren die Typen *HostGroup* und *ProductGroup*.
 
 Beispiel für ein *Group*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method group_getObjects
  [
@@ -307,13 +300,13 @@ Beispiel für ein *Group*-Objekt:
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-storage-objectToGroup]]
+[[development-jsonrpc-api-storage-objectToGroup]]
 === ObjectToGroup (Verwaltung von Gruppenzugehörigkeiten)
 
 Beschreibt die Mitgliedschaft von Objekten in Gruppen.
 Beispiel für *ObjectToGroup*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method objectToGroup_getObjects
 [
@@ -348,14 +341,14 @@ Beispiel für *ObjectToGroup*-Objekte:
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-storage-product]]
+[[development-jsonrpc-api-storage-product]]
 === Product (Pake-Metadaten)
 
 Beschreibt die Meta-Daten eines Produktes wie sie bei der Erstellung des Produktes definiert wurden.
 
 Beispiel für ein *Product*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method product_getObjects [] {"id":"jedit","productVersion":"4.5"}
 [
@@ -393,14 +386,14 @@ NOTE: Im Fall von mehreren Depotservern, können hier unterschiedliche Versionen
 
 Die Attribute *productClassIds* und *windowsSoftwareIds* werden im Moment nicht verwendet.
 
-[[opsi-manual-api-datastructure-opsi4-storage-productProperty]]
+[[development-jsonrpc-api-storage-productProperty]]
 === ProductProperty (Definition von Produkt-Eigenschaften)
 
 Beschreibt die Eigenschaften eines *Product* wie sie bei der Erstellung des Pakets definiert wurden.
 
 Beispiel für ein `ProductProperty` Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method productProperty_getObjects [] {"productId":"jedit","productVersion":"4.5"}
 [
@@ -428,7 +421,7 @@ Beispiel für ein `ProductProperty` Objekt:
 ----
 NOTE: Die für einen Client verwendeten default Werte finden sich nicht hier, sondern werden Depot-spezifisch in `productPropertyState` Objekten gespeichert.
 
-[[opsi-manual-api-datastructure-opsi4-storage-productPropertyState]]
+[[development-jsonrpc-api-storage-productPropertyState]]
 === ProductPropertyState (Depot- oder Client-spezifische Paket-Einstellungen)
 
 Beschreibt:
@@ -436,9 +429,9 @@ Beschreibt:
 * Die Standard-Werte eines *ProductProperty* auf einem Depot
 * Die Client-spezifischen Einstellungen eines 'ProductProperty'.
 
-Beispiel für `ProductPropertyState` Objekte:
+Beispiel für *ProductPropertyState*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method productPropertyState_getObjects [] {"productId":"jedit"}
 [
@@ -469,14 +462,14 @@ Beispiel für `ProductPropertyState` Objekte:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-productDependency]]
-=== ProductDependency_(Paket-Abhängigkeiten)
+[[development-jsonrpc-api-storage-productDependency]]
+=== ProductDependency (Paket-Abhängigkeiten)
 
 Beschreibt die Abhängigkeit eines Pakets zu einem anderen Paket wie sie bei der Erstellung des Paketes definiert wurden.
 
 Beispiel für ein *ProductDependency*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
 method productDependency_getObjects [] {"productId":"jedit","productVersion":"4.5"}
 [
@@ -497,14 +490,14 @@ method productDependency_getObjects [] {"productId":"jedit","productVersion":"4.
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-storage-productOnClient]]
+[[development-jsonrpc-api-storage-productOnClient]]
 === ProductOnClient (Client-spezifische Informationen zu einem Paket z.B. Installationsstatus)
 
 Beschreibt, welche Produkte in welchen Versionen auf welchem Client installiert sind.
 
 Beispiel eines *ProductOnClient*-Objektes:
 
-[source,configfile]
+[source,json]
 ----
  method productOnClient_getObjects [] {"productId":"jedit","clientId":"xpclient.vmnat.local"}
 [
@@ -528,14 +521,14 @@ Beispiel eines *ProductOnClient*-Objektes:
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-storage-productOnDepot]]
+[[development-jsonrpc-api-storage-productOnDepot]]
 === ProductOnDepot (Depot-spezifische Informationen zu einem Paket)
 
 Beschreibt, welches Produkt in welcher Version auf welchem Depot installiert ist.
 
 Beispiel für *ProductOnDepot*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method productOnDepot_getObjects [] {"productId":"jedit"}
 [
@@ -564,14 +557,14 @@ Beispiel für *ProductOnDepot*-Objekte:
 NOTE: Im Fall von mehreren Depotservern, können hier unterschiedliche Versionen eines Produktes auftauchen.
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-config]]
+[[development-jsonrpc-api-storage-config]]
 === Config (Verwaltung der Standard-Werte der Konfigurationen)
 
 Beschreibt die verfügbaren Konfigurationen.
 
 Beispiel für ein *Config*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method config_getObjects [] {"id":"opsiclientd.event_gui_startup.active"}
 [
@@ -595,14 +588,14 @@ Beispiel für ein *Config*-Objekt:
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-storage-configState]]
+[[development-jsonrpc-api-storage-configState]]
 === ConfigState (Verwaltung der Client-spezifischen Konfigurationen)
 
 Client-spezifischer Zustand einer Konfiguration.
 
 Beispiel für ein *ConfigState*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method configState_getObjects [] {"configId":"opsiclientd.event_gui_startup.active"}
 [
@@ -621,17 +614,18 @@ Beispiel für ein *ConfigState*-Objekt:
 NOTE: Ein *ConfigState* Objekt kann nicht erzeugt werden ohne das das *Config* Objekt existiert auf das es referenziert.
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-auditHardwareOnHost]]
-=== 'AuditHardwareOnHost' (Clientspezifische Hardware Informationen)
+[[development-jsonrpc-api-storage-auditHardwareOnHost]]
+=== AuditHardwareOnHost (Client-spezifische Hardware Informationen)
 
-Beschreibt die ermittelten Hardwaretypen (inclusive der Client-spezifischen Daten). Die Idee ist in diesem Objekt die Client-spezifischen Daten zu halten und in `auditHardware` nur die allgemeinen, so dass es dort z.B. nur einen Eintrag für eine Netzwerkkarte gibt, die in vielen Clients benutzt wird. +
-Leider funktioniert diese Idee in der Praxis nicht wirklich.
+Beschreibt die ermittelten Hardware-Informationen inclusive der Client-spezifischen Daten.
+*AuditHardwareOnHost*-Objekte enthalten die Hardware-spezifischen und Client-spezifischen Attribute,
+*AuditHardware*-Objekte nur Hardware-spezifische Attribute.
 
-Das Attribut *state* legt fest ob die Daten aktuell (Wert = '1') oder historisch (Wert = '0') sind.
+Das Attribut *state* ist historisch bedingt und besitzt aktuell keine Bedeutung mehr.
 
 Beispiele für *AuditHardwareOnHost*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method auditHardwareOnHost_getObjects [] {"hostId":"xpclient.vmnat.local","hardwareClass":"NETWORK_CONTROLLER","ipAddress":"172.16.166.101"}
 [
@@ -717,15 +711,13 @@ Beispiele für *AuditHardwareOnHost*-Objekte:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-auditHardware]]
+[[development-jsonrpc-api-storage-auditHardware]]
 === AuditHardware (Client-unabhängige Hardware Informationen)
 
-Beschreibt die ermittelten Hardwaretypen (ohne die Client-spezifischen Daten). Die Idee ist in diesem Objekt nur die allgemeinen Daten eines Hardwaretyps zu halten, so dass es hier z.B. nur einen Eintrag für eine Netzwerkkarte gibt, die in vielen Clients benutzt wird. +
-Leider funktioniert diese Idee in der Praxis nicht wirklich.
-
+Beschreibt die ermittelten Hardware-Informationen ohne die Client-spezifischen Daten.
 Beispiele für *AuditHardware*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method auditHardware_getObjects [] {"hardwareClass":"NETWORK_CONTROLLER","vendorId":"1022"}
 [
@@ -815,18 +807,18 @@ Beispiele für *AuditHardware*-Objekte:
           "description" : "Ethernetadapter der AMD-PCNET-Familie"
           },
 (....)
-[
+]
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-auditSoftwareOnClient]]
+[[development-jsonrpc-api-storage-auditSoftwareOnClient]]
 === AuditSoftwareOnClient (Client-spezifische Software Informationen)
 
-Beschreibt die ermittelten Softwaretypen (inclusive der Client-spezifischen Daten). Die Idee ist in diesem Objekt die Client-spezifischen Daten zu halten und in `auditSoftware` nur die allgemeinen, so dass es dort z.B. nur einen Eintrag für eine Office-Software gibt, die in vielen Clients benutzt wird.
+Beschreibt die ermittelten Software-Informationen inklusive der Client-spezifischen Daten.
 
 Beispiele für *AuditSoftwareOnClient*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method auditSoftwareOnClient_getObjects  [] {"name":"jEdit 4.5.0","clientId":"xpclient.vmnat.local"}
 [
@@ -852,14 +844,14 @@ Beispiele für *AuditSoftwareOnClient*-Objekte:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-auditSoftware]]
+[[development-jsonrpc-api-storage-auditSoftware]]
 === AuditSoftware (Client-unahängige Software Informationen)
 
-Beschreibt die ermittelten Softwaretypen (ohne die Client-spezifischen Daten). Die Idee ist in diesem Objekt nur die allgemeinen Daten eines Softwaretyps zu halten, so dass es hier z.B. nur einen Eintrag für eine Office-Software gibt, die in vielen Clients benutzt wird.
+Beschreibt die ermittelten Software-Informationen ohne die Client-spezifischen Daten.
 
 Beispiel für *AuditSoftware*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method auditSoftware_getObjects  [] {"name":"jEdit 4.5.0"}
 [
@@ -894,14 +886,14 @@ Beispiel für *AuditSoftware*-Objekte:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-auditSoftwareToLicensePool]]
+[[development-jsonrpc-api-storage-auditSoftwareToLicensePool]]
 === AuditSoftwareToLicensePool (Lizenzmanagement)
 
-Beschreibt die Zuordnung von Mustern aus der Softwareinventarisierung (*AuditSoftware*) zu einzelnen Lizenzpools.
+Beschreibt die Zuordnung von Mustern aus der Software-Inventarisierung (*AuditSoftware*) zu einzelnen Lizenzpools.
 
 Beispiel für *AuditSoftwareToLicensePool*-Objekte:
 
-[source,configfile]
+[source,json]
 ----
  method auditSoftwareToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
 [
@@ -929,14 +921,14 @@ Beispiel für *AuditSoftwareToLicensePool*-Objekte:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-softwareLicenseToLicensePool]]
+[[development-jsonrpc-api-storage-softwareLicenseToLicensePool]]
 === SoftwareLicenseToLicensePool (Lizenzmanagement)
 
 Beschreibt die Zuordnung von *softwareLicenseIds* zu *licensePoolIds*.
 
 Beispiel für ein *SoftwareLicenseToLicensePool*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
 method softwareLicenseToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
 [
@@ -951,14 +943,14 @@ method softwareLicenseToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-pr
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-softwareLicense]]
+[[development-jsonrpc-api-storage-softwareLicense]]
 === SoftwareLicense (Lizenzmanagement)
 
 Beschreibt die existierenden Softwarelizenzen und deren Metadaten.
 
 Beispiel für ein *SoftwareLicense*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method softwareLicense_getObjects [] {"id":"uib-msdn-win7-vol"}
 [
@@ -975,14 +967,14 @@ Beispiel für ein *SoftwareLicense*-Objekt:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-licenseContract]]
+[[development-jsonrpc-api-storage-licenseContract]]
 === LicenseContract (Lizenzmanagement)
 
 Beschreibt die existierenden Lizenzverträge und deren Metadaten.
 
 Beispiel für ein *LicenseContract*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method licenseContract_getObjects [] {"id":"msdn-uib"}
 [
@@ -1001,14 +993,14 @@ Beispiel für ein *LicenseContract*-Objekt:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-licenseOnClient]]
+[[development-jsonrpc-api-storage-licenseOnClient]]
 === LicenseOnClient (Lizenzmanagement)
 
 Beschreibt, welcher Client welche Lizenz in Verwendung hat.
 
 Beispiel für ein *LicenseOnClient*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method licenseOnClient_getObjects  [] {"clientId":"win7client.vmnat.local"}
 [
@@ -1025,14 +1017,14 @@ Beispiel für ein *LicenseOnClient*-Objekt:
 ----
 
 
-[[opsi-manual-api-datastructure-opsi4-storage-licensePool]]
+[[development-jsonrpc-api-storage-licensePool]]
 === LicensePool (Lizenzmanagement)
 
 Beschreibt einen {license-pool} und dessen Zuordnung zu Produkten.
 
 Beispiel für ein *LicensePool*-Objekt:
 
-[source,configfile]
+[source,json]
 ----
  method licensePool_getObjects [] {"id":"win7-msdn-prof"}
 [
@@ -1050,13 +1042,13 @@ Beispiel für ein *LicensePool*-Objekt:
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-changeobjekts]]
+[[development-jsonrpc-api-changeobjekts]]
 === Beispiel für die Änderung eines Keys in mehreren Objekten
 
 Hier soll erläutert werden, wie Änderungen an einem Objekt durch geführt werden können.
 Als Beispiel wird das `host` Objekt verwendet, welches über die Auswahl auf den Typ `OpsiDepotserver` eingeschränkt wird:
 
-[source,configfile]
+[source,json]
 ----
  method host_getObjects '[]' {"type":"OpsiDepotserver"}
 [
@@ -1103,783 +1095,224 @@ Als Beispiel wird das `host` Objekt verwendet, welches über die Auswahl auf den
 ]
 ----
 
-Zur Änderung der Werte für den Key "maxBandwidth" würde dieser Aufruf eine Datei erzeugen, in der die max. Bandbreite auf allen Depotservern von "0" auf "100" geändert wird.
+Zur Änderung der Werte für den Key *maxBandwidth* würde dieser Aufruf eine Datei erzeugen, in der die max. Bandbreite auf allen Depotservern von *0* auf *100* geändert wird.
 An der Datei können auch händisch Änderungen vorgenommen werden.
 
-[source,configfile]
+[source,json]
 ----
 opsi-admin -d method host_getObjects '[]' '{"type":"OpsiDepotserver"}' | sed  -e 's/"maxBandwidth"\s:\s0/"maxBandwidth" : 100/' > /tmp/maxBand.json
 ----
 
 Hiermit wird die geänderte Konfiguration in das Opsi-Backend übernommen:
 
-[source,configfile]
+[source,json]
 ----
 opsi-admin -d method host_createObjects < /tmp/maxBand.json
 ----
 
-[[opsi-manual-api-datastructure-opsi4-special]]
+[[development-jsonrpc-api-special]]
 === Spezielle Methoden
 
 Es gibt eine Reihe von speziellen Methoden.
 Einige davon werden nachfolgend vorgestellt.
 
-[[opsi-manual-api-datastructure-opsi4-special-getClientToDepotserver]]
+[[development-jsonrpc-api-special-getClientToDepotserver]]
 === configState_getClientToDepotserver
-Diese Methode liefert Informationen darüber, welchem Depot ein Client zugordnert ist.
+Diese Methode liefert Informationen darüber, welchem Depot ein Client zugeordnet ist.
 
-Die Syntax ist:
-[source,configfile]
-----
- method configState_getClientToDepotserver *depotIds *clientIds
-*masterOnly *productIds
-----
 
 Beispiel:
-[source,configfile]
+[source,json]
 ----
-method configState_getClientToDepotserver [] "pcbon4.uib.local"
+method configState_getClientToDepotserver [] "client1.company.internal"
 [
           {
-          "depotId" : "bonifax.uib.local",
+          "depotId" : "opsi.company.internal",
           "alternativeDepotIds" :
                     [
 
                     ],
-          "clientId" : "pcbon4.uib.local"
+          "clientId" : "client1.company.internal"
           }
 ]
 ----
 
-[[opsi-manual-api-datastructure-opsi4-special-hostControl]]
+[[development-jsonrpc-api-special-hostControl]]
 === Kommunikation mit Hosts
 
 Die *hostControl*-Methoden werden verwendet, um mit den Clients zu kommunizieren und diese zu steuern.
-Seit opsi 4.0.3 empfehlen wird die Verwendung der *hostControlSafe*-Methoden.
-Beide Varianten haben einen Parameter *hostIds*. Bei *hostControl* ist dieser optional - ohne Angabe werden die Aktionen gegen alle Clients durchgeführt.
+Zusätzlich existieren *hostControlSafe*-Methoden.
+Beide Varianten haben einen Parameter *hostIds*.
+Bei *hostControl* ist dieser optional. Ohne Angabe des Parameters werden die Aktionen auf allen Clients durchgeführt.
 Bei *hostControlSafe* ist der Parameter zwingend. Falls alle Clients angesprochen werden sollen, muss hier `*` angegeben werden.
-Bei Befehlen wie *hostControl*reboot* kann das Weglassen der Host-IDs zum versehentlichen Neustart aller Clients führen, weshalb in opsi 4.0.3 die Abwärtskompatibilität gebrochen wurde und bei den Befehlen *hostControl_reboot* und *hostControl_shutdown* das Weglassen des Parameters nun zu einem Fehler führt.
 
+Seit opsi 4.3 werden die *hostControl*-Methoden bevorzugt über den opsi-Messagebus ausgeführt.
 
 * *hostControlSafe_execute* +
-Führt einen Befehl auf den Clients aus. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und weist sie an, *command* auszuführen. +
-Parameter: *command hostIds*
+Führt den Befehl *command* auf den Clients aus. +
+Parameter: *command*, *hostIds*
 
 * *hostControlSafe_fireEvent* +
 Führt ein opsiclientd-Event auf den Clients aus.
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und weist ihn an, das Event zu starten. +
 Falls sich aktuell ein anderes Event in einer unterbrechbaren Phase befindet, wird dieses unterbrochen und stattdessen das neue Event gestartet.
 Eine Phase ist unterbrechbar, wenn es entweder noch keine Daten verändert oder Aktionen ausgeführt hat oder es sich um eine Wartephase handelt bei einem Event, was *processActions = False* gesetzt hat (z.B. *sync*, *sync_completed*).
-Parameter: *event hostIds*
+Parameter: *event*, *hostIds*
 
 * *hostControlSafe_getActiveSessions* +
-Liest die angemeldeten Benutzer aus. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und fragt die aktiven Sessions ab. +
+Ermittelt die auf den Clients aktiven Benutzer-Sessions. +
 Parameter: *hostIds*
 
 * *hostControlSafe_opsiclientdRpc* +
-Führt die angegebene Methode auf dem Service des {opsiclientd} aus. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und führt die Methode *method* mit den gegebenen *params* als Parameter aus. +
-Das ist die generischste Methode, da sich hierüber beliebige weitere Methoden starten lassen. +
-Der einfachste Weg die verfügbaren Methoden zu erfahren ist sich auf das Control-Interface des Zielclients zu verbinden. Dieses ist zu erreichen unter \https://<clientId>:4441. +
-Parameter: *method *params hostIds*
+Führt die Methode (*method*) mit den gegebenen Parametern (*params*) auf dem Service des {opsiclientd} aus. +
+Das ist eine generische Methode, da sich hierüber alle Methoden ausführen lassen. +
+Der einfachste Weg die verfügbaren Methoden zu ermitteln ist sich auf das Control-Interface des Zielclients zu verbinden.
+Dieses ist zu erreichen unter *https://<client-address>:4441* +
+Parameter: *method*, *params*, *hostIds*
 
 * *hostControlSafe_reachable* +
-Überprüft, ob der {opsiclientd} erreichbar ist. +
-Baut dazu eine Verbindung zum {opsiclientd} der gegebenen Clients auf, aber führt keinen Login durch. +
+Überprüft, ob der opsi-Client erreichbar ist.
+Seit opsi 4.3 gilt ein Client als Verbunden, wenn er mit dem opsi-Messagebus verbunden ist.
 Parameter: *hostIds*
 
 * *hostControlSafe_reboot* +
 Startet die Clients neu. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und führt einen Neustart aus. +
 Parameter: *hostIds*
 
 * *hostControlSafe_showPopup* +
-Zeigt eine Nachricht in einem Popup auf den Clients. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und zeigt die gegebene Nachricht in einem Popup-Fenster. +
+Zeigt eine Nachricht in einem Popup-Fenster auf den Clients. +
 Parameter: *message hostIds*
 
 * *hostControlSafe_shutdown* +
 Fährt die Clients herunter. +
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und fährt den Client herunter. +
 Parameter: *hostIds*
 
 * *hostControlSafe_start* +
-Sendet ein Wake-On-Lan-Signal an die Clients. +
-Das ist die einzige 'hostControlSafe'-Methode, welche nicht den {opsiclientd} eines Clients verwendet. +
+Sendet ein Wake-On-LAN-Signal an die MAC-Adressen der Clients. +
 Parameter: *hostIds*
 
 * *hostControlSafe_uptime* +
-Fragt Clients nach ihrer Uptime.
-Verbindet sich dazu mit dem {opsiclientd} auf den angegebenen Hosts und liest die Uptime in Sekunden aus. +
+Ermittelt die Uptime der Clients in Sekunden. +
 Parameter: *hostIds*
 
-[[opsi-manual-api-datastructure-opsi4-special-log]]
+[[development-jsonrpc-api-special-log]]
 === Arbeit mit Logs
 
 Die folgenden Methoden drehen sich um die Arbeit mit Logs.
 
 * *log_read* +
 Liest ein opsi-Log vom Server.  +
-Parameter: *logType *objectId *maxSize* +
-Mögliche Log-Arten sind *instlog* (opsi-winst), *clientconnect* (opsiclientd), *userlogin*, *bootimage* sowie *opsiconfd*. +
-Als Parameter *objectId* wird normalerweise die *clientId* des Clients dessen Log man möchte angegeben.
+Parameter: *logType*, *objectId*, *maxSize* +
+Mögliche Log-Arten sind *instlog* (opsi-script-Logs), *clientconnect* (opsiclientd-Logs), *userlogin*, *bootimage* sowie *opsiconfd*. +
+Als Parameter *objectId* wird die *clientId* eines Clients angegeben.
 
 * *log_write* +
 Schreibt eine Logdatei zum Server. +
-Parameter: *logType data *objectId *append* +
-Log-Arten und *objectId* werden unter *log_read* beschrieben. +
-Mittels *append* wird gesteuert, ob der neue Inhalt an ein eventuell bestehendes Logfile angehängt wird. Der Wert kann *true* oder *false* sein. Letzteres ist der Standard.
+Parameter: *logType*, *data*, *objectId*, *append* +
+Log-Arten und *objectId* wie unter *log_read* beschrieben. +
+Mittels *append* (boolean) wird gesteuert, ob der neue Inhalt an ein eventuell bestehendes Logfile angehängt wird.
 
-[[opsi-manual-api-datastructure-opsi4-group-tutorial]]
+[[development-jsonrpc-api-group-tutorial]]
 === Tutorial: Arbeit mit Gruppen
 
-Sie arbeiten mit Gruppen-Objekten. Die Methoden beginnen also mit *group*.
-Dann gibt es zwei Arten von Gruppen: Host-Gruppen und Produkt-Gruppen. Für die Treeview benötigen wir die erste Variante, das heißt beim Erstellen oder Abfragen muss `type` auf `HostGroup` gesetzt werden.
+Die Methoden beginnen *group_*, arbeiten also auf Gruppen.
+Es existieren zwei Arten von Gruppen: *Host-Gruppen* (*type = HostGroup*) und *Produkt-Gruppen* (*type = ProductGroup*).
 
-Das Erstellen von Hostgruppen ist vereinfacht durch die Methode *group_createHostGroup*.
-Die Parameter sind *id*, *description* (Beschreibung), *notes* (Notizen) und *parentGroupId* (ID der übergeordneten Gruppe). Davon ist nur die id zwingend zu vergeben und diese muss einzigartig sein.
+Das Erstellen von Host-Gruppen ist auch über die Methode *group_createHostGroup* möglich.
+Die Parameter sind *id*, *description* (Beschreibung), *notes* (Notizen) und *parentGroupId* (ID der übergeordneten Gruppe).
+Die *id* muss angegeben werden und muss einzigartig sein.
 
-IMPORTANT: Gruppen anhand ihrer ID identifiziert. Diese ID muss gruppenübergreifend einzigartig sein.
+IMPORTANT: Gruppen werden anhand ihrer ID identifiziert. Diese ID muss Gruppen-übergreifend einzigartig sein.
 
 
-Das Anlegen einer Gruppe ist so möglich:
+Ein Beispiel für das Anlegen einer Gruppe:
 [source,shell]
 ----
-opsi-admin -d method group_createHostGroup rechner_wenselowski "Nikos Rechner"
+opsi-admin -d method group_createHostGroup "windows-clients" "Windows clients"
 ----
 
-Wollen Sie die angelegte Gruppe anschauen, so können Sie mittels group_getObjects die Gruppen abfragen. Hier die Abfrage nach der soeben angelegten Gruppe:
+Über *group_getObjects* können Gruppen ausgelesen werden.
+Hier ein Beispiel um die gerade angelegte Gruppe zu lesen:
 [source,shell]
 ----
-opsi-admin -d method group_getObjects '' '{"id": "rechner_*", "type": "HostGroup"}'
+opsi-admin -d method group_getObjects [] '{"id": "windows-clients", "type": "HostGroup"}'
 ----
 
-Wollen Sie Untergruppen anlegen, so müssen Sie als parentGroupId die ID der übergeordneten Gruppe angeben. Hier als Beispiel eine Untergruppe zur gerade angelegten Gruppe:
+Wollen Sie Untergruppen anlegen, so müssen Sie als *parentGroupId* die ID der übergeordneten Gruppe angeben.
+Hier als Beispiel eine Untergruppe zur gerade angelegten Gruppe:
 [source,shell]
 ----
-opsi-admin -d method group_createHostGroup "rechner_wenselowski2" "Untergruppe" "" "rechner_wenselowski"
+opsi-admin -d method group_createHostGroup "win10-clients" "Windows 10 clients" "" "windows-clients"
 ----
 
-Die Abfrage von vorher sollte nun auch die neue Gruppe ausgeben.
-
-Wenn Sie nun mit dem Directory arbeiten wollen, so wird dieses intern als Gruppe mit der ID clientdirectory behandelt.
-Clients dürfen im Directory immer nur in einer Gruppe sein - per Default sind sie der Gruppe mit der ID NICHT_ZUGEWIESEN zugewiesen. Verwenden Sie opsi in einer anderen Sprache, kann der Gruppenname abweichen.
+Wenn Sie mit dem Directory arbeiten wollen, so wird dieses intern als Gruppe mit der ID *clientdirectory* behandelt.
+Clients dürfen im Directory immer nur in einer Gruppe sein - standardmäßig sind sie der Gruppe mit der ID *NICHT_ZUGEWIESEN* zugewiesen.
+Verwenden Sie opsi in einer anderen Sprache, kann der Gruppenname abweichen.
 Dafür, dass die Clients immer in nur einer Gruppe sind, wenn sie im Directory sein sollen, muss vom jeweiligen Administrator gesorgt werden, da das Backend an dieser Stelle nicht eingreift.
 
-Die Zuordnung von Clients zur Gruppe geschieht über objectToGroup-Objekte.
+Die Zuordnung von Clients zur Gruppe geschieht über *ObjectToGroup*-Objekte.
 Wir legen einen Client mit dem folgenden Befehl an:
 [source,shell]
 ----
-opsi-admin -d method host_createOpsiClient "wenselowski-test.uib.local"
+opsi-admin -d method host_createOpsiClient "client1.company.internal"
 ----
 
 Diesen fügen wir der Untergruppe von vorhin hinzu:
 [source,shell]
 ----
-opsi-admin -d method objectToGroup_create "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+opsi-admin -d method objectToGroup_create "HostGroup" "win10-clients" "client1.company.internal"
 ----
 
-Um das zu überprüfen, können wir wie folgt die Zuordnung abfragen:
+Um das Ergebnis zu überprüfen, können wir wie folgt die Zuordnung abfragen:
 [source,shell]
 ----
-opsi-admin -d method objectToGroup_getObjects '' '{"groupType": "HostGroup", "groupId": "rechner_wenselowski2"}'
+opsi-admin -d method objectToGroup_getObjects [] '{"groupType": "HostGroup", "groupId": "win10-clients"}'
 ----
 
-Um den Client aus der Gruppe zu entfernen, können Sie so vorgehen:
+Um den Client wieder aus der Gruppe zu entfernen, können Sie so vorgehen:
 [source,shell]
 ----
-opsi-admin -d method objectToGroup_delete "HostGroup" "rechner_wenselowski2" "wenselowski-test.uib.local"
+opsi-admin -d method objectToGroup_delete "HostGroup" "win10-clients" "client1.company.internal"
 ----
 
-Um zu guter letzt eine Gruppe zu löschen, können Sie das wie folgt machen:
+Sie können die Gruppe auch löschen:
 [source,shell]
 ----
-opsi-admin -d method group_delete "rechner_wenselowski"
+opsi-admin -d method group_delete "win10-clients"
 ----
 
-[[opsi-manual-api-datastructure-opsi3]]
-== Aktions-orientierte Methoden
 
-Die mit opsi 3 eingeführten *aktions orientierten* Methoden stehen weiterhin zur Verfügung und werden weiter gepflegt.
-Diese Methodenwerden aber ab opsi 4.0 intern auf die *objekt orientierten* Methoden *gemappt*.
+[[development-jsonrpc-api-backend-extender]]
+== Erweiterungen der API-Methoden
 
-Hier eine Liste der Methoden (dargestellt in der Form des Aufrufs mit `opsi-admin`) mit einer kurzen Beschreibung.
-Diese dient zur Orientierung und nicht als Referenz.
-Das bedeutet die Beschreibung muss nicht alle Informationen enthalten, die Sie benötigen,
-um diese Methode tatsächlich zu verwenden.
+Bei Bedarf können zusätzliche Methoden definiert werden.
+Hierfür werden Python-Quelltext-Dateien mit `.conf`-Endung in `/etc/opsi/backendManager/extend.d` angelegt.
+Über das `self`-Object können alle weiteren API-Methoden in der Custom-Methode verwendet werden.
 
-[source,shell]
-----
-method authenticated
-----
-
-Überprüfen, ob die Authentifizierung am Service erfolgreich war.
-
-[source,shell]
-----
-method createClient clientName domain
-----
-
-Erzeugt einen neuen Client.
-
-[source,shell]
-----
-method createGroup groupId members = [] description = ""
-----
-
-Erzeugt eine Gruppe von Clients, wie sie vom {opsi-Configed} verwendet wird.
-
-[source,shell]
-----
-method createLicenseKey productId licenseKey
-----
-
-Weist dem Produkt 'productId' einen (weiteren) Lizenzkey zu.
-
-[source,shell]
-----
-method createLocalBootProduct productId name productVersion packageVersion licenseRequired=0 setupScript="" uninstallScript="" updateScript="" alwaysScript="" onceScript="" priority=10 description="" advice="" productClassNames=('localBoot')
-----
-
-Legt ein neues Localboot-Produkt (Winst-Produkt) an.
-
-[source,shell]
-----
-method createNetBootProduct productId name productVersion packageVersion licenseRequired=0 setupScript="" uninstallScript="" updateScript="" alwaysScript="" onceScript="" priority=10 description="" advice="" productClassNames=('netboot')
-----
-
-Legt ein neues bootimage Produkt an.
-
-[source,shell]
-----
-method createProduct productType productId name productVersion packageVersion licenseRequired=0 setupScript="" uninstallScript="" updateScript="" alwaysScript="" onceScript="" priority=10 description="" advice="" productClassNames=""
-----
-
-Legt ein neues Produkt an.
-
-[source,shell]
-----
-method createProductDependency productId action requiredProductId="" requiredProductClassId="" requiredAction="" requiredInstallationStatus="" requirementType=""
-----
-
-Erstellt Produktabhängigkeiten.
-
-[source,shell]
-----
-method createProductPropertyDefinition productId name possibleValues=[]
-----
-
-Erstellt eine Produkteigenschaft.
-
-[source,shell]
-----
-method deleteClient clientId
-----
-
-Löscht einen Client.
-
-[source,shell]
-----
-method deleteGeneralConfig objectId
-----
-
-Löscht Konfiguration eines Clients oder einer Domain.
-
-[source,shell]
-----
-method deleteGroup groupId
-----
-
-Löscht eine Clientgruppe.
-
-[source,shell]
-----
-method deleteHardwareInformation hostId
-----
-
-Löscht sämtliche Hardwareinfos zum Rechner 'hostid'.
-
-[source,shell]
-----
-method deleteLicenseKey productId licenseKey
-----
-
-Löscht einen Lizenzkey.
-
-[source,shell]
-----
-method deleteProduct productId
-----
-
-Löscht ein Produkt aus der Datenbasis.
-
-[source,shell]
-----
-method deleteProductDependency productId action requiredProductId="" requiredProductClassId="" requirementType=""
-----
-
-Löscht Produktabhängigkeit.
-
-[source,shell]
-----
-method deleteProductPropertyDefinition productId name
-method deleteProductPropertyDefinitions productId
-----
-
-Löscht alle {product-properties} zum Produkt *productid*.
-
-[source,shell]
-----
-method deleteServer serverId
-----
-
-Löscht die Serverkonfiguration.
-
-[source,shell]
-----
-method exit
-----
-
-Verlässt den opsi-admin.
-
-[source,shell]
-----
-method getBackendInfos_listOfHashes
-----
-
-Liefert eine Beschreibung der auf dem opsi-server konfigurierten Backends und welche davon aktiviert sind.
-
-[source,shell]
-----
-method getClientIds_list
-----
-
-Liefert die Liste der Clients, welche den angegebenen Kriterien entsprechen.
-
-[source,shell]
-----
-method getClients_listOfHashes
-----
-
-Liefert die Liste der Clients, welche den angegebenen Kriterien entsprechen, zusammen mit Beschreibung, Notizen und 'Lastseen'.
-
-[source,shell]
-----
-method getDomain hostId
-----
-Liefert die Domain zu einem Rechner.
-
-[source,shell]
-----
-method getGeneralConfig_hash objectId
-----
-
-Liefert allgemeine Konfiguration zu einem Client oder einer Domain.
-
-[source,shell]
-----
-method getGroupIds_list
-----
-
-Liefert die Liste der gespeicherten Clientgruppen.
-
-[source,shell]
-----
-method auditHardwareOnHost_getObjects '[]' '{"hostId":"<hostId>"}'
-----
-
-Liefert die Hardwareinformationen zu dem angegebenen Rechner.
-
-[source,shell]
-----
-method getHostId hostname
-----
-
-Liefert hostid zu dem angegebenen Hostnamen.
-
-[source,shell]
-----
-method getHost_hash hostId
-----
-
-Liste der Eigenschaften des angegebenen Rechners.
-
-[source,shell]
-----
-method getHostname hostId
-----
-
-Liefert hostname zur Host-ID.
-
-[source,shell]
-----
-method getInstallableLocalBootProductIds_list clientId
-----
-
-Liefert alle Localboot-Produkte, die auf diesem Client installiert werden können.
-
-[source,shell]
-----
-method getInstallableNetBootProductIds_list clientId
-----
-
-Liefert alle Netboot-Produkte, die auf diesem Client installiert werden können.
-
-[source,shell]
-----
-method getInstallableProductIds_list clientId
-----
-
-Liefert alle Produkte, die auf diesem Client installiert werden können.
-
-[source,shell]
-----
-method getInstalledLocalBootProductIds_list hostId
-----
-
-Liefert alle Localboot-Produkte, die auf diesem Client installiert sind.
-
-[source,shell]
-----
-method getInstalledNetBootProductIds_list hostId
-----
-
-Liefert die Liste der installierten Netboot-Produkte für einen Client oder Server.
-
-[source,shell]
-----
-method getInstalledProductIds_list hostId
-----
-
-Liefert die Liste der installierten Produkte für einen Client oder Server.
-
-[source,shell]
-----
-method getIpAddress hostId
-----
-
-Liefert IP-Adresse zur Host-ID.
-
-[source,shell]
-----
-method getLicenseKey productId clientId
-----
-
-Liefert einen freien Lizenzkey zu dem angegebenen Produkt bzw. liefert den der *clientId* zugeordneten Lizenzkey,
-
-[source,shell]
-----
-method getLicenseKeys_listOfHashes productId
-----
-
-Liefert eine Liste der Lizenzkeys für das angegebene Produkt.
-
-[source,shell]
-----
-method getLocalBootProductIds_list
-----
-
-Liefert alle bekannten Localboot-Produkte.
-
-[source,shell]
+Beispiel:
+[source,python]
 ----
-method getLocalBootProductStates_hash clientIds = []
+@rpc_method
+def custom_create_client(self, name):
+	client_id = f"{name}.company.internal"
+	self.host_createOpsiClient(id=client_id, description="Created by custom method")
+	return self.host_getObjects(id=client_id)[0]
 ----
-
-Liefert für die angegebenen Clients {installation-status} und {Action-requests} für alle Localboot-Produkte.
-
-[source,shell]
-----
-method getMacAddresses_list hostId
-----
-
-Liefert die MAC-Adresse zum angegebenen Rechner.
-
-[source,shell]
-----
-method getNetBootProductIds_list
-----
-
-Liefert Liste der Netboot-Produkte.
-
-[source,shell]
-----
-method getNetBootProductStates_hash clientIds = []
-----
-
-Liefert für die angegebenen Clients {installation-status} und {Action-request= für alle Netboot-Produkte.
-
-[source,shell]
-----
-method getNetworkConfig_hash objectId
-----
-
-Liefert die Netzwerk-spezifischen Konfigurationen für einen Client oder eine Domain.
-
-[source,shell]
-----
-method getOpsiHostKey hostId
-----
-
-Liefert den pckey zur angegeben Host-ID.
-
-[source,shell]
-----
-method getPcpatchPassword hostId
-----
-
-Liefert das mit dem *pckey* von *hostId* verschlüsselte Passwort des Users *pcpatch*.
-
-
-[source,shell]
-----
-method getPossibleMethods_listOfHashes
-----
-
-Liefert die Liste der aufrufbaren Methoden (in etwa so wie in diesem Kapitel beschrieben).
-
-[source,shell]
-----
-method getPossibleProductActionRequests_list
-----
-
-Liefert die Liste der in opsi prinzipiell zulässigen {Action-Requests}.
-
-[source,shell]
-----
-method getPossibleProductActions_hash
-----
-
-Liefert zu allen Produkten die möglichen Aktionen (*setup*, *deinstall*,... ).
-
-[source,shell]
-----
-method getPossibleProductActions_list productId=softprod
-----
-
-Liefert zum angegebenen Produkt die möglichen Aktionen (*setup*, *deinstall*,...).
-
-[source,shell]
-----
-method getPossibleProductInstallationStatus_list
-----
-
-Liefert die möglichen {installation-status} (*installed*, *not_installed*, ... ).
-
-[source,shell]
-----
-method getPossibleRequirementTypes_list
-----
-
-Liefert die möglichen Typen von Produktabhängigkeiten (*before*, *after*, ... ).
-
-[source,shell]
-----
-method getProductActionRequests_listOfHashes clientId
-----
-
-Liefert die anstehenden ausführbaren Aktionen für den angegebenen Client.
-
-[source,shell]
-----
-method getProductDependencies_listOfHashes
-----
-
-Liefert die bekannten Produktabhängigkeiten (zum angegebenen Produkt).
-
-[source,shell]
-----
-method getProductIds_list
-----
-
-Liefert die Liste der Produkte, die den angegebenen Kriterien entsprechen.
-
-[source,shell]
-----
-method getProductInstallationStatus_hash productId hostId
-----
-
-Liefert den {installation-status} zum angegebenen Client und Produkt.
-
-[source,shell]
-----
-method getProductInstallationStatus_listOfHashes hostId
-----
-
-Liefert den {installation-status} zum angegebenen Client.
-
-[source,shell]
-----
-method getProductProperties_hash productId
-----
-
-Liefert die Schalterstellungen ({Product-properties}) zum angegebenen Produkt und Client.
-
-[source,shell]
-----
-method getProductPropertyDefinitions_hash
-----
-
-Liefert alle bekannten {Product-properties} mit Beschreibung, erlaubten Werten etc..
-
-[source,shell]
-----
-method getProductPropertyDefinitions_listOfHashes productId
-----
-
-Liefert die {Product-properties} zum angegebenen Produkt mit Beschreibung, erlaubten Werten etc..
-
-[source,shell]
-----
-method getProductStates_hash clientIds = []
-----
-
-Liefert {installation-status} und {Action-requests} der einzelnen Produkte (zu den agegebenen Clients).
-
-[source,shell]
-----
-method getProduct_hash productId
-----
-
-Liefert die Metadaten (Beschreibung, Version,...) zum angegebenen Produkt.
-
-[source,shell]
-----
-method getProvidedLocalBootProductIds_list serverId
-----
-Liefert die Liste der auf dem angegebenen Server bereitgestellten Localboot-Produkte.
-
-[source,shell]
-----
-method getProvidedNetBootProductIds_list serverId
-----
-
-Liefert die Liste der auf dem angegebenen Server bereitgestellten Netboot-Produkte.
-
-[source,shell]
-----
-method getServerId clientId
-----
-
-Liefert den zuständigen {opsi-configserver} zum angegebenen Client.
-
-[source,shell]
-----
-method getServerIds_list
-----
-
-Liefert die Liste der bekannten {opsi-configserver}.
-
-[source,shell]
-----
-method powerOnHost mac
-----
-
-Sendet ein WakeOnLan-Signal an die angegebene MAC.
-
-[source,shell]
-----
-method setGeneralConfig config
-----
-
-Setzt für Client oder Domain die GenaralConfig.
-
-[source,shell]
-----
-method setHostDescription hostId description
-----
-
-Setzt für einen Client die Beschreibung.
-
-[source,shell]
-----
-method setHostLastSeen hostId timestamp
-----
-
-Setzt für einen Client den Zeitstempel für *LastSeen*.
-
-[source,shell]
-----
-method setHostNotes hostId notes
-----
-
-Setzt für einen Client die Notiz-Angaben.
-
-[source,shell]
-----
-method setMacAddresses hostId macs
-----
-
-Trägt für einen Client seine MAC-Adresse in die Datenbank ein.
-
-[source,shell]
-----
-method setOpsiHostKey hostId opsiHostKey
-----
-
-Setzt für einen Rechner den *pckey*.
-
-[source,shell]
-----
-method setPcpatchPassword hostId password
-----
-
-Setzt das verschlüsselte (!) *password* für *hostId*.
-
-[source,shell]
-----
-method setProductActionRequest productId clientId actionRequest
-----
-
-Setzt für den angegebenen Client und das angegebene Produkt einen {Action-Request}.
-
-[source,shell]
-----
-method setProductInstallationStatus productId hostId installationStatus policyId="" licenseKey=""
-----
-
-Setzt für den angegebenen Client und das angegebene Produkt einen Installationsstatus.
-
-[source,shell]
-----
-method setProductProperties productId properties
-----
-
-Setzt {Product-properties} für das angegebene Produkt (und den angegebenen Client).
-
-[source,shell]
-----
-method unsetProductActionRequest productId clientId
-----
-
-Setzt einen {Action-request} auf *none*.
-
-[[opsi-manual-api-datastructure-opsi-backend-extensions]]
-== Backend-Erweiterungen
-
-Durch die in opsi 4 implementierten Funktionalität des Backend-Extenders
-können auf der Basis der opsi4-API-Methoden oder des Funktionskerns
-jederzeit zusätzliche Methoden definiert und als API-Erweiterung
-aufrufbar gemacht werden.
-
-Das Standard-API-Methoden-Set wird durch den 'opsiconfd' mittels
-Überlagerung der in den `.conf`-Dateien in '/etc/opsi/backendManager/extend.d' definierten Methoden erstellt.
-
-Backend-Erweiterungen können dazu dienen für spezifische
-Konfigurationsaufgaben angepasste Zusatzfunktionen zu implementieren.
 
-Erweiterungen werden in der Programmiersprache Python geschrieben.
-Sie werden *an* den BackendManager geladen, so dass dieser mittels `self
-referenziert werden kann.
 
-[[opsi-manual-api-access]]
+[[development-jsonrpc-api-api-access]]
 == Zugriff auf die API
 
-Die API nutzt link:http://json-rpc.org/wiki/specification[JSON-RPC 1.0] über
-HTTP zur Kommunikation.
-Es wird *basic authentication* verwendet.
+Die API basiert auf link:https://www.jsonrpc.org/specification[JSON-RPC] über HTTPS.
+Die JSON-RPC-Requests werden per *POST* an den Endpoint */rpc* (*https://<server-address>:4447/rpc*) des {opsi-configserver}s gesendet.
+Die Authentifizierung erfolgt in der Regel über *basic authentication*.
 
-Um die Schnittstelle zu verwenden müssen Aufrufe per *POST* zum Pfad
-`rpc` am {opsi-server} gesendet werden, bspw. `https://opsiserver.domain.tld:4447/rpc`.
+Ein curl-Beispiel:
+
+[source,shell]
+----
+curl -k -X POST \
+	-u "adminuser:secret" \
+	-H 'Content-Type: application/json' \
+	-d '{"jsonrpc":"2.0","id":"1","method":"host_getObjects","params":[[], {"type":"OpsiClient"}]}' \
+	https://opsi.domain.internal:4447/rpc
+----
