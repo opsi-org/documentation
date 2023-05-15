@@ -219,6 +219,7 @@
           element.classList.add('search-result-highlight')
           element.innerText = node.text
         }
+        console.log(node.text);
         documentTitle.appendChild(element)
       })
       const documentHit = document.createElement('div')
@@ -478,7 +479,7 @@
         facetFilterInput.addEventListener('change', (e) => toggleFilter(e, index));
       }
       document.documentElement.addEventListener('click', clearSearchResults);
-      console.log("highliteMatches->");
+      
       highliteMatches()
       
       
