@@ -1349,6 +1349,150 @@ opsi-admin -d task setPcpatchPassword
 Sets the password of the pcpatch user for Unix, samba and opsi.
 
 
+[[opsi-manual-configuration-tools-health-check]]
+== {health-check}
+
+The {opsiconfd} provides a {health-check} that checks various settings and version and can detect possible problems.
+The health check can be called in different ways. 
+All variants get their data from the API call `service_healthCheck`. 
+The opsi API returns the data of the {health-check} as JSON. 
+Such a JSON file is especially useful for support requests.
+
+ 
+TIP: You can use the RPC interface on the admin page to call the {health-check} method.
+
+=== opsiconfd health-check
+
+On the opsi server console, you can run the command `opsiconfd health-check`. 
+Here is the help output:
+
+[source,prompt]
+----
+opsiconfd@server:~$ opsiconfd health-check --help
+Usage: opsiconfd health-check [-h] [-l {0,1,2,3,4,5,6,7,8,9}]
+                 [--detailed] [--upgrade-check [UPGRADE_CHECK]]
+
+options:
+  -h, --help
+          show this help message and exit
+  -l {0,1,2,3,4,5,6,7,8,9}, --log-level-stderr {0,1,2,3,4,5,6,7,8,9}
+          Set the log level for stderr. 0: nothing, 1: essential, 2: critical, 3: errors, 4:
+          warnings, 5: notices 6: infos, 7: debug messages, 8: trace messages, 9: secrets
+          (default: 0)
+  --detailed
+          Print details of each check.
+          (default: False)
+  --upgrade-check [UPGRADE_CHECK]
+          Check for upgrade issues only. If a version number is specified, the check is performed
+          for that specific version.
+          (default: False)
+----
+//TODO Link to admininterface
+TIP: Via the admininterface or {opsi-cli} you can open a terminal on the server and execute the command (see xref:opsi-manual-configuration-tools-opsi-cli-commands-terminal[opsi-cli terminal]). 
+
+=== opsi-cli
+
+The {health-check} can also be invoked via the {opsi-cli}. 
+See here for the section xref:opsi-manual-configuration-tools-opsi-cli-commands-support[] in the {opsi-cli} chapter.
+
+
+=== Health Checks
+
+This section describes what the {health check} checks and how it assesses the health of the system.
+
+==== opsiconfd configuration
+
+The {health check} examines the configuration of the opsiconfd service by checking the following values:
+
+* `log-level-stderr`, `log-level-file`, `log-level` +.
+  If the log level is too high for a productive environment, then performance problems may occur. +
+  For this reason, a warning is issued at a log level of 7 and an error is issued at log level 8 or higher.
+* `debug-options` +
+  If a debug option is active, this is considered an error, as it can lead to performance problems in productive environments.
+* `profiler` +
+  The profiler should also be deactivated for performance reasons. An active profiler will also result in an error output.
+* `run-as-user` +
+  Running the service opsiconfd as user root will be evaluated as an error, because root has too many rights on the system.
+
+
+
+==== opsi config
+
+Here we check whether certain configurations deviate from the standard. 
+If this is the case, a warning is issued. 
+An error is output if the value does not exist.
+
+Currently only opsi 4.3 checks if `opsiclientd.global.verify_server_cert` is activated. 
+
+==== Disk usage
+
+Checks the free space for the following mount points:
+
+* /
+* /temp
+* /var, /var/lib or var/lib/opsi 
+
+If there is less than 15 GiB free, a warning is given. 
+If there are less than 7.5 GiB, it is considered an error.
+
+
+==== Depotserver check
+
+Since opsi 4.3 the opsi repository must be located under /var/lib/opsi/repository. If this is not the case, an error will be reported.
+
+==== Check System Packages
+
+Currently the following system packages are checked for actuality:
+
+ * opsiconfd
+ * opsi-utils
+ * opsipxeconfd
+
+The check is carried out against the stable repository of uib (https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.2:/stable/Debian_11/). 
+Older versions are considered a warning and if one of the packages is not installed, an error is issued.
+
+
+==== Check Products on Depot
+
+It is checked whether the following products are installed and up-to-date on the depots:
+
+ * opsi-script
+ * opsi-client-agent
+
+If opsi-linux-client-agent and opsi-macos-client-agent are installed, these packages are also checked.
+Here, an outdated package is considered a warning and an uninstalled package is considered an error.
+
+
+==== Check Products on Client
+
+On the clients, it is checked whether the respective client agent is up to date. 
+If an older version is installed, the Health Check issues a warning.
+
+==== Check Redis
+
+Checks whether the Redis server is available and whether the RedisTimeSeries module is loaded.
+If the server is not available or the module is not loaded, this is considered an error.
+
+==== Check {mysql}
+
+Checks whether the database is accessible.
+The data from the file /etc/opsi/backends/mysql.conf is used for the connection.
+If no connection can be established, this is an error.
+
+
+==== Check Deprecated Calls
+
+Among other things, opsi stores calls to methods marked as deprecated in Redis.
+This check looks whether such calls have been made and then issues a warning. 
+The message also states which client agent called the API method. 
+
+
+==== Check Operating System End Of Life
+
+Checks whether the server system still receives updates. 
+The check issues a warning 90 days before the end of life of a distribution. After the end-of-life date, it issues an error.
+
+
 [[opsi-manual-configuration-tools-serverprocesses]]
 == Server processes: opsiconfd and opsipxeconfd
 
