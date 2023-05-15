@@ -1,0 +1,86 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-components-opsi-wakeup-clients]]
+== opsi-wakeup-clients
+
+Mithilfe von CronJobs auf dem {opsi-configserver} lassen sich Produkt-Installationen und -Updates zeitlich steuern und so z.B. in die Nacht verlegen.
+Voraussetzung hierfür ist, dass sich die Clients per *Wake-on-LAN* (WOL) wecken lassen oder per BIOS zeitgesteuert geweckt werden.
+
+Das Kommandozeilen-Werkzeug *opsi-wakeup-clients* (früher *wake_clients_for_setup.py*) kann genutzt werden um diesen Prozess zu steuern.
+
+NOTE: Die Parameter von *wake_clients_for_setup.py* wurden auch in *opsi-wakeup-clients* übernommen, um einen möglichst einfachen Umstieg zu ermöglichen. Der einzige Parameter der sich geändert hat ist `--depot-id` statt `--depotId`.
+
+Dieses Kommando hat folgende Aufgaben:
+
+* Für eine bestimmte Gruppe von Clients
+* wird eine bestimmte Gruppe von Produkten auf *setup* gesetzt
+* danach werden die ausgewählten Clients per *Wake-on-LAN* geweckt
+* Für den Fall, dass die Clients nur *geweckt* und nicht gestarte wurden, kann den Clients noch das Signal gesendet werden, ein bestimmtes Event auszuführen.
+
+Die Angabe der ausgewählten Clients erfolgt dabei wahlweise:
+
+* über die Angabe einer *Host Gruppe* die z.B. mit dem {opsi-configed} erstellt werden kann (siehe: xref:configed#opsi-manual-configed-treeview[Clientauswahl und hierarchische Gruppen im Treeview]) +
+`--host-group-id HOSTGROUPID`
+
+* über die Angabe eines opsi-depots (alle Clients des Depots werden ausgewählt) +
+`--depot-Id DEPOTID`
+
+* über die Angabe einer Datei in der die Clients gelistet sind +
+`--host-file INPUTFILE`
+
+Die Angabe der ausgewählten Produkte welche auf *setup* gesetzt werden, erfolgt dabei über die Angabe einer Produktgruppe die z.B. mit dem {opsi-configed} erstellt werden kann (siehe: xref:opsi-modules:software-on-demand.adoc#software-on-demand_product-group-management[Software On Demand - {product-groups} pflegen]) +
+`--product-group-id PRODUCTGROUPID`
+
+Die Angabe des auszulösenden Events erfolgt über den Parameter `--event EVENTNAME`
+
+WARNING: Die Namen von Gruppen in opsi müssen eindeutig sein. Egal, ob es um eine *Host-Gruppe* aus dem Bereich *Directory* oder *Gruppen* oder um eine *Produkt-Gruppe* geht: Ein Gruppenname darf nur einmal vorkommen.
+
+Ein beispielhafter Aufruf wäre folgender:
+
+[source,shell]
+----
+opsi-wakeup-clients --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-0
+----
+
+Hierbei werden die Clients der Host-Gruppe *nightly-cron-gruppe-0* ausgewählt und für diese die Produkte der Produktgruppe *nightly-cron-produkte* auf *setup* gestellt. Anschließend werden die gewählten Clients per *Wake-on-LAN* geweckt und nach einer kurzen Wartezeit der Befehl gesendet, das Event *gui_startup* auszuführen.
+
+Damit das Ganze nun täglich zu einem bestimmten Zeitpunkt ausgeführt wird, wird der Befehl in die *Crontab* des Servers eingetragen.
+Dazu kann zum Beispiel der Befehl `crontab -e` verwendet werden. +
+Eine Crontab bei der das Skript für unterschiedliche Client-Gruppen über die Nacht verteilt aufgerufen werden zeigt folgendes Beispiel:
+
+[source,shell]
+----
+# For more information see the manual pages of crontab(5) and cron(8)
+#
+# m h  dom mon dow   command
+
+# cronjobs zum wecken und installieren der PCs
+5 0 * * * /usr/bin/opsi-wakeup-clients --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-1 --wol-timeout=120 --event-timeout=120
+5 2 * * * /usr/bin/opsi-wakeup-clients --log-level=5 --event=gui_startup --product-group-id=nightly-cron-produkte --host-group-id=nightly-cron-gruppe-2 --wol-timeout=120 --event-timeout=120
+----
+
+NOTE: In Kombination mit diesem Automatismus sollte eventuell verhindert werden, das Installationen versehentlich ausserhalb des geplanten zeitlichen "Wartungsfensters" passieren. Das kann über das xref:clients:client-agent/opsi-client-agent#opsi-manual-clientagent-working-window[Working Window in der {opsi-client-agent}-Konfiguration] verhindert werden.
