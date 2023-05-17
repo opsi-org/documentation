@@ -1,0 +1,99 @@
+= Add Static Files
+
+A static UI file is any file provided by the UI that is added directly to your site.
+A common example of a static file is a favicon image.
+One way to add static files is by using the xref:antora:playbook:ui-supplemental-files.adoc[supplemental UI], which is defined in your Antora playbook.
+This document explains how to add static files using a UI bundle instead.
+
+== Set up the static files folder
+
+You'll first need a place to store the static files in the UI project.
+Let's create a folder under [.path]_src_ named [.path]_static_ for this purpose.
+
+ $ mkdir src/static
+
+You can add static files, such as a favicon image (e.g., [.path]_favicon.ico_), to this folder.
+The UI build will add files in this folder to the root of the UI bundle, dropping the [.path]_static_ folder prefix from the path.
+
+Antora automatically passes through static files in the bundle to the UI output folder (`+_+` by default), ignoring any hidden files (i.e., files that begin with a dot).
+A static file is any file that's not designated as a layout, partial, or helper.
+That means our favicon image file will end up at the path [.path]_++_/favicon.ico++_.
+
+.Contents of site
+....
+_/
+  favicon.ico
+  css/
+    site.css
+  ...
+sitemap.xml
+...
+....
+
+If that's where you want the file to go, there's nothing else you have to do.
+Otherwise, you have the option of promoting select static files to the site root.
+
+== Promote static files
+
+If you want to promote certain static files out of the UI output folder, you need to identify them.
+Antora looks for a file named [.path]_ui.yml_, the UI descriptor, in the UI bundle to configure the behavior of the UI.
+
+Start by creating the file [.path]_src/ui.yml_ in your UI project.
+The UI build copies this file, if present, to the root of the UI bundle.
+
+This file does not have any required keys.
+The key we're interested in is `static_files`.
+This key identifies files by relative path in the UI bundle that should be promoted from the UI output folder to the site root.
+The files must be specified as an array, where each entry is either a relative paths or a path glob.
+Unlike other static files, promoted static files can begin with a dot.
+
+Here's how to configure the UI descriptor to promote the favicon image file to the site root.
+
+.src/ui.yml
+[,yaml]
+----
+static_files:
+- favicon.ico
+----
+
+If you have multiple favicon files with different file extensions, you can match all of them using a glob.
+
+.src/ui.yml
+[,yaml]
+----
+static_files:
+- favicon*
+----
+
+With this configuration in place, Antora will read the favicon image from the UI bundle and copy it to the root of the site.
+
+.Contents of site
+....
+_/
+  css/
+    site.css
+  ...
+favicon.ico
+sitemap.xml
+...
+....
+
+Let's now look at how to put the static files to use.
+
+== Use the static files
+
+Often when you add static files to your site, you need to reference them somewhere.
+In the case of a favicon image, it must be referenced in the `<head>` of the HTML page.
+If you are referencing a promoted static file, you'll use the prefix `+{{{siteRootPath}}}+`.
+Otherwise, you'll use the prefix `+{{{uiRootPath}}}+`.
+
+Let's update the [.path]_src/partials/head-icons.hbs_ partial to reference the favicon image at the root of the site.
+
+.src/partials/head-icons.hbs
+[,yaml]
+----
+    <link rel="icon" href="{{{siteRootPath}}}/favicon.ico" type="image/x-icon">
+----
+
+Rebuild the UI with `gulp bundle`.
+You should now see that your site has a favicon image that's provided by the UI bundle.
