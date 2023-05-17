@@ -43,12 +43,12 @@ distclean: clean
 
 check: clean
 	$(foreach L,$(LANG), \
-		$(PYTHON2) tools/check_images.py $(TOP_DIR)/$(L); \
+		$(PYTHON) tools/check_images.py $(TOP_DIR)/$(L); \
 	)
 
 rename:
 	$(foreach F,$(FORMAT), \
-		$(PYTHON2) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
+		$(PYTHON) tools/rename_docs.py $(DEST_DIR) $(F) $(PUB_DIR);	\
 	)
 	
 
