@@ -13,7 +13,6 @@ def rename_docs(path, documenttype, dest):
 	print(dest)
 	print("###")
 	assert documenttype in ("pdf", "xhtml")
-	print("?")
 
 	if not dest.endswith(documenttype):
 		dest = os.path.join(dest, documenttype)

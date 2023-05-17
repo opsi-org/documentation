@@ -29,13 +29,10 @@ endif
 REFERENCE_LANG := de
 
 LANG := de en
-DOCS ?= $(shell find $(TOP_DIR)/$(REFERENCE_LANG) -type d -name "opsi*" -exec basename {} \;)
 
 FORMATS := html pdf
 
-.PHONY: clean disclean check spell test install build all $(FORMATS)
-
-all: $(FORMATS)
+.PHONY: clean disclean check spell test install
 
 clean:
 	-rm -rf $(DEST_DIR)
@@ -43,13 +40,6 @@ clean:
 	-find $(TOP_DIR) -type f -name "*~" -exec rm {} \;
 
 distclean: clean
-
-
-build: all
-
-install: build
-	$(INSTALL) -d $(DESTDIR)/$(SYS_DOC_DIR);
-	cp -r $(DEST_DIR)/* $(DESTDIR)/$(SYS_DOC_DIR)/
 
 check: clean
 	$(foreach L,$(LANG), \
@@ -74,31 +64,3 @@ publish: rename
 	mv $(PUB_DIR)/pub.tar $(TOP_DIR)
 
 test: check
-
-pdf: $(addsuffix .pdf,$(DOCS))
-%.pdf: FORMAT = pdf
-
-html: $(addsuffix .html,$(DOCS))
-%.html: FORMAT = html
-
-epub: $(addsuffix .epub,$(DOCS))
-%.epub: FORMAT = epub
-
-%: FORMAT ?= $(FORMATS) #$(subst html,xhtml,$(FORMATS))
-%:
-	@$(foreach L,$(LANG),\
-		$(foreach F,$(FORMAT), \
-			if [ -f $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc ]; then	\
-				if $(PYTHON) tools/create_docu.py --log-level $(LOG_LEVEL) -l $(L) -o $(F) -s opsi  -t opsi -f $(basename $@); then	\
-					echo "INFO: Document $@ built successfully in flavor $(F) for language $(L)"; \
-				else	\
-					echo "ERROR: Document $@ could not be built for language $(L)";	\
-				fi	\
-				;	\
-			else									\
-				echo "ERROR: Document $@ does not exist for language $(L)";	\
-				echo $(TOP_DIR)/$(L)/$(basename $@)/$(basename $@).asciidoc; \
-			fi									\
-			;									\
-		)	\
-	)
