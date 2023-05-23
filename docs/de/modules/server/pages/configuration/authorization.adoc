@@ -174,7 +174,7 @@ Für die Authentifizierung am opsi-Service wird standardmäßig*PAM*verwendet.
 Das funktioniert mit lokalen Benutzern und Gruppen, aber auch wenn der {opsi-server} in eine Domäne eingebunden ist.
 
 Statt PAM für die Authentifizierung zu nutzen, ist es auch möglich einen LDAP-Server bzw. ein Active Directory zu verwenden.
-Hierfür ist die link:https://www.uib.de/de/opsi-erweiterungen/erweiterungen[kostenpflichtige opsi Erweiterung] 'opsi directory connector' notwendig.
+Hierfür ist die xref:opsi-modules:modules.adoc[opsi-Erweiterung] *opsi directory connector* notwendig.
 
 IMPORTANT: Die Samba-Authentifizierung ist hiervon unabhängig.
 Das Verfahren eignet sich daher hauptsächlich für opsi-Umgebungen,
@@ -184,7 +184,7 @@ Beim Betrieb eines {opsi-server}s unter Docker ist das immer der Fall.
 Die Konfiguration findet über die Datei `/etc/opsi/opsi.conf` statt.
 In der Sektion *ldap_auth* muss hierfür die Option *ldap_url* gesetzt werden.
 Die ldap_url besitzt dabei den folgenden Aufbau:
-`ldap[s]://<adresse-des-ldap-servers>[:port]/<base-dn>`
+`ldap[s]://<Adresse-des-LDAP-Servers>[:port]/<base-dn>`
 
 Zusätzlich kann die Option*username*verwendet werden.
 Damit kann definiert welcher Benutzername bei der Authentifizierung am LDAP/AD übergeben werden soll. Hierbei können die Platzhalter *\{username\}* und *\{base\}* verwendet werden. Im Normalfall ist jedoch die Angabe der *ldap_url* ausreichend.
@@ -206,6 +206,34 @@ ldap_url = "ldaps://ldap.company.org:636/dc=company,dc=org"
 username = "uid={username},dc=Users,{base}"
 ----
 
-Damit die Änderungen übernommen werden, muss der {opsiconfd} neu gestartet werden.
+Damit die Änderungen übernommen werden, muss der *opsiconfd* neu gestartet werden.
 
 NOTE: Bitte beachten Sie, dass die in der Variable *admingroup* definierte Gruppe auch im AD/LDAP verfügbar ist.
+
+
+[[server-configuration-authorization-multi-factor]]
+=== Multi-Faktor-Authentifizierung
+Der opsi-Server unterstützt eine Zwei-Faktor-Authentifizierung mit dem Standard-Verfahren *Time-based One-time Password Algorithmus* (TOTP).
+Hierbei wird bei der Anmeldung am opsi-Server zusätzlich eine Einmal-Passwort verwendet, das aus sechs Ziffern besteht.
+Zur Freischaltung der Funktionalität ist die xref:opsi-modules:modules.adoc[opsi-Erweiterung] *WAN/VPN* notwendig.
+
+
+==== Generelle Einrichtung
+Zur Konfiguration der Zwei-Faktor-Authentifizierung existiert das xref:server:configuration/opsiconfd.adoc#server-configuration-opsiconfd-config
+[opsiconfd Konfigurations-Attribut] `multi-factor-auth`.
+Folgende Werte sind möglich:
+
+inactive:: Die Multi-Faktor-Authentifizierung ist inaktiv (Standard). Das gilt auch für Benutzer mit konfiguriertem TOTP.
+totp_optional:: Die Zwei-Faktor-Authentifizierung über TOTP ist optional. Benutzer mit aktiviertem TOTP, müssen dieses verwenden.
+totp_mandatory:: TOTP ist zwingend erforderlich. Benutzer ohne aktiviertes TOTP können sich nicht mehr anmelden.
+
+
+==== Benutzer-spezifische Einrichtung
+
+Die Einrichtung erfolgt über die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[opsiconfd Admin-Seite] im Tab *Users*.
+Über eine Klick auf den Button *Generate new secret and activate TOTP* wird Server-seitig ein Secret generiert und die Zwei-Faktor-Authentifizierung für den jeweiligen Benutzer aktiviert. Der angezeigte QR-Code kann in einer entsprechenden App, wie z.B. *2FA Authenticator (2FAS)* für Android und iOS, gescannt werden. Die App generiert daraufhin alle 30 Sekunden ein neues Einmal-Passwort. Das Passwort muss bei der Authentifizierung an das normale Kennwort angehängt werden.
+
+IMPORTANT: Ein erneuter Klick auf den Button *Generate new secret and activate TOTP* erzeugt ein neues Secret.
+Das bisherige Secret (QR-Code) des Benutzers verliert damit seine Gültigkeit.
+
+Über einen Klick auf den Button *Deactivate MFA* wird die Zwei-Faktor-Authentifizierung für den jeweiligen Benutzer deaktiviert.
