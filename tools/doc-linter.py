@@ -30,13 +30,14 @@ DOCS_DIR = "docs"
 RE_TERM = re.compile(r"^:(?P<term_name>[^:]+):\s*(?P<term_value>\S+.*)\s*$")
 
 class Linter:
-	def __init__(self, start_path: Union[Path, str], auto_fix: bool, verbose: bool):
+	def __init__(self, start_path: Union[Path, str], auto_fix: bool, verbose: bool, direction: str = "from-terms"):
 		if not isinstance(start_path, Path):
 			start_path = Path(start_path)
 		self._start_path = start_path
 		self._auto_fix = auto_fix
 		self._verbose = verbose
 		self.errors: list[LintingError] = []
+		self.direction = direction
 
 	def verbose(self, message: str):
 		if self._verbose:
@@ -78,23 +79,36 @@ class Linter:
 				return terms_file.resolve()
 			start_path = start_path.parent
 		if not terms_file or not terms_file.exists():
-			raise FileNotFoundError("Terms file not found")
+			raise FileNotFoundError(f"Terms file not found for path {start_path}")
 
 	def check_terms(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
 		file = file.resolve()
 		errors = []
-		terms_file = self.find_terms_file(file.parent)
+		try:
+			terms_file = self.find_terms_file(file.parent)
+		except FileNotFoundError:
+			if self.verbose:
+				print(f"Skipping file {file} - no terms file found")
+			return [], content
 		if terms_file == file:
 			# Do not process the term file itself
 			return errors, content
 		self.load_terms(terms_file)
 		for term in self._terms:
-			for start_idx, end_idx, line_number, column_number in self.find_word(content, term.value):
-				error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
-				if self._auto_fix:
-					content = f"{content[:start_idx]}{{{term.name}}}{content[end_idx:]}"
-					error.fixed = True
-				errors.append(error)
+			if self.direction == "to-terms":
+				for start_idx, end_idx, line_number, column_number in self.find_word(content, term.value):
+					error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
+					if self._auto_fix:
+						content = f"{content[:start_idx]}{{{term.name}}}{content[end_idx:]}"
+						error.fixed = True
+					errors.append(error)
+			elif self.direction == "from-terms":
+				for start_idx, end_idx, line_number, column_number in self.find_word(content, f"{{{term.name}}}"):
+					error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
+					if self._auto_fix:
+						content = f"{content[:start_idx]}{term.value}{content[end_idx:]}"
+						error.fixed = True
+					errors.append(error)
 		return errors, content
 
 	def check_caution_used(self, file: Path, content: str) -> tuple[list[LintingError, str]]:
@@ -133,7 +147,7 @@ def main():
 	parser.add_argument("path", nargs="?")
 	args = parser.parse_args()
 
-	linter = Linter(args.path or DOCS_DIR, args.auto_fix, args.verbose)
+	linter = Linter(args.path or DOCS_DIR, args.auto_fix, args.verbose, direction="from-terms")  # "to-terms"
 	linter.run()
 	for error in linter.errors:
 		print(error)
