@@ -444,6 +444,10 @@
   function highliteMatches () {
     const params = new URLSearchParams(window.location.search.slice(1))
     const query = params.get('q')
+    
+    if (query == null){
+      return
+    }
     searchWord(query)
   }
   
