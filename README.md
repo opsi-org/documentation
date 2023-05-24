@@ -130,3 +130,77 @@ git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
 
 Then the merge to stable can be processed. Once everything has been merged, stable is pushed internally to gitlab.uib.gmbh.
 The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed. 
+
+# Sprachführer deutsches Handbuch
+
+Ein gutes Handbuch
+
+* vermittelt Wissen,
+* ist sprachlich-formal korrekt,
+* hat einen für Fachliteratur passenden Stil,
+* ist klar und verständlich.
+
+Die Leser sollen nachvollziehen und verstehen können, was zu tun ist. Komplexe Sachverhalte werden Schritt für Schritt vermittelt. Lieber kurze Sätze als lange Sätze. Wir nutzen die direkte persönliche Leseransprache („Sie“). Das Handbuch vermeidet unnötige Anglizismen und Denglisch: „hochladen“ statt „uploaden“, „herunterladen“ statt „downloaden“ usw. Wiederkehrende Fachausdrücke werden einheitlich geschrieben.
+
+## Rechtschreibung
+
+Wir nutzen die neue Rechtschreibung, wie sie im Duden (28. Auflage, 2020) verzeichnet ist. Manchmal bietet der Duden zwei Schreibweisen an: die neue, reformierte Schreibweise und die früher gültige Schreibweise als Alternative. 
+Im Zweifelsfall folgen wir der Empfehlung des Dudens.
+
+## Kommasetzung
+
+Gleichrangige Teilsätze, die durch „und“, „oder“ usw. verbunden sind, setzen ein Komma, um die Gliederung deutlicher zu machen:
+
+```
+Klicken Sie auf die Schaltfläche, und die Installation beginnt.
+```
+
+Auch bei Infinitiv- und Partizip-Sätzen setzen wir ein Komma:
+
+```
+Klicken Sie auf die Schaltfläche, um das Menü zu öffnen.
+
+Um die Inventarisierung zu starten, klicken Sie auf den Button xyz.
+
+Darauf aufmerksam gemacht, hat der Hersteller das Produkt vom Markt genommen.
+```
+
+## Zusammengesetzte Begriffe (DE/EN)
+
+Deutsch-englische Komposita nutzen einen Bindestrich:
+
+* Kernel-Quellen
+* Windows-Client (Linux-Client, macOS-Client)
+* Windows-basiert
+* Linux-kompatibel
+
+Ein Bindestrich wird außerdem gesetzt, wenn zusammengesetzte Wörter sehr lang sind und dadurch schwer zu lesen sind:
+
+* Mehrbenutzer-System
+* Software-Inventarisierung
+
+## Fachbegriffe/Fremdwörter
+
+Fremdwörter sollten nur dann verwendet werden, wenn es keine passende deutsche Alternative gibt oder wenn es sich um einen feststehenden Fachbegriff handelt.
+
+Englische Begriffe, die ins deutsche Handbuch übernommen werden, unterliegen den Regeln der deutschen Sprache:
+
+* Substantive werden großgeschrieben: Loglevel, Debuglevel
+* Genitiv von Fachbegriffen wird wie im Deutschen üblich mit „-s“ gebildet: des Clients, des Internets
+* auch die Pluralbildung ist wie im Deutschen: Repositorys (nicht Repositories), Floppys (nicht Floppies) usw.
+* zusammengesetzte Begriffe, die aus einem oder mehreren fremdsprachigen Wörtern und mindestens einem deutschen Wort bestehen, werden zusammengeschrieben bzw. mit Bindestrich: das Support-Paket, das Client-Management, die Software-Inventarisierung
+
+## Maßeinheiten
+
+Maßeinheiten werden wie im Duden geschrieben; es gibt kein Plural-s:
+
+* Byte
+* MByte
+* GByte
+* TByte
+
+Zwischen einer Zahl und der Maßeinheit steht ein nicht-trennbares Leerzeichen (`{nbsp}`):
+
+```
+2{nbsp}GByte, 300{nbsp}GByte usw.
+```
