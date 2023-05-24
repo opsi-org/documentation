@@ -152,15 +152,15 @@ Im Zweifelsfall folgen wir der Empfehlung des Dudens.
 Gleichrangige Teilsätze, die durch „und“, „oder“ usw. verbunden sind, setzen ein Komma, um die Gliederung deutlicher zu machen:
 
 ```
-Klicken Sie auf die Schaltfläche, und die Installation beginnt.
+Klicken Sie auf die Schaltfläche _OK_, und die Installation beginnt.
 ```
 
 Auch bei Infinitiv- und Partizip-Sätzen setzen wir ein Komma:
 
 ```
-Klicken Sie auf die Schaltfläche, um das Menü zu öffnen.
+Klicken Sie auf die Schaltfläche mit den drei Linien, um das Menü zu öffnen.
 
-Um die Inventarisierung zu starten, klicken Sie auf den Button xyz.
+Um die Inventarisierung zu starten, klicken Sie auf den Button _OK_.
 
 Darauf aufmerksam gemacht, hat der Hersteller das Produkt vom Markt genommen.
 ```
@@ -183,12 +183,20 @@ Ein Bindestrich wird außerdem gesetzt, wenn zusammengesetzte Wörter sehr lang 
 
 Fremdwörter sollten nur dann verwendet werden, wenn es keine passende deutsche Alternative gibt oder wenn es sich um einen feststehenden Fachbegriff handelt.
 
+Es ist ok, "Button" anstelle von "Schaltfläche" und vice versa zu verwenden.
+
 Englische Begriffe, die ins deutsche Handbuch übernommen werden, unterliegen den Regeln der deutschen Sprache:
 
 * Substantive werden großgeschrieben: Loglevel, Debuglevel
 * Genitiv von Fachbegriffen wird wie im Deutschen üblich mit „-s“ gebildet: des Clients, des Internets
 * auch die Pluralbildung ist wie im Deutschen: Repositorys (nicht Repositories), Floppys (nicht Floppies) usw.
 * zusammengesetzte Begriffe, die aus einem oder mehreren fremdsprachigen Wörtern und mindestens einem deutschen Wort bestehen, werden zusammengeschrieben bzw. mit Bindestrich: das Support-Paket, das Client-Management, die Software-Inventarisierung
+
+## Eigennamen
+
+Unsere Software heißt opsi (alles Kleinbuchstaben), und der Begriff wird genau so (auch am Satzanfang!) geschrieben.
+
+Darüber hinaus gibt es eine Liste von Schreibweisen/Eigennamen im Verzeichnis _opsidoc / cspell_, die fortlaufend aktualisiert wird. Diese Wortlisten können im Texteditor Visual Studio Code hinterlegt werden.
 
 ## Maßeinheiten
 
@@ -211,8 +219,8 @@ Das sieht dann so aus: 2&nbsp;GByte, 300&nbsp;GByte usw.
 
 Es gibt nur einen einzigen Grund, nummerierte Aufzählungen zu verwenden: wenn es auf die Reihenfolge ankommt.
 
-1. Klicken Sie auf die Schaltfläche Installieren.
-2. Ein neuer Dialog öffnet sich; klicken Sie dort auf OK.
+1. Klicken Sie auf die Schaltfläche _Installieren_.
+2. Ein neuer Dialog öffnet sich; klicken Sie dort auf _OK_.
 
 Alle anderen Auflistungen sind nicht nummeriert. Bei Auflistungen von Features oder Funktionen sollten die einzelnen Punkte möglichst einheitlich gestaltet sein (entweder ganze Sätze oder nicht, entweder mit Großbuchstaben beginnen oder nicht).
 
@@ -224,12 +232,15 @@ Ein nicht-trennbares (`{nbsp}`) Leerzeichen steht an folgenden Stellen:
 * zwischen Ziffern und Maßeinheiten: 3&nbsp;GByte, 64&nbsp;Bit 
 * zwischen Auslassungspunkten … und dem vorangegangenen Wort: „Möglich ist das&nbsp;…“
 
+Es gibt keinen Leerraum vor und nach einem Schrägstrich (DIN 5008): RHEL/AlmaLinux/Rocky Linux
+
 ## Farbige Kästen
 
 Zur Auflockerung und zum Sichtbarmachen wichtiger Informationen nutzen wir die folgenden farbigen Kästen:
 
 NOTE: Das hier ist eine Anmerkung, sie wird hinter `NOTE:` gesetzt
 
+![So sieht eine Anmerkung aus.](assets/images/de/note.png "So sieht eine Anmerkung aus.")
 
 TIP: Das hier ist ein Tipp, er steht hinter `TIP:`
 
@@ -237,6 +248,7 @@ TIP: Das hier ist ein Tipp, er steht hinter `TIP:`
 
 WARNING: Hier steht eine Warnung, sie steht hinter `WARNING:` (Achtung: Wir haben uns entschieden, nur WARNING und nicht auch noch CAUTION zu verwenden!)
 
+![So sieht eine Warnung aus.](assets/images/de/warning.png "So sieht eine Warnung aus.")
 
 ## Andere Konventionen
 
