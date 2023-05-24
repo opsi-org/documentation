@@ -230,7 +230,7 @@ Zur Auflockerung und zum Sichtbarmachen wichtiger Informationen nutzen wir die f
 
 NOTE: Das hier ist eine Anmerkung, sie wird hinter `NOTE:` gesetzt
 
-TIPP: Das hier ist ein Tipp, er steht hinter `TIPP:`
+TIP: Das hier ist ein Tipp, er steht hinter `TIP:`
 
 CAUTION: Hier steht eine Warnung, sie steht hinter `CAUTION:` (Achtung: Wir haben uns entschieden, nur CAUTION und nicht auch noch WARNING zu verwenden!)
 
