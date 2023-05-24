@@ -205,7 +205,7 @@ Zwischen einer Zahl und der Maßeinheit steht ein nicht-trennbares Leerzeichen (
 2{nbsp}GByte, 300{nbsp}GByte usw.
 ```
 
-Das sieht dann so aus: 2{nbsp}GByte, 300{nbsp}GByte usw.
+Das sieht dann so aus: 2&nbsp;GByte, 300&nbsp;GByte usw.
 
 ## Auflistungen
 
