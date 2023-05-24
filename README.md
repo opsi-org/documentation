@@ -204,3 +204,34 @@ Zwischen einer Zahl und der Maßeinheit steht ein nicht-trennbares Leerzeichen (
 ```
 2{nbsp}GByte, 300{nbsp}GByte usw.
 ```
+
+Das sieht dann so aus: 2{nbsp}GByte, 300{nbsp}GByte usw.
+
+## Auflistungen
+
+Es gibt nur einen einzigen Grund, nummerierte Aufzählungen zu verwenden: wenn es auf die Reihenfolge ankommt.
+
+. Klicken Sie auf die Schaltfläche Installieren.
+. Ein neuer Dialog öffnet sich; klicken Sie dort auf OK.
+
+Alle anderen Auflistungen sind nicht nummeriert. Bei Auflistungen von Features oder Funktionen sollten die einzelnen Punkte möglichst einheitlich gestaltet sein (entweder ganze Sätze oder nicht, entweder mit Großbuchstaben beginnen oder nicht).
+
+## Typografie
+
+Ein nicht-trennbares (`{nbsp}`) Leerzeichen steht an folgenden Stellen:
+
+* Abkürzungen z.{nbsp}B. (zwischen z. und B.), o.{nbsp}Ä., d.{nbsp}h.
+* zwischen Ziffern und Maßeinheiten: 3{nbsp}GByte, 64{nbsp}Bit 
+* zwischen Auslassungspunkten … und dem vorangegangenen Wort: „Möglich ist das{nbsp}…“
+
+## Farbige Kästen
+
+Zur Auflockerung und zum Sichtbarmachen wichtiger Informationen nutzen wir die folgenden farbigen Kästen:
+
+NOTE: Das hier ist eine Anmerkung, sie wird hinter `NOTE:` gesetzt
+
+TIPP: Das hier ist ein Tipp, er steht hinter `TIPP:`
+
+CAUTION: Hier steht eine Warnung, sie steht hinter `CAUTION:` (Achtung: Wir haben uns entschieden, nur CAUTION und nicht auch noch WARNING zu verwenden!)
+
+
