@@ -232,6 +232,27 @@ NOTE: Das hier ist eine Anmerkung, sie wird hinter `NOTE:` gesetzt
 
 TIP: Das hier ist ein Tipp, er steht hinter `TIP:`
 
-CAUTION: Hier steht eine Warnung, sie steht hinter `CAUTION:` (Achtung: Wir haben uns entschieden, nur CAUTION und nicht auch noch WARNING zu verwenden!)
+WARNING: Hier steht eine Warnung, sie steht hinter `WARNING:` (Achtung: Wir haben uns entschieden, nur WARNING und nicht auch noch CAUTION zu verwenden!)
+
+## Andere Konventionen
+
+Wir verwenden in diesem Handbuch die folgenden Schreibweisen und Hervorhebungen:
+
+* Datei- und Verzeichnisnamen erscheinen in `Proportionalschrift`.
+* Längere Befehle und Listings stehen in eigenen Kästen; Sie können diese bequem per Copy{nbsp}&{nbsp}Paste übertragen: +
+[source,shell]
+----
+dies ist ein Befehl
+----
+* So sieht `opsi-script`-Code aus: +
+[source,winst]
+----
+Message "Installing "+ $ProductId$ +" ..."
+----
+* In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den opsi-Paketen z.{nbsp}B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
+* Menüeinträge und Beschriftungen von Schaltflächen erscheinen _kursiv_.
+* Tasten und Tastenkombinationen stehen in eckigen Klammern, z.{nbsp}B. [C], [Strg]+[C] usw.
+
+
 
 
