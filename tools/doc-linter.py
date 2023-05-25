@@ -53,7 +53,7 @@ class Linter:
 					continue
 				self._terms.append(Term(match.group("term_name"), match.group("term_value")))
 
-	def find_word(self, content: str, word: str) -> Generator[tuple[int, int, int, int], None, None]:
+	def find_word(self, content: str, word: str, allow_part_of_word: bool = False) -> Generator[tuple[int, int, int, int], None, None]:
 		# Search from end of file backwards
 		end_search_idx = len(content)
 		while True:
@@ -62,7 +62,10 @@ class Linter:
 				break
 			end_search_idx = start_idx
 			end_idx = start_idx + len(word)
-			if content[start_idx-1] not in (" ", "\t", "\n") or content[start_idx + len(word)] not in (" ", "\t", "\n"):
+			if (
+				not allow_part_of_word and
+				(content[start_idx-1] not in (" ", "\t", "\n") or content[start_idx + len(word)] not in (" ", "\t", "\n"))
+			):
 				# Part of a word
 				continue
 			line_start = content.rfind("\n", 0, start_idx)
@@ -103,7 +106,11 @@ class Linter:
 						error.fixed = True
 					errors.append(error)
 			elif self.direction == "from-terms":
-				for start_idx, end_idx, line_number, column_number in self.find_word(content, f"{{{term.name}}}"):
+				for start_idx, end_idx, line_number, column_number in self.find_word(
+					content,
+					f"{{{term.name}}}",
+					allow_part_of_word=True
+				):
 					error = LintingError(file, line_number, column_number,f"Term {term.name!r} found")
 					if self._auto_fix:
 						content = f"{content[:start_idx]}{term.value}{content[end_idx:]}"
