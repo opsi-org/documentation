@@ -39,34 +39,34 @@ In most cases a secondary section is called by calling the section header as a s
 Example:
 [source,opsiscript]
 ----
-shellInAnIcon_say_hello
+ShellScript_hello
 
-[shellInAnIcon_say_hello]
+[ShellScript_hello]
 echo "Hello World"
 ----
 
 In the case that you have to call the section with modifiers you have to add these modifiers behind the statement as text (no variables are allowed here):
 [source,opsiscript]
 ----
-shellInAnIcon_say_hello /timeoutseconds 20
+ShellScript_hello /timeoutseconds 20
 
-[shellInAnIcon_say_hello]
+[ShellScript_hello]
 echo "Hello World"
 ----
 
 If you want to examine the output or return values of a section you may use one of the following functions:
 
 * `getOutStreamFromSection(<section with params>)` +
-for `DosInAnIcon` (`ShellInAnIcon`),`ExecWith` and `ExecPython` calls. See also xref:prim-section.adoc#getOutStreamFromSection[getOutStreamFromSection]
+for `ShellScript`, `ExecWith` and `ExecPython` calls. See also xref:prim-section.adoc#getOutStreamFromSection[getOutStreamFromSection]
 
 * `getreturnListFromSection(<section with params>)` +
 for `XMLPatch` sections and `opsiServiceCall` sections. See also xref:prim-section.adoc#getReturnListFromSection[getReturnListFromSection]
 
 [source,opsiscript]
 ----
-set $list$ = getOutStreamFromSection("shellInAnIcon_say_hello /timeoutseconds 20")
+set $list$ = getOutStreamFromSection("ShellScript_hello /timeoutseconds 20")
 
-[shellInAnIcon_say_hello]
+[ShellScript_hello]
 echo "Hello World"
 ----
 
@@ -81,7 +81,7 @@ within this statement you may call the following section types:
 
 * winbatch
 * registry
-* DosBatch, DosInAnIcon, ShellBatch, ShellInAnIcon
+* ShellScript (deprecated: DosBatch, DosInAnIcon, ShellBatch, ShellInAnIcon) 
 * ExecWith, ExecPython
 * Files
 
@@ -1920,47 +1920,37 @@ For further examples see the product 'opsi-script-test'
 expecially the sector with '$Flag_winst_winbatch$ = "on"'
 
 [[opsi-script-dosbatch]]
-== DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sections [W/L/M]
+== ShellScript section [W/L/M]
 
-Via DOSBatch (also called ShellBatch) sections a _{opsi-script}_ script uses Windows shell scripts for tasks which cannot be fulfilled by internal commands or for which already a batch script solution exists.
+The ShellScript section (formerly called ShellBatch/ShellInAnIcon/DosBatch/DosInAnIcon) is primarily used to integrate existing command line routines and shell scripts into {opsi-script} or for tasks which cannot be fulfilled by {opsi-script} commands. A possible window of the called command line interpreter (cmd under Windows, bash under Linux/MacOs) is not displayed.
 
-_{opsi-script}_ waits until the DOS-batch ends, before it is proceeding with the next script-section.
+NOTE: The previous section names ShellBatch/ShellInAnIcon/DosBatch/DosInAnIcon still work, but we recommend not to use them anymore.
 
-A DOSBatch section is simply processed by writing the lines of the sections into the file `_opsiscript_<random>.cmd` in `c:\opsi.org\tmp\` and then calling this file in the context of a cmd.exe shell. This explains that a DosBatch section may contain all Windows shell commands can be used.
+A ShellScript section is converted into a temporary file '_opsiscript_<random>.cmd' (Windows) or '_opsiscript_<random>.sh' (Linux/MacOS) when the opsi script is processed. The file is then executed with the (standard) command line interpreter of the operating system (cmd under Windows, bash under Linux/MacOs). Therefore, all shell commands can be used in a ShellScript section.
+
+The ShellScript section offers the following advantages over executing a pure shell script using the command line interpreter:
+
+* _{opsi-script}_ variables or constants in the ShellScript section are replaced with their content before execution and can thus be used easily within shell scripts.
+
+* The output of the shell script is saved in the log file.
+
+* The output of the shell script can be transferred to a string list and processed further.
+
+* The output of the shell script can be displayed in a separate window (parameter `/showoutput`). Closing this window, e.g. by a user, has no effect on further processing of the shell script.
 
 
-Compared with calling a cmd-file in a WinBatch section, the DOSBatch section
-presents certain advantages: +
+CAUTION: _{opsi-script}_ waits for the ShellScript section to finish before the opsi script is processed further.
+Do not use commands that wait for input.
 
-* _{opsi-script}_ variables or constants in the section can be easily used because they will be substituted before execution.
-
-* The output of a DosInAnIcon/ShellInAnIcon call at Windows is written to the log file.
-
-* The output of a DosInAnIcon/ShellInAnIcon or DosBatch/ShellBatch call at Linux is written to the log file.
-
-* The output of a DosInAnIcon/ShellInAnIcon call is written to an output window if the section is called with the parameter `/showoutput`.
-
-* The output of the shell commands can be captured by using the String list function.
-
-The section type 'DOSInAnIcon' or 'ShellInAnIcon' is identical to 'DOSBatch/ShellBatch' regarding syntax and execution method but has a different appearance: +
-For 'DOSInAnIcon/ShellInAnIcon', a shell process is created with view set to minimized. That has the consequence that it is executed "in an icon". No command window appears, user interaction is suppressed. The output of the call is written to the log file.
-
-CAUTION: Don't use commands that wait for user interaction.
 
 [[opsi-script-dosbatch-params]]
 === Parameters
 
-There are two kinds of parameters which can be passed to the section call:
+A distinction must be made between parameters that are passed to the called cmd/shell file and those that are used internally by _{opsi-script}_. The calling syntax is therefore:
 
-* Parameters which are directly passed to the called batch file.
++ section name [cmd/shell file parameter] [winst [modifier]]+
 
-* Parameters which modify the way _{opsi-script}_ will handle the section.
-
-The calling syntax is:
-
-+Sektionsname [batch parameter] [winst [modifier]]+
-
-Possible opsi-script modifier are (since 4.11.1):
+Allowed winst modifiers are (since 4.11.1):
 
 * `/32bit`
 
@@ -1970,50 +1960,70 @@ Possible opsi-script modifier are (since 4.11.1):
 
 * `/showoutput` // since 4.11.4.6
 
-* `/encoding <encoding>` //since 4.12.4.17 [W/L/M] +
-By default the content of the section will be stored to a temporary file in system encoding. This is in the most cases the best choice. If you really knows what you are doing, you may change the encoding of the stored temporary file: +
+* `/encoding <encoding>` // since 4.12.4.17 [W/L/M] +
+By default the content of the section will be stored to a temporary file in system encoding. This is in the most cases the best choice. If you really knows what you are doing, you may change the encoding of the stored temporary file:
 
-Example : +
+Example: +
 [source,opsiscript]
 ----
-DosInAnIcon_do_encoding_example WINST /encoding "utf8"
+ShellScript_encoding_example WINST /encoding "utf8"
 ----
-For allowed encodings see xref:configuration-options.adoc#opsi-script-encoding[_{opsi-script}_ encoding]
+For allowed `<encoding>` see: xref:configuration-options#opsi-script-encoding[_{opsi-script}_ encoding]
 
-Since 4.12.4.0 the following modifiers may be used that are well known from `winbatch` sections and are explained over there: <<opsi-script-winbatch-params, Call Parameter (Modifier)>>
+include::section-modifiers/WaitForProcessEnding.adoc[]
 
-* `/runElevated` [W]
+*  `/TimeOutSeconds` <seconds> // since 4.12.4 [W/L/M] +
+After <seconds> has elapsed the script is processed further, even if the end of the process or the waiting condition has not yet been met. +
+The process that should be waited for to finish is not stopped. +
+Can be used alone (e.g. without `/WaitForProcessEnding`).
+The elapsed time is indicated by the progress bar. +
+Example:
++
+[source,opsiscript]
+----
+ShellScript_uninstall WINST /WaitForProcessEnding "uninstall.exe" /TimeOutSeconds 20
+[ShellScript_uninstall]
+"%ScriptPath%\uninstall_starter.exe"
+----
 
-* `/TimeoutSeconds <number>`
-
-* `/WaitForProcessEnding <string>`
+* `/RunElevated`  // since 4.12.4 [W] +
+Starts the process with a higher security token (i.e. with higher rights). This modifier has the following restrictions: +
+** It has no effect on NT5
+** Access to the network is not possible in the process. Therefore, the programs to be called must be copied from a network drive to a temporary local directory.
+** There may be problems using the graphical interface. Therefore, pure silent calls are to be preferred here.
+** Only works in the opsi-service context
 
 include::section-modifiers/RunAsLoggedOnUser.adoc[]
 
-These opsi-script modifier have to be separated by the key word `winst` from the other parameters.
+These opsi-script modifiers have to be separated by the key word `WINST` from the other parameters.
 
-Other parameters of a DosBatch section are directly passed as quasi command line parameters to the Windows shell script. +
-For example, we may call DosBatch_1 in Actions section to get a "Hello World" from the DOS echo command:
+Other parameters of a ShellScript section are directly passed as quasi command line parameters to the shell script. +
+For example, we may call ShellScript_1 in Actions section to get a 'today we say "Hello World"' from the echo command:
+ShellScript_1 :
 [source,opsiscript]
 ----
 [Actions]
-DosBatch_1 today we say "Hello World"
+DefVar $para$
+ShellScript_1 today we say "Hello World"
+set $para$ = "today"
+ShellScript_1 $para$ we say "Hello World"
 
-[DosBatch_1]
+[ShellScript_1]
 @echo off
 echo %1 %2 %3 %4
 pause
 ----
 
-the execution of the Dos-Batch command echo with parameters 'today we say "Hello World"'.
+This results in the execution of the command echo with parameters 'today we say "Hello World"'.
 
-The next example will be on a 64 bit system executed in a 64 bit cmd.exe and gives the output 'today we say':
+
+The following example is executed on a 64-bit system with a 64-bit cmd.exe and produces the output 'today we say':
 [source,opsiscript]
 ----
 [Actions]
-DosBatch_1 today we say winst /64bit
+ShellScript_1 today we say winst /64bit
 
-[DosBatch_1]
+[ShellScript_1]
 @echo off
 echo %1 %2 %3 %4
 pause
@@ -2021,32 +2031,31 @@ pause
 
 Since Version 4.11.5 not only string constants but also string variables are allowed as parameters (but no string functions)
 
-Example:
+Example (code from opsi-script-test):
 
-Code from opsi-script-test:
 [source,opsiscript]
 ----
-comment "Testing parameters for ShellBatch"
+comment "Testing parameters for ShellScript section"
 set $ConstTest$ = "Hello world"
-set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+set $list$ = getOutStreamFromSection('ShellScript_with_parameter world')
 set $CompValue$ = takeString(2,$list$)
 if ($ConstTest$ = $CompValue$)
-	comment "ShellBatch parameter passed"
+	comment "Testing parameters for ShellScript section passed"
 else
 	set $TestResult$ = "not o.k."
-	LogWarning "ShellBatch parameter failed"
+	LogWarning "Testing parameters for ShellScript section failed"
 endif
 
-comment "Testing parameters for ShellBatch"
+comment "Testing parameters for shell section"
 set $ConstTest$ = "Hello world"
 set $tmp$ = "world"
-set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+set $list$ = getOutStreamFromSection('ShellScript_with_parameter $tmp$')
 set $CompValue$ = takeString(2,$list$)
 if ($ConstTest$ = $CompValue$)
-	comment "ShellBatch parameter passed"
+	comment "Testing parameters for ShellScript section passed"
 else
 	set $TestResult$ = "not o.k."
-	LogWarning "ShellBatch parameter failed"
+	LogWarning "Testing parameters for ShellScript section failed"
 endif
 ----
 
@@ -2054,12 +2063,12 @@ produce the log:
 
 [source,opsiscript]
 ----
-comment: Testing parameters for ShellBatch
+comment "Testing parameters for ShellScript section"
 Set  $ConstTest$ = "Hello world"
   The value of the variable "$ConstTest$" is now: "Hello world"
-Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+Set  $list$ = getOutStreamFromSection('ShellScript_with_parameter world')
 
-  DosInAnIcon_with_parameter
+  ShellScript_with_parameter
     c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd saved back
     Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd world
     ExitCode 0
@@ -2087,18 +2096,18 @@ If
   $ConstTest$ = $CompValue$   <<< result true
   ($ConstTest$ = $CompValue$)   <<< result true
 Then
-  comment: ShellBatch parameter passed
+  comment "Testing parameters for ShellScript section passed"
 Else
 EndIf
 
-comment: Testing parameters for ShellBatch
+comment "Testing parameters for ShellScript section"
 Set  $ConstTest$ = "Hello world"
   The value of the variable "$ConstTest$" is now: "Hello world"
 Set  $tmp$ = "world"
   The value of the variable "$tmp$" is now: "world"
-Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+Set  $list$ = getOutStreamFromSection('ShellScript_with_parameter $tmp$')
 
-  DosInAnIcon_with_parameter
+  ShellScript_with_parameter
     c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd saved back
     Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd world
     ExitCode 0
@@ -2126,7 +2135,7 @@ If
   $ConstTest$ = $CompValue$   <<< result true
   ($ConstTest$ = $CompValue$)   <<< result true
 Then
-  comment: ShellBatch parameter passed
+  comment "Testing parameters for ShellScript section passed"
 Else
 EndIf
 ----
@@ -2638,7 +2647,7 @@ For further examples watch the product 'opsi-script-test' an there especially '$
 [[opsi-script-execpython]]
 == ExecPython Sections [W/L/M]
 
-'ExecPython' sections are basically Shell-Sections (like 'DosInAnIcon') which call the – on the system installed – python script interpreter. It takes the section content as python script, and the section call parameter as parameters for the script.
+'ExecPython' sections are basically ShellScript-Sections which call the – on the system installed – python script interpreter. It takes the section content as python script, and the section call parameter as parameters for the script.
 
 Example:
 
