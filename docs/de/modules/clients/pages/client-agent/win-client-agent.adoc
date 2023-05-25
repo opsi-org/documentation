@@ -1,0 +1,106 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      24.05.2023
+:Revision:  4.3
+:toclevels: 6
+
+[[opsi-manual-win-client-agent]]
+= windows client-agent
+
+[[opsi-manual-client-agent-directories]]
+== Verzeichnisse des opsi-client-agent
+
+// cspell: ignore program, loginblocker
+Das Installationsverzeichnis des *opsi-client-agent* ist `c:\program files (x86)\opsi.org\opsi-client-agent`.
+Dieses Verzeichnis enthält alle Komponenten des *opsi-client-agent* wie z.B. den *opsiclientd*, den *opsi-notifier*, den *opsi-script* und einige Bibliotheken. Weiterhin finden sich hier die Konfigurationsdateien und grafischen Vorlagen der genannten Programme.
+Das Verzeichnis `c:\program files (x86)\opsi.org\opsi-client-agent` ist gegen Veränderung mit Benutzerrechten geschützt.
+Das Verzeichnis `c:\program files (x86)\opsi.org\opsi-client-agent\opsiclientd` enthält die Datei `opsiclientd.conf` in welchem die Konfiguration des 'opsiclientd' festgehalten ist und kann nur mit Administratorrechten gelesen werden.
+
+Weiterhin gibt es das Verzeichnis `c:\opsi.org`, welches nur mit Administratorrechten gelesen werden kann..
+In diesem Verzeichnis werden eine Reihe von variablen Daten abgelegt, wie Log-Dateien (Verzeichnis `log`), Paket-Cache der xref:modules/wan-support.adoc#opsi-manual-wansupport[WAN-Erweiterung] (Verzeichnis `cache`), Zertifikate und einiges mehr.
+Log-Dateien des *opsiclientd* sind `c:\opsi.org\log\opsiclientd.log`.
+Log-Dateien des *opsi-login-blocker* sich `c:\opsi.org\log\opsi_loginblocker.log`.
+
+[[opsi-manual-client-agent-opsi-login-blocker]]
+== Sperrung des Anwender Logins mittels opsi-login-blocker
+
+// cspell: ignore loginblockerstart
+Um zu verhindern, dass sich ein Anwender schon vor dem Abschluss der Installation am System anmeldet, kann zusätzlich der *opsi-login-blocker* installiert werden.
+Dieser gibt den Zugriff auf den Login erst frei, wenn der Installations-Prozess beendet ist.
+
+Ob der *opsi-login-blocker* während der *opsi-client-agent*-Installation installiert bzw. aktiviert wird,
+kann über das Produkteigenschaft `loginblockerstart` konfiguriert werden.
+
+Der *opsi-login-blocker* ist als 'credential provider filter' realisiert ('OpsiLoginBlocker.dll').
+Er blockiert alle 'credential provider' bis zum Abschluss eines Events oder dem Timeout (Standard-Wert: 120 Sekunden) bei nicht erreichbarem *opsiclientd*.
+
+
+// cspell: ignore msiexec, interactive
+[[opsi-manual-client-agent-msi]]
+== Installation des opsi-client-agent via MSI
+
+Die Installation des *opsi-client-agent* unter windows ist zusätzlich zu den anderen Möglichkeiten auch über ein MSI-Paket möglich.
+Wir stellen es in unserem http://download.uib.de/4.2/stable/misc/opsi-client-agent.msi[öffentlichen Repository] zur Verfügung.
+Das MSI-Paket kennt die gleichen Parameter wie der oca-installation-helper, welche über das Property "INSTALL_PARAMS" übergeben werden:
+
+[source,bash]
+----
+msiexec /i opsi-client-agent.msi INSTALL_PARAMS="--non-interactive --service-address=https://opsiserver.domain.tld:4447 --service-username=msi --service-password=secret"
+----
+
+Um das MSI per Gruppenrichtlinie zu verteilen sollten die INSTALL_PARAMS über ein MST verändert werden.
+Das MST kann beispielsweise über die Software https://docs.microsoft.com/de-de/windows/win32/msi/orca-exe[Orca] erzeugt werden.
+
+
+[[opsi-manual-client-agent-bitlocker-suspend]]
+== opsiclientd Bitlocker Suspend Feature
+
+Clients mit aktivierter Bitlocker-Verschlüsselung mit manueller Passworteingabe beim Booten verhindern die unbeaufsichtigte Installation von Software und Patches.
+
+Genau wie der 'opsi-script' ist es nun auch möglich für Reboots, die von Events des opsiclientd ausgelöst werden, ebenfalls die Passwort-Eingabe beim Booten zu unterdrücken.
+
+WARNING: Dieses Feature ist zwangsläufig mit einem Sicherheitsverlust verbunden. Bei diesem Vorgang wird das Passwort als Klartext auf die Festplatte geschrieben und ist damit auch potenziell eine Schwachstelle.
+
+Dieses Feature ist per default deaktiviert. Um diese Option nur auf ausgesuchten Clients zu aktivieren, muss zuerst eine Standardkonfiguration erstellt werden:
+
+// cspell: ignore clientconfig Suspending
+[source,shell]
+----
+opsi-admin -d method config_createBool clientconfig.suspend_bitlocker_on_reboot "Suspending Bitlocker at Reboot" false
+----
+
+Der Standard-Wert false entspricht hierbei dem Wert in der mitgelieferten `opsiclientd.conf`.
+
+Zum Setzen des Host-Parameter über *opsi-cli* ist der folgende Befehl auf dem *opsi-Configserver* auszuführen
+(im Beispiel für einen Client mit der opsi-host-id `client.domain.de`):
+
+[source,shell]
+----
+opsi-admin -d method configState_create clientconfig.suspend_bitlocker_on_reboot client.domain.de true
+----
+
+NOTE: Diese Option kann ebenfalls auf Clients aktiviert werden, die keine Bitlocker-Verschlüsselung aktiviert haben und sollte den Betrieb des opsiclientd nicht stören.
+
+
+[[opsi-manual-client-agent-custom-events]]
+== opsiclientd custom Events
+
+Beim Anlegen von xref:clients:client-agent/opsi-client-agent.adoc#opsi-manual-clientagent-configuration-events[custom Events] des *opsiclientd* können WQL-Abfragen als Auslöser verwendet werden.
+Hierfür kann über die Option `wql` ein entsprechender Ausdruck angegeben werden.
+Sobald dieser 'WQL'-Ausdruck ein Ergebnis liefert, wird ein `custom` Event mit der jeweiligen Konfiguration gestartet.
+Wird bei einem `custom` Event die Option `wql`` leer angegeben, tritt dieses Event praktisch nie auf,
+kann aber über die Webservice-Schnittstelle des 'opsiclientd' bei Bedarf ausgelöst werden.
