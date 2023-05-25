@@ -1,6 +1,7 @@
 image: docker.uib.gmbh/opsi/opsidoc-antora:bookworm
 
 stages:
+  - lint
   - build
   - package
   - publish
@@ -14,6 +15,8 @@ stages:
   cd antora-ui
   npm install
   cd ..
+
+.install_cspell: &install_cspell |
   echo "Install cspell"
   npm install -g cspell@latest
   npm install -g @cspell/dict-de-de
@@ -39,6 +42,26 @@ stages:
       - build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
     expire_in: 2 days
 
+lint-cspell:
+  stage: lint
+  script:
+    - *install_cspell
+    #- cspell lint -c cspell.json docs/de/modules/server
+
+build-antora:
+  stage: build
+  script:
+    - *install_toolchain
+    - cd antora-ui
+    - gulp bundle
+    - gulp bundle:pack
+    - cd ..
+    - npx antora -v
+    - npx antora --log-level=debug antora-playbook.yml
+  artifacts:
+    paths:
+      - build/docs-opsi-org/site
+    expire_in: 2 days
 
 build-antora-bonifax:
   stage: build
