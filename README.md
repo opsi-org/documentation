@@ -65,7 +65,7 @@ npx antora --log-level=debug local-playbook.yml
 
 ### Create PDF/HTML documentation
 
-To create the css files call the build_stylesheets.sh script.
+To create the CSS files, call the `build_stylesheets.sh` script.
 
 dependencies:
 - ruby, ruby-gems
@@ -149,7 +149,7 @@ Für die Rechtschreibprüfung der Dokumentation wird [CSpell](https://cspell.org
 Die Konfiguration befindet sich in der Datei `cspell.json`.
 Darüber hinaus gibt es eine Liste von Schreibweisen/Eigennamen im Verzeichnis `opsidoc/cspell`, die fortlaufend aktualisiert wird. CSpell ist in den VS Code Dev Container integriert und wird automatisch verwendet.
 
-Es besteht die Möglichkeit Wörter bei der Rechtschreibprüfung zu ignorieren.
+Es besteht die Möglichkeit, Wörter bei der Rechtschreibprüfung zu ignorieren.
 Hierfür verwendet man direkt in der Dokumentation Kommentare in der Form:
 ```
 // cSpell:ignore <Wort1>,<Wort2>
@@ -173,19 +173,15 @@ fileadmingroup = "opsifileadmins"
 
 Gleichrangige Teilsätze, die durch „und“, „oder“ usw. verbunden sind, setzen ein Komma, um die Gliederung deutlicher zu machen:
 
-```
-Klicken Sie auf die Schaltfläche _OK_, und die Installation beginnt.
-```
+* Klicken Sie auf die Schaltfläche _OK_, und die Installation beginnt.
 
 Auch bei Infinitiv- und Partizip-Sätzen setzen wir ein Komma:
 
-```
-Klicken Sie auf die Schaltfläche mit den drei Linien, um das Menü zu öffnen.
+* Klicken Sie auf die Schaltfläche mit den drei Linien, um das Menü zu öffnen.
 
-Um die Inventarisierung zu starten, klicken Sie auf den Button _OK_.
+* Um die Inventarisierung zu starten, klicken Sie auf den Button _OK_.
 
-Darauf aufmerksam gemacht, hat der Hersteller das Produkt vom Markt genommen.
-```
+* Darauf aufmerksam gemacht, hat der Hersteller das Produkt vom Markt genommen.
 
 ## Zusammengesetzte Begriffe (DE/EN)
 
@@ -279,32 +275,32 @@ In asciidoc werden Backticks (`` ` ``) verwendet um Text in Proportionalschrift 
 Proportionalschrift wird zur Hervorhebung der folgenden Elemente verwendet:
 
 * Datei- und Verzeichnisnamen:
-  * ``Die Host-ID ist in der Datei `/etc/opsi/opsi.conf` hinterlegt.``
+  * Die Host-ID ist in der Datei `/etc/opsi/opsi.conf` hinterlegt.
 * Befehle im Fließtext:
-  * ``Führen Sie den Befehl `apt update` aus.``
+  * Führen Sie den Befehl `apt update` aus.
 * Befehls-Parameter:
-  * ``Über den Parameter `--debug` schalten Sie in den Debug-Modus.``
+  * Über den Parameter `--debug` schalten Sie in den Debug-Modus.
 * Text der in Felder oder Dateien eingegeben wird:
-  * ``Geben Sie den Wert `true` ein.``
-  * ``Fügen Sie die Zeile `opsi-server   10.1.2.3` am Ende der Datei ein.``
+  * Geben Sie den Wert `true` ein.
+  * Fügen Sie die Zeile `opsi-server   10.1.2.3` am Ende der Datei ein.
 * Kurze Befehls-Ausgaben:
-  * ``Die Ausgabe `Version 4.3.0.1` erscheint.``
+  * Die Ausgabe `Version 4.3.0.1` erscheint.
 
 ### Kursive Schrift
 
 Um etwas kursiv zu formatieren, wird in asciidoc der Unterstrich verwendet (`` _Wort_ ``). Kursiv erscheinen die folgenden Elemente:
 
 * Menüeinträge und Beschriftungen von Schaltflächen und Eingabefeldern:
-  * ``Klicken Sie auf den Button _OK_.``
-  * ``Öffnen Sie das Menü _Datei_ / _Speichern unter_.``
-  * ``Tragen Sie den Namen des Rechners ins Feld _Hostname_ ein.``
+  * Klicken Sie auf den Button _OK_.
+  * Öffnen Sie das Menü _Datei_ / _Speichern unter_.
+  * Tragen Sie den Namen des Rechners ins Feld _Hostname_ ein.
 
 ### Fettgedruckte Schrift
 In asciidoc werden Sternchen (``*``) verwendet um Text fett darzustellen.
 Fettgedruckte Schrift wird zur Hervorhebung der folgenden Elemente verwendet:
 
 * Eigennamen:
-  * `opsi bietet mit dem *opsi-configed* ein komfortables Management Interface.`
+  * opsi bietet mit dem *opsi-configed* ein komfortables Management Interface.
 
 ### Code-Blöcke und Listings
 
