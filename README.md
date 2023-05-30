@@ -174,7 +174,7 @@ fileadmingroup = "opsifileadmins"
 Gleichrangige Teilsätze, die durch „und“, „oder“ usw. verbunden sind, setzen ein Komma, um die Gliederung deutlicher zu machen:
 
 ```
-Klicken Sie auf die Schaltfläche `OK`, und die Installation beginnt.
+Klicken Sie auf die Schaltfläche _OK_, und die Installation beginnt.
 ```
 
 Auch bei Infinitiv- und Partizip-Sätzen setzen wir ein Komma:
@@ -182,7 +182,7 @@ Auch bei Infinitiv- und Partizip-Sätzen setzen wir ein Komma:
 ```
 Klicken Sie auf die Schaltfläche mit den drei Linien, um das Menü zu öffnen.
 
-Um die Inventarisierung zu starten, klicken Sie auf den Button `OK`.
+Um die Inventarisierung zu starten, klicken Sie auf den Button _OK_.
 
 Darauf aufmerksam gemacht, hat der Hersteller das Produkt vom Markt genommen.
 ```
@@ -239,8 +239,8 @@ Das sieht dann so aus: 2&nbsp;GByte, 300&nbsp;GByte usw.
 
 Es gibt nur einen einzigen Grund, nummerierte Aufzählungen zu verwenden: wenn es auf die Reihenfolge ankommt.
 
-1. Klicken Sie auf die Schaltfläche `Installieren`.
-2. Ein neuer Dialog öffnet sich; klicken Sie dort auf `OK`.
+1. Klicken Sie auf die Schaltfläche _Installieren_.
+2. Ein neuer Dialog öffnet sich; klicken Sie dort auf _OK_.
 
 Alle anderen Auflistungen sind nicht nummeriert. Bei Auflistungen von Features oder Funktionen sollten die einzelnen Punkte möglichst einheitlich gestaltet sein (entweder ganze Sätze oder nicht, entweder mit Großbuchstaben beginnen oder nicht).
 
@@ -266,7 +266,7 @@ TIP: Das hier ist ein Tipp, er steht hinter `TIP:`
 
 ![So sieht ein Tipp aus.](assets/images/de/tipp.png "So sieht ein Tipp aus.")
 
-WARNING: Hier steht eine Warnung, sie steht hinter `WARNING:` (Achtung: Wir haben uns entschieden, nur WARNING und nicht auch noch CAUTION zu verwenden!)
+WARNING: Hier steht eine Warnung, sie steht hinter `WARNING:` (*Achtung:* Wir haben uns entschieden, nur WARNING und nicht auch noch CAUTION zu verwenden!)
 
 ![So sieht eine Warnung aus.](assets/images/de/warning.png "So sieht eine Warnung aus.")
 
@@ -284,17 +284,20 @@ Proportionalschrift wird zur Hervorhebung der folgenden Elemente verwendet:
   * ``Führen Sie den Befehl `apt update` aus.``
 * Befehls-Parameter:
   * ``Über den Parameter `--debug` schalten Sie in den Debug-Modus.``
-* Menüeinträge und Beschriftungen von Schaltflächen und Eingabefeldern:
-  * ``Wählen Sie auf den Menüeintrag `Sende Nachricht`.``
-  * ``Klicken Sie auf `weiter`.``
-  * ``Tragen Sie den Namen in das Feld `Hostname` ein.``
 * Text der in Felder oder Dateien eingegeben wird:
   * ``Geben Sie den Wert `true` ein.``
   * ``Fügen Sie die Zeile `opsi-server   10.1.2.3` am Ende der Datei ein.``
 * Kurze Befehls-Ausgaben:
   * ``Die Ausgabe `Version 4.3.0.1` erscheint.``
-* Tasten und Tastenkombinationen:
-  * ``Mit der Tastenkombination `[Strg]+[L]` setzen Sie die Anzeige zurück.``
+
+### Kursive Schrift
+
+Um etwas kursiv zu formatieren, wird in asciidoc der Unterstrich verwendet (`` _Wort_ ``). Kursiv erscheinen die folgenden Elemente:
+
+* Menüeinträge und Beschriftungen von Schaltflächen und Eingabefeldern:
+  * ``Klicken Sie auf den Button _OK_.``
+  * ``Öffnen Sie das Menü _Datei_ / _Speichern unter_.``
+  * ``Tragen Sie den Namen des Rechners ins Feld _Hostname_ ein.``
 
 ### Fettgedruckte Schrift
 In asciidoc werden Sternchen (``*``) verwendet um Text fett darzustellen.
@@ -304,8 +307,9 @@ Fettgedruckte Schrift wird zur Hervorhebung der folgenden Elemente verwendet:
   * `opsi bietet mit dem *opsi-configed* ein komfortables Management Interface.`
 
 ### Code-Blöcke und Listings
-Längere Befehle, Code-Auszüge und Datei-Inhalte stehen in eigenen Kästen.
-Diese besitzen den folgenden Aufbau:
+
+Längere Befehle, Code-Auszüge und Auszüge aus Dateien stehen in eigenen Kästen.
+Diese Listings besitzen den folgenden Aufbau:
 ```
 .Optionaler Titel
 [source,<Typ>]
@@ -313,12 +317,19 @@ Diese besitzen den folgenden Aufbau:
 <text>
 ----
 ```
-Gültige Typen sind beispielweise: `shell`, `bash`, `ini`, `xml`, `html`, `css`.
+Gültige Typen sind beispielweise: `console`, `shell`, `bash`, `ini`, `xml`, `html`, `css`.
+
+*Achtung:* Es gibt einen Unterschied zwischen `[source,console]` und `[source,shell]`: 
+
+* `[source,console]` stellt Text dar, das in eine Konole (also eine Terminalanwendung) eingegeben wird
+* `[source,shell]` ist für Inhalte von Shellskripten (Alternative: `[source,bash]`, `[source,zsh]`)
 
 ### Weitere Konventionen
+
 * In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den opsi-Paketen z.&nbsp;B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
-* Tasten und Tastenkombinationen stehen in eckigen Klammern, z.&nbsp;B. `[C]`, `[Strg]+[C]` usw.
-* In Überschriften werden keine Text-Hervorhebungen verwendet.
+
+* Tasten und Tastenkombinationen stehen in eckigen Klammern, z.&nbsp;B. [C], [Strg]+[C] usw., normaler Font (keine Proportionalschrift)
+* In Überschriften werden keine Texthervorhebungen verwendet.
 
 
 
