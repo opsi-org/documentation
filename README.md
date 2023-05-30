@@ -59,7 +59,7 @@ In the Dev Container you can execute the different scripts to create the Antora 
 
 To create the Antora site with your local changes use the VS Code task or execute:
 
-```shell
+```console
 npx antora --log-level=debug local-playbook.yml
 ```
 
@@ -73,7 +73,7 @@ dependencies:
 - gem install zurb-foundation
 <!-- - gem install zurb-foundation  --version 4.3.2 -->
 
-```shell
+```console
 sh tools/build_stylesheets.sh
 ```
 This will take the *conf/stylesheets/opsi.scss* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
@@ -82,7 +82,7 @@ To modify the PDF theme edit conf/opsi-theme.yml.
 
 The documentation then is built with the script `make-books.sh` in tools. This script uses Python 3.
 
-```shell
+```console
 ./tools/make-books.sh -l <LANGUAGE> -m -n <DOCUMENT>
 ```
 
@@ -102,7 +102,7 @@ Usage: ./bin/makepdf [-c] [-d] [-h] [-l] [-m] [-n <manual|getting-started|releas
 
 Examples:
 
-```shell
+```console
 ./tools/make-books.sh -l en -m -n manual
 ```
 
@@ -120,7 +120,7 @@ Changes made via docs.opsi.org generate a merge request on gitlab.uib.de.
 Queries and discussions can take place via the GitLab interface on gitlab.uib.de.
 If the changes are to be adopted, gitlab.uib.de is first entered as the second remote in the local opsidoc repository:
 
-```shell
+```console
 git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
 ```
 
