@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      08.05.2023
+:Date:      30.05.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -25,57 +25,130 @@ include::common:partial$opsi_terms.adoc[]
 
 
 [[server-components-opsiconfd]]
-== opsiconfd
-Der *opsiconfd* ist der zentrale Dienst auf jedem opsi-Server.
-////
-TODO: Links
-////
-Er stellt über HTTPS (Port 4447) verschiedene Services bereit:
+= Der Dienst *opsiconfd*
 
-* */rpc*: JSONRPC-API
+Der zentrale Dienst auf jedem opsi-Server ist der `opsiconfd`. Er stellt über HTTPS (Port 4447) verschiedene Services bereit:
+
+* */rpc*: JSON-RPC API
 * */dav*: WebDAV-Zugriff auf Workbench, Repository, Depot, Boot-Verzeichnis
 * */admin*: xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[Admin-Seite] für Status-Informationen und Administrations-Aufgaben
-* */grafana*: Reveres-Proxy-Zugriff auf einen lokalen Grafana-Server
-* */status*: Einfache Status-Ausgabe für Monitoring-Werkzeuge
-* */public*: Öffentliche Datei-Freigabe ohne Authentifizierung
+* */grafana*: Reverse-Proxy-Zugriff auf einen lokalen Grafana-Server
+* */status*: einfache Statusausgabe für Monitoring-Werkzeuge
+* */public*: öffentliche Dateifreigabe ohne Authentifizierung
 
-Der opsiconfd kann über Addons erweitert werden.
-Beispielsweise steh die opsi-WebGUI als Addon zur Verfügung.
+NOTE: Sie können den `opsiconfd` über Add-ons erweitern. So ist beispielsweise das opsi-WebGUI ein solches Add-on. Mehr dazu lesen Sie in Abschnitt ##.
+//TODO: Add link
 
-Der opsiconfd besitzt ein Kommandozeilen-Interface, das die folgenden Kommandos bereitstellt:
+== Kommandozeilen-Interface
 
-* *start*: Startet den opsiconfd (Standard-Kommando).
-* *stop*: Stoppt einen laufend opsiconfd.
-* *force-stop*: Wie *stop*, bricht aktive Client-Verbindungen ab.
-* *status*: Zeigt den Service-Status an (`systemctl status`).
-* *restart*: Startet den opsiconfd-Service neu (`systemctl restart`).
-* *reload*: Sendet ein *SIGHUP*-Signal an laufenden opsiconfd-(Worker-)Prozesse. Die Prozesse lesen die Konfigurations-Dateien daraufhin neu ein.
-* *reload*: Startet ein volles xref:server:configuration/opsiconfd.adoc#server-configuration-opsiconfd-setup[opsiconfd setup].
-* *log-viewer*: Ausgabe von xref:server:configuration/opsiconfd.adoc#opsiconfd-logs[opsiconfd Logs] auf dem Terminal.
-* *health-check*: Startet einen xref:server:components/opsiconfd.adoc#server-components-opsiconfd-health-check[opsiconfd Health-Check].
-* *backup*: Erstellt ein xref:server:components/backup.adoc#server-components-opsiconfd-backup[opsiconfd Backup].
-* *restore*: Stellt ein xref:server:components/backup.adoc#server-components-opsiconfd-backup[opsiconfd Backup] wieder her.
+Der `opsiconfd` besitzt ein Kommandozeilen-Interface, das die folgenden Befehle bereitstellt:
 
-NOTE: Im Kapitel xref:server:configuration:opsiconfd.adoc[opsiconfd-Konfiguration] wird die Konfiguration eines opsiconfd unter xref:security:security.adoc[Security] die Härtung.
+* `start`: Startet den `opsiconfd` (Standardkommando).
+* `stop`: Stoppt einen laufenden `opsiconfd`.
+* `force-stop`: Wie `stop`, bricht zusätzlich aktive Client-Verbindungen ab.
+* `status`: Zeigt den Service-Status an (`systemctl status`).
+* `restart`: Startet den `opsiconfd`-Service neu (`systemctl restart`).
+* `reload`: Sendet ein `SIGHUP`-Signal an laufende `opsiconfd`-(Worker-)Prozesse. Die Prozesse lesen die Konfigurationsdateien daraufhin neu ein.
+//TODO: Links am Ende checken
+* `setup`: Startet ein xref:server:configuration/opsiconfd.adoc#server-configuration-opsiconfd-setup[`opsiconfd setup`].
+* `log-viewer`: Gibt die xref:server:configuration/opsiconfd.adoc#opsiconfd-logs[opsiconfd-Logs] im Terminal aus.
+* `health-check`: Startet einen xref:server:components/opsiconfd.adoc#server-components-opsiconfd-health-check[opsiconfd Health-Check].
+* `backup`: Erstellt ein xref:server:components/backup.adoc#server-components-opsiconfd-backup[opsiconfd-Backup].
+* `restore`: Stellt ein xref:server:components/backup.adoc#server-components-opsiconfd-backup[opsiconfd-Backup] wieder her.
 
+[[server-components-opsiconfd-server-id-role]]
+== Server-Rolle
 
-[[server-components-opsiconfd-health-check]]
-== opsiconfd Health-Check
-////
-TODO
-////
-Health-Check
+Ein opsi-Server kann die Rolle eines opsi-Configservers oder die eines opsi-Depotservers übernehmen. Die Konfigurationsdatei `/etc/opsi/opsi.conf` legt die Rolle fest. Ab opsi 4.3 definiert diese Konfigurationsdatei auch die ID des Servers.
 
+NOTE: Wenn Sie den opsi-Server als Docker-Container betreiben, steuern Umgebungsvariablen das Verhalten (siehe Abschnitt xref:modules:server/installation/docker.adoc#server-installation-docker-compose[Docker Compose]).
+
+Beispiel für einen opsi-Configserver:
+
+[source,toml]
+----
+[host]
+id = "opsi.domain.tld"
+key = "5b4324721a114195098bdaf3fab54a9f"
+server-role = "configserver"
+
+[service]
+url = "https://localhost:4447"
+----
+
+Beispiel für einen opsi-Depotserver:
+
+[source,toml]
+----
+[host]
+id = "opsi-depot.domain.tld"
+key = "a1b5098fabcaf315b13249cba1a24d17"
+server-role = "depotserver"
+
+[service]
+url = "https://opsi.domain.tld:4447"
+----
+
+NOTE: Ab opsi 4.3 löst die Datei `/etc/opsi/opsi.conf` die Datei `/etc/opsi/backends/jsonrpc.conf` ab.
+
+[[server-components-opsiconfd-config]]
+== Konfiguration
+
+Den `opsiconfd` können Sie über die Datei `/etc/opsi/opsiconfd.conf`, über Umgebungsvariablen oder über Kommandozeilen-Parameter beim Aufruf konfigurieren. Dabei gilt die folgende Reihenfolge:
+
+. Einträge in der Konfigurationsdatei überschreiben die Standardeinstellungen.
+. Umgebungsvariablen überschreiben Einträge in der Konfigurationsdatei.
+. Kommandozeilen-Parameter überschreiben Umgebungsvariablen.
+
+TIP: Eine Liste aller Konfigurationsoptionen erhalten Sie, wenn Sie den folgenden Befehl in ein Terminalfenster eingeben:
+
+// cSpell:disable
+[source,console]
+----
+opsiconfd --help
+...
+--admin-networks ADMIN_NETWORKS [ADMIN_NETWORKS ...]
+                A list of network addresses from which administrative connections are allowed.
+                [env var: OPSICONFD_ADMIN_NETWORKS]
+                (default: ['0.0.0.0/0', '::/0'])
+...
+----
+// cSpell:enable
+
+Hinter dem Namen des Kommandozeilenparameters (z.{nbsp}B. `--admin-networks`) steht die dazugehörige Umgebungsvariable in Großbuchstaben (hier: `ADMIN_NETWORKS`). Lassen Sie die beiden vorangestellten Bindestriche `--` weg, erhalten Sie den Namen der Option für die Konfigurationsdatei (`admin-networks`).
+
+* In der Konfigurationsdatei `/etc/opsi/opsiconfd.conf` steht z.{nbsp}B.: 
+
+[source,configfile]
+----
+admin-networks = [10.1.1.0/24,192.168.1.0/24]
+----
+
+* Über die Umgebungsvariable erfolgt die Einrichtung so: 
+
+[source,console]
+----
+OPSICONFD_ADMIN_NETWORKS="[10.1.1.0/24,192.168.1.0/24]"
+----
+
+* Der Aufruf auf der Kommandozeile sieht so aus: 
+
+[source,console]
+----
+opsiconfd --admin-networks 10.1.1.0/24 192.168.1.0/24
+----
+
+NOTE: Änderungen an der Konfiguration können Sie in der Regel im laufenden Betrieb über den Befehl `opsiconfd reload` übernehmen. Einige Parameter erfordern jedoch einen Neustart über `opsiconfd restart`.
 
 [[server-components-opsiconfd-admin-page]]
-== opsiconfd-Admin-Seite
+== Admin-Seite
 
-Die opsiconfd-Admin-Seite stellt Status-Informationen und Administrations-Aufgaben zum opsiconfd zur Verfügung.
-Der Zugriff erfolgt über `\https://<opsi-server>:4447/admin` als Mitglied der opsi-Admin-Gruppe.
-
+Die `opsiconfd`-Admin-Seite stellt Status-Informationen und Administrations-Aufgaben zum `opsiconfd` im Webbrowser zur Verfügung.
+Der Zugriff erfolgt über `\https://<opsi-server>:4447/admin`; Benutzer müssen Mitglied der opsi-Admin-Gruppe sein (siehe Kapitel xref:server:components/authorization.adoc[Berechtigungen]). Die nächsten Abschnitte stellen kurz die einzelnen Reiter vor.
 
 [[server-components-opsiconfd-admin-page-licensing]]
-=== Tab: Licensing
+=== Licensing
+
 
 Im Tab *Licensing* kann eingesehen werden welche xref:opsi-modules:modules.adoc[opsi-Erweiterungen] lizenziert sind.
 
@@ -138,4 +211,56 @@ Der Tab *Grafana* leitet Sie zum xref:server:components/grafana.adoc[Grafana-Das
 
 Beim Klick auf den Tab wird auf dem Grafana-Server das *opsiconfd main dashboard* angelegt bzw. aktualisiert.
 Weiterhin wird der Benutzer *opsidashboard* angelegt, der für den Zugriff auf das Dashboard verwendet wird.
+
+[[server-components-opsiconfd-health-check]]
+== Health-Check
+
+Der `opsiconfd` stellt einen Health Check bereit, der verschiedene Einstellungen und Versionen von opsi-Komponenten überprüfen und damit Hinweise auf eventuelle Probleme geben kann. Sie können den Health Check auf verschiedenen Wegen starten. Alle Varianten beziehen ihre Daten vom API-Call `service_healthCheck`. Die opsi-API liefert die Daten im JSON-Format zurück. Eine solche JSON-Datei ist besonders bei Support-Anfragen nützlich.
+
+Eine Möglichkeit, einen Health Check zu starten, ist über die <<server-components-opsiconfd-admin-page>>, Reiter RPC-Interface. Auf der Kommandozeile rufen Sie den Befehl `opsiconfd health-check` auf
+
+[[server-components-opsiconfd-logs]]
+== Logfiles
+
+// cSpell:ignore log-viewer
+//TODO: Link zu Redis-Kapitel einfügen
+Der `opsiconfd` verwendet Redis, um die Logfiles zu schreiben. Darüber hinaus legt der `opsiconfd` im Verzeichnis `/var/log/opsi/opsiconfd` eigene Logfiles ab.
+
+NOTE: Wenn Probleme mit dem Zugriff auf Redis bestehen, findet keine Protokollierung statt. Um dennoch Logfiles zu generieren, können Sie den Parameter `log-mode` auf `local` stellen.
+
+opsi unterscheidet 10 verschiedene Log-Level:
+
+*0 - nothing*: Logging komplett deaktiviert
+*1 - essential*: sehr wichtige Meldungen
+*2 - critical*: kritische Fehler
+*3 - error*: Fehler
+*4 - warning*: Warnungen
+*5 - notice*: wichtige Hinweise
+*6 - info*: weitere Informationen
+*7 - debug*: Meldungen zur Fehlersuche
+*8 - trace*: sehr viele Details, z.{nbsp}B. Mitschnitt der Kommunikation
+*9 - secret*: vertrauliche Informationen
+
+Die folgenden Parameter steuern den Log-Level:
+
+*log-level*: allgemeines Log-Level (bis zu welchem Log-Level werden Meldungen in den Redis-Stream übertragen?)
+*log-level-stderr*: Level der Ausgaben auf dem Terminal (Stderr)
+*log-level-file*: Log-Level der Logdateien
+
+Verwenden Sie das Kommando `opsiconfd log-viewer`, um die Protokolle im Terminal zu betrachten:
+
+[source,console]
+----
+opsiconfd log-viewer -l 6 --log-filter="client_address=192.168.1.1"
+----
+
+Da der Aufruf den Log-Stream direkt aus Redis liest, erfolgt die Ausgabe maximal bis zur Stufe `log-level`.
+
+Alternativ können Sie die Logfiles auf dem Reiter _Log Viewer_ im Admin-Interface anschauen.
+
+=== Filterfunktionen
+
+Der `opsiconfd` gliedert die Logfiles in Kanäle und Kontexte. Daher können Sie die Meldungen filtern, um nur bestimmte Informationen zu erhalten. Den Log-Level für einen Kanal setzen Sie mit dem Parameter `log-levels`. Über `.*:4,opsiconfd\.headers:8` werden nur Warnungen protokolliert, Meldungen im Kanal `opsiconfd.headers` jedoch mit dem Log-Level `trace`.
+
+Nach Kontexten filter der Parameter `log-filter`. Für den `opsiconfd` kommt im Wesentlichen der Kontext `client_address` zum Einsatz. So können Sie beispielsweise mit `client_address=192.168.1.1,192.168.1.2` bestimmen, dass Sie nur Meldungen sehen, die mit den beiden Clients mit der IP 192.168.1.1 und 192.168.1.2 zusammenhängen.
 
