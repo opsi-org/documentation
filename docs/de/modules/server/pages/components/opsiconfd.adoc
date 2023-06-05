@@ -139,7 +139,51 @@ opsiconfd --admin-networks 10.1.1.0/24 192.168.1.0/24
 
 NOTE: Änderungen an der Konfiguration können Sie in der Regel im laufenden Betrieb über den Befehl `opsiconfd reload` übernehmen. Einige Parameter erfordern jedoch einen Neustart über `opsiconfd restart`.
 
-[[server-configuration-opsiconfd-setup]]
+// cSpell:ignore hostcontrol
+[[server-components-opsiconfd-host-control]]
+== HostControl
+
+Über die HostControl-Funktionalität können Sie opsi-Clients steuern. Seit opsi 4.3 findet das bevorzugt über den opsi-Message-Bus statt. Das bisherige Verfahren existiert jedoch weiterhin; in diesem Fall baut der opsi-Configserver eine Verbindung zum Client-Agent auf und führt über diese Verbindung Kommandos aus. Über Wake on LAN (WOL) können Pakete im Netzwerk versendet werden, um Clients bei Bedarf zu starten.
+
+Die HostControl-Konfiguration befindet sich in der Datei `/etc/opsi/backends/hostcontrol.conf`. Hier stehen die folgenden Parameter zur Verfügung:
+
+* `useMessagebus`: Der Parameter steuert, wie der opsi-Message-Bus für HostControl verwendet wird. Die folgenden Werte sind erlaubt:
+  ** `False`: Der opsi-Message-Bus wird nicht verwendet, das heißt, dass für jedes Kommando eine Verbindung zum `opsi-client-agent` aufgebaut wird.
+  ** `True`: Es wird ausschließlich der opsi-Message-Bus verwendet. Ist ein Client nicht mit dem opsi-Message-Bus verbunden, gilt er als nicht erreichbar, und das Kommando wird nicht ausgeführt. Wenn alle Clients so konfiguriert sind, dass sie den opsi-Message-Bus verwenden, ist das die bevorzugte Einstellung.
+  ** `hybrid` (Standard): Der opsi-Message-Bus wird verwendet, wenn der Client eine aktive Message-Bus-Verbindung hat. Falls nicht, wird eine Verbindung zum `opsi-client-agent` aufgebaut-
+* `opsiclientdPort`: Netzwerkport für die Verbindungsaufnahme zu einem `opsi-client-agent`
+* `hostRpcTimeout`: Timeout in Sekunden bei der Verbindungsaufnahme zu einem `opsi-client-agent`
+* `resolveHostAddress`: Der Parameter steuert die Namensauflösung:
+  ** `True`: Beim Verbindungsaufbau vom opsi-Configserver zum `opsi-client-agent` wird die IP-Adresse des opsi-Clients bevorzugt über die Namensauflösung ermittelt.
+  ** `False`: Beim Verbindungsaufbau wird die im opsi-Backend hinterlegte IP-Adresse bevorzugt.
+* `maxConnections`: maximale Anzahl simultaner Verbindungen zu Client-Agents
+* `broadcastAddresses`: WOL-Pakete werden an Broadcast-Adressen verschickt; dieser Parameter ordnet Netzwerkadressen den Broadcast-Adressen zu. Die Zuordnung hat die folgende Form: +
+`{ "<network-address>": { "<broadcast-address>": <port-list> } }` +
+
+Dieses Beispiel verdeutlicht die Konfiguration:
+
+[source,shell]
+----
+"broadcastAddresses": {
+                "0.0.0.0/0": {
+                        "255.255.255.255": [7, 9, 12287]
+                },
+                "10.10.0.0/16": {
+                        "10.10.1.255": [12287],
+                        "10.10.2.255": [12287]
+                },
+                "10.10.3.0/24": {
+                        "10.10.3.255": [12287]
+                },
+                "192.168.1.0/24": {
+                        "192.168.1.255": [12287, 9, 12287]
+                }
+        }
+----
+
+Einer Netzwerkadresse können mehrere Broadcast-Adressen zugeordnet werden. Für jede Broadcast-Adresse können unterschiedliche Ports konfiguriert werden. Die passenden Broadcast-Adressen werden auf Basis der im opsi-Backend hinterlegten IP-Adresse eines Clients ermittelt. Ist die IP-Adresse hierbei Teil mehrerer Netzwerke, wird der spezifischste Eintrag verwendet.
+
+[[server-components-opsiconfd-setup]]
 == opsiconfd setup
 
 include::server:partial$opsiconfd-setup.adoc[]
