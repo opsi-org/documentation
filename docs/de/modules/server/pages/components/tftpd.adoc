@@ -26,44 +26,34 @@ include::common:partial$opsi_terms.adoc[]
 [[server-components-tftpd]]
 = TFTP-Server
 
-TFTP steht für "Trivial File Transfer Protocol" und ist ein vereinfachtes Protokoll zur Dateiübertragung über ein Netzwerk. Im Vergleich zu anderen File-Transfer-Protokollen wie FTP oder SFTP ist TFTP weniger umfangreich und bietet nur grundlegende Funktionen.
+Das Trivial File Transfer Protocol ist ein vereinfachtes Protokoll zur Dateiübertragung über ein Netzwerk. Anders als FTP oder SFTP bietet TFTP nur grundlegende Funktionen. TFTP kommt häufig zum Einsatz, um Firmware-Updates, Konfigurationsdateien oder Startdateien von einem TFTP-Server zu einem TFTP-Client zu übertragen.
 
-TFTP wird häufig für den schnellen und einfachen Austausch von Dateien zwischen Computern in einem lokalen Netzwerk verwendet. Es ermöglicht den Transfer von Dateien wie Firmware-Updates, Konfigurationsdateien oder Startdateien zwischen einem TFTP-Server und einem TFTP-Client.
+NOTE: Da TFTP keine Authentifizierung, Verschlüsselung oder Komprimierung der übertragenen Daten unterstützt, wird es normalerweise nur in geschlossenen und vertrauenswürdigen Netzwerken verwendet.
 
-Das TFTP-Protokoll arbeitet auf der Basis von UDP (User Datagram Protocol) und verwendet den Port 69 für die Kommunikation. Es unterstützt jedoch keine Authentifizierung, Verschlüsselung oder Komprimierung der übertragenen Daten. Daher wird es normalerweise in geschlossenen und vertrauenswürdigen Netzwerken verwendet, in denen diese Sicherheitsfunktionen nicht erforderlich sind.
+Der TFTP-Server stellt opsi-Boot-Images für die opsi-Clients zur Verfügung. Der Standard-TFTP-Server für opsi heißt `opsi-tftpd-hpa`; das Paket wird automatisch als Abhängigkeit zum Paket `opsi-server-full` installiert.
 
-Der TFTP-Server wird benötigt um opsi-Bootimages für die opsi-Clients per *TFTP*-Protokoll zur Verfügung zu stellen.
-Der Standard-TFTP-Server in Verbindung mit opsi ist der *opsi-tftpd-hpa*.
-Dieser wird als Abhängigkeit des *opsi-server-full* installiert.
+Der `opsi-tftpd-hpa` startet in der Voreinstellung automatisch beim Systemstart. Um ihn zu stoppen, geben Sie den Befehl `sudo systemctl stop opsi-tftpd-hpa.service` ein; `sudo systemctl start opsi-tftpd-hpa.service` startet den Dienst wieder.
 
-Der *opsi-tftpd-hpa* ist standardmäßig so konfiguriert, dass er beim Systemstart gestartet wird.
-Er kann über `systemctl stop opsi-tftpd-hpa.service` gestoppt und über `systemctl start opsi-tftpd-hpa.service` gestartet werden.
+Für gewöhnlich startet der TFTP-Dienst mit einem Verbose-Parameter, der für ausführliche Informationen in den Logfiles sorgt. Zur Fehlersuche oder zur Analyse können Sie den Log-Level anpassen. Dazu verwenden Sie den folgenden Befehl:
 
-Für gewöhnlich startet der Dienst mit einem Verbose-Parameter.
-Zur Fehlersuche oder zur weiteren Analyse kann das Log-Level des Dienstes angepasst werden.
-Hierfür wird der folgender Befehl verwendet:
-
-[source,shell]
+[source,console]
 ----
-systemctl edit --full opsi-tftpd-hpa.service
-----
-Nun kann der Parameter `-v` durch den Parameter `--verbosity <log-level>` (z.B. `--verbosity 7` für sehr viele Details) ersetzt werden.
-
-Daraufhin wird der Dienst neu gestartet:
-[source,shell]
-----
-service opsi-tftpd-hpa restart
+sudo systemctl edit --full opsi-tftpd-hpa.service
 ----
 
+Suchen Sie im Texteditor nach der Zeile, die mit `ExecStart` beginnt und ersetzen Sie `-v` durch `--verbosity <log-level>`, z.{nbsp}B. `--verbosity 7` für sehr viele Details. Danach starten Sie den Dienst neu:
+
+[source,console]
+----
+sudo systemctl restart  opsi-tftpd-hpa.service
+----
 
 [[server-components-tftpd-ports-firewall]]
-== TFTP Ports und Firewall-Konfiguration
-Der Client verbindet sich initial mit dem Server-Port 69.
-Der Server sendet Pakete aber nicht mit Port 69 als Quellport.
-Client und Server wählen für die weitere Kommunikation sogenannte TIDs aus.
-Diese TIDs entsprechen UDP-Ports und liegen im Bereich von 1024 bis 65535.
-Alle weiteren Pakete werden dann vom TID-Port des Servers zum TID-Port des Clients und umgekehrt gesendet.
+== TFTP-Ports und Firewall-Konfiguration
 
-Die Server-Firewall muss daher so konfiguriert werden, dass eingehende Verbindungen auf Port 69/udp erlaubt sind.
+Der Client verbindet sich initial mit Port 69 auf dem Server.
+Der Server sendet aber keine Pakete über Port 69. Stattdessen wählen Client und Server für die weitere Kommunikation sogenannte TIDs aus. Ein Transaction Identifier ist eine Kennung, um Transaktionen eindeutig zu identifizieren. Die TIDs entsprechen UDP-Ports und liegen im Bereich von 1024 bis 65535. Alle Pakete werden dann vom TID-Port des Servers zum TID-Port des Clients und umgekehrt gesendet.
+
+Die Server-Firewall muss daher so konfiguriert sein, dass eingehende Verbindungen auf Port 69/udp erlaubt sind.
 Zusätzlich muss die UDP-Kommunikation zwischen den TID-Ports erlaubt werden.
 Das funktioniert am einfachsten über das Kernel-Modul `ip_conntrack_tftp` bzw. `nf_conntrack_tftp`.
