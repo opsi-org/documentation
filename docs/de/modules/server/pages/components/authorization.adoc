@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      30.05.2023
+:Date:      15.06.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -27,43 +27,28 @@ include::common:partial$opsi_terms.adoc[]
 [[server-configuration-authorization]]
 = Berechtigungen
 
-//TODO: Einleitung schreiben
-In diesem Kapitel geht es um ... ##
+In diesem Kapitel geht es um die Benutzer- und Gruppenverwaltung auf dem opsi-Server. Es erklärt auch, wie Sie LDAP/Active Directory zur Authentifierung nutzen und eine Zwei-Faktor-Authentifizierung für den Server einrichten.
 
 [[server-configuration-authorization-users-and-groups]]
 == Benutzer und Gruppen
 
-Die folgenden Benutzer werden von opsi verwendet:
+opsi verwendet die folgenden Benutzer- und Gruppenaccounts:
 
-* opsiconfd: Ein Service-Benutzer unter dessen Account der zentrale opsi-Service *opsiconfd* läuft.
-Der Benutzer muss Mitglied der opsi-Admin-Gruppe und opsi-Fileadmin-Gruppe sein.
-* pcpatch: Bei Verwendung von CIFS (Samba) für den Zugriff auf das opsi-Depot verwenden die opsi-Clients diesen Account für die Authentifizierung. Der Benutzer muss Mitglied der Gruppe opsi-Fileadmin-Gruppe sein.
+* `opsiconfd`: ein Konto für den gleichnamigen Systemdienst `opsiconfd` (siehe Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*]); Account muss Mitglied der Gruppen `opsiadmin` und `opsifileadmins` sein
+* `pcpatch`: ein Account, den die opsi-Clients für den Zugriff via CIFS (Samba) auf das opsi-Depot verwenden; muss Mitglied in der Gruppe `opsifileadmins` sein (siehe auch Abschnitt <<server-configuration-authorization-pcpatch-password>>)
 
-Standardmäßig werden auf einem opsi-Server lokale Benutzer und Gruppen verwendet.
-Diese werden mit den Linux-Standard-Werkzeugen, wie *useradd*, *usermod*, *groupadd*, *groupmod*, etc., verwaltet.
+NOTE: Zum Verwalten lokaler Benutzer und Gruppena auf dem opsi-Server nutzen Sie die Linux-Standardwerkzeuge `useradd`, `usermod`, `groupadd`, `groupmod` usw. Alternativ binden Sie den opsi-Configserver an eine bestehende Windows-Domäne (siehe Abschnitt <<authorization-domain-join>>) oder an LDAP/Active Directory (siehe Abschnitt <<authorization-ldap-authentication>>) an.
 
-Es besteht jedoch auch die Möglichkeit der Anbindung eines opsi-Configservers an eine zentrale Authentifizierung.
+Zum Steuern von Berechtigungen verwendet opsi die folgenden Gruppen:
 
-Weitere Informationen hierzu finden Sie unter
-xref:server:configuration/authorization.adoc#authorization-domain-join[]
-und
-xref:server:configuration/authorization.adoc#authorization-ldap-authentication[].
+* `opsiadmin`: Mitglieder dieser Gruppe können administrativ auf den opsi-Service zugreifen, das heißt, sie erhalten vollen Zugriff über die Management-Oberfläche `opsi-configed`, das opsi-WebGUI, die `opsiconfd`-Admin-Seite usw.
+* `opsifileadmins`: Mitglieder dieser Gruppe können administrativ auf opsi-Dateien (Depot, Repository, Workbench) zugreifen.
+* `opsireadonly`: Mitglieder dieser Gruppe können nur lesend auf den opsi-Service zugreifen.
 
-Für die Steuerung von Berechtigungen verwendet opsi die folgenden Gruppen:
+Den Namen dieser Gruppen können Sie in der Konfigurationsdatei `/etc/opsi/opsi.conf` im Abschnitt `groups` ändern:
 
-* opsiadmin: Mitglieder dieser Gruppe können administrativ auf den opsi-Service zugreifen.
-Mitglieder dieser Gruppe erhalten daher Vollzugriff über opsi-configed, opsi-WebGUI, opsiconfd-Admin-Interface, etc. +
-Standardmäßig ist der Name dieser Gruppe *opsiadmin*.
-* opsifileadmins: Mitglieder dieser Gruppe können administrativ auf opsi-Dateien (Depot, Repository, Workbench) zugreifen. +
-Standardmäßig ist der Name dieser Gruppe *opsifileadmins*.
-* opsireadonly: Mitglieder dieser Gruppe können nur lesend auf den opsi-Service zugreifen. +
-Standardmäßig ist der Name dieser Gruppe *opsireadonlys*.
-
-Die Namen dieser Gruppen können in der Konfigurationsdatei `/etc/opsi/opsi.conf` im Abschnitt `groups` geändert werden.
-
-Beispiel:
 // cSpell:disable
-[source,toml]
+[source,configfile]
 ----
 [groups]
 fileadmingroup = "opsifileadmins"
@@ -72,29 +57,21 @@ readonly = "opsireadonlys"
 ----
 // cSpell:enable
 
-
 [[server-configuration-authorization-pcpatch-password]]
-== Passwort für den Benutzer pcpatch
+=== Passwort für Benutzer *pcpatch*
 
-Da der Benutzer von den opsi-Clients für die Authentifizierung verwendet wird,
-muss das Passwort dem opsi-Configserver bekannt sein.
-Für diesen Zweck wird das Kennwort auf dem opsi-Configserver verschlüsselt abgelegt.
+Da die opsi-Clients diesen Account für die Authentifizierung verwenden, muss der opsi-Configserver das Passwort kennen. Zu diesem Zweck ist das Kennwort verschlüsselt in der Datei `/etc/opsi/passwd` abgelegt. Bei der Installation eines opsi-Configservers wird vollautomatsich ein Zufallskennwort gesetzt, das Sie in der Regel nicht ändern müssen.
 
-Das Passwort kann über `opsi-admin` geändert werden:
+Das Passwort können Sie mit dem Kommandozeilentool `opsi-admin` ändern (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-admin[*opsi-admin*]):
 
-[source,shell]
+[source,console]
 ----
 opsi-admin -d task setPcpatchPassword
 ----
 
-Nach dem Betätigen von [Eingabe] erscheint ein Passwort-Prompt, und Sie können das Kennwort eintippen.
+Nach dem Drücken der Taste [Eingabe] erscheint ein Passwort-Prompt, und Sie können das Kennwort eintippen.
 
-Hierbei wird das Kennwort zusätzlich für den lokalen *opsi-admin* Unix- und Samba-Account geändert.
-Sollten der Account kein lokaler, sondern ein Domänen-Account sein, muss das Kennwort zusätzlich manuell in der Domäne neu gesetzt werden.
-
-NOTE: Im Zuge der Grund-Installation eines opsi-Configservers wird bereits vollautomatsich ein Zufalls-Kennwort gesetzt,
-das nicht geändert werden muss.
-
+NOTE: Das Passwort wird zusätzlich für den lokalen Unix- und Samba-Account geändert. Handelt es sich um einen Domänen-Account, müssen Sie das neue Passwort dort ebenfalls von Hand neu setzen.
 
 [[server-configuration-authorization-create-local-users]]
 == Anlegen von Admin-Konten auf dem opsi-Configserver
@@ -107,21 +84,21 @@ Im folgenden Beispiel wird ein neuer Benutzer *adminuser* angelegt, der Vollzugr
 NOTE: Sowohl auf der vorkonfigurierten virtuellen Maschine, als auch im Docker-Container existiert der Account `adminuser` bereits`. Sie können jedoch mit dem selben Verfahren weitere Benutzer hinzufügen.
 
 Legen Sie das neue Benutzer-Konto über den Befehl `useradd` an:
-[source,shell]
+[source,console]
 ----
 sudo useradd -m -s /bin/bash adminuser
 ----
 
 Anschließend setzen Sie für den neuen Account ein Unix-Passwort (System):
 
-[source,shell]
+[source,console]
 ----
 sudo passwd adminuser
 ----
 
 Soll der Benutzer auch Datei-Zugriff per CIFS (Samba) erhalten, muss auch hier ein Passwort gesetzt werden:
 
-[source,shell]
+[source,console]
 ----
 sudo smbpasswd -a adminuser
 ----
@@ -130,14 +107,14 @@ WARNING: Verwenden Sie in den Passwörtern kein *§*-Zeichen!
 
 Als Nächstes fügen Sie den neuen Benutzer den Gruppen *opsiadmin* und *opsifileadmins* hinzu:
 
-[source,shell]
+[source,console]
 ----
 usermod -aG opsiadmin adminuser opsifileadmins
 ----
 
 Mit dem Befehl `id` können Sie, zur Überprüfung, den Benutzer inklusive Gruppenzugehörigkeiten anzeigen lassen:
 
-[source,shell]
+[source,console]
 ----
 id adminuser
 # uid=1000(adminuser) gid=1000(opsiadmin) groups=1000(opsiadmin),999(opsifileadmins)
@@ -164,7 +141,7 @@ Danach nehmen Sie den opsi-Server, gemäß der Dokumentation der verwendeten Lin
 
 Führen Sie nach dem Domain-Join die folgenden Befehle aus:
 
-[source,shell]
+[source,console]
 ----
 opsiconfd setup
 opsi-set-rights
