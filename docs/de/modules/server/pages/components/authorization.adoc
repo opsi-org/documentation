@@ -24,20 +24,20 @@
 include::common:partial$opsi_terms.adoc[]
 
 
-[[server-configuration-authorization]]
+[[server-components-authorization]]
 = Berechtigungen
 
 In diesem Kapitel geht es um die Benutzer- und Gruppenverwaltung auf dem opsi-Server. Es erklärt auch, wie Sie LDAP/Active Directory zur Authentifierung nutzen und eine Zwei-Faktor-Authentifizierung für den Server einrichten.
 
-[[server-configuration-authorization-users-and-groups]]
+[[server-components-authorization-users-and-groups]]
 == Benutzer und Gruppen
 
 opsi verwendet die folgenden Benutzer- und Gruppenaccounts:
 
 * `opsiconfd`: ein Konto für den gleichnamigen Systemdienst `opsiconfd` (siehe Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*]); Account muss Mitglied der Gruppen `opsiadmin` und `opsifileadmins` sein
-* `pcpatch`: ein Account, den die opsi-Clients für den Zugriff via CIFS (Samba) auf das opsi-Depot verwenden; muss Mitglied in der Gruppe `opsifileadmins` sein (siehe auch Abschnitt <<server-configuration-authorization-pcpatch-password>>)
+* `pcpatch`: ein Account, den die opsi-Clients für den Zugriff via CIFS (Samba) auf das opsi-Depot verwenden; muss Mitglied in der Gruppe `opsifileadmins` sein (siehe Abschnitt <<server-components-authorization-pcpatch-password>>)
 
-NOTE: Zum Verwalten lokaler Benutzer und Gruppena auf dem opsi-Server nutzen Sie die Linux-Standardwerkzeuge `useradd`, `usermod`, `groupadd`, `groupmod` usw. Alternativ binden Sie den opsi-Configserver an eine bestehende Windows-Domäne (siehe Abschnitt <<authorization-domain-join>>) oder an LDAP/Active Directory (siehe Abschnitt <<authorization-ldap-authentication>>) an.
+NOTE: Zum Verwalten lokaler Benutzer und Gruppena auf dem opsi-Server nutzen Sie die Linux-Standardwerkzeuge `useradd`, `usermod`, `groupadd`, `groupmod` usw. (siehe Abschnitt <<server-components-authorization-create-local-users>>). Alternativ binden Sie den opsi-Configserver an eine bestehende Windows-Domäne (siehe Abschnitt <<server-components-authorization-domain-join>>) oder an LDAP/Active Directory (siehe Abschnitt <<server-components-authorization-ldap-authentication>>) an.
 
 Zum Steuern von Berechtigungen verwendet opsi die folgenden Gruppen:
 
@@ -57,7 +57,7 @@ readonly = "opsireadonlys"
 ----
 // cSpell:enable
 
-[[server-configuration-authorization-pcpatch-password]]
+[[server-components-authorization-pcpatch-password]]
 === Passwort für Benutzer *pcpatch*
 
 Da die opsi-Clients diesen Account für die Authentifizierung verwenden, muss der opsi-Configserver das Passwort kennen. Zu diesem Zweck ist das Kennwort verschlüsselt in der Datei `/etc/opsi/passwd` abgelegt. Bei der Installation eines opsi-Configservers wird vollautomatsich ein Zufallskennwort gesetzt, das Sie in der Regel nicht ändern müssen.
@@ -73,17 +73,15 @@ Nach dem Drücken der Taste [Eingabe] erscheint ein Passwort-Prompt, und Sie kö
 
 NOTE: Das Passwort wird zusätzlich für den lokalen Unix- und Samba-Account geändert. Handelt es sich um einen Domänen-Account, müssen Sie das neue Passwort dort ebenfalls von Hand neu setzen.
 
-[[server-configuration-authorization-create-local-users]]
-== Anlegen von Admin-Konten auf dem opsi-Configserver
+[[server-components-authorization-create-local-users]]
+=== Admin-Account anlegen
 
-Bei Verwendung von lokalen Benutzen und Gruppen auf dem opsi-Configserver,
-müssen Benutzer, die Zugriff auf den opsi-Server erhalten sollen, über die Linux-Standard-Werkzeugen angelegt werden:
+Um lokale Benutzer und Gruppen auf dem opsi-Configserver anzulegen, nutzen Sie die Linux-Standardwerkzeuge. Das folgende Beispiel richtet einen neuen Benutzer namens `adminuser` ein und fügt diesen dann den beiden Gruppen `opsiadmin` und `opsifileadmins` hinzu. Damit erhält der Benutzer dann vollen administrativen Zugriff auf den opsi-Server.
 
-Im folgenden Beispiel wird ein neuer Benutzer *adminuser* angelegt, der Vollzugriff auf den opsi-Server erhält.
+NOTE: Bei der vorkonfigurierten virtuellen Maschine und in unserem Docker-Container gibt es den Account `adminuser` bereits. Sie können die hier gezeigten Schritte aber zum Hinzufügen weiterer Accounts verwenden.
 
-NOTE: Sowohl auf der vorkonfigurierten virtuellen Maschine, als auch im Docker-Container existiert der Account `adminuser` bereits`. Sie können jedoch mit dem selben Verfahren weitere Benutzer hinzufügen.
+Zuerst legen Sie das neue Konto über den Befehl `useradd` an:
 
-Legen Sie das neue Benutzer-Konto über den Befehl `useradd` an:
 [source,console]
 ----
 sudo useradd -m -s /bin/bash adminuser
@@ -96,7 +94,7 @@ Anschließend setzen Sie für den neuen Account ein Unix-Passwort (System):
 sudo passwd adminuser
 ----
 
-Soll der Benutzer auch Datei-Zugriff per CIFS (Samba) erhalten, muss auch hier ein Passwort gesetzt werden:
+Soll der Benutzer auch Dateizugriff per CIFS (Samba) erhalten, setzen Sie dafür ebenfalls ein Passwort:
 
 [source,console]
 ----
@@ -105,14 +103,14 @@ sudo smbpasswd -a adminuser
 
 WARNING: Verwenden Sie in den Passwörtern kein *§*-Zeichen!
 
-Als Nächstes fügen Sie den neuen Benutzer den Gruppen *opsiadmin* und *opsifileadmins* hinzu:
+Als Nächstes fügen Sie den neuen Benutzer den Gruppen `opsiadmin` und `opsifileadmins` hinzu:
 
 [source,console]
 ----
 usermod -aG opsiadmin adminuser opsifileadmins
 ----
 
-Mit dem Befehl `id` können Sie, zur Überprüfung, den Benutzer inklusive Gruppenzugehörigkeiten anzeigen lassen:
+Geben Sie den Befehl `id` ein, um zu überprüfen, dass der Account `adminuser` existiert und den beiden Gruppen angehört:
 
 [source,console]
 ----
@@ -120,11 +118,12 @@ id adminuser
 # uid=1000(adminuser) gid=1000(opsiadmin) groups=1000(opsiadmin),999(opsifileadmins)
 ----
 
+[[server-components-authorization-domain-join]]
+== opsi-Server in Windows-Domäne einbinden
 
-[[server-configuration-authorization-domain-join]]
-== Einbindung eines opsi-Servers in eine Windows-Domäne
+Statt mit lokalen Unix- und Samba-Accounts zu arbeiten, können Sie einen opsi-Server auch in eine Windows- bzw. Samba-4-Domäne einbinden.
 
-Statt mit lokalen Unix- und Samba-Accounts zu arbeiten, kann ein opsi-Server auch in eine Windows- bzw. Samba4-Domäne eingebunden werden.
+kann ein opsi-Server auch in eine Windows- bzw. Samba4-Domäne eingebunden werden.
 
 In der Domäne müssen die opsi-Admin-Gruppe und opsi-Fileadmin-Gruppe angelegt werden.
 Es können an dieser Stelle auch andere Gruppen-Namen oder bestehende Gruppen verwendet werden.
@@ -147,10 +146,10 @@ opsiconfd setup
 opsi-set-rights
 ----
 
-Setzen Sie dann dann das Passwort des Benutzers `pcpatch` neu, wie im Abschnitt xref:server:configuration/authorization.adoc#authorization-pcpatch-password[] beschrieben.
+Setzen Sie dann dann das Passwort des Benutzers `pcpatch` neu, wie im Abschnitt xref:server:components/authorization.adoc#authorization-pcpatch-password[] beschrieben.
 
 
-[[server-configuration-authorization-ldap-authentication]]
+[[server-components-authorization-ldap-authentication]]
 == Authentifizierung gegen LDAP/Active Directory
 
 Für die Authentifizierung am opsi-Service wird standardmäßig*PAM*verwendet.
@@ -194,7 +193,7 @@ Damit die Änderungen übernommen werden, muss der *opsiconfd* neu gestartet wer
 NOTE: Bitte beachten Sie, dass die in der Variable *admingroup* definierte Gruppe auch im AD/LDAP verfügbar ist.
 
 
-[[server-configuration-authorization-multi-factor]]
+[[server-components-authorization-multi-factor]]
 == Multi-Faktor-Authentifizierung
 Der opsi-Server unterstützt eine Zwei-Faktor-Authentifizierung mit dem Standard-Verfahren *Time-based One-time Password Algorithmus* (TOTP).
 Hierbei wird bei der Anmeldung am opsi-Server zusätzlich eine Einmal-Passwort verwendet, das aus sechs Ziffern besteht.
