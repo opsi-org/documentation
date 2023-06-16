@@ -68,7 +68,7 @@ TIP: Weitere Details zum Thema finden Sie in der Redis-Dokumentation, Kapitel li
 
 Sie können Redis mit dem folgenden Kommando anweisen, einen Datenbank-Dump zu erzeugen:
 
-[source,shell]
+[source,console]
 ----
 redis-cli save
 ----
@@ -77,58 +77,55 @@ Auf opsi-Servern finden Sie den gespeicherten Datenbank-Dump in der Datei `/var/
 
 NOTE: Den Datenbank-Dump sollten Sie in Ihre Backup-Strategie mit aufnehmen; `opsiconfd backup` sichert keine Redis-Daten.
 
-
 [[server-components-backup-opsi-database]]
 == Sicherung der opsi-Datenbank
-Opsi verwendet eine MySQL- bzw. MariaDB-Datenbank.
-Diese kann mit dem Standard-Werkzeug `mysqldump` gesichert werden.
 
-Zum Beispiel:
+opsi verwendet außerdem eine MySQL-/MariaDB-Datenbank (siehe Kapitel xref:server:components/mysql.adoc[MySQL-Server]). Diese können Sie mit dem Standardwerkzeug `mysqldump` sichern. Der Befehl erstellt einen Datenbank-Dump für MySQL- und MariaDB-Datenbanken und exportiert dann eine vollständige Datenbank (oder bestimmte Tabellen) in eine Datei, die Sie zur Wiederherstellung oder zum Import von Daten verwenden können.
 
-[source,shell]
+Der folgende Befehl erzeugt einen Dump der Datenbank namens `opsi`, komprimiert ihn und speichert ihn in der Datei `/var/backups/opsi.sql.bz2` ab:
+
+[source,console]
 ----
 mysqldump --single-transaction opsi | bzip2 > /var/backups/opsi.sql.bz2
 ----
 
-Das Dump-File `/var/backups/opsi.sql.bz2` kann dann mit in das Backup aufgenommen werden.
+Die Datei `/var/backups/opsi.sql.bz2` können Sie anschließend ins Backup aufnehmen.
 
-Bei Verwendung von xref:server:components/backup.adoc#server-components-opsiconfd-backup[opsiconfd backup]
-ist das Sichern der MySQL-Datenbank eigentlich nicht notwendig, bietet aber zusätzliche Sicherheit.
-
+NOTE: Eigentlich ist das Sichern der MySQL-Datenbank nicht notwendig, wenn Sie `opsiconfd backup` aufrufen (siehe nächster Abschnitt) -- ein solcher Datenbank-Dump bietet aber zusätzliche Sicherheit.
 
 [[server-components-opsiconfd-backup]]
-== opsiconfd backup
+== *opsiconfd backup*
 
-Mit dem opsiconfd backup können die opsi-Datenbank und die opsi-Konfigurationsdateien komfortabel gesichert werden.
-Hierbei werden die Daten aus der opsi-Datenbank Objekt-basiert und nicht als Dump gesichert.
-Dies erleichtert das Rückspielen des Backups in andere Umgebungen, andere MySQL-Versionen und zukünftige Datenbanken.
+xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*] ist der zentrale Dienst auf jedem opsi-Server. Sein Kommandozeilen-Interface stellt unter anderem die beiden Befehle `backup` und `restore` bereit. Damit sichern Sie die opsi-Datenbank und die -Konfigurationsdateien und spielen ein Backup wieder ein.
 
-Beim Erstellen und Rückspielen des Backup wird der opsi-Configserver in den Maintenance-Mode versetzt.
-Damit wird sichergestellt, dass im Zeitraum des Backups / Restores keine CLient-Aktivität stattfindet.
+NOTE: Die opsi-Datenbank wird in diesem Fall objektbasiert gesichert, und es wird kein Datenbank-Dump erzeugt. Das erleichtert das Rückspielen des Backups in anderen Umgebungen -- auch wenn andere MySQL-Versionen zum Einsatz kommen.
 
-Die Backup-Datei kann auf Wunsch AES-verschlüsselt geschrieben werden.
+Eine Liste aller Parameter und deren Bedeutung erhalten Sie jeweils über `--help`:
 
-Es gibt weitere Parameter mit denen das Backup / Restore gesteuert werden kann.
-Die Liste aller Parameter und deren Bedeutung erhalten Sie mittels:
-
-[source,shell]
+[source,console]
 ----
 opsiconfd backup --help
 opsiconfd restore --help
 ----
 
-Hier ein Beispiel für das Erstellen eines Backups im msgpack-Format mit LZ4-Kompression:
+Beim Erzeugen und Wiederherstellen des Backups wird der opsi-Configserver in den Maintenance-Modus versetzt.
+Damit ist sichergestellt, dass es während Backup und Restore keine Client-Aktivität gibt.
 
-[source,shell]
+Der folgende Befehl erzeugt ein Backup im MessagePack-Format (`msgpack`) mit LZ4-Kompression:
+
+[source,console]
 ----
 opsiconfd backup --quiet --overwrite /var/backups/opsi-backup.msgpack.lz4
 ----
 
-Das Backup kann über den folgenden Befehl wieder hergestellt werden:
+//TODO: 4.3 kontrollieren, wie Parameter heißt
+Die Backup-Datei können Sie auch mit AES (Advanced Encryption Standard) verschlüsseln:
 
-[source,shell]
+So stellen Sie das eben angelegte Backup wieder her:
+
+[source,console]
 ----
 opsiconfd restore /var/backups/opsi-backup.msgpack.lz4
 ----
 
-Beim Einspielen eines Backups kann die ID des opsi-Configservers geändert werden (`--server-id`).
+TIP: Mit dem Parameter `--server-id` ändern Sie die ID des opsi-Configservers beim Wiederherstellen.
