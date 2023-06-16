@@ -453,7 +453,7 @@
   
   function searchWord(searchText) {
     let cont = document.querySelector("article");
-    let pattern = new RegExp("(" + searchText + ")", "gi");
+    let pattern = new RegExp('(' + searchText + ')(?!.*" alt=)', "gi");
 
     let links = document.querySelectorAll(".xref");
     let hrefs = []
