@@ -35,7 +35,103 @@ Um zu verhindern, dass sich Benutzer vor Abschluss der Installation auf dem Syst
 
 NOTE: Um Softwarepakete mit dem Programm `opsi-script` ohne Interaktion installieren zu können, müssen diese bestimmten Regeln und Konventionen folgen (siehe Abschnitt xref:clients:windows-client/softwareintegration.adoc#opsi-winclient-softwintegration-tutorial[Tutorial: *opsi-script*-Skript erstellen]).
 
-[[opsi-manual-clientagent-service]]
+[[opsi-manual-clientagent-installation]]
+== Installation
+
+Im Rahmen einer Neuinstallation eines Betriebssystems per unattended Setup über opsi wird der *opsi-client-agent* automatisch mit installiert.
+
+Zur Deinstallation kann der *opsi-client-agent* auf `uninstall` gesetzt werden.
+
+Zur nachträglichen Installation oder zu Reparaturzwecken siehe Kapitel <<opsi-manual-clientagent-subsequent-installation,Nachträgliche Installation des opsi-client-agents>>.
+
+hier auch Abschnitt nachträgliche Installation
+
+[[opsi-manual-clientagent-subsequent-installation]]
+== Nachträgliche Installation des opsi-client-agents
+
+Der *opsi-client-agent* kann auf verschiedene Weise installiert werden:
+
+// Kann xref:clients:windows-client/win-client-agent.adoc#opsi-manual-client-agent-msi hier nicht verlinken
+// cspell: ignore installer, help
+* Im Rahmen einer Betriebssysteminstallation
+* Manuell aus einem (Depot-)Verzeichnis durch den oca-installation-helper[.exe]
+* Per Push vom Server aus (`opsi-deploy-client-agent`)
+* Über den Installer (`opsi-client-agent-installer.exe`, `opsi-linux-client-agent-installer.run`, `opsi-mac-client-agent-installer.command`)
+* Über das MSI-Paket (`opsi-client-agent.msi` - nur windows
+* Im opsi-Service-Kontext (*opsi-client-agent* aktualisiert sich selbst)
+
+Außer beim Upgrade im opsi-Service-Kontext kommt hierbei immer die neue oca-installation-helper[.exe] zum Einsatz.
+Diese erfüllt im wesentlichen die folgenden Zwecke:
+
+* Die Installationsdateien werden, wenn notwendig, in ein lokales temporäres Verzeichnis kopiert (z.B. Aufruf per UNC-Pfad).
+* Es wird ein Dialog-Fenster angezeigt, in dem Parameter zur Installations-Steuerung eingegeben werden können.
+* Der Client wird am opsi-Service erzeugt, falls er noch nicht existiert.
+* opsi-script wird gestartet und führt die eigentliche Installation durch.
+
+Die Installation baut in jedem Fall eine Service-Verbindung auf, sodass, unabhängig vom Installations-Modus, immer die Product-Properties vom Server verwendet werden.
+
+Die oca-installation-helper[.exe] kennt einige Parameter die per `oca-installation-helper --help` angezeigt werden können.
+Mittels dieser Parameter kann die Installation automatisiert werden:
+
+// cspell: ignore adminuser, crypt, encode
+[source,bash]
+----
+oca-installation-helper --service-address https://10.1.2.3:4447 --service-username adminuser --service-password secret --non-interactive
+----
+
+Auch die opsi-client-agent-installer[.exe] nimmt die gleichen Parameter entgegen.
+Der Installer kann von einem opsi Server ohne Authentifizierung über die folgende Adresse heruntergeladen werden
+(analog für opsi-linux-client-agent-installer.run und opsi-mac-client-agent-installer.command):
+
+`https://<opsi-server>:4447/public/opsi-client-agent/opsi-client-agent-installer.exe`
+
+Das ist bei einer manuellen Installation in der Regel einfacher als auf den Depot-Share zuzugreifen.
+
+Das "service-password" kann auch verschlüsselt verwendet werden:
+
+[source,bash]
+----
+oca-installation-helper --service-password {crypt}w5TDjcOQw5PDjsOr
+----
+
+Die Verschlüsselung erfolgt dabei über:
+
+[source,bash]
+----
+oca-installation-helper --encode-password <Klartext-Passwort>
+----
+
+Beim Start der manuellen Installation werden zusätzlich folgende Konfigurations-Dateien (sofern vorhanden) mit absteigender Priorität ausgewertet, um die Parameter zu befüllen:
+
+* .\files\custom\install.conf (bzw. ./files/custom/install.conf)
+* .\install.conf (bzw. ./install.conf)
+* Die jeweilige lokale opsiclientd.conf
+
+Kommandozeilen-Parameter haben immer Vorrang.
+
+// cspell: ignore Zeroconf, crypt, noreboot, Temp, interactive
+Sollte keine opsi-Service-URL angegeben werden, wird versucht, diese über Zeroconf zu ermitteln.
+
+Über die Parameter --depot und --group kann der client einem Depot und einer Hostgruppe zugeordnet werden (geht nur mit admin credentials).
+
+Mit dem Parameter --finalize kann festgelegt werden, wie die Installation abgeschlossen wird (default ist `"noreboot"` wobei der *opsiclientd* gestartet wird, ohne ein Event auszulösen).
+
+Hier noch ein Beispiel für eine install.conf zur Automatisierung der Installation:
+
+[source,bash]
+----
+client_id =
+service_address = server.domain.tld
+service_username = adminuser
+service_password = {crypt}w5TDjcOQw5PDjsOr
+dns_domain = subdomain.domain.tld
+interactive = false
+----
+
+Standardmäßig erstellt der oca-installation-helper eine Log-Datei (oca-installation-helper.log) im Temp-Verzeichnis des Benutzers.
+
+
+[[opsi-manual-clientagent-components]]
 == Komponenten
 
 Der opsi-Client-Agent besteht aus mehreren Komponenten:
@@ -44,14 +140,6 @@ Der opsi-Client-Agent besteht aus mehreren Komponenten:
 * `opsi-notifier`: Dialogfenster, um Anwender zu informieren (siehe Abschnitt <<opsi-manual-clientagent-opsi-notifier>>)
 * `opsi-login-blocker`: verhindert die Benutzeranmeldung, bis die Installation abgeschlossen ist (nur Windows)
 
-[[opsi-manual-clientagent-installation]]
-=== Installation
-
-Im Rahmen einer Neuinstallation eines Betriebssystems per unattended Setup über opsi wird der *opsi-client-agent* automatisch mit installiert.
-
-Zur Deinstallation kann der *opsi-client-agent* auf `uninstall` gesetzt werden.
-
-Zur nachträglichen Installation oder zu Reparaturzwecken siehe Kapitel <<opsi-manual-clientagent-subsequent-installation,Nachträgliche Installation des opsi-client-agents>>.
 
 [[opsi-manual-clientagent-opsiclientd]]
 === opsiclientd
@@ -123,7 +211,7 @@ image::opsiclientd-shutdown-notifier_timepicker.png["Abbildung: opsiclientd shut
 Zur Konfiguration der `opsiclientd shutdown notifier` siehe unten: <<opsi-manual-clientagent-config-shutdown-notifier,shutdown-notifier>>.
 
 [[opsi-manual-clientagent-event-flow]]
-=== Event-Ablauf
+== Event-Ablauf
 
 Der Ablauf der Aktionen, die in einem Event stattfinden, ist vielfältig konfigurierbar.
 Um die Konfigurations-Möglichkeiten zu verstehen, ist ein Verständnis der Ablauf-Logik notwendig.
@@ -185,12 +273,62 @@ Die genaue Fehlerbeschreibung ist jedoch in der `opsiclientd.log` im Log-Verzeic
 TIP: Der Ablauf des Event und auch die Aktionen des Benutzers sind in der Timeline auf der Info-Seite des *opsiclientd* sichtbar (siehe <<opsi-manual-clientagent-infopage,opsiclientd infopage>>).
 
 [[opsi-manual-clientagent-configuration]]
-=== Konfiguration
+== Konfiguration
 
 Im Folgenden wird die Konfiguration des *opsi-client-agent* vorgestellt.
+## bisschen mehr Inhalt, Event, Working Windows usw.
+
+Die Konfiguration des `opsiclientd` ist in der Datei `opsiclientd.conf` festgehalten. Die Standardwerte finden Sie unter https://github.com/opsi-org/opsiclientd/blob/devel/opsiclientd_data/windows/opsiclientd.conf
+Manuelle Änderungen an der Datei können bei Verbindung mit dem *opsi-Configserver* automatisch überschrieben werden, weshalb diese Möglichkeit nur zu test-Zwecken genutzt werden sollte.
+
+// cSpell:ignore notepad
+WARNING: Diese Konfigurationsdatei ist UTF-8 kodiert. Änderungen mit Editoren, die diese Kodierung nicht beherrschen (z.B. notepad.exe), zerstören die Umlaute in dieser Datei.
+
+Alternativ zur Konfigurationsdatei ...
+
+[[opsi-manual-clientagent-configuration-webservice]]
+=== Konfiguration über Webservice (Host-Parameter)
+
+Die Konfiguration kann zentral gesteuert werden. Hierzu dienen Einträge in den Host-Parametern des *opsi-Configserver*.
+
+Diese Einträge müssen dem folgenden Muster folgen:
+`opsiclientd.<name der section>.<name der option>`
+
+Ein Beispiel:
+`opsiclientd.event_gui_startup.action_warning_time = 20`
+setzt in der Konfigurationsdatei `opsiclientd.conf` in der Sektion `[event_gui_startup]` den Wert von `action_warning_time` auf 20.
+
+Die folgende Abbildung zeigt, wie diese Werte als Defaults für alle Clients über den *opsi-configed* gesetzt werden können.
+
+.Serverweite Konfiguration des opsiclientd über den opsi-configed
+image::opsiclientd-configuration-via-configed-serverdefault.png["Abbildung: Serverweite Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
+
+Hier kann über das Kontextmenü `Property hinzufügen` ein neuer Wert gesetzt werden.
+
+Alternativ können Sie das Anlegen und Löschen von Host-Parametern mit dem Werkzeug `opsi-cli` durchführen.
+Beispiel:
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.action_warning_time
+opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warning_time
+----
+
+Um Client-spezifische Einträge mit `opsi-cli` anzulegen oder zu löschen, verwenden Sie
+Beispiel:
+[source,shell]
+----
+opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client.domain.de" "120"
+opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client.domain.de"
+----
+
+Alternativ können über den *opsi-configed* client-spezifische Werte bearbeitet werden im 'Host-Parameter' Tab in der Client-Konfiguration.
+
+.Client-spezifische Konfiguration des opsiclientd über den opsi-configed
+image::opsiclientd-configuration-via-configed.png["Abbildung: Client spezifische Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
+
 
 [[opsi-manual-clientagent-configuration-events]]
-=== Konfiguration unterschiedlicher Events
+=== Events
 
 Um den vielen unterschiedlichen Situationen gerecht zu werden, in denen der *opsi-client-agent* aktiv werden kann, sind die Konfigurations-Möglichkeiten vielfältig.
 In der Konfiguration des `opsiclientd` leitet eine Sektion in der Form `[event_<Event Name>]` eine neue Event-Konfiguration ein.
@@ -287,14 +425,15 @@ Beispiel in der Nacht (Startzeit > Endzeit): working_window=20:00-07:00
 
 
 [[opsi-clientagent-configuration-ip-version]]
-=== Konfiguration der IP-Version
+=== IP-Version (IPv4/IPv6)
+
 Der opsiclientd unterstützt bei der Verbindung zum opsi-Service die Protokolle IPv4 und IPv6. Normalerweise wird das Protokoll beim Verbindungsaufbau automatisch gewählt.
 Es gibt jedoch auch die Möglichkeit die zu verwendende Protokoll-Version fest zu konfigurieren.
 Hierfür kann in der Sektion "global" der opsiclientd.conf die Option "ip_version" verwendet werden. Mögliche Werte sind "4" (IPv4 verwenden), "6" (IPv6 verwenden) und "auto" (Protokoll automatisch wählen, Standardwert).
 
 
 [[opsi-clientagent-configuration-proxy]]
-=== Proxy-Konfiguration
+=== Proxyserver
 
 Über den Host-Parameter `opsiclientd.global.proxy_url` kann die Verwendung eines HTTP(S)-Proxy konfiguriert werden. Der Wert folgt dem Schema
 `http://<user>:<password>@<proxy-url>:<proxy-port>` also z.B. http://proxyuser:proxypass123@proxy.domain.local:8080
@@ -314,7 +453,9 @@ proxy_url = <url>::
 
 
 [[opsi-manual-clientagent-configuration-eventcontrol_over_productgroups]]
-=== Steuerung der verarbeiteten Produkte pro Event
+=== Produktgruppen
+
+Steuerung der verarbeiteten Produkte pro Event
 
 Mit diesem neuen Feature ist es über die Konfiguration möglich, die Liste der ab zu bearbeitenden Produkte über Produktgruppen zu steuern.
 
@@ -334,58 +475,9 @@ WARNING: Für Clients, die das Modul WAN/VPN aktiviert haben, muss man diese Opt
 
 WARNING: Produktabhängigkeiten werden bei diesem Feature nicht berücksichtigt. Bitte achten Sie darauf, dass Sie bei der Konfiguration keine Abhängigkeiten außer Kraft setzen.
 
-[[opsi-manual-clientagent-configuration-file]]
-=== Konfiguration über die Konfigurationsdatei
-
-Die Konfiguration des `opsiclientd` ist in der Datei `opsiclientd.conf` festgehalten. Die Standardwerte finden Sie unter https://github.com/opsi-org/opsiclientd/blob/devel/opsiclientd_data/windows/opsiclientd.conf
-Manuelle Änderungen an der Datei können bei Verbindung mit dem *opsi-Configserver* automatisch überschrieben werden, weshalb diese Möglichkeit nur zu test-Zwecken genutzt werden sollte.
-
-// cSpell:ignore notepad
-WARNING: Diese Konfigurationsdatei ist UTF-8 kodiert. Änderungen mit Editoren, die diese Kodierung nicht beherrschen (z.B. notepad.exe), zerstören die Umlaute in dieser Datei.
-
-
-[[opsi-manual-clientagent-configuration-webservice]]
-=== Konfiguration über den Webservice (Host-Parameter)
-
-Die Konfiguration kann zentral gesteuert werden. Hierzu dienen Einträge in den Host-Parametern des *opsi-Configserver*.
-
-Diese Einträge müssen dem folgenden Muster folgen:
-`opsiclientd.<name der section>.<name der option>`
-
-Ein Beispiel:
-`opsiclientd.event_gui_startup.action_warning_time = 20`
-setzt in der Konfigurationsdatei `opsiclientd.conf` in der Sektion `[event_gui_startup]` den Wert von `action_warning_time` auf 20.
-
-Die folgende Abbildung zeigt, wie diese Werte als Defaults für alle Clients über den *opsi-configed* gesetzt werden können.
-
-.Serverweite Konfiguration des opsiclientd über den opsi-configed
-image::opsiclientd-configuration-via-configed-serverdefault.png["Abbildung: Serverweite Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
-
-Hier kann über das Kontextmenü `Property hinzufügen` ein neuer Wert gesetzt werden.
-
-Alternativ können Sie das Anlegen und Löschen von Host-Parametern mit dem Werkzeug `opsi-cli` durchführen.
-Beispiel:
-[source,shell]
-----
-opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.action_warning_time
-opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warning_time
-----
-
-Um Client-spezifische Einträge mit `opsi-cli` anzulegen oder zu löschen, verwenden Sie
-Beispiel:
-[source,shell]
-----
-opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client.domain.de" "120"
-opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client.domain.de"
-----
-
-Alternativ können über den *opsi-configed* client-spezifische Werte bearbeitet werden im 'Host-Parameter' Tab in der Client-Konfiguration.
-
-.Client-spezifische Konfiguration des opsiclientd über den opsi-configed
-image::opsiclientd-configuration-via-configed.png["Abbildung: Client spezifische Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
-
 [[opsi-manual-clientagent-logging]]
-=== Logging
+=== Logfiles
+
 // cSpell:ignore clientconnect
 Die Log-Informationen des `opsiclientd` werden auch an den *opsi-Configserver* übertragen.
 Dort liegen sie unter '/var/log/opsi/clientconnect/<ip-bzw.-name-des-clients>.log'.
@@ -409,9 +501,9 @@ image::opsiclientd_infopage_event_on_demand.png["Abbildung: Info-Page des opsicl
 
 
 [[opsi-manual-clientagent-control]]
-=== Fernsteuerung des opsi-client-agent
+== Fernsteuerung
 
-Der `opsiclientd` verfügt über eine Webservice-Schnittstelle.
+Der `opsiclientd` verfügt über eine Webservice-Schnittstelle. (Link auf Webservice-Abschnitt)
 Diese ermöglicht es, dem opsi-client-agent Anweisungen zu übermitteln und Vieles mehr.
 Beispiele für solche Anweisungen sind:
 
@@ -449,7 +541,7 @@ opsi-cli jsonrpc execute hostControlSafe_showPopup "Ein Text..." "client.uib.loc
 ----
 
 [[opsi-manual-clientagent-control-fire-event]]
-==== 'Push'-Installationen: Event 'on demand' auslösen
+=== 'Push'-Installationen: Event 'on demand' auslösen
 
 Vom opsi-Server aus kann der Client aufgefordert werden, die gesetzten action-requests auszuführen.
 
@@ -471,7 +563,7 @@ opsi-cli jsonrpc execute hostControlSafe_fireEvent "on_demand" "client.uib.local
 ----
 
 [[opsi-manual-clientagent-control-misc]]
-=== Sonstige Wartungsarbeiten (shutdown, reboot, ...)
+== Wartungsarbeiten (Shutdown/Reboot)
 
 Über den Webservice des `opsiclientd` ist es möglich, steuernd auf den *opsi-client-agent* einzuwirken.
 Authentifizierung funktioniert entweder mittels des lokalen Administrator-Accounts (ein leeres Passwort ist unzulässig)
@@ -498,7 +590,7 @@ opsi-cli jsonrpc execute hostControlSafe_reboot *hostIds
 
 //cspell: ignore corporate
 [[opsi-manual-clientagent-ci]]
-== Anpassen des opsi-client-agent an Corporate Identity (CI)
+== Client-Agent an Corporate Identity (CI) anpassen
 
 Die Anpassung des Erscheinungsbildes des *opsi-client-agent* kann insbesondere bei der Einführung erheblich zur Akzeptanz beitragen. So kann z.B. durch das Einfügen eines bekannten Firmenlogos in die Hintergrundgrafiken eine Verunsicherung der Anwender vermieden werden.
 
@@ -509,7 +601,8 @@ Als Hintergrund Grafikformate kommt eine Vielzahl unterschiedlicher Bitmap Forma
 
 //cspell: ignore depot, skin
 [[opsi-manual-clientagent-ci-opsi-script]]
-=== Anzupassende Elemente: opsi-script
+=== *opsi-script*
+
 Die Dateien, die Sie beim *opsi-script* anpassen können, finden Sie im Verzeichnis `/var/lib/opsi/depot/opsi-client-agent/files/opsi-script/skin`:
 
 bg.png::
@@ -519,7 +612,8 @@ skin.ini::
 Die Konfigurationsdatei in der festgelegt ist, an welcher Stelle, mit welchem Font und Farbe Textmeldungen eingeblendet werden.
 
 [[opsi-manual-clientagent-ci-opsiclientd]]
-=== Anzupassende Elemente: opsiclientd
+=== *opsiclientd*
+
 Im Verzeichnis
 `/var/lib/opsi/depot/opsi-client-agent/files/opsi-notifier`
 finden sich die Dateien welche das Erscheinungsbild der unterschiedlichen Notifier bestimmen.
@@ -540,7 +634,7 @@ userlogin.bmp:: Hintergrundbild des notifiers, der ein aktives userlogin Event a
 userlogin.ini:: Konfigurationsdatei des UserLogin notifiers.
 
 [[opsi-manual-clientagent-ci-custom]]
-=== Schutz Ihrer Änderungen vor Updates: Das custom Verzeichnis
+=== Das Verzeichnis *custom* 
 
 Möchten Sie Änderungen, welche Sie an den oben genannten Dateien durchgeführt haben, davor schützen, dass selbige beim Einspielen einer neuen Version des opsi-client-agenten verloren gehen, so können Sie hierfür das `custom` Verzeichnis (`/var/lib/opsi/depot/opsi-client-agent/files/custom`) verwenden. Das komplette `custom` Verzeichnis wird bei der Installation einer neuen Version des opsi-client-agenten gesichert und wieder hergestellt, so dass hier gemachte Änderungen bei einem Update nicht verloren gehen.
 
@@ -558,91 +652,9 @@ opsi-setup --set-rights /var/lib/opsi/depot/opsi-client-agent
 ----
 
 
-[[opsi-manual-clientagent-subsequent-installation]]
-== Nachträgliche Installation des opsi-client-agents
-
-Der *opsi-client-agent* kann auf verschiedene Weise installiert werden:
-
-// Kann xref:clients:windows-client/win-client-agent.adoc#opsi-manual-client-agent-msi hier nicht verlinken
-// cspell: ignore installer, help
-* Im Rahmen einer Betriebssysteminstallation
-* Manuell aus einem (Depot-)Verzeichnis durch den oca-installation-helper[.exe]
-* Per Push vom Server aus (`opsi-deploy-client-agent`)
-* Über den Installer (`opsi-client-agent-installer.exe`, `opsi-linux-client-agent-installer.run`, `opsi-mac-client-agent-installer.command`)
-* Über das MSI-Paket (`opsi-client-agent.msi` - nur windows
-* Im opsi-Service-Kontext (*opsi-client-agent* aktualisiert sich selbst)
-
-Außer beim Upgrade im opsi-Service-Kontext kommt hierbei immer die neue oca-installation-helper[.exe] zum Einsatz.
-Diese erfüllt im wesentlichen die folgenden Zwecke:
-
-* Die Installationsdateien werden, wenn notwendig, in ein lokales temporäres Verzeichnis kopiert (z.B. Aufruf per UNC-Pfad).
-* Es wird ein Dialog-Fenster angezeigt, in dem Parameter zur Installations-Steuerung eingegeben werden können.
-* Der Client wird am opsi-Service erzeugt, falls er noch nicht existiert.
-* opsi-script wird gestartet und führt die eigentliche Installation durch.
-
-Die Installation baut in jedem Fall eine Service-Verbindung auf, sodass, unabhängig vom Installations-Modus, immer die Product-Properties vom Server verwendet werden.
-
-Die oca-installation-helper[.exe] kennt einige Parameter die per `oca-installation-helper --help` angezeigt werden können.
-Mittels dieser Parameter kann die Installation automatisiert werden:
-
-// cspell: ignore adminuser, crypt, encode
-[source,bash]
-----
-oca-installation-helper --service-address https://10.1.2.3:4447 --service-username adminuser --service-password secret --non-interactive
-----
-
-Auch die opsi-client-agent-installer[.exe] nimmt die gleichen Parameter entgegen.
-Der Installer kann von einem opsi Server ohne Authentifizierung über die folgende Adresse heruntergeladen werden
-(analog für opsi-linux-client-agent-installer.run und opsi-mac-client-agent-installer.command):
-
-`https://<opsi-server>:4447/public/opsi-client-agent/opsi-client-agent-installer.exe`
-
-Das ist bei einer manuellen Installation in der Regel einfacher als auf den Depot-Share zuzugreifen.
-
-Das "service-password" kann auch verschlüsselt verwendet werden:
-
-[source,bash]
-----
-oca-installation-helper --service-password {crypt}w5TDjcOQw5PDjsOr
-----
-
-Die Verschlüsselung erfolgt dabei über:
-
-[source,bash]
-----
-oca-installation-helper --encode-password <Klartext-Passwort>
-----
-
-Beim Start der manuellen Installation werden zusätzlich folgende Konfigurations-Dateien (sofern vorhanden) mit absteigender Priorität ausgewertet, um die Parameter zu befüllen:
-
-* .\files\custom\install.conf (bzw. ./files/custom/install.conf)
-* .\install.conf (bzw. ./install.conf)
-* Die jeweilige lokale opsiclientd.conf
-
-Kommandozeilen-Parameter haben immer Vorrang.
-
-// cspell: ignore Zeroconf, crypt, noreboot, Temp, interactive
-Sollte keine opsi-Service-URL angegeben werden, wird versucht, diese über Zeroconf zu ermitteln.
-
-Über die Parameter --depot und --group kann der client einem Depot und einer Hostgruppe zugeordnet werden (geht nur mit admin credentials).
-
-Mit dem Parameter --finalize kann festgelegt werden, wie die Installation abgeschlossen wird (default ist `"noreboot"` wobei der *opsiclientd* gestartet wird, ohne ein Event auszulösen).
-
-Hier noch ein Beispiel für eine install.conf zur Automatisierung der Installation:
-
-[source,bash]
-----
-client_id =
-service_address = server.domain.tld
-service_username = adminuser
-service_password = {crypt}w5TDjcOQw5PDjsOr
-dns_domain = subdomain.domain.tld
-interactive = false
-----
-
-Standardmäßig erstellt der oca-installation-helper eine Log-Datei (oca-installation-helper.log) im Temp-Verzeichnis des Benutzers.
 
 // cspell: ignore systray, systray_check_interval, productid, productname, productversion
+
 [[opsi-manual-clientagent-systray-program]]
 == Das Systray Programm des opsi-client-agents
 
@@ -674,6 +686,7 @@ Log-Dateien des `opsi-client-systray` werden im log-Verzeichnis des users abgele
 //Siehe auch Kapitel xref:modules/software-on-demand#software-on-demand[opsi Software On Demand (Kiosk-Mode)]
 
 
+##das hier nach oben?
 [[opsi_manual_opsi-client-agent_webapi]]
 == opsi-client-agent web service
 
