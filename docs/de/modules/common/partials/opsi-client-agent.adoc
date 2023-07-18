@@ -133,19 +133,31 @@ Der opsi-Client-Agent besteht aus mehreren Komponenten:
 
 * `opsiclientd`: der zentrale Client-Agent-Dienst (siehe Abschnitt <<opsi-manual-clientagent-opsiclientd>>)
 * `opsi-notifier`: Dialogfenster, um Anwender zu informieren (siehe Abschnitt <<opsi-manual-clientagent-opsi-notifier>>)
-* `opsi-login-blocker`: verhindert die Benutzeranmeldung, bis die Installation abgeschlossen ist (nur Windows)
-
+* `opsi-login-blocker`: verhindert die Benutzeranmeldung, bis die Installation abgeschlossen ist (nur Windows, siehe Abschnitt <<opsi-manual-clientagent-opsi-notifier>>)
 
 [[opsi-manual-clientagent-opsiclientd]]
-=== opsiclientd
+=== *opsiclientd*
 
-Wesentliche Funktionen des opsiclientd sind:
+Der zentrale Client-Agent-Dienst heißt `opsiclientd`. Der Service läuft die ganze Zeit und übernimmt mehrere Aufgaben. Seine wesentlichen Funktionen und Features sind:
 
-* Event basierte Steuerung: Es kann auf unterschiedliche Events im System reagiert werden.
-Ein Event ist zum Beispiel der Start des `opsiclientd` Dienstes.
+er kann zu bestimmten Situationen noch einmal besonders aktiv werden -- unabhängig davon, dass er eh die ganze Zeit läuft, er wartet, besondere Aktivitäten heißen Events. Wenn ein Event tatsächlich stattfindet, passiert das: `opsiclientd` nimmt Kontakt zum opsi-Server auf, authentifiziert sich, fragt, ob es Aufgaben für ihn gibt. Der opsi-Server schaut ins Backend und antwortet z.B: ja, Du brauchst einen neuen Firefox, den holst Du Dir aus dem folgenden Depot, hier ist das Passwort. `opsiclientd` mountet die entsprechende Freigabe (Share), startet opsi-script mit den richtigen Credentials für den Service, opsi-script schaut nach, welche Dinge installiert werden müssen, holt sich die Pakete und installiert. Wenn opsi-script fertig ist, sorgt `opsiclientd` dafür, dass die Freigabe wieder ausgehängt wird und bei Bedarf führt er einen Reboot aus. Das ist der eigentliche Kern des Event-Ablaufs.
 
-* Steuerung über Webservice: Auf den Webservice des `opsiclientd` kann über das Netzwerk zugegriffen werden.
-Diese Schnittstelle dient zum Anstoßen von Installationen (`push`) aber auch zu Wartungszwecken.
+* *Event-basierte Steuerung*: Der `opsiclientd` kann auf verschiedene Events im System reagieren. Ein Beispiel für ein solches Event ist der Start des `opsiclientd`-Dienstes.
+
+* *Steuerung über Webservice*: Der Zugriff auf diese Schnittstelle ist über das Netzwerk möglich; sie dient zum Anstoßen von Installationen (`push`) und auch zu Wartungszwecken.
+
+* *Remote Konfiguration*: 
+
+3. **Remote Konfiguration:** Alle wichtigen Konfigurationsdaten des `opsiclientd` lassen sich zentral über die Host-Parameter global oder client-spezifisch bearbeiten.
+
+4. **Kontakt mit dem opsi-Configserver bei konfigurierten Events:** Sobald die konfigurierten Events auftreten, nimmt der `opsiclientd` Kontakt zum *opsi-Configserver* auf. Dabei werden Konfigurationen und anstehende `action-requests` per JSON-RPC abgefragt. Ein Standard-Event ist beispielsweise `gui_startup`, das beim Start des Rechners (Start der GUI) und somit vor dem Login aktiv wird.
+
+5. **Interaktion mit dem Anwender über den opsi-notifier:** Der `opsiclientd` startet den *opsi-notifier*, um mit dem Anwender zu interagieren und Informationen zu kommunizieren.
+
+6. **Verbindung zum opsi-Depot und Verarbeitung von `action-requests`:** Bei Bedarf stellt der `opsiclientd` eine Verbindung zum *opsi-Depot* her, aktualisiert die lokale Installation des *opsi-script* und führt diesen zur Bearbeitung der anstehenden `action-requests` (Installationen und Deinstallationen) aus.
+
+Durch diese Mechanismen bietet der `opsiclientd` eine umfassende Kontrolle und Konfiguration von Installationen und Wartungsarbeiten in einem zentralen oder verteilten Netzwerkumfeld.
+
 
 * Remote Konfiguration: Alle wesentlichen Konfigurationsdaten des `opsiclientd` lassen sich zentral über
 die Host-Parameter global oder Client-spezifisch bearbeiten.
@@ -161,7 +173,7 @@ und startet diesen zur Bearbeitung der anstehenden `action-requests` (Installati
 
 // cSpell:ignore notifier
 [[opsi-manual-clientagent-opsi-notifier]]
-=== opsi-notifier
+=== *opsi-notifier*/*opsi-login-blocker*
 
 Der *opsi-notifier* realisiert die Interaktion mit dem Anwender.
 Hier werden sowohl Statusmeldungen des `opsiclientd` ausgegeben als auch Dialoge, die zur Steuerung des `opsiclientd` dienen.
