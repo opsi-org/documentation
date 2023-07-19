@@ -49,21 +49,26 @@ Microsoft recommends a 32-Bit PE for 32-bit installations, and a 64-Bit PE for 6
 '"To install a 64-bit version of Windows you must use a 64-bit version of Windows PE. Likewise, to install a 32-bit version of Windows, you must use a 32-bit version of Windows PE."' +
 https://technet.microsoft.com/en-us/library/cc766093.aspx
 
-Iny any case you will need an "Assessment and Deployment Kit" (ADK, Windows 8.1 or 10), or its predecessor "Windows Automated Installation Kit" (Windows AIK; until Windows 7), which you install on a supported (preferably 64-bit) Windows OS: +
 
-* link:https://docs.microsoft.com/en-us/windows-hardware/get-started/adk-install[Windows 10 / 8.1 ADK]
+In any case you will need an "Windows PE add-on for the Assessment and Deployment Kit" (ADK, Windows 10 or 11), 
+// or its predecessor "Windows Automated Installation Kit" (Windows AIK; until Windows 7), 
+//
+which you install on a supported (preferably 64-bit) Windows OS: +
+
+* link:https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install[Windows ADK und Add-Ons]
+
 
 Install the Windows PE Add-On for ADK (if possible on a 64-bit machine) in the suggested path under `Program Files (x86)`. Select only the "Windows Pre-Installation Environment (Windows PE)"; Dependencies are automatically selected. +
-
+////
 * link: https://www.microsoft.com/downloads/details.aspx?displaylang=en&FamilyID=696dd665-9f76-4177-a811-39c26d3b3b34[WAIK Windows 7]
 
 This site provides you with an ISO file, which may then be burned to a CD or mounted, and then installed.
-
+////
 
 [[firststeps-osinstall-fill-base-packages-nt6-pe]]
 ==== Creating a PE
 
-The simplest method requires a computer that has opsi-client-agent installed, as well as the Windows ADK (Win8.1, Win10).
+The simplest method requires a computer that has opsi-client-agent installed, as well as the Windows ADK (Win10, Win11).
 The manual method is described below in <<firststeps-osinstall-fill-base-packages-nt6-pe-manual>>.
 
 [[firststeps-osinstall-fill-base-packages-nt6-pe-opsi]]
@@ -71,6 +76,7 @@ The manual method is described below in <<firststeps-osinstall-fill-base-package
 
 * Using opsi-configed set the localboot-product `opsi-winpe` to `once` for the client you intend to use, if desired adjust the product property to `x86` instead of `x64` at the lower right side, and save (right click > save).
 * If the opsi-product `opsi-winpe` is missing, install it onto your {opsi-Server} with the command `opsi-package-updater -v install opsi-winpe`.
+* If storage drivers need to be integrated automatically, follow the method described below in <<firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi>>.
 * Launch an installation event for the client (right click > _on-demand_, or reboot).
 * After a successful completion of this action, move or copy the contents of the now existing folder on your client `C:\winpe_<ARCH>\media\` into the pre-existing folder within the OS folder you want to install: `\\opsiserver\opsi_depot_rw\<operating system>\winpe\`
 * Finally run the following command on the console of your opsi server. Finished.
@@ -81,7 +87,7 @@ opsi-set-rights
 
 
 [[firststeps-osinstall-fill-base-packages-nt6-pe-manual]]
-===== Manual PE creation for Windows 10 & Windows 8 (ADK)
+===== Manual PE creation for Windows 10 & Windows 11 (ADK)
 
 The console commands are very similar in 32- or 64-bit versions, except for the *<ARCH>* entries. These have to be replaced with either *x86* , *amd64* or *ia64*.
 
@@ -119,12 +125,12 @@ Adjust the access rights by entering:
 opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
 ----
 
-
+////
 ===== Manual PE creation for Windows 7 (WAIK)
 
 The console commands are very similar in 32- or 64-bit versions, except for the *<ARCH>* entries. These have to be replaced with either *x86* , *amd64* or *ia64*.
 
-Start a command prompt as Administrator with elevated rights (Start => Programs => Accessories => right click on "Command Prompt" => "Run as" => Administrator).
+Start a command prompt as Administrator with elevated rights.
 
 * Copy the WinPE
 [source,shell]
@@ -164,16 +170,58 @@ Adjust the access rights by entering:
 opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
 ----
 
+
+////
+
 [[firststeps-osinstall-fill-base-packages-nt6-extendpe]]
 ==== Extending a PE
 
-In some cases it is useful to extend a PE. Especially when using Dell-Hardware. Dell provides special network and storage drivers specially recommended for use in a PE. These instructions only work with Windows 7. (Windows Vista does not inherit the needed DISM- Deployment Image Servicing and Management.) These instructions assume that you have already completed the previous chapter and have created a PE.
+In some cases it is useful to extend a PE. Especially with hardware that is not supported by default in the PE.
+
+[[firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi]]
+===== Extending a PE using opsi
+
+While automatically creating a PE with opsi-winpe, there is also an option to integrate drivers. Only integrate the drivers that are absolutely necessary to make windows setup work properly. For instance, storage and network devices that are not supported in the PE, which then cause the installation to fail.
+
+Copy the drivers to `\\opsiserver\opsi_depot_rw\opsi-winpe\drivers\` and set the access rights by running:
+[source,prompt]
+----
+opsi-set-rights /var/lib/opsi/depot/opsi-winpe
+----
+
+After this, just follow the steps in: <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>
+If everything has worked correctly there will be a mention of the integrated drivers in the logfile. This is an example when a VirtIO storage controller has been integrated:
+[source,opsiscript]
+----
+comment: Driver           : oem0.inf
+comment: OriginalFileName : C:\winpe_amd64\mount\Windows\System32\DriverStore\FileRepository\viostor.inf_amd64_aa6c91b5db55ab62\
+comment:                    viostor.inf
+comment: Inbox            : False
+comment: ClassName        : SCSIAdapter
+comment: BootCritical     : True
+comment: ProviderName     : Red Hat, Inc.
+comment: Date             : 15-11-2022 00:00:00
+comment: Version          : 100.92.104.22900
+----
+
+[[firststeps-osinstall-fill-base-packages-nt6-extendpe-manual]]
+===== Extending a PE manually
+
+Dell provides special network and storage drivers specially recommended for use in a PE. 
+// These instructions only work with Windows 7. (Windows Vista does not inherit the needed DISM- Deployment Image Servicing and Management.) 
+//
+These instructions assume that you have already completed the previous chapter and have created a PE.
+
 
 NOTE: The Windows Automated Installation Kit is not needed for following instructions.
 
-The first step is to download Dell-PE-drivers from the Dell-Website. For Windows 7, you will need the WINPE 3.0 Drivers from Dell. The downloaded CAB-File must be extracted to the local disk. This can be done with 7-zip or the command-line-tool Expand.exe. For simplicity, we recommend creating a directory called "dell-driver" on the local disk, and then extracting the CAB-File into this directory.
+The first step is to download Dell-PE-drivers from the Dell-Website. 
+// For Windows 7, you will need the WINPE 3.0 Drivers from Dell. 
+//
+The downloaded CAB-File must be extracted to the local disk. This can be done with 7-zip or the command-line-tool Expand.exe. For simplicity, we recommend creating a directory called "dell-driver" on the local disk, and then extracting the CAB-File into this directory.
 
-* First dism is used to scan the image, in order to determine the required index number. Start a command prompt as administrator (Start => Programs => Accessories => right click on "Command Prompt" => "Run as" => (Administrator) and run the following command:
+
+* First dism is used to scan the image, in order to determine the required index number. Start an elevated command prompt as administrator and run the following command:
 [source,shell]
 ----
 dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
@@ -214,12 +262,14 @@ opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
 [[firststeps-osinstall-fill-base-packages-nt6-unattend]]
 ==== unattend.xml
 
-The control file for the unattended installation is the XML file `unattend.xml`, which you can find under `/var/lib/opsi/depot/win7/custom`.
+The control file for the unattended installation is the XML file `unattend.xml`, which you can find under `/var/lib/opsi/depot/<productid>/custom`.
 Any modifications to this file should be made in this directory and not in the opsi directory.
 
 The file `unattend.xml` that comes with the opsi package, contains references to the netboot productproperties, which among other things is responsible for activating the Administrator account with the password 'nt123'.
 
+////
 Documentation for `unattend.xml` can be found in the directory `C:\Program Files\Windows\Waik\docs\chms`, after installing the WAIK.
+////
 
 [[firststeps-osinstall-fill-base-packages-nt6-drivers]]
 ==== Driver Integration
