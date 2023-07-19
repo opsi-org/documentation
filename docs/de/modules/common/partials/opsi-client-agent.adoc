@@ -155,72 +155,66 @@ Der zentrale Client-Agent-Dienst heißt `opsiclientd`. Der Service läuft dauerh
 // cSpell:ignore notifier
 [[opsi-manual-clientagent-opsi-notifier]]
 === *opsi-notifier*/*opsi-login-blocker*
+//TODO: neue Screenshots für opsiclientd-action-notifier.png und opsiclientd-shutdown-notifier_timepicker.png, einheitlich, gleiche Größe/Font
 
 Der `opsi-notifier` dient zur Interaktion mit den Anwendern. Er gibt einerseits `opsiclientd`-Statusmeldungen und andererseits Dialoge zum Steuern des `opsiclientd` aus. Konfigurationsdateien definieren jeweils die Funktion und das Erscheinungsbild der Dialoge. 
 
 Der `opsi-notifier` kann in unterschiedlichen Situationen erscheinen und jeweils anders aussehen:
 
-blocklogin notifier::
+Blocklogin Notifier::
 Sie sehen diesen Notifier, während der opsi-Loginblocker aktiv ist (siehe Abschnitt <<opsi-manual-client-agent-opsi-login-blocker>>). In der Voreinstellung sehen Sie ein Vorhängeschloss in der Ecke rechts oben auf dem Bildschirm.
 
-.opsiclientd blocklogin notifier
-image::opsiclientd-blocklogin-notifier.png["Abbildung: opsiclientd blocklogin notifier", pdfwidth=15%]
+.`opsiclientd`: Blocklogin Notifier
+image::opsiclientd-blocklogin-notifier.png["`opsiclientd`: Blocklogin Notifier", pdfwidth=15%]
 
-event notifier::
+Event Notifier::
 Startet beim Auftreten eines Events, gibt Informationen zum Event-Ablauf aus und bietet die Möglichkeit,
 die Bearbeitung eines Events abzubrechen.
 
-.opsiclientd event notifier
-image::opsiclientd-event-notifier.png["Abbildung: opsiclientd event notifier", pdfwidth=30%]
+.`opsiclientd`: Event Notifier
+image::opsiclientd-event-notifier.png["`opsiclientd`: Event Notifier", pdfwidth=30%]
 
-action notifier::
+Action Notifier::
 Der Notifier startet, wenn Aktionen ausgeführt werden sollen. Er bietet die Möglichkeit, diese abzubrechen und damit zu einem anderen Zeitpunkt auszuführen.
 
-.opsiclientd action notifier
-image::opsiclientd-action-notifier.png["Abbildung: opsiclientd action notifier", pdfwidth=30%]
+[[action-notifier]]
+.`opsiclientd`: Action Notifier
+image::opsiclientd-action-notifier.png["`opsiclientd`: Action Notifier", pdfwidth=30%]
 
-shutdown notifier::
+Shutdown Notifier::
 Startet, wenn ein Shutdown/Reboot auf dem Client ausgeführt werden soll. Es gibt die Möglichkeit, den Vorgang abzubrechen oder aus einem Drop-down-Menü einen anderen Zeitpunkt auszuwählen.
 
 // cSpell:ignore timepicker
-.opsiclientd shutdown notifier timepicker
+.`opsiclientd`: Shutdown Notifier mit Zeitauswahl (`timepicker`)
 [[opsi-manual-clientagent-image-shutdown-notifier_timepicker]]
-image::opsiclientd-shutdown-notifier_timepicker.png["Abbildung: opsiclientd shutdown notifier mit Zeitauswahl per Dropdown", pdfwidth=30%]
+image::opsiclientd-shutdown-notifier_timepicker.png["`opsiclientd`: Shutdown Notifier mit Zeitauswahl (`timepicker`)", pdfwidth=30%]
 
-TIP: Mehr zur Konfiguration des `opsiclientd shutdown notifier` lesen Sie im nächsten Abschnitt, in dem es um den Ablauf von Events und die wichtigsten Parameter geht.
+TIP: Mehr zur Konfiguration des Shutdown Notifiers lesen Sie im nächsten Abschnitt, in dem es um den Ablauf von Events und die wichtigsten Parameter zur Steuerung von Events geht.
 
 [[opsi-manual-clientagent-event-flow]]
 == Event-Ablauf
 
-Der Ablauf der Aktionen, die in einem Event stattfinden, ist vielfältig konfigurierbar.
-Um die Konfigurations-Möglichkeiten zu verstehen, ist ein Verständnis der Ablauf-Logik notwendig.
-Es folgt zunächst ein Überblick über den Ablauf eines "Standard-Events" bei dem der opsi-Configserver gefragt wird,
-ob Aktionen auszuführen sind (z.B. `event_gui_startup`).
+Wie bereits erwähnt läuft der Dienst `opsiclientd` permanent im Hintergrund und startet in bestimmten Situationen Events. Nachdem der `opsiclientd` Kontakt zum opsi-Server aufgenommen und sich authentifiziert hat, fragt er nach anstehenden Aktionen. Gibt es beispielsweise eine neue Version eines Programms, übermittelt der Server diese Information und teilt auch mit, aus welchem Depot der Client-Agent das Paket beziehen soll. Der `opsiclientd` mountet die entsprechende Freigabe (Share) und startet `opsi-script` mit den passenden Credentials für den Service. Nachdem `opsi-script` die Installation abgeschlossen hat, hängt der `opsiclientd` die Freigabe wieder aus und initiiert bei Bedarf einen Reboot des Clients.
 
-.Ablauf eines Standard-Events
-image::eventflowchsrt.png["Abbildung: Ablauf eines Standard-Events", pdfwidth=90%]
+Sie können die genaue Abfolge eines Events flexibel konfigurieren (siehe Abschnitt <<opsi-manual-clientagent-configuration-events>>). Um Einstellungen an Ihre Umgebung anzupassen, ist ein Verständnis der Ablauflogik wichtig. Daher zeigt Abbildung <<event-ablauf>> einen Überblick über den Ablauf eines Standard-Events (`event_gui_startup`) und die Kommunikation zwischen den opsi-Komponenten. 
 
-Die wichtigsten Parameter wirken hier wie folgt zusammen:
+NOTE: Inzwischen gibt es zusätzlich zum Event `event_gui_startup` für Windows auch das Event `event_startup` für Linux. Beide Events sind weitgehend identisch; sie werden ausgelöst, wenn der Dienst `opsiclientd` gestartet wird (also beim Booten des Clients). Dazu kommen Events, die starten, wenn der Client herunterfährt, wenn es eine Netzwerkverbindung gibt usw.
+
+[[event-ablauf]]
+.Der Ablauf eines Standard-Events im Überblick
+image::eventflowchsrt.png["Abbildung: Ablauf eines Standard-Events", pdfwidth=80%]
+
+Im Folgenden finden Sie den Ablauf noch einmal Schritt für Schritt zusammengefasst:
 
 // cSpell:ignore user_cancelable_after, action_user_cancelable, action_cancel_counter, shutdown_cancel_counter, shutdown_user_cancelable, shutdown_warning_repetition_time, shutdown_user_selectable_time
-. Tritt ein Event ein, wird der `event_notifier_command` ausgeführt.
-Nun wird versucht den konfigurierten *opsi-Configserver* über dessen URL zu erreichen.
-Konnte nach `user_cancelable_after` Sekunden keine Verbindung hergestellt werden, so wird im *opsi-notifier*
-der Button aktiviert, der das Abbrechen der Verbindungsaufnahme ermöglicht.
-Sobald die Verbindung zum *opsi-Configserver* hergestellt ist, ist ein Abbrechen nicht mehr möglich.
-Kann innerhalb von `connection_timeout` Sekunden keine Verbindung zum *opsi-Configserver* hergestellt werden,
-so wird das laufende Event mit einem Fehler beendet.
-Soll der User keine Möglichkeit zum Abbrechen haben, muss `user_cancelable_after` auf einen Wert größer oder gleich `connection_timeout` gesetzt werden.
 
-. Wird der *opsi-Configserver* erreicht, wird geprüft, ob Aktionen gesetzt sind.
-Sollen Aktionen ausgeführt werden wird der `action_notifier_command` ausgeführt.
-Dieser *opsi-notifier* zeigt die Liste der Produkte an, für die Aktionen gesetzt sind und ist `action_warning_time` Sekunden sichtbar.
-Ist die `action_warning_time` = 0 (Standard-Wert) wird kein `action_notifier_command` ausgeführt.
-Zusätzlich kann ermöglicht werden, das Bearbeiten der Aktionen auf einen späteren Zeitpunkt zu verschieben.
-Die Aktionen können hierbei `action_user_cancelable` mal verschoben werden.
-Nach Erreichen der maximalen Abbrüche oder im Fall von `action_user_cancelable` = 0 kann die Aktionen nicht mehr verschoben werden.
-In jedem Fall wird ein Button angezeigt, mit dem die Wartezeit abgebrochen und die Bearbeitung der Aktionen ohne weitere Verzögerung begonnen werden kann.
-Der Hinweis-Text, der im *opsi-notifier*` erscheint, ist über die Option `action_message` bzw `action_message[lang]` konfigurierbar.
+. Beim Start eines Events, wird `event_notifier_command` ausgeführt. Der Client versucht nun, Kontakt zum opsi-Configserver aufzunehmen. Wenn innerhalb von `connection_timeout` Sekunden keine Verbindung zum opsi-Configserver hergestellt werden kann, so wird das laufende Event mit einem Fehler beendet. Kann nach `user_cancelable_after` Sekunden keine Verbindung hergestellt werden, so wird im `opsi-notifier` ein Button aktiviert, über den der Benutzer die Verbindungsaufnahme abbrechen kann. Soll der Benutzer keine Möglichkeit zum Abbrechen haben, muss `user_cancelable_after` auf einen Wert größer oder gleich `connection_timeout` gesetzt werden. Beim Abbruch eines Events schickt der `opsiclientd` abschließend sein Logfile an den Service, und das Event ist zuende.
+
+. Sobald die Verbindung zum opsi-Configserver hergestellt ist, ist ein Abbrechen nicht mehr möglich. Kommt die Verbindung zustande, fragt der `opsiclientd` nach, ob es für den Client Action Requests gibt. Gibt es keine, ist das Event wiederum zuende. Existiert ein Action Request, wird zunächst geschaut, ob eine `action_warning_time` definiert ist. Der Standardwert ist 0; in dem Fall geht es ohne Action Notifier weiter, und es wird kein `action_notifier_command` ausgeführt.. Ist eine `action_warning_time` > 0 gesetzt, gibt die Zahl die Anzahl der Sekunden an, die der Notifier sichtbar ist. Der Action Notifier (siehe Abbildung <<action-notifier>>) meldet die anstehende Aktion und zeigt den Countdown an. Wenn der Benutzer nicht auf _Abbrechen_ klickt oder der Countdown abgelaufen ist, geht es automatisch weiter.
+
+NOTE: Ob es einen _Abbrechen_-Button gibt, hängt vom Paramter `action_user_cancelable` an. Ist die dahinter definierte Zahl > 0, kann der Benutzer die anstehende Aktion genau so viel mal verschieben. Nach Erreichen des Maximalwerts (oder bei `action_user_cancelable` = 0), kann der Anwender die Aktion nicht mehr verschieben. Ein Button, der die Wartezeit unterbricht und die Aktion ohne weitere Verzögerung startet, ist in jedem Fall sichtbar.
+
+. Der Hinweis-Text, der im *opsi-notifier* erscheint, ist über die Option `action_message` bzw `action_message[lang]` konfigurierbar.
 Innerhalb dieses Textes können die Platzhalter `%action_user_cancelable%` (Gesamtanzahl der möglichen Abbrüche)
 und `%action_cancel_counter%` (Anzahl der bereits erfolgten Abbrüche) verwendet werden.
 Wurden die Aktionen nicht vom User abgebrochen, wird der `action_cancel_counter` zurückgesetzt und der *opsi-script* startet mit deren Bearbeitung.
@@ -262,10 +256,18 @@ Manuelle Änderungen an der Datei können bei Verbindung mit dem *opsi-Configser
 // cSpell:ignore notepad
 WARNING: Diese Konfigurationsdatei ist UTF-8 kodiert. Änderungen mit Editoren, die diese Kodierung nicht beherrschen (z.B. notepad.exe), zerstören die Umlaute in dieser Datei.
 
-Alternativ zur Konfigurationsdatei ...
+##Datei abdrucken wie in 4.2?##
+
+Alternativ zur Konfigurationsdatei ... Überleitung
 
 [[opsi-manual-clientagent-configuration-webservice]]
-=== Konfiguration über Webservice (Host-Parameter)
+=== Konfiguration über Webservice
+
+Kurzeinführung: entweder configed oder opsi-cli
+
+hier Host-Parameter
+
+==== *opsi-configed*
 
 Die Konfiguration kann zentral gesteuert werden. Hierzu dienen Einträge in den Host-Parametern des *opsi-Configserver*.
 
@@ -276,6 +278,8 @@ Ein Beispiel:
 `opsiclientd.event_gui_startup.action_warning_time = 20`
 setzt in der Konfigurationsdatei `opsiclientd.conf` in der Sektion `[event_gui_startup]` den Wert von `action_warning_time` auf 20.
 
+* Alle Clients:
+
 Die folgende Abbildung zeigt, wie diese Werte als Defaults für alle Clients über den *opsi-configed* gesetzt werden können.
 
 .Serverweite Konfiguration des opsiclientd über den opsi-configed
@@ -283,9 +287,19 @@ image::opsiclientd-configuration-via-configed-serverdefault.png["Abbildung: Serv
 
 Hier kann über das Kontextmenü `Property hinzufügen` ein neuer Wert gesetzt werden.
 
+* Gezielt einzelne Clients:
+
+Alternativ können über den *opsi-configed* client-spezifische Werte bearbeitet werden im 'Host-Parameter' Tab in der Client-Konfiguration.
+
+.Client-spezifische Konfiguration des opsiclientd über den opsi-configed
+image::opsiclientd-configuration-via-configed.png["Abbildung: Client spezifische Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
+
+==== *opsi-cli*
+
 Alternativ können Sie das Anlegen und Löschen von Host-Parametern mit dem Werkzeug `opsi-cli` durchführen.
 Beispiel:
-[source,shell]
+
+[source,console]
 ----
 opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.action_warning_time
 opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warning_time
@@ -293,20 +307,15 @@ opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warn
 
 Um Client-spezifische Einträge mit `opsi-cli` anzulegen oder zu löschen, verwenden Sie
 Beispiel:
-[source,shell]
+
+[source,console]
 ----
 opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client.domain.de" "120"
 opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client.domain.de"
 ----
 
-Alternativ können über den *opsi-configed* client-spezifische Werte bearbeitet werden im 'Host-Parameter' Tab in der Client-Konfiguration.
-
-.Client-spezifische Konfiguration des opsiclientd über den opsi-configed
-image::opsiclientd-configuration-via-configed.png["Abbildung: Client spezifische Konfiguration des opsiclientd über den opsi-configed",pdfwidth=70%, width=70%]
-
-
 [[opsi-manual-clientagent-configuration-events]]
-=== Events
+=== Events konfigurieren
 
 Um den vielen unterschiedlichen Situationen gerecht zu werden, in denen der *opsi-client-agent* aktiv werden kann, sind die Konfigurations-Möglichkeiten vielfältig.
 In der Konfiguration des `opsiclientd` leitet eine Sektion in der Form `[event_<Event Name>]` eine neue Event-Konfiguration ein.
