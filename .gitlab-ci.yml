@@ -17,42 +17,6 @@ stages:
   cd ..
 
 
-.build_template: &build_template
-  stage: build
-  script: |
-    sudo apt update
-    sudo apt install -y curl git
-    curl -fsSL https://deb.nodesource.com/setup_16.x | bash -
-    sudo apt update
-    sudo apt install -y nodejs
-    sudo apt install -y build-essential
-    pwd 
-    ls
-    git --version
-    npm config set fetch-retry-mintimeout 20000
-    npm config set fetch-retry-maxtimeout 120000
-    npm i
-    npm install asciidoctor-interdoc-reftext
-    gem install asciidoctor-interdoc-reftext
-    gem install rouge
-    ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
-    echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi-$DOCUMENT.pdf"
-    if [[ "${DOCUMENT}" == "opsi"* ]]; then
-      test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-      test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
-    else
-      test -f build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
-      test -f build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
-    fi
-  artifacts:
-    paths:
-      - build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
-      - build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
-      - build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-      - build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
-    expire_in: 2 days
-
-
 build-antora-bonifax:
   stage: build
   script:
@@ -85,120 +49,36 @@ build-antora:
     expire_in: 8 hrs
 
 
-# - build jobs -
-de-getting-started:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: getting-started
-
-en-getting-started:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: getting-started
-
-de-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: manual
-
-en-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: manual
-
-de-script-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: opsi-script-manual
-
-en-script-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-manual
-
-de-releasenotes:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: releasenotes
-
-en-releasenotes:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: releasenotes
-
-de-macos-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: macos-client-manual
-
-en-macos-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: macos-client-manual
-
-de-windows-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: windows-client-manual
-
-de-linux-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: linux-client-manual
-
-en-windows-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: windows-client-manual
-
-en-linux-client-manual:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: linux-client-manual
-
-de-quickinstall:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: quickinstall
-
-en-quickinstall:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: quickinstall
-
-de-supportmatrix:
-  <<: *build_template
-  variables:
-    LANGUAGE: de
-    DOCUMENT: supportmatrix
-
-en-supportmatrix:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: supportmatrix
-
-en-opsi-script-reference-card:
-  <<: *build_template
-  variables:
-    LANGUAGE: en
-    DOCUMENT: opsi-script-reference-card
+build-pdf-html:
+  stage: build
+  script: | 
+    for LANGUAGE in de en
+    do
+      for DOCUMENT in getting-started manual opsi-script-manual releasenotes macos-client-manual windows-client-manual linux-client-manual quickinstall supportmatrix opsi-script-reference-card
+      do
+        if [ $DOCUMENT == 'opsi-script-reference-card' ] && [ $LANGUAGE == 'de' ] 
+        then
+          echo "skip opsi-script-reference-card de"
+          continue
+        fi
+        ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
+        echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi-$DOCUMENT.pdf"
+        if [[ "${DOCUMENT}" == "opsi"* ]]; then
+          test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
+          test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
+        else
+          test -f build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
+          test -f build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
+        fi
+      done
+    done
+  only:
+    - stable
+  artifacts:
+    paths:
+      - build/pdf
+      - build/html
+    expire_in: 2 days
 
 
 # Packaging and renaming of documents
