@@ -511,70 +511,68 @@ Zur Dokumentation siehe hier: xref:server:temporal-job-control.adoc#opsi-manual-
 
 
 [[opsi-manual-localboot-product-order]]
-== Beeinflussung der Installationsreihenfolge durch Prioritäten und Produktabhängigkeiten
+== Produktabhängigkeiten und Reihenfolgen von Produkt-Aktionen
 
-Seit opsi 4.0 wird die Installationsreihenfolge vom opsi-Server unter
-Berücksichtigung von Produktabhängigkeiten und Produktprioritäten berechnet.
+=== Produktprioritäten
+Produktprioritäten dienen dazu, bestimmte Pakete in der Reihenfolge nach vorne oder nach hinten zu schieben.
+So ist es z.B. sinnvoll Servicepacks und Patches an den Anfang einer Installation zu legen und eine Softwareinventarisierung an das Ende. +
+Produktprioritäten sind Zahlen zwischen 100 (höchste) und -100 (niedrigste).
+Keine Priorität (0) ist der Standardwert.
 
-* Produktabhängigkeiten +
-definieren Abhängigkeiten und notwendige Installationsreihenfolgen zwischen
-Produkt-Paketen. Typisches Beispiel ist die Abhängigkeit von Java Programmen von der Java Laufzeitumgebung (javavm).
+=== Produktabhängigkeiten
+Es können Abhängigkeiten zwischen Produkt-Paketen definiert werden.
+Diese Abhängigkeiten gelten immer für eine bestimmte Aktion (z.B. `setup`).
+Für unterschiedliche Aktionen können unterschiedliche Abhängigkeiten definiert werden.
 
-* Produktprioritäten +
-dienen dazu, bestimmte Pakete in der Installationsreihenfolge nach vorne oder nach hinten zu schieben. So ist es z.B. sinnvoll Servicepacks und Patches
-an den Anfang einer Installation zu legen und eine Softwareinventarisierung an
-das Ende. +
-Produktprioritäten sind Zahlen zwischen 100 und -100 (0 ist default)
+Produktabhängigkeiten besitzen die folgenden Attribute:
 
-Wie diese beiden Faktoren gegeneinander gewichtet werden sollen, kann
-unterschiedlich gesehen werden. Daher stellt opsi zwei Algorithmen zur Verfügung.
+productId:: Das Produkt für das die Abhängigkeit gilt.
+productAction:: Die Aktion für die die Abhängigkeit gilt (z.B.: `setup`, `uninstall`)
+requiredProductId:: Das Produkt zu dem die Abhängigkeit besteht.
+requiredProductVersion:: Eine genaue Produkt-Version des abhängigen Produktes (optional).
+requiredPackageVersion:: Eine genaue Paket-Version des abhängigen Produktes (optional).
+requiredInstallationStatus:: Der Installations-Status, den das abhängige Produkt erfüllen muss.
+requiredAction:: Eine Aktion, die für das abhängige Produkt gesetzt werden soll.
+requirementType:: Typ der Abhängigkeit (`before`, `after` oder undefiniert).
 
-Die Umstellung zwischen diesen Algorithmen erfolgt entweder:
 
-im 'opsi-configed' in der Server-Konfiguration
+Mit Produktabhängigkeiten ist es möglich einen Installations-Status eines anderen Produkts (`requiredInstallationStatus`) als Bedingung zu setzen.
+Beim Setzen einer Aktion, die eine solche Abhängigkeit definiert, wird dann auch eine Aktion für das abhängige Produkt gesetzt, wenn diese notwendig ist um die Bedingung zu erfüllen.
 
-.'opsi-configed': Serverkonfiguration
-image::configed_serverconfiguration.png[pdfwidth=90%]
+*Hierzu ein Beispiel*: +
+Die Software *LibreOffice* (Produkt: `libreoffice`) benötigt für gewisse Features ein installiertes *Java Runtime Enviroment* (Produkt: `jre`). +
+Das kann mit der folgenden Produktabhängigkeit abgebildet werden: +
+`productId`: `libreoffice` +
+`requiredProductId`: `jre` +
+`requiredInstallationStatus`: `installed` +
 
-oder auf der Kommandozeile mit folgendem Befehl:
-[source, shell]
-----
-opsi-setup --edit-config-defaults
-----
+Wenn die Bedingung zwingend vor (`before`) oder nach (`after`) der Aktion erfüllt sein muss, kann der Typ der Abhängigkeit entsprechend gesetzt werden.
 
-.Wählen des Sortieralgorithmus: Teil 1
-image::opsi-setup-product_sort_algorithm.png[pdfwidth=70%]
+*Hierzu ein Beispiel*: +
+Das Firefox-Addon *Kee Password Manager* (Produkt: firefox-addon-kee) benötigt bei der Installation einen installierten *Firefox Browser* (Produkt: firefox). +
+Das kann mit der folgenden Produktabhängigkeit abgebildet werden: +
+`productId`: `firefox-addon-kee` +
+`requiredProductId`: `firefox` +
+`requiredInstallationStatus`: `installed` +
+`requirementType`: `before` +
 
-.Wählen des Sortieralgorithmus: Teil 2
-image::opsi-setup-product_sort_algorithm2.png[pdfwidth=70%]
+IMPORTANT: Die Abhängigkeits-Typen `before` und `after` sollten nur dann verwendet werden, wenn eine Reihenfolge tatsächlich zwingend benötigt wird. Ansonsten reicht eine Abhängigkeit ohne Angabe eines `requirementType` aus. Eine weniger strikte Steuerung von Reihenfolgen kann auch über die Produktprioritäten erreicht werden.
 
-[[opsi-manual-localboot-product-order-algorithm1]]
-=== Algorithm1: Produktabhängigkeit vor Priorität (Default)
 
-Bei diesem Algorithmus werden zunächst die Produkte anhand Ihrer Prioritäten sortiert und dann aufgrund der Produktabhängigkeiten nochmals umsortiert. Hierdurch kann natürlich ein Produkt mit sehr niedriger Priorität weit nach vorne geschoben werden, weil es von einem anderen Produkt als 'required before' benötigt wird. Auf der anderen Seite wird vermieden, dass es zu Installationsproblemen aufgrund nicht aufgelöster Produktabhängigkeiten kommt. +
-Der Algorithmus 1 sorgt dafür, dass die Installationsreihenfolge konstant ist, unabhängig davon wieviele Produkte auf setup stehen.
-Diese Reihenfolge entspricht der Reihenfolge, welche im configed angezeigt wird, wenn die Produkte nach der Spalte Position sortiert werden. +
-Damit ist gesichert, dass
-bei einer mit "ExitWindows /immediateReboot" nur unterbrochenen Abarbeitung eines setup-Skripts nach dem Reboot
-direkt die Bearbeitung des unterbrochenen Skripts weitergeführt wird.
+=== Reihenfolge von Produkt-Aktionen
+Die Reihenfolge der Produkt-Aktionen wird unter Berücksichtigung von Produktabhängigkeiten und Produktprioritäten berechnet.
 
-[[opsi-manual-localboot-product-order-algorithm2]]
-=== Algorithm2: Produktpriorität vor Abhängigkeit
+Die auszuführenden Produkt-Aktionen werden zuerst gruppiert.
+Hierbei werden alle Aktionen von Produkten in einer Gruppe zusammengefasst, die untereinander Abhängigkeiten vom Typ `after` oder `before` haben.
 
-Dieser Algorithmus geht von dem Gedanken aus, dass es in der Praxis im wesentlichen drei Prioritätsklassen gibt:
+Innerhalb dieser Gruppen werden die Aktionen nach den Produkt-Prioritäten sortiert (höchste zuerst) und dann aufgrund der, über `before` und `after` definierten Abhängigkeiten, nochmals umsortiert.
+Die Gruppe übernimmt dabei die Priorität der enthaltenen Produkt-Prioritäten.
+Hierbei wird die niedrigste Priorität verwendet wenn alle enthaltenen Produkt-Prioritäten negativ sind.
+In jedem anderen Fall übernimmt die Gruppe die höchste enthaltene Priorität.
 
-*      Produkte, welche am Anfang installiert werden sollen wie z.B. OS-Patches und Treiber, durch die der PC in seinen Standard-Zustand gebracht wird. Wird realisiert durch Zuweisen einer hohen Priorität (maximal +100).
+Die Aktionen werden dann nach der Priorität der Gruppe (höchste zuerst) und dann nach der Sortierung innerhalb der Gruppe ausgeführt.
 
-*      "Normale" Produkte, die Anwendungen installieren (Default-Priorität 0).
-
-*      Produkte, die möglichst am Ende eingespielt werden sollen wie z.B. Softwareinventariserung. Realisiert durch Zuweisen einer niedrigen Priorität (niedrigste mögliche -100).
-
-Die Auflösung der Produktabhängigkeiten erfolgt nur innerhalb einer Prioritätsklasse. Hierdurch ist sichergestellt, dass Produkte mit einer hohen Priorität auch tatsächlich am Anfang installiert werden. Prioritätsklassen übergreifende Produktabhängigkeiten werden nicht berücksichtigt bzw. führen zu einer Warnung. Daher ist beim Packen zu beachten, dass Produktabhängigkeiten nur innerhalb einer Prioritätsklasse definiert werden.
-
-Die Produktabhängigkeiten werden hier so interpretiert, dass sie bei "normalen" Produkten automatisch zu einer konsistenten, alle Abhängigkeiten berücksichtigenden Reihenfolge führen. Wurden widersprüchliche (zirkuläre) Abhängigkeiten definiert, wird ein Fehler angezeigt.
-
-Bei den für die PC-Einrichtung grundlegenden Produkten mit hohen Prioritäten wird dagegen der Administrator – ähnlich wie etwa bei Unix-Startskripten – die genaue Reihenfolge von Hand festlegen, indem er pro Produkt entsprechend der gewünschten Reihenfolge je eine spezifische Priorität zwischen +100 und +1 setzt. Ähnliches gilt für die finalen Produkte mit niedrigen Prioritäten.
-
+NOTE: Ein Produkt mit niedriger Priorität kann in der Reihenfolge weit nach vorne geschoben werden wenn es von einem anderen Produkt mit hoher Priorität als Abhängigkeit mit dem Typ `before` benötigt wird.
 
 
 [[opsi-manual-localboot-product-order-create]]
@@ -584,8 +582,10 @@ Prioritäten und Produktabhängigkeiten gehören zu den Meta-Daten eines opsi-Pr
 
 Diese Metadaten werden im control file des Produktes abgelegt und können dort editiert werden. Nach einer Veränderung im control file muss das Produkt neu gepackt und installiert werden.
 
+////
+TODO:
 Siehe hierzu auch das Kapitel _Erstellen eines opsi-Product-Paketes_ im opsi-getting-started Handbuch.
-
+////
 
 [[opsi-manual-localboot-own_software]]
 == Einbindung eigener Software in die Softwareverteilung von opsi
