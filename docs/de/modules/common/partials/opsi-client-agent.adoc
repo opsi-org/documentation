@@ -15,7 +15,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      17.07.2023
+:Date:      08.08.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -242,7 +242,7 @@ image::github-client-agent.png["Unser GitHub-Repository enthält eine `opsiclien
 NOTE: Da der opsi-Configserver die Datei `opsiclientd.conf` automatisch überschreibt, sollten Sie diese nur zu Testzwecken bearbeiten. Um den Client-Agent zu konfigurieren, verwenden Sie besser die in den nächsten Abschnitten gezeigten Möglichkeiten.
 
 // cSpell:ignore notepad
-WARNING: Die Konfigurationsdatei `opsiclientd.conf` ist in UTF-8 kodiert. Wenn Sie einen Texteditor verwenden, der die Kodierung nicht unterstützt (z.{}B. `notepad.exe`), zerstören Sie ggf. Umlaute in der Datei.
+WARNING: Die Konfigurationsdatei `opsiclientd.conf` ist in UTF-8 kodiert. Wenn Sie einen Texteditor verwenden, der die Kodierung nicht unterstützt (z.{nbsp}B. `notepad.exe`), zerstören Sie ggf. Umlaute in der Datei.
 
 [[opsi-manual-clientagent-configuration-webservice]]
 === Konfiguration über Webservice
@@ -255,6 +255,8 @@ opsiclientd.event_gui_startup.action_warning_time = 20
 ----
 
 Dieser Host-Parameter setzt im Abschnitt `[event_gui_startup]` den Wert für die Option `action_warning_time` auf `20`.
+
+TIP: Grundsätzlich gibt es Einstellungen in den beiden Geschmacksrichtungen *Boolean* und *Unicode*: Boolean-Konfigurationen können entweder `true` oder `false` sein, während Unicode-Konfigurationen Zeichenketten als Werte entgegennehmen; mehrere Strings sind erlaubt.
 
 Zum Verändern von Host-Parametern stehen Ihnen zwei Möglichkeiten zur Verfügung:
 
@@ -279,8 +281,7 @@ image::opsiclientd-configuration-via-configed.png["Die Host-Parameter für einze
 [[opsi-manual-clientagent-configuration-webservice-opsi-cli]]
 ==== *opsi-cli*
 
-Alternativ können Sie das Anlegen und Löschen von Host-Parametern mit dem Werkzeug `opsi-cli` durchführen (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]).
-Beispiel:
+Alternativ können Sie das Kommandozeilentool `opsi-cli` verwenden, um Host-Parameter anzulegen, zu verändern oder zu löschen (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]):
 
 [source,console]
 ----
@@ -288,41 +289,29 @@ opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.acti
 opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warning_time
 ----
 
-Um Client-spezifische Einträge mit `opsi-cli` anzulegen oder zu löschen, verwenden Sie
-Beispiel:
+Das erste Kommando erstellt einen Host-Parameter im Unicode-Format, das zweite löscht einen Host-Parameter (egal, ob Unicode oder Boolean). Beide Beispiele betreffen alle Clients. Um Host-Parameter gezielt für einen bestimmten Client zu verändern, geben Sie den Namen des Clients im Aufruf mit an:
 
 [source,console]
 ----
-opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client.domain.de" "120"
-opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client.domain.de"
+opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client1.domain.de" "120"
+opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client1.domain.de"
 ----
 
 [[opsi-manual-clientagent-configuration-events]]
 === Events konfigurieren
 
-Um den vielen unterschiedlichen Situationen gerecht zu werden, in denen der *opsi-client-agent* aktiv werden kann, sind die Konfigurations-Möglichkeiten vielfältig.
-In der Konfiguration des `opsiclientd` leitet eine Sektion in der Form `[event_<Event Name>]` eine neue Event-Konfiguration ein.
-Eine Event-Konfiguration kann über das Setzen der Option `active = false` deaktiviert werden.
-Existiert zu einem Event-Typ keine Event-Konfiguration (oder sind diese deaktiviert), wird der entsprechende Event-Typ komplett deaktiviert.
-Es gibt verschiedene Typen von Event-Konfigurationen (`type`).
+Der Client-Agent kann in ganz unterschiedlichen Situationen zum Einsatz kommen. Für das Einrichten von Events (siehe Abschnitt <<opsi-manual-clientagent-event-flow>>) stehen Ihnen daher vielfältige Konfigurations-Möglichkeiten zur Verfügung. Ein Abschnitt der Form `[event_<Event Name>]` leitet eine neue Event-Konfiguration ein. Über die Option `active = false` kann sie deaktiviert werden. Gibt es zu einem Event-Typ keine Event-Konfiguration oder ist diese deaktiviert, wird der entsprechende Event-Typ komplett deaktiviert.
 
-* Es gibt 'Event-Konfigurations-Vorlagen' (type = template)
-Event-Konfigurationen können voneinander "erben". Ist über die Option super die Id einer anderen Event-Konfiguration gesetzt,
-erbt die Event-Konfiguration alle Optionen (bis auf `active`) der Parent-Konfiguration.
-Geerbte Optionen können jedoch überschrieben werden.
-Das Deaktivieren von Events beeinflusst die Vererbung nicht.
+TIPP: Event-Konfigurationen können voneinander "erben". Ist beispielsweise über die Option `super` die ID einer anderen Event-Konfiguration gesetzt, erbt sie alle Optionen der Parent-Konfiguration (bis auf `active`). Geerbte Optionen können überschrieben werden. Das Deaktivieren von Events beeinflusst die Vererbung nicht.
 
-* Alle weiteren Event-Konfigurationen gelten für einen gewissen Event-Typ.
-Verfügbare Event-Typen sind:
+Es gibt verschiedene Event-Typen. Neben Vorlagen (`type = template`) stehen die folgenden Event-Typen zur Verfügung:
 
-// Kann xref:clients:windows-client/win-client-agent.adoc#opsi-manual-client-agent-custom-events hier nicht verlinken
-gui_startup:: Ein Event vom Typ `gui_startup` tritt beim Start des Clients (der GUI) auf. Es ist das gängigste Event und ist in der Standard-Konfiguration aktiv.
-custom:: Event-Konfigurationen vom Typ `custom` können selbst festlegen, wann ein solches Event erzeugt wird. Unter windows kann beispielsweise eine WQL Abfrage als Auslöser genutzt werden.
-user_login:: Wird ausgelöst, wenn sich ein Benutzer am System anmeldet.
-timer:: Tritt in festen Intervallen auf (alle `<Intervall>` Sekunden).
-sync_completed:: Wird ausgelöst, wenn die Synchronisation von Konfigurationen (`sync_config_from_server`) oder von Produkten (`cache_products`) erfolgt ist.
-on_demand:: Tritt auf, wenn es explizit angefordert wurde, z.B. über den *opsi-configed* oder *opsi Software On Demand (Kiosk Mode)*.
-// TODO: link zu xref:configed/configed.adoc#opsi-manual-configed[opsi-configed] oder xref:modules/software-on-demand#software-on-demand[opsi Software On Demand (Kiosk-Mode)]
+* `gui_startup`: Ein Event vom Typ `gui_startup` tritt beim Start des Clients (der GUI) auf. Es ist das gängigste Event und in der Voreinstellung aktiv.
+* `custom`: Solche Events können selbst festlegen, wann sie erzeugt werden. Unter Windows kann beispielsweise eine WQL-Abfrage als Auslöser dienen; die WMI Query Language ist eine SQL-Variante für die Abfragen in Windows Management Instrumentarium (WMI). Dazu geben Sie über die Option `wql` einen entsprechender Ausdruck an, und sobald dieser ein Ergebnis liefert, wird ein Custom-Event mit der jeweiligen Konfiguration gestartet. *Achtung:* Ist für die `wql`-Option kein Wert gesetzt, tritt dieses Event praktisch nie auf, kann aber bei Bedarf über die Webservice-Schnittstelle des `opsiclientd` ausgelöst werden.
+* `user_login`: Wird ausgelöst, wenn sich ein Benutzer am System anmeldet.
+* `timer`: Tritt in festen Intervallen auf (alle `<Intervall>` Sekunden).
+* `sync_completed`: Wird ausgelöst, wenn die Synchronisation von Konfigurationen (`sync_config_from_server`) oder von Produkten (`cache_products`) erfolgt ist.
+* `on_demand`: Das Event tritt auf, wenn es explizit angefordert wurde, z.{nbsp}B. über den `opsi-configed` (siehe Kapitel xref:configed:configed.adoc[Management-Oberfläche *opsi-configed*]) oder über die Erweiterung Software On Demand (siehe Kapitel xref:opsi-modules:software-on-demand.adoc[Software On Demand]).
 
 // cSpell:ignore precondition, user_logged_in, config_cached, products_cached, cachen
 * Es gibt Vorbedingungen
