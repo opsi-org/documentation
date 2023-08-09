@@ -401,77 +401,73 @@ TIP: Wenn die Startzeit größer als die Endzeit ist (`23:59-00:00`), dann gilt 
 [[opsi-clientagent-configuration-ip-version]]
 === IP-Version (IPv4/IPv6)
 
-Der opsiclientd unterstützt bei der Verbindung zum opsi-Service die Protokolle IPv4 und IPv6. Normalerweise wird das Protokoll beim Verbindungsaufbau automatisch gewählt.
-Es gibt jedoch auch die Möglichkeit die zu verwendende Protokoll-Version fest zu konfigurieren.
-Hierfür kann in der Sektion "global" der opsiclientd.conf die Option "ip_version" verwendet werden. Mögliche Werte sind "4" (IPv4 verwenden), "6" (IPv6 verwenden) und "auto" (Protokoll automatisch wählen, Standardwert).
+Der zentrale Client-Agent-Dienst `opsiclientd` unterstützt beide Protokolle, IPv4 und IPv6. Normalerweise wird das Protokoll beim Verbindungsaufbau zum opsi-Service automatisch gewählt, was im Abschnitt `[global]` der Datei `opsiclientd.conf` definiert ist:
 
+[source,toml]
+----
+[global]
+ip_version = auto
+----
+
+Es gibt jedoch die Möglichkeit, eines der beiden Protokolle dauerhaft einzurichten. Dazu weisen Sie der Option `ip_version` entweder `4` oder `6` zu:
+
+[source,toml]
+----
+[global]
+ip_version = 4
+----
 
 [[opsi-clientagent-configuration-proxy]]
-=== Proxyserver
+=== Proxy-Server
 
-Über den Host-Parameter `opsiclientd.global.proxy_url` kann die Verwendung eines HTTP(S)-Proxy konfiguriert werden. Der Wert folgt dem Schema
-`http://<user>:<password>@<proxy-url>:<proxy-port>` also z.B. http://proxyuser:proxypass123@proxy.domain.local:8080
+Über den Host-Parameter `opsiclientd.global.proxy_url` können Sie einen HTTP(S)-Proxy konfigurieren. Der dahinter definierte Wert folgt dem Schema 
+`http://<user>:<password>@<proxy-url>:<proxy-port>`, also z.{nbsp}B. `\http://proxyuser:proxypass123@proxy.domain.local:8080`.
 
 Hierbei gibt es drei grundlegende Möglichkeiten:
 
-[proxy_url]
-proxy_url = system::
-  Es werden die Proxy-Einstellungen des Systems verwendet. Das ist der Default.
-proxy_url = ::
-  Wenn kein Wert (Leerstring) für proxy_url gesetzt wird, wird kein Proxy-Server verwendet. Die Proxy-Einstellungen des Systems werden in diesem Fall ignoriert.
-proxy_url = <url>::
-  Es wird der über die URL angegebene Proxy-Server verwendet, die Proxy-Einstellungen des Systems werden ignoriert.
-  Die URL muss in der Form `http(s)://<proxy-user>:<proxy-password>@<proxy-url>:<proxy-port>` angeben werden.
-  Hierbei kann auch eine Authentifizierung für den Proxy konfiguriert werden.
-  Beispiel: `http://proxy.domain.tld:3128`
-
+* `proxy_url = system`: Es gelten die systemweiten Einstellungen für einen Proxy-Server (Standard).
+* `proxy_url = `: Ist kein Wert gesetzt, wird kein Proxy-Server verwendet. Die Proxy-Einstellungen des Systems werden in diesem Fall ignoriert.
+* `proxy_url = <url>`: Der über die URL angegebene Proxy-Server wird verwendet, die systemweiten Einstellungen ignoriert. Die URL folgt dem Schema `http(s)://<proxy-user>:<proxy-password>@<proxy-url>:<proxy-port>`.
 
 [[opsi-manual-clientagent-configuration-eventcontrol_over_productgroups]]
-=== Produktgruppen
+=== Produktgruppen ein-/ausschließen
 
-Steuerung der verarbeiteten Produkte pro Event
+In der Konfiguration können Sie ab opsi 4.3 für jedes Event Produktgruppen definieren, deren Produkte dann zu verarbeiten sind. Dazu gibt es zwei Vorgehensweisen:
 
-Mit diesem neuen Feature ist es über die Konfiguration möglich, die Liste der ab zu bearbeitenden Produkte über Produktgruppen zu steuern.
+* Negativliste (Ausschluss): Um eine oder mehrere Produktgruppen von der Bearbeitung auszuschließen, geben Sie deren IDs hinter der Option `exclude_product_group_ids` an; mehrere IDs trennen Sie durch Kommata voneinander. Die Produkte dieser Gruppe(n) werden in dem Event ignoriert, bleiben aber ggf. auf `setup` stehen, falls diese Aktion gesetzt ist.
+* Positivliste (Einschluss): Hinter der Option `include_product_group_ids` definieren Sie eine oder mehrere Produktgruppen (durch Kommata getrennt), deren Produkte bearbeitet werden dürfen -- vorausgesetzt, eine entsprechende Aktion ist gesetzt.
 
-Dazu gibt es Grundsätzlich zwei Vorgehensweise:
+TIP: Die Einstellungen können Sie entweder global im `[event_default]` oder gezielt in einem bestimmten Event vornehmen. Setzen Sie z.{nbsp}B. `exclude_product_group_ids` im Event `on_demand` ein, um Pakete, die auf `setup` stehen, von Push-Installationen ausschließen. Bei einem regulären Neustart des Clients mit `gui_startup` (Default) würden die so ausgeschlossenen Pakete trotzdem auf dem Client installiert.
 
-Black-listing (ausschließen):
+NOTE: Für Clients, auf denen die WAN/VPN-Erweiterung installiert ist, müssen Sie die Optionen zusätzlich in den Abschnitt `[cache_service]` aufnehmen. Der Cache-Service wird zwar vom Sync-Event getriggert, hat aber selbst keinen Zugriff auf der Sync-Event.
 
-Mit der Option `exclude_product_group_ids` kann man nun eine Komma separierte Liste von Produktgruppen-Ids mitgeben, dessen Mitglieder vom aktuellen Event ausgeschlossen werden. Auch wenn Sie eigentlich auf setup stehen. Diese Produkte werden zwar ignoriert, aber bleiben auf setup stehen.
-
-White-listing (Liste von Produkten ausschließlich freigeben):
-
-Mit der Option `include_product_group_ids` kann man eine Komma separierte Liste von Produktgruppen-Ids festlegen, dessen Mitglieder überhaupt bearbeitet werden dürfen, vorausgesetzt eine entsprechende Aktion ist gesetzt.
-
-Diese Einstellung kann man entweder Global im Default-Event angeben, damit das für jedes Event gilt. Man kann diese Optionen aber auch Zum Beispiel nur im Event `on_demand` einsetzen, somit kann man Pakete die auf setup stehen von Push-Installationen ausschließen, obwohl Sie auf setup stehen. Bei einem normalen Neustarts des Clients mit `gui_startup` (default) würden diese ausgeschlossenen Pakete trotzdem auf dem Client installiert werden.
-
-WARNING: Für Clients, die das Modul WAN/VPN aktiviert haben, muss man diese Optionen neben dem Sync-Event auch in der CacheService-Sektion mit aufgenommen werden, da der CacheService zwar vom Sync-Event getriggert wird, aber selbst keinen Zugriff auf das sync-Event hat.
-
-WARNING: Produktabhängigkeiten werden bei diesem Feature nicht berücksichtigt. Bitte achten Sie darauf, dass Sie bei der Konfiguration keine Abhängigkeiten außer Kraft setzen.
+WARNING: Beachten Sie, dass das Feature keine Produkt-Abhängigkeiten berücksichtigt. Achten Sie also unbedingt darauf, dass Sie bei der Konfiguration keine Abhängigkeiten außer Kraft setzen!
 
 [[opsi-manual-clientagent-logging]]
-=== Logfiles
+== Logfiles
 
 // cSpell:ignore clientconnect
-Die Log-Informationen des `opsiclientd` werden auch an den *opsi-Configserver* übertragen.
-Dort liegen sie unter '/var/log/opsi/clientconnect/<ip-bzw.-name-des-clients>.log'.
-Sie sind auch im *opsi-configed* über Logdateien => Clientconnect einsehbar.
 
-Jede Zeile in der Logdatei folgt dem Muster:
-+[<log level>] [<Datum Zeit>] [Quelle der Meldung] Meldung   (Quellcode-Datei|Zeilennummer).+
+Der `opsiclientd` überträgt seine Logfiles an den opsi-Configserver (siehe Abbildung <<event-ablauf>>); Sie finden Sie im Verzeichnis `/var/log/opsi/clientconnect/`. Die einzelnen Protokolle tragen entweder den Namen des Clients oder seine IP im Namen und enden auf `.log`.
 
-Dabei gibt es die Log-Level 0 (nichts) bis 9 (viel) (siehe Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-logs[Log-Dateien]).
+TIP: Die Logfiles können Sie ebenfalls über die Management-Oberfläche `opsiconfiged` betrachten. Wählen Sie dazu in der Client-Ansicht auf der linken Seite einen Client aus und öffnen dann den Reiter _Logdateien_ / _clientconnect_.
+
+Die Zeilen in der Logdatei sind nach dem folgenden Schema aufgebaut:
+
+----
+[<log level>] [<Datum Zeit>] [Quelle der Meldung] Meldung   (Quellcode-Datei|Zeilennummer)
+----
+
+opsi unterscheidet 10 verschiedene Log-Level: 0 (keine Meldungen) bis 9 (vertrauliche Informationen). Weitere Informationen dazu finden Sie im Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*] im Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-logs[Logfiles].
 
 [[opsi-manual-clientagent-infopage]]
 === *opsiclientd*-Infoseite
 
-Da bei den Abläufen im `opsiclientd` vielfältige Komponenten zusammenwirken, welche zum Teil gleichzeitig aktiv sind, wird die Logdatei leicht unübersichtlich.
+Da so viele unterschiedliche Komponenten zusammenarbeiten und zum Teil sogar gleichzeitig aktiv sind, wird die `opsiclientd`-Logdatei schnell unübersichtlich. Aus diesem Grund gibt es für jeden Client eine eigene Infoseite, die Sie im Webbrowser über die URL \`https://<Client-IP>:4441/info.html` erreichen. Abbildung <<infoseite>> zeigt die Infoseite nach einer Push-Installation mit aktiviertem Produkt-Caching.
 
-Daher verfügt der `opsiclientd` über eine eigene 'infopage' welche die Abläufe auf einer Zeitachse grafisch darstellt.
-Diese 'infopage' kann mit dem Browser über die URL `https://<adresse-des-clients>:4441/info.html` aufgerufen werden.
-
-.Info-Page des opsiclientd nach einer Push-Installation mit aktiviertem Produkt-Caching
-image::opsiclientd_infopage_event_on_demand.png["Abbildung: Info-Page des opsiclientd nach einer Push-Installation mit aktiviertem Produkt-Caching",width=400]
+[[infoseite]]
+.Die Infoseite stellt die Abläufe auf einer Zeitachse dar.
+image::opsiclientd_infopage_event_on_demand.png["Die Infoseite stellt die Abläufe auf einer Zeitachse dar.", pdfwidth=70%]
 
 
 [[opsi-manual-clientagent-control]]
