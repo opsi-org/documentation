@@ -304,49 +304,61 @@ Der Client-Agent kann in ganz unterschiedlichen Situationen zum Einsatz kommen. 
 
 TIPP: Event-Konfigurationen können voneinander "erben". Ist beispielsweise über die Option `super` die ID einer anderen Event-Konfiguration gesetzt, erbt sie alle Optionen der Parent-Konfiguration (bis auf `active`). Geerbte Optionen können überschrieben werden. Das Deaktivieren von Events beeinflusst die Vererbung nicht.
 
+==== Typen
+
 Es gibt verschiedene Event-Typen. Neben Vorlagen (`type = template`) stehen die folgenden Event-Typen zur Verfügung:
 
 * `gui_startup`: Ein Event vom Typ `gui_startup` tritt beim Start des Clients (der GUI) auf. Es ist das gängigste Event und in der Voreinstellung aktiv.
 * `custom`: Solche Events können selbst festlegen, wann sie erzeugt werden. Unter Windows kann beispielsweise eine WQL-Abfrage als Auslöser dienen; die WMI Query Language ist eine SQL-Variante für die Abfragen in Windows Management Instrumentarium (WMI). Dazu geben Sie über die Option `wql` einen entsprechender Ausdruck an, und sobald dieser ein Ergebnis liefert, wird ein Custom-Event mit der jeweiligen Konfiguration gestartet. *Achtung:* Ist für die `wql`-Option kein Wert gesetzt, tritt dieses Event praktisch nie auf, kann aber bei Bedarf über die Webservice-Schnittstelle des `opsiclientd` ausgelöst werden.
 * `user_login`: Wird ausgelöst, wenn sich ein Benutzer am System anmeldet.
 * `timer`: Tritt in festen Intervallen auf (alle `<Intervall>` Sekunden).
-* `sync_completed`: Wird ausgelöst, wenn die Synchronisation von Konfigurationen (`sync_config_from_server`) oder von Produkten (`cache_products`) erfolgt ist.
+* `sync_completed`: Wird ausgelöst, wenn die Synchronisation von Konfigurationen (`sync_config_from_server`, `sync_config_to_server`) oder von Produkten (`cache_products`) erfolgt ist.
 * `on_demand`: Das Event tritt auf, wenn es explizit angefordert wurde, z.{nbsp}B. über den `opsi-configed` (siehe Kapitel xref:configed:configed.adoc[Management-Oberfläche *opsi-configed*]) oder über die Erweiterung Software On Demand (siehe Kapitel xref:opsi-modules:software-on-demand.adoc[Software On Demand]).
 
+==== Vorbedingungen
 // cSpell:ignore precondition, user_logged_in, config_cached, products_cached, cachen
-* Es gibt Vorbedingungen
-Vorbedingungen geben bestimmte Systemzustände vor (z.B. ob gerade ein Benutzer am System angemeldet ist).
-In der Konfiguration des `opsiclientd` leitet eine Sektion in der Form `[precondition_<precondition-id>]` die Deklaration einer Vorbedingung ein.
-Eine Vorbedingung ist dann erfüllt, wenn alle angegebenen Optionen erfüllt sind.
-Mögliche Optionen für Vorbedingungen sind:
-user_logged_in:: ist erfüllt, wenn ein Benutzer am System angemeldet ist.
-config_cached:: ist erfüllt, wenn das Cachen von Konfigurationen abgeschlossen ist (siehe: +sync_config_from_server+).
-products_cached:: ist erfüllt, wenn das Cachen von Produkten abgeschlossen ist (siehe: +cache_products+).
 
-* Einer Event-Konfiguration kann eine Vorbedingung zugewiesen werden.
-Einer Event-Konfiguration kann eine Vorbedingung zugewiesen werden, indem diese bei der Deklaration in geschweiften Klammern angegeben wird (z.B. `[event_on_demand{user_logged_in}]`).
-Zu einer Event-Konfiguration mit Vorbedingung muss immer eine entsprechende Event-Konfiguration ohne Vorbedingung existieren.
-Existiert z.B. eine Event-Konfiguration `event_on_demand{user_logged_in}`, muss auch die Event-Konfiguration `event_on_demand` existieren!
-Hierbei erbt die Event-Konfiguration mit Vorbedingung automatisch von der Event-Konfiguration ohne Vorbedingung.
-Beim Auftreten eines Events wird nun entschieden, welche Vorbedingungen erfüllt sind.
-Ist keine der Vorbedingungen erfüllt, gilt die Event-Konfiguration ohne Vorbedingung.
-Ist eine der Vorbedingungen erfüllt, gilt die Event-Konfiguration, die mit dieser Vorbedingung verknüpft ist.
-Sind mehrere Vorbedingungen erfüllt, so wird die Vorbedingung bevorzugt, die am genauesten definiert ist (die meisten Optionen besitzt).
+Weiterhin gibt es Event-Vorbedingungen, die bestimmte Systemzustände beschreiben (z.{nbsp}B. ob gerade ein Benutzer angemeldet ist). In der Konfigurationsdatei haben Vorbedingungen eigene Abschnitte; `[precondition_<precondition-id>]` leitet die Deklaration ein. Mögliche Optionen für Vorbedingungen sind:
 
-Ein Beispiel zur Erläuterung:
-Im Rahmen einer Installation kann es notwendig sein, den Rechner neu zu starten.
-Ist gerade ein Benutzer am System angemeldet, sollte dieser über den anstehenden Reboot informiert werden.
-Hierbei ist eine angemessene Wartezeit vor dem Ausführen des Reboots angebracht.
-Zusätzlich kann es sinnvoll sein, dem Benutzer die Entscheidung zu überlassen, ob der Reboot besser zu einem späteren Zeitpunkt ausgeführt werden soll.
-Ist zum Zeitpunkt des benötigten Reboots jedoch kein Benutzer angemeldet, ist es sinnvoll, den Reboot ohne weitere Wartezeit sofort durchzuführen.
-Dieses Problem wird am Beispiel von `event_on_demand` wie folgt konfiguriert:
+* `user_logged_in`: Ist erfüllt, wenn ein Benutzer am System angemeldet ist.
+* `config_cached`: Ist erfüllt, wenn das Zwischenspeichern von Konfigurationen abgeschlossen ist.
+* `products_cached`: Ist erfüllt, wenn das Zwischenspeichern von Produkten abgeschlossen ist.
 
-* Es wird eine Vorbedingung `user_logged_in` definiert, die erfüllt ist, wenn ein Benutzer am System angemeldet ist (`user_logged_in = true`).
+Eine Vorbedingung ist dann erfüllt, wenn alle angegebenen Optionen zutreffen.
 
-* In der Event-Konfiguration `event_on_demand` (ohne Vorbedingung) wird `shutdown_warning_time = 0` gesetzt (sofortiger Reboot ohne Meldung).
+Sie können einer Event-Konfiguration eine Vorbedingung zuweisen. Dazu geben Sie diese bei der Deklaration in geschweiften Klammern an, z.{nbsp}B. `[event_on_demand{user_logged_in}]`.
 
-* In der Event-Konfiguration `event_on_demand{user_logged_in}` wird `shutdown_warning_time = 300` gesetzt (300 Sekunden Vorwarnzeit).
+NOTE: Zu einer Event-Konfiguration mit Vorbedingung muss immer eine entsprechende Event-Konfiguration ohne Vorbedingung existieren. Gibt es z.{nbsp}B. eine Event-Konfiguration `event_on_demand{user_logged_in}`, dann muss es auch `event_on_demand` geben!
 
+Die Event-Konfiguration mit Vorbedingung erbt automatisch von der Event-Konfiguration ohne Vorbedingung. Tritt ein Event ein, schaut der Client-Agent zunächst nach, welche Vorbedingungen erfüllt sind. Ist keine der Vorbedingungen erfüllt, gilt die Event-Konfiguration ohne Vorbedingung. Ist eine der Vorbedingungen erfüllt, gilt die Event-Konfiguration, die mit dieser Vorbedingung verknüpft ist. Sind mehrere Vorbedingungen erfüllt, so wird die Vorbedingung bevorzugt, die am genauesten definiert ist, die also die meisten Optionen besitzt.
+
+==== Beispiel: Reboot und ggf. Nutzer informieren
+
+Das folgende Beispiel erläutert die Konfiguration mit Vorbedingungen genauer. Im Rahmen einer Installation kann es notwendig sein, den Rechner neu zu starten. Ist gerade ein Benutzer am System angemeldet, sollte dieser über den anstehenden Reboot informiert werden. Eine angemessene Wartezeit vor dem Ausführen des Reboots ist ebenfalls erwünscht. Außerdem kann es sinnvoll sein, dem Benutzer die Entscheidung zu überlassen, ob der Rechner besser zu einem späteren Zeitpunkt neu starten soll. Ist zum Zeitpunkt des benötigten Neustarts kein Benutzer angemeldet, dann soll der Reboot ohne weitere Wartezeit sofort stattfinden.
+
+Mit `event_on_demand` können Sie das Event entsprechend konfigurieren:
+
+* Definieren Sie eine Vorbedingung `user_logged_in`, die erfüllt ist, wenn ein Benutzer am System angemeldet ist: +
+[source,toml]
+----
+[precondition_user_logged_in]
+user_logged_in = true
+----
+
+* Definieren Sie ein Event ohne Vorbedingung (`event_on_demand`) und setzen Sie die `shutdown_warning_time` auf `0` (sofortiger Reboot ohne Meldung): +
+[source,toml]
+----
+[event_on_demand]
+shutdown_warning_time = 0
+----
+
+* Definieren Sie ebenfalls ein Event mit Vorbedingung (`event_on_demand{user_logged_in}`) und setzen Sie die `shutdown_warning_time` auf `300` (300 Sekunden, 5 Minuten): +
+
+[source,toml]
+----
+[event_on_demand{user_logged_in}]
+shutdown_warning_time = 300
+----
 
 [[opsi-manual-clientagent-working-window]]
 === Working Window
