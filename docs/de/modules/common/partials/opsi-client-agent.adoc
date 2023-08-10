@@ -231,10 +231,67 @@ Beachten Sie, dass kein Logfile zum opsi-Configserver übertragen wird, wenn die
 
 TIP: Den Ablauf von Events und auch die Aktionen des Benutzers zeigt die Timeline auf der `opsiclientd`-Infoseite (siehe Abschnitt <<opsi-manual-clientagent-infopage>>). 
 
+[[opsi_manual_opsi-client-agent_webapi]]
+== Web-Schnittstelle
+
+Unter `\https://<client-addresse>:4441` stellt der Dienst `opsiclientd` eine Web-Schnittstelle zur Verfügung. Geben Sie die URL in die Adresszeile eines Webbrowsers ein und authentifizieren Sie sich entweder mit dem lokalen Administrator-Account (ein leeres Passwort ist unzulässig), oder geben Sie als Benutzernamen die Host-ID (FQDN, vollständiger Hostname inklusive DNS-Domain) und als Passwort den opsi-Host-Key ein.
+
+Die Web-Schnittstelle bietet Zugriff auf die folgenden drei Unterseiten:
+
+// cspell: ignore viewer
+_opsiclientd info page_: zeigt in kompakter Form an, was der `opsiclientd` tut (siehe Abschnitt <<opsi-manual-clientagent-infopage>>)
+_opsiclientd log viewer_: Logfiles betrachten und durchsuchen (siehe auch Abschnitt <<opsi-manual-clientagent-logging>>)
+_opsiclientd control interface_: bietet die Möglichkeit, JSON-RPC-Methoden aufzurufen (siehe Abschnitt <<opsi-manual-clientagent-control-interface>>)
+
+[[opsi-manual-clientagent-infopage]]
+=== *opsiclientd*-Infoseite
+
+Da so viele unterschiedliche Komponenten zusammenarbeiten und zum Teil sogar gleichzeitig aktiv sind, wird die `opsiclientd`-Logdatei schnell unübersichtlich. Aus diesem Grund gibt es für jeden Client eine eigene Infoseite, die Sie im Webbrowser über die URL `\https://<Client-IP>:4441/info.html` erreichen. <<infoseite>> zeigt die Infoseite nach einer Push-Installation mit aktiviertem Produkt-Caching.
+
+[[infoseite]]
+.Die Infoseite stellt die Abläufe auf einer Zeitachse dar.
+image::opsiclientd_infopage_event_on_demand.png["Die Infoseite stellt die Abläufe auf einer Zeitachse dar.", pdfwidth=70%]
+
+[[opsi-manual-clientagent-control-interface]]
+=== *opsiclientd*-Control-Interface
+
+Die folgenden Abschnitte beleuchten einzelne JSONRPC-Anfragen, die getätigt werden können.
+
+[[opsi_manual_opsi-client-agent_webapi_log_read]]
+==== Logdateien auslesen
+
+// cspell: ignore opsi_loginblocker, notifier_block_login, notifier_event
+Die JSONRPC-Anfrage `log_read` liest eine auf dem Client vorhandene opsi-Logdatei.
+Parameter: `logType *extension *maxSize`
+Mögliche `logType` Werte sind `opsiclientd`, `opsi-client-agent`, `opsi-script`, `opsi_loginblocker`, `notifier_block_login` und `notifier_event`.
+Mit dem Parameter `extension` können rotierte Logdateien (_1.log, _2.log etc.) angezeigt werden.
+Mögliche Werte sind 0-9.
+Der Parameter `maxSize` limitiert die Ausgabe auf den angegebenen Wert in Bytes.
+
+[[opsi_manual_opsi-client-agent_webapi_update_component]]
+==== Eine opsi-client-agent-Komponente aktualisieren
+Die JSONRPC-Anfrage `updateComponent` kann eine *opsi-client-agent*-Komponente aktualisieren.
+Parameter: `*component *url`
+Mögliche Werte für `component` sind: `opsiclientd`.
+Das Update wird von der angegebenen `url` geladen (mögliche Protokolle sind hierbei: `http`, `https` und `file`).
+Das Update muss als Archiv (zip / tar / tar.gz / tar.bz2) bereitgestellt werden, das die Dateien der Komponente enthält.
+
+// cspell: ignore insecure
+Alternativ kann das Archiv auch über einen `POST`-Request auf `/upload/update/opsiclientd` hochgeladen werden.
+Beispiel:
+[source,bash]
+----
+curl --insecure --request POST \
+        --user ':<opsi-client-host-key>' \
+        --header 'Content-Disposition: filename=oca.zip' \
+        --data-binary '@path/to/opsiclientd_windows_x86_<version>.zip' \
+        https://<client-address>:4441/upload/update/opsiclientd
+----
+
 [[opsi-manual-clientagent-configuration]]
 == Konfiguration
 
-Die nächsten Abschnitte stellen verschiedene Möglichkeiten vor, den Client-Agent zu konfigurieren. Die Datei `opsiclientd.conf` ist die zentrale Einrichtungsdatei; je nach Betriebssystem finden Sie diese in einem anderen Verzeichnis auf dem Client-Rechner (siehe Abschnitt <<opsi-manual-client-agent-directories>>). Die in unserem link:https://github.com/opsi-org/opsiclientd/blob/devel/opsiclientd_data/[GitHub-Repository] veröffentlichten Dateien zeigen jeweils die Standardwerte für Windows, Linux und macOS.
+Die nächsten Abschnitte stellen verschiedene Möglichkeiten vor, den Client-Agent zu konfigurieren. Die Datei `opsiclientd.conf` ist die zentrale Einrichtungsdatei, die Sie je nach Betriebssystem in unterschiedlichen Verzeichnissen auf dem Client-Rechner finden (siehe Abschnitt <<opsi-manual-client-agent-directories>>). Die in unserem link:https://github.com/opsi-org/opsiclientd/blob/devel/opsiclientd_data/[GitHub-Repository] veröffentlichten Dateien zeigen jeweils die Standardwerte für Windows, Linux und macOS.
 
 .Unser GitHub-Repository enthält eine `opsiclientd.conf` mit Standardwerten.
 image::github-client-agent.png["Unser GitHub-Repository enthält eine `opsiclientd.conf` mit Standardwerten.", pdfwidth=80%]
@@ -242,10 +299,10 @@ image::github-client-agent.png["Unser GitHub-Repository enthält eine `opsiclien
 NOTE: Da der opsi-Configserver die Datei `opsiclientd.conf` automatisch überschreibt, sollten Sie diese nur zu Testzwecken bearbeiten. Um den Client-Agent zu konfigurieren, verwenden Sie besser die in den nächsten Abschnitten gezeigten Möglichkeiten.
 
 // cSpell:ignore notepad
-WARNING: Die Konfigurationsdatei `opsiclientd.conf` ist in UTF-8 kodiert. Wenn Sie einen Texteditor verwenden, der die Kodierung nicht unterstützt (z.{nbsp}B. `notepad.exe`), zerstören Sie ggf. Umlaute in der Datei.
+WARNING: Falls Sie die Datei `opsiclientd.conf` im Texteditor bearbeiten, achten Sie darauf, dass der Editor die UTF-8-Kodierung unterstützt. Einige Editoren (z.{nbsp}B. `notepad.exe`) bieten keine UTF-8-Unterstützung, was zu kaputten Umlauten führt.
 
 [[opsi-manual-clientagent-configuration-webservice]]
-=== Konfiguration über Webservice
+=== Host-Parameter
 
 Um den Client-Agent zu konfigurieren und Einträge in der Datei `opsiclientd.conf` (neu) zu schreiben, setzen Sie Host-Parameter. Die Einträge folgen diesem Schema: `opsiclientd.<name der section>.<name der option>`. Ein Beispiel:
 
@@ -425,7 +482,7 @@ ip_version = 4
 Hierbei gibt es drei grundlegende Möglichkeiten:
 
 * `proxy_url = system`: Es gelten die systemweiten Einstellungen für einen Proxy-Server (Standard).
-* `proxy_url =\`: Ist kein Wert gesetzt, wird kein Proxy-Server verwendet. Die Proxy-Einstellungen des Systems werden in diesem Fall ignoriert.
+* `proxy_url =`: Ist kein Wert gesetzt, wird kein Proxy-Server verwendet. Die Proxy-Einstellungen des Systems werden in diesem Fall ignoriert.
 * `proxy_url = <url>`: Der über die URL angegebene Proxy-Server wird verwendet, die systemweiten Einstellungen ignoriert. Die URL folgt dem Schema `http(s)://<proxy-user>:<proxy-password>@<proxy-url>:<proxy-port>`.
 
 [[opsi-manual-clientagent-configuration-eventcontrol_over_productgroups]]
@@ -449,7 +506,7 @@ WARNING: Beachten Sie, dass das Feature keine Produkt-Abhängigkeiten berücksic
 
 Der `opsiclientd` überträgt seine Logfiles an den opsi-Configserver (siehe Abbildung <<event-ablauf>>); Sie finden Sie im Verzeichnis `/var/log/opsi/clientconnect/`. Die einzelnen Protokolle tragen entweder den Namen des Clients oder seine IP im Namen und enden auf `.log`.
 
-TIP: Die Logfiles können Sie ebenfalls über die Management-Oberfläche `opsiconfiged` betrachten. Wählen Sie dazu in der Client-Ansicht auf der linken Seite einen Client aus und öffnen dann den Reiter _Logdateien_ / _clientconnect_.
+TIP: Die Logfiles können Sie ebenfalls über die Management-Oberfläche `opsi-configed` betrachten. Wählen Sie dazu in der Client-Ansicht auf der linken Seite einen Client aus und öffnen dann den Reiter _Logdateien_ / _clientconnect_. Unter der Anzeige finden Sie ein Suchfeld, Filterfunktionen und einen Schieberegler, der den Log-Level einstellt.
 
 Die Zeilen in der Logdatei sind nach dem folgenden Schema aufgebaut:
 
@@ -459,15 +516,6 @@ Die Zeilen in der Logdatei sind nach dem folgenden Schema aufgebaut:
 
 opsi unterscheidet 10 verschiedene Log-Level: 0 (keine Meldungen) bis 9 (vertrauliche Informationen). Weitere Informationen dazu finden Sie im Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*] im Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-logs[Logfiles].
 
-[[opsi-manual-clientagent-infopage]]
-=== *opsiclientd*-Infoseite
-
-Da so viele unterschiedliche Komponenten zusammenarbeiten und zum Teil sogar gleichzeitig aktiv sind, wird die `opsiclientd`-Logdatei schnell unübersichtlich. Aus diesem Grund gibt es für jeden Client eine eigene Infoseite, die Sie im Webbrowser über die URL `\https://<Client-IP>:4441/info.html` erreichen. <<infoseite>> zeigt die Infoseite nach einer Push-Installation mit aktiviertem Produkt-Caching.
-
-[[infoseite]]
-.Die Infoseite stellt die Abläufe auf einer Zeitachse dar.
-image::opsiclientd_infopage_event_on_demand.png["Die Infoseite stellt die Abläufe auf einer Zeitachse dar.", pdfwidth=70%]
-
 [[opsi-manual-clientagent-control]]
 == Fernsteuerung
 
@@ -476,7 +524,7 @@ Der `opsiclientd` verfügt über eine Webservice-Schnittstelle (siehe Abschnitt 
 * Nachrichten senden (Pop-ups)
 * Events auslösen (z.{nbsp}B. `on_demand`)
 
-Sie können die Anweisungen entweder über die Management-Oberfläche `opsiconfiged` übermitteln oder das Kommandozeilentool `opsi-cli` verwenden (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]). Dazu führen Sie JSON-RPC-Methoden `hostControlSafe_*` aus (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli-commands-jsonrpc[jsonrpc]). Sie haben die folgende Form:
+Sie können die Anweisungen entweder über die Management-Oberfläche `opsi-configed` übermitteln oder das Kommandozeilentool `opsi-cli` verwenden (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]). Dazu führen Sie JSON-RPC-Methoden `hostControlSafe_*` aus (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli-commands-jsonrpc[jsonrpc]). Sie haben die folgende Form:
 
 [source,console]
 ----
@@ -505,22 +553,11 @@ opsi-cli jsonrpc execute hostControlSafe_showPopup "Ein Text..." "client.uib.loc
 [[opsi-manual-clientagent-control-fire-event]]
 === Events auslösen
 
-'Push'-Installationen: Event 'on demand' auslösen
-
-Vom opsi-Server aus kann der Client aufgefordert werden, die gesetzten action-requests auszuführen.
-
-//TODO kaputter link
-Das Auslösen des Events kann vom *opsi-configed* aus erfolgen.
-xref:configed#opsi-manual-configed-client-editing-ondemand[opsi-configed - on_demand Ereignis auslösen]
+Sie können ebenfalls einen Client vom opsi-Server aus auffordern, die gesetzten Action Requests auszuführen. Wie das über `opsi-configed` gelingt, lesen Sie in Abschnitt xref:configed:configed.adoc#opsi-manual-configed-host-actions-opsiclientd-event[Events auslösen (Push-Installation)].
 
 // cspell: ignore hostControlSafe_fireEvent
-Auf der Kommandozeile lässt sich dies ebenfalls mittels `opsi-cli` durchführen:
-[source,console]
-----
-opsi-cli jsonrpc execute hostControlSafe_fireEvent event *hostIds
-----
+Auf der Kommandozeile mit `opsi-cli` rufen Sie die JSON-RPC-Methode `hostControlSafe_fireEvent` auf und geben dahinter den Namen des Events an, gefolgt von einem oder mehrern Clients:
 
-Beispiel:
 [source,console]
 ----
 opsi-cli jsonrpc execute hostControlSafe_fireEvent "on_demand" "client.uib.local"
@@ -529,9 +566,13 @@ opsi-cli jsonrpc execute hostControlSafe_fireEvent "on_demand" "client.uib.local
 [[opsi-manual-clientagent-control-misc]]
 == Wartungsarbeiten (Shutdown/Reboot)
 
+Über die Web-Schnittstelle können Sie Clients auch herunterfahren und neu starten (siehe Abschnitt <<>>)
+
+Über den `opsiclientd`-Webservice können Sie Clients herunterfahren und neu starten. Über die Management-Oberfläche `opsi-configed` erreichen Sie die Funktionen über das Menü _OpsiClient_
+
+##
+
 Über den Webservice des `opsiclientd` ist es möglich, steuernd auf den *opsi-client-agent* einzuwirken.
-Authentifizierung funktioniert entweder mittels des lokalen Administrator-Accounts (ein leeres Passwort ist unzulässig)
-oder mittels der *opsi-host-id* (FQDN / vollständiger Host-Name inkl. DNS-Domain) als Benutzername und des `opsi host key` als Passwort.
 
 Vom *opsi-configed* aus geht dies über das Menü 'OpsiClient' oder aus dem Kontextmenü des 'Client'-Tabs.
 
@@ -649,47 +690,3 @@ Log-Dateien des `opsi-client-systray` werden im log-Verzeichnis des users abgele
 //TODO: proper link
 //Siehe auch Kapitel xref:modules/software-on-demand#software-on-demand[opsi Software On Demand (Kiosk-Mode)]
 
-
-##das hier nach oben?
-[[opsi_manual_opsi-client-agent_webapi]]
-== opsi-client-agent web service
-
-Der *opsiclientd* stellt unter `https://<client-addresse>:4441` eine web-Schnittstelle zur Verfügung. Darin sind verschiedene Möglichkeiten enthalten:
-
-// cspell: ignore viewer
-info:: zeigt in kompakter Form an, was der *opsiclientd* tut
-log viewer:: ist ein Hilfsmittel zum Betrachten und Durchsuchen des *opsiclientd* logs
-control interface:: stellt einen Weg dar, JSONRPC-Anfragen an den *opsiclientd* zu stellen
-
-Die folgenden Abschnitte beleuchten einzelne JSONRPC-Anfragen, die getätigt werden können.
-
-[[opsi_manual_opsi-client-agent_webapi_log_read]]
-=== Logdateien auslesen
-
-// cspell: ignore opsi_loginblocker, notifier_block_login, notifier_event
-Die JSONRPC-Anfrage `log_read` liest eine auf dem Client vorhandene opsi-Logdatei.
-Parameter: `logType *extension *maxSize`
-Mögliche `logType` Werte sind `opsiclientd`, `opsi-client-agent`, `opsi-script`, `opsi_loginblocker`, `notifier_block_login` und `notifier_event`.
-Mit dem Parameter `extension` können rotierte Logdateien (_1.log, _2.log etc.) angezeigt werden.
-Mögliche Werte sind 0-9.
-Der Parameter `maxSize` limitiert die Ausgabe auf den angegebenen Wert in Bytes.
-
-[[opsi_manual_opsi-client-agent_webapi_update_component]]
-=== Eine opsi-client-agent-Komponente aktualisieren
-Die JSONRPC-Anfrage `updateComponent` kann eine *opsi-client-agent*-Komponente aktualisieren.
-Parameter: `*component *url`
-Mögliche Werte für `component` sind: `opsiclientd`.
-Das Update wird von der angegebenen `url` geladen (mögliche Protokolle sind hierbei: `http`, `https` und `file`).
-Das Update muss als Archiv (zip / tar / tar.gz / tar.bz2) bereitgestellt werden, das die Dateien der Komponente enthält.
-
-// cspell: ignore insecure
-Alternativ kann das Archiv auch über einen `POST`-Request auf `/upload/update/opsiclientd` hochgeladen werden.
-Beispiel:
-[source,bash]
-----
-curl --insecure --request POST \
-	--user ':<opsi-client-host-key>' \
-	--header 'Content-Disposition: filename=oca.zip' \
-	--data-binary '@path/to/opsiclientd_windows_x86_<version>.zip' \
-	https://<client-address>:4441/upload/update/opsiclientd
-----
