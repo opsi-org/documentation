@@ -145,7 +145,6 @@ include::common:partial$softwintegration-tutorial-modify-test-cycle.adoc[]
 // include docu: OSD Checkboxes for additional code
 include::common:partial$osd-checkboxes-subtasks.adoc[]
 
-
 [[opsi-winclient-softwintegration-tutorial-opsiadmin]]
 ==== Installation When the User is Logged on
 
@@ -368,14 +367,8 @@ If the product manufacturer provides an option for software deletion, you must c
 
 When using an uninstall program, always run a test to see if all of the files have been deleted and the computer is still in a stable state.
 
-Products that are installed by MSI normally come with an uninstall option, which is usually the program `msiexec.exe` combined with the parameter `/x`. The parameter `/qb-!` is for the unattended mode (or without user interaction). So here is an example of an unattended uninstall command:
-
-[source,winst]
-----
-msiexec.exe /x some.msi /qb-! REBOOT=ReallySuppress
-----
-
-Instead of the package name, you could also use the GUID (Global Unique ID) with `msiexec.exe`. This GUID identifies the product in the system, which can be found in the registry directory
+Products that are installed by MSI normally come with an uninstall option, which is usually the program `msiexec.exe` combined with the parameter `/x`. The parameter `/qb-!` is for the unattended mode (or without user interaction). +
+In order to identify the software ro uninstall, you have to use the GUID (Global Unique ID) with `msiexec.exe`. This GUID identifies the product in the system. It comes from the msi file and will used for the 'uninstall entry' in the registry:
 'HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 
 A request using the GUID looks like this:
@@ -383,6 +376,75 @@ A request using the GUID looks like this:
 ----
 msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
 ----
+
+The GUID may change from release to release. So the problem is to get the correct GUID of the software you want to uninstall. +
+One way to solve this problem is to use the MsiName which the opsi-setup-detector can read from the msi file. This MsiName is used as `DisplayName` entry in the uninstall registry entry mentioned above.
+The uninstall scripts produced by the opsi-setup-detector use this MsiName to get the GUIDs of the installed software we want to uninstall. +
+Therefore you may have to cut trailing information about architecture or version from the MsiName before we use it for a regular expression search in the uninstall entries in the registry.
+
+This is what the opsi-setup-detector produces as msi uninstall code for you:
+
+[source,winst]
+----
+; Finding the MsiId by the Displayname from Registry:
+; Be sure that the Displayname is set correctly:
+Set $DisplayName$ = 'short msi name'
+; escape all regex relevant chars with '\' : '\^$.|?*+()[{'
+set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)
+; '(?i)' = case insensitive ; '.*' = 0 or more of any thing
+set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'
+Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)
+;-----------------------------------------------------
+
+; ---------------------------------------------------------------
+comment "run the uninstallation "
+; ----------------------------------------------------------------
+
+if count($UninstallList$) int> "0"
+	Comment "Uninstalling all found versions"
+	for %uninstallEntry% in $UninstallList$ do Sub_Uninstallation_msi
+endif
+
+[Sub_Uninstallation_msi]
+set $MsiVersion$ = TakeString(0, splitstring('%uninstallEntry%', "="))
+set $MsiId$ = TakeString(1, splitstring('%uninstallEntry%', "="))
+
+if stringtobool(checkForMsiProduct($MsiId$))
+	Message "Uninstalling :"  + $ProductId$ + " " + $MsiVersion$+ "..."
+	Winbatch_Uninstall_1
+	Set $ExitCode$ = getlastexitcode
+	if stringtobool(isMsiExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+		LogError $ErrorString$
+		isfatalerror $ErrorString$
+	else
+		Comment $ErrorString$
+	endif
+else
+	Comment "No previously installed " + $ProductId$ + " version found"
+endif
+----
+
+Short description about this script part:
+
+* `Set $DisplayName$ = 'short msi name'` +
+Set the diplayname with cut trailing information.
+
+* prepare the displayname as regular expression search string: +
+Mask all regular expression relevant chars:
+`set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`
+Tell that we search for search string at the start of the line with 0 or more of any chars behind the search string. +
+`set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`
+
+* search in the registry: +
+`Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)` +
+The function getGuidListByDisplaynameRegex comes from the osd-lib.opsiscript and creates a list of matching entries in the format: +
+<MsiVersion> = <msi GUID> 
+
+* do the uninstall:
+Now we can iterate throug the list and use the found GUIDs to uninstall the software. This is done in the section `[Sub_Uninstallation_msi]`
+
+
+
 
 If none of these methods are available or sufficient, the uninstall can be done using a {opsi-script} script as described below:
 
