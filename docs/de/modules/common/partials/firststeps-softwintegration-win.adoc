@@ -157,51 +157,6 @@ Eine mögliche Ursache ist dann, dass dieses Setupprogramm einen angemeldeten Be
 In einem solchen Fall können Sie Ihre Installation in ein opsi-Rahmenpaket einbinden das diese benötigten Voraussetzungen schafft. +
 Dies können Sie über den opsi-setup-detector über die Windows Aufgabe _Analysiere Datei und erzeuge ein Paket 'with user'_ erledigen.
 
-
-////
-Handelt es sich um eine MSI-Installation, hilft eventuell die Option _ALLUSERS=1_.
-
-.Beispiel:
-[source,winst]
-----
-[Actions]
-DefVar $MsiLogFile$
-Set $MsiLogFile$ = %opsiLogDir% + "\myproduct.log"
-winbatch_install_myproduct
-
-[winbatch_install_myproduct]
-msiexec /qb-! /l* $MsiLogFile$ /i "%ScriptPath%\files\myproduct.msi" ALLUSERS=1
-----
-
-Eine weitere Möglichkeit ist, dass sich das Installationsprogramm zu früh beendet, z.B. weil ein ein Sub-Prozess gestartet wird.
-In diesem Fall können die Parameter _/WaitSeconds <Anzahl Sekunden>_ oder
-_/WaitForProcessEnding "program.exe" /TimeOutSeconds "<Anzahl Sekunden>"_ für den WinBatch-Aufruf helfen.
-
-Eine andere, wenn auch aufwendigere, Möglichkeit dieses Problem zu lösen ist, einen administrativen Benutzer temporär anzulegen
-und diesen zur Installation der Software zu verwenden. Eine Anleitung findet sich hier: +
-
-https://download.uib.de/opsi_stable/doc/html/opsi-script-manual/opsi-script-manual.html#opsi-script-cookbook-local-admin
-////
-
-////
-[[opsi-winclient-softwintegration-tutorial-msi]]
-==== Arbeiten mit MSI-Paketen
-
-Microsoft hat mit Windows 2000 ein eigenes Installationskonzept vorgestellt, das auf dem Microsoft Installer Service, kurz „MSI“ beruht. Inzwischen sind viele Setup-Programme MSI-konform.
-
-MSI-Konformität bedeutet, dass die eigentliche Installation darin besteht, dass an den MSI ein Paket von Installations-Anweisungen übergeben wird (im Prinzip eine Datei mit einen Namen der Form „produkt.msi“) und der MSI dieses Paket dann ausführt.
-
-In der Praxis sieht dies meist so aus, dass die zu einem Produkt gehörige „setup.exe“ eine Datei „produkt.msi“ und ein zusätzliches Steuerprogramm für die Installation enthält. Das Steuerprogramm packt „produkt.msi“ aus und fragt, ob eine Installation starten soll. Wird dies bestätigt, prüft das Steuerprogramm, ob der MSI schon eingerichtet ist und übergibt bei positivem Ergebnis der Prüfung diesem die „produkt.msi“. Ist der MSI nicht eingerichtet und wird insbesondere das Programm „msiexec.exe“ nicht gefunden, so startet das Steuerprogramm zuerst eine Installationsprogramm für den MSI.
-
-Klickt man bei der Frage, ob die Installation starten soll, nicht auf „weiter“, sondern ruft den Explorer auf, so findet sich das ausgepackte MSI-Paket meist in einem temporären Verzeichnis.
-
-Dieses Paket kann nun dazu verwendet werden, eine Installation „unattended“ - also „unbewacht“,  d.h. ohne dass ein Benutzereingriff erforderlich ist - auszuführen. Dazu ist bei vorhandener `msiexec.exe` aufzurufen:
-[source,winst]
-----
-msiexec /i "%ScriptPath%\Product.msi" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
-----
-////
-
 [[opsi-winclient-softwintegration-tutorial-customizing]]
 ==== Customizing nach einer silent/unattended Installation
 
@@ -209,13 +164,6 @@ Häufig will man nach einer erfolgreichen Silent-Installation Anpassungen an der
 Hierzu bietet der {opsi-script} ein mächtiges Werkzeug.
 Doch bevor dies eingesetzt werden kann muss oft ermittelt werden, welche in der graphischen Oberfläche getätigten Änderungen zu
 welchen Veränderungen in Dateien und der Registry führen.
-
-////
-Hierzu können die unter <<opsi-getting-started-softwintegration-tutorial-analyse-and-repackage>> vorgestellten Werkzeuge eingesetzt werden.
-Häufig führen aber auch kleinere Werkzeuge schneller zum Erfolg.
-
-Einige beliebte Werkzeuge sind:
-////
 
 Hierzu können Werkzeuge verwendet werden wie z.B.: +
 
@@ -253,170 +201,19 @@ Daher sollten in '{opsi-script}' Skripten die folgenden Funktionen gemieden werd
 Das sind leider genau die 3 am meisten verwendeten.
 
 Wir empfehlen zur Ersetzung dieser Befehle die Verwendung der mit dem opsi-script mit gelieferten autIt Library: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`.
-Diese bietet neben den hiervorgestellten erweiterten Funktionen auch noch ein logging. Sie können diese Datei in das Produktverseichnis kopieren und dann in den AutoIT code einbinden mit: `#include "%scriptpath%\opsi-autoit-lib.au3"`
-
+Diese bietet neben den hier vorgestellten erweiterten Funktionen auch noch ein logging. Sie können diese Datei in das Produktverzeichnis kopieren und dann in den AutoIT code einbinden mit: `#include "%scriptpath%\opsi-autoit-lib.au3"`
 
 
 *winwait()* +
 kann ersetzt werden durch die Funktion +
 `opsiwinwait($title, $text, $maxseconds, $logname)`
 
-////
-+
-welche in der folgenden Weise definiert wird:
-[source,configfile]
-----
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-Dabei ist:
-
-* `$title` der Titel des Fensters
-
-* `$text` ein Teil des sichtbaren Textes im Fenster
-
-* `$maxseconds` der timeout in Sekunden
-
-* `$logname` der Name der Logdatei
-////
 
 *Send()* +
 kann ersetzt werden durch die Funktion +
 `opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
 bzw. durch +
 `opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)`
-
-////
- +
-welche in der folgenden Weise definiert werden:
-[source,configfile]
-----
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title , $text,$id)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-----
-Dabei ist:
-
-* `$title` der Titel des Fensters
-
-* `$text` ein Teil des sichtbaren Textes im Fenster
-
-* `$id` die numerische ControlId des Buttons oder Editierfeldes
-
-* `$sendtext` der Text welcher eingfügt werden soll
-
-* `$maxseconds` der timeout in Sekunden
-
-* `$logname` der Name der Logdatei
-
-Dabei muss mit der `Au3info.exe` die 'ControlId' ermittelt werden. Bitte die numerische 'ControlId' verwenden, andere Varianten scheinen Probleme zu machen:
-
-Hier ein Auszug aus einem script. +
-In diesem wird dann noch eine Logdatei angelegt, die mit folgenden Befehlen in die Logdatei des '{opsi-script}' integriert wird:
-[source,winst]
-----
-includelog "c:\tmp\au3.log" "500"
-----
-
-Das Beispiel:
-[source,configfile]
-----
-[ExecWith_autoit_confirm]
-Func opsiwinwait($title, $text, $maxseconds, $logname)
-	Local $exists = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($exists = 0)
-		$exists = WinExists($title , $text)
-		FileWriteLine($mylog,"win: "  & $title & " ; " & $text & " exists result (1=exists): " & $exists )
-		$seconds = $seconds + 1
-		sleep(1000)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlClick($title, $text, $id, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlClick($title , $text,$id)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-Func opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)
-	Local $result = 0
-	Local $seconds = 0
-	Local $mylog
-	$mylog = FileOpen($logname, 1)
-	While ($seconds <= $maxseconds) and ($result = 0)
-		$result = ControlSetText ($title , $text,$id, $sendtext)
-		FileWriteLine($mylog,"answer for " & $title & " ; " & $text & " id: " & $id & " set: " & $sendtext & " sended: result (1=success) : " & $result)
-		$seconds = $seconds + 1
-		sleep(500)
-	WEnd
-	FileClose($mylog)
-EndFunc
-
-; exact title match
-Opt("WinTitleMatchMode", 3)
-$mylog = FileOpen("%opsiLogDir%\au3.log", 2)
-FileWriteLine($mylog,"auto-it started - waiting for the window")
-FileClose($mylog)
-
-opsiwinwait("InstallShield Wizard" , "Wollen Sie wirklich", 200, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Wollen Sie wirklich", 6, 5, "%opsiLogDir%\au3.log")
-opsiwinwait("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 400, "%opsiLogDir%\au3.log")
-	opsiControlClick("InstallShield Wizard" , "Deinstallation ist abgeschlossen", 1, 5, "%opsiLogDir%\au3.log")
-
-Sleep(500)
-;and good bye
-Exit
-----
-////
 
 Es empfiehlt sich zur Identifikation der Controls mit der `Au3info.exe` die 'ControlId' ermittelt werden. Bitte die numerische 'ControlId' verwenden, andere Varianten scheinen Probleme zu machen.
 
@@ -477,6 +274,10 @@ Trotz dieser Unterstützung des Herstellers sollte man sich jedoch nicht auf die
 und auf einem Testsystem zusätzlich prüfen, ob das System nach der Deinstallation weiter stabil läuft und ob Dateien oder
 Registry-Einträge zurückgeblieben sind.
 
+[[opsi-winclient-softwintegration-tutorial-deinstall-msi]]
+==== Verfahren zur Deinstallation von MSI Produkten
+
+
 Falls das Produkt als MSI-Paket bereitgestellt und mittels 'msiexec' installiert wurde, ist es in der Regel auch eine Deinstallation mittels 'msiexec' möglich.
 Dazu ruft man den `msiexec.exe` mit dem Parameter `/x` auf.
 Um die Benutzer-Interaktion zu deaktivieren, kann zusätzlich der Parameter +/qb-!+ übergeben werden. +
@@ -490,12 +291,11 @@ Ein Beispiel einer Deinstallation mittels dieser GUID sieht folgendermaßen aus:
 msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
 ----
 
-The GUID may change from release to release. So the problem is to get the correct GUID of the software you want to uninstall. +
-One way to solve this problem is to use the MsiName which the opsi-setup-detector can read from the msi file. This MsiName is used as `DisplayName` entry in the uninstall registry entry mentioned above.
-The uninstall scripts produced by the opsi-setup-detector use this MsiName to get the GUIDs of the installed software we want to uninstall. +
-Therefore you may have to cut trailing information about architecture or version from the MsiName before we use it for a regular expression search in the uninstall entries in the registry.
+Die GUID kann sich beim selben Produkt von Version zu Version ändern. Um vorhandene und evtl. ältere Installtionen zu löschen, muss also ermittelt werden welche GUID diese Installationen haben. +
+Eine Möglichkeit dies zu tun geht über den `MsiName` des Paketes welcher vom opsi-setup-detector aus der MSI-Datei ermittelt werden kann. Der `MsiName` wird im oben erwähnten Uninstalleintrag in der Registry als `DisplayName` verwendet. Daher kann der `MsiName` verwendet werden um die passenden GUID's in der Registry zu finden. +
+Um das zu tun, müssen Informationen zu Architektur und Version vom Ende des `MsiName` abgeschnitten werden und das ganze in eine regular expression verpackt werden.
 
-This is what the opsi-setup-detector produces as msi uninstall code for you:
+Dies ist der Code der vom opsi-setup-detector zu Deinstallation von MSI erzeugt wird:
 
 [source,winst]
 ----
@@ -537,24 +337,24 @@ else
 endif
 ----
 
-Short description about this script part:
+Kurze Beschreibung was in diesem Scriptteil passiert:
 
 * `Set $DisplayName$ = 'short msi name'` +
-Set the diplayname with cut trailing information.
+Setzen der Variable $DisplayName$ auf den `MsiName` gekürzt um störende anhängende Informationen.
 
-* prepare the displayname as regular expression search string: +
-Mask all regular expression relevant chars:
-`set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`
-Tell that we search for search string at the start of the line with 0 or more of any chars behind the search string. +
+* Den $DisplayName$ als regular expression Suchstring präparieren: +
+Alle regular expression Sonderzeichen verstecken (maskieren): +
+`set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)` +
+Angeben, das der Suchstring am Anfang der Zeile steht und 0 oder mehr beliebige Zeichen folgen dürfen: +
 `set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`
 
-* search in the registry: +
+* Suchen in der Registry: +
 `Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)` +
-The function getGuidListByDisplaynameRegex comes from the osd-lib.opsiscript and creates a list of matching entries in the format: +
+Die Funktion getGuidListByDisplaynameRegex ist Bestandteil der Library osd-lib.opsiscript und erzeugt eine Liste von als passend gefundenen Einträgen in der Form: +
 <MsiVersion> = <msi GUID> 
 
-* do the uninstall:
-Now we can iterate throug the list and use the found GUIDs to uninstall the software. This is done in the section `[Sub_Uninstallation_msi]`
+* Die Deinstallation durchführen:
+Nun können wir die Liste durchgehen und die gefundenen GUIDs zur Deinstalltion verwenden. Die passiert in der Sektion: `[Sub_Uninstallation_msi]`
 
 
 Sollten diese Methoden nicht oder nicht vollständig funktionieren, so muss mit einem opsi-script-Skript nachgeholfen werden,
