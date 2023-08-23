@@ -17,130 +17,7 @@
 :doctype: book
 
 
-.setup.opsiscript: Installation Script
-[source,winst]
-----
-; ----------------------------------------------------------------
-; This is a opsi-script file.
-; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.1.4
-; ----------------------------------------------------------------
-encoding=utf8
 
-[Actions]
-requiredOpsiscriptVersion >= "4.12.4.23"
-
-importlib "uib_exitcode.opsiscript"
-importlib "osd-lib.opsiscript"
-
-
-; All variables are defined here:
-include_insert "declarations.opsiinc"
-; All sections are defined here:
-include_append "sections.opsiinc"
-
-
-; ----------------------------------------------------------------
-; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
-Set $ProductId$		= "opsi-template"
-; the path where we find the product after the installation
-Set $InstallDir$	= "unknown"
-set $targetprogram$ = ""
-Set $MinimumSpace$	 = "0 MB"
-; ----------------------------------------------------------------
-
-Message "Installing " + $ProductId$ + " ..."
-
-set $OS$ = GetOS
-
-if not(($OS$ = "Windows_NT"))
-	logError "Installation aborted: wrong OS version: only Windows"
-	isFatalError "wrong OS"
-endif
-
-if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
-	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
-	isFatalError "No Space"
-	; Stop process and set installation status to failed
-endif
-
-comment "Show product picture"
-ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
-
-
-
-if FileExists("%ScriptPath%\delinc.opsiinc")
-	comment "Start uninstall part"
-	include_insert "%ScriptPath%\delinc.opsiinc"
-endif
-
-Message "Installing " + $ProductId$ + " ..."
-
-set $installerSourceDir$ = ""
-
-
-comment "Start setup program"
-ChangeDirectory $installerSourceDir$
-;----------------------------------------------
-Winbatch_install	
-;----------------------------------------------
-set $ExitCode$ = getlastexitcode
-if "true" = isGenericExitcodeFatal($exitcode$, "true", $ErrorString$ )
-	
-	LogError $ErrorString$
-	isfatalerror $ErrorString$
-else
-	Comment $ErrorString$
-endif
-set $targetprogram$ = ""
-
-
-
-[Winbatch_uninstall]
-; Choose one of the following examples as basis for program uninstall
-;
-; === Nullsoft Scriptable Install System ================================================================
-; maybe better called as
-; Winbatch_uninstall /WaitforProcessending "Au_.exe" /Timeoutseconds 10
-; "$UninstallProgram$" /S
-;
-; === Inno Setup ========================================================================================
-; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
-
-[Files_uninstall]
-del -sf "$InstallDir$\"
-
-[Winbatch_install]
-; Choose one of the following examples as basis for your installation
-; You can use $LicenseKey$ var to pass a license key to the installer
-;
-; === Nullsoft Scriptable Install System ================================================================
-; "%ScriptPath%\Setup.exe" /S
-;
-; === MSI package =======================================================================================
-; You may use the parameter PIDKEY=$Licensekey$
-; msiexec /i "%ScriptPath%\some.msi" /l* "%opsiLogDir%\$ProductId$.install_log.txt" /qb-! ALLUSERS=1 REBOOT=ReallySuppress
-;
-; === InstallShield + MSI=====================================================================================
-; Attention: The path to the log file should not contain any whitespaces
-; "%ScriptPath%\setup.exe" /s /v" /l* %opsiLogDir%\$ProductId$.install_log.txt /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
-; "%ScriptPath%\setup.exe" /s /v" /qb-! ALLUSERS=1 REBOOT=ReallySuppress"
-;
-; === InstallShield =====================================================================================
-; Create setup.iss answer file by running: setup.exe /r /f1"c:\setup.iss"
-; You may use an answer file by the parameter /f1"c:\setup.iss"
-; "%ScriptPath%\setup.exe" /s /sms /f2"%opsiLogDir%\$ProductId$.install_log.txt"
-;
-; === Inno Setup ========================================================================================
-; http://unattended.sourceforge.net/InnoSetup_Switches_ExitCodes.html
-; You may create setup answer file by: setup.exe /SAVEINF="filename"
-; You may use an answer file by the parameter /LOADINF="filename"
-; "%ScriptPath%\setup.exe" /sp- /silent /norestart /nocancel /SUPPRESSMSGBOXES
-
-
-; ----------------------------------------------------------------
-; ----------------------------------------------------------------
-----
 
 .declarations.opsiinc: Variable Declaration
 [source,winst]
@@ -148,9 +25,9 @@ del -sf "$InstallDir$\"
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.1.4
+; This code was originally created by opsi-setup-detector 4.2.2.3
 ; ----------------------------------------------------------------
-
+encoding=utf8
 ; -------------------------------------
 ; include file for opsi-setup-detector products
 ; Define all variables here
@@ -170,6 +47,7 @@ DefVar $minimumspace$
 DefVar $MsiId$
 DefVar $MsiVersion$
 DefVar $DisplayName$
+DefVar $DisplayNameRegex$
 DefVar $oldProgFound$
 DefVar $os$
 DefVar $osshort$
@@ -184,31 +62,182 @@ DefStringList $UninstallList$
 DefVar $targetprogram$
 ----
 
+.setup.opsiscript: Installation Script
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.2.3
+; ----------------------------------------------------------------
+encoding=utf8
+
+;here we start
+[Actions]
+
+;check if the running opsiscript version is not too old
+requiredOpsiscriptVersion >= "4.12.5.0"
+
+importlib "uib_exitcode.opsiscript"
+importlib "osd-lib.opsiscript"
+
+
+; All variables are defined here:
+include_insert "declarations.opsiinc"
+; All sections are defined here:
+include_append "sections.opsiinc"
+
+; ----------------------------------------------------------------
+comment "put fixed infos into the script (maybe produced by the setup detector maybe manually)"
+; ----------------------------------------------------------------
+; the values can be manually edited or automatically suggested by the opsi setup detector
+;
+; ----------------------------------------------------------------
+; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
+Set $ProductId$		= "opsi-template"
+; the path where we find the product after the installation
+Set $InstallDir$	= "unknown"
+set $targetprogram$ = ""
+Set $MinimumSpace$	 = "0 MB"
+; ----------------------------------------------------------------
+; the operating system, in which the interpreter is running
+; supported values are  "Windows_NT", "Linux", "MacOS"
+set $OS$ = GetOS
+
+Message "Installing " + $ProductId$ + " ..."
+
+; ----------------------------------------------------------------
+comment  "check if the script is adequate to the environment"
+; ----------------------------------------------------------------
+
+if not(($OS$ = "Windows_NT"))
+	logError "Installation aborted: wrong OS version: only Windows"
+	isFatalError "wrong OS"
+endif
+
+if not(HasMinimumSpace ("%SystemDrive%", $MinimumSpace$))
+	LogError "Not enough space on %SystemDrive%, " + $MinimumSpace$ + " on drive %SystemDrive% needed for " + $ProductId$
+	isFatalError "No Space"
+	; Stop process and set installation status to failed
+endif
+
+; ---------------------------------------------------------------
+comment "inform the user at the PC about product installation"
+; ----------------------------------------------------------------
+; for a better visual appearance, show some graphic (at most of size 160x160 [px] )
+comment "Show product picture"
+ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
+
+if FileExists("%ScriptPath%\delinc.opsiinc")
+	comment "Start uninstall part"
+	include_insert "%ScriptPath%\delinc.opsiinc"
+endif
+
+Message "Installing " + $ProductId$ + " ..."
+
+set $installerSourceDir$ = ""
+
+; ---------------------------------------------------------------
+comment "run  the setup program"
+; ----------------------------------------------------------------
+
+; the call to the installer is more stable if we set the path
+ChangeDirectory $installerSourceDir$
+;----------------------------------------------
+Winbatch_install_1	
+;----------------------------------------------
+; ---------------------------------------------------------------
+comment "check the result"
+; ----------------------------------------------------------------
+; check the outcome of the call, produce either a "failed" state of the script or log the result
+set $ExitCode$ = getlastexitcode
+if "true" = isGenericExitcodeFatal($exitcode$, "true", $ErrorString$ )
+	
+	LogError $ErrorString$
+	isfatalerror $ErrorString$
+else
+	Comment $ErrorString$
+endif
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+----
+
+.sections.opsiinc: Sections Include Script
+[source,winst]
+----
+; ----------------------------------------------------------------
+; This is a opsi-script file.
+; See https://opsi.org    https://uib.de
+; This code was originally created by opsi-setup-detector 4.2.2.3
+; ----------------------------------------------------------------
+encoding=utf8
+
+; -------------------------------------
+; include file for opsi-setup-detector products
+; Define all sections here
+;---------------------------
+
+;--- generated setup sections
+
+[Winbatch_install_1]
+
+
+[Winbatch_install_2]
+
+
+;--- generated uninstall sections
+
+[Winbatch_uninstall_1]
+
+
+[Winbatch_uninstall_2]
+
+
+
+[Files_uninstall]
+del -sf "$InstallDir$\"
+
+;--- addtional sections
+
+; ----------------------------------------------------------------
+; ----------------------------------------------------------------
+
+----
+
 .delinc.opsiinc: Deinstallation Include Script
 [source,winst]
 ----
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.1.4
+; This code was originally created by opsi-setup-detector 4.2.2.3
 ; ----------------------------------------------------------------
 encoding=utf8
 
+; ---------------------------------------------------------------
+comment "check if there is something to uninstall"
+; ----------------------------------------------------------------
 Message "Check for existing installation of " + $ProductId$ + " ..."
 
 comment "Start the Uninstall check:"
-set $oldProgFound$ = "false"
 set $oldProgFound$ = "false"
 
 
 if $oldProgFound$ = "true"
 	Message "Uninstalling " + $ProductId$
+	; ---------------------------------------------------------------
+	comment "run the uninstall program"
+	; ----------------------------------------------------------------
 	
 	
 	comment "Start uninstall program"
 	;----------------------------------------------
 	Winbatch_uninstall_1  
 	;----------------------------------------------
+	; ---------------------------------------------------------------
+	comment "check the result"
+	; ----------------------------------------------------------------
+	; check the outcome of the call, produce either a "failed" state of the script or log the result
 	set $ExitCode$ = getlastexitcode
 	if "true" = isGenericExitcodeFatal($exitcode$, "true", $ErrorString$ )
 		LogError $ErrorString$
@@ -218,15 +247,18 @@ if $oldProgFound$ = "true"
 	endif
 	
 	
+	
+	; ---------------------------------------------------------------
+	comment "cleanup installation directory"
+	; ----------------------------------------------------------------
+	
 	if not(($InstallDir$ = '') or ($InstallDir$ = 'unknown'))
 		Files_uninstall
 	endif
-	
-	
 endif
+
 ;-----------------------------------------------------
 ----
-
 
 .uninstall.opsiscript: Deinstallation Script
 [source,winst]
@@ -234,29 +266,44 @@ endif
 ; ----------------------------------------------------------------
 ; This is a opsi-script file.
 ; See https://opsi.org    https://uib.de
-; This code was originally created by opsi-setup-detector 4.2.1.4
+; This code was originally created by opsi-setup-detector 4.2.2.3
 ; ----------------------------------------------------------------
 encoding=utf8
 
-
+;here we start
 [Actions]
-requiredOpsiscriptVersion >= "4.12.4.23"
 
+;check if the running opsiscript version is not too old
+requiredOpsiscriptVersion >= "4.12.5.0"
+
+;fetch helper libraries
 importlib "uib_exitcode.opsiscript"
 importlib "osd-lib.opsiscript"
 
 
 ; All variables are defined here:
 include_insert "declarations.opsiinc"
+; All sections are defined here:
+include_append "sections.opsiinc"
 
+; ----------------------------------------------------------------
+comment "put fixed infos into the script (maybe produced by the setup detector maybe manually)"
+; ----------------------------------------------------------------
+; the values can be manually edited or automatically suggested by the opsi setup detector
+;
 ; ----------------------------------------------------------------
 ; $ProductId$ is the name of the product in opsi, only lower letters, no umlauts, no white spaces, use '-' as a separator
 Set $ProductId$		 = "opsi-template"
 ; the path where we find the product after the installation
 Set $InstallDir$	= "unknown"
 ; ----------------------------------------------------------------
+; the operating system, in which the interpreter is running
+; supported values are  "Windows_NT", "Linux", "MacOS"
+set $OS$ = GetOS
 
-Message "Uninstalling " + $ProductId$ + " ..."
+; ----------------------------------------------------------------
+comment  "check if the script is adequate to the environment"
+; ----------------------------------------------------------------
 
 set $OS$ = GetOS
 
@@ -265,6 +312,10 @@ if not(($OS$ = "Windows_NT"))
 	isFatalError "wrong OS"
 endif
 
+; ---------------------------------------------------------------
+comment "inform the user at the PC about product installation"
+; ----------------------------------------------------------------
+; for a better visual appearance, show some graphic (at most of size 160x160 [px] )
 comment "Show product picture"
 ShowBitmap "%ScriptPath%\" + $ProductId$ + ".png" $ProductId$
 
@@ -274,24 +325,6 @@ if FileExists("%ScriptPath%\delinc.opsiinc")
 	comment "Start uninstall part"
 	include_insert "%ScriptPath%\delinc.opsiinc"
 endif
-
-
-
-[Winbatch_uninstall_1]
-; Choose one of the following examples as basis for program uninstall
-;
-; === Nullsoft Scriptable Install System ================================================================
-; maybe better called as
-; Winbatch_uninstall /WaitforProcessending "Au_.exe" /Timeoutseconds 10
-; "$UninstallProgram$" /S
-;
-; === Inno Setup ========================================================================================
-; "$UninstallProgram$" /silent /norestart /SUPPRESSMSGBOXES /nocancel
-
-[Files_uninstall]
-del -sf "$InstallDir$\"
-
 ; ----------------------------------------------------------------
 ; ----------------------------------------------------------------
 ----
-
