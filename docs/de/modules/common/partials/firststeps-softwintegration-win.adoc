@@ -274,6 +274,82 @@ Trotz dieser Unterstützung des Herstellers sollte man sich jedoch nicht auf die
 und auf einem Testsystem zusätzlich prüfen, ob das System nach der Deinstallation weiter stabil läuft und ob Dateien oder
 Registry-Einträge zurückgeblieben sind.
 
+Sollten diese Methoden nicht oder nicht vollständig funktionieren, so muss mit einem opsi-script-Skript nachgeholfen werden,
+wie es im nächsten Abschnitt beschrieben ist.
+
+.Nützliche opsi-script-Befehle zur Deinstallation
+
+Wurde ein Produkt mit den opsi-script-Funktionen installiert oder gibt es keine Deinstallation vom Hersteller,
+so muss ein eigenes opsi-script-Skript zu Deinstallation geschrieben werden.
+Um den Programmierer bei dieser Arbeit zu unterstützen stellt der '{opsi-script}' einige Funktionen bereit,
+die speziell bei der Deinstallation notwendig oder hilfreich sind.
+Es soll an dieser Stelle nur ein kurzer Überblick gegeben werden,
+eine genaue Beschreibung der Befehle und deren Parameter findet sich im {opsi-script}-Handbuch.
+
+Der einfachste Fall ist das Löschen einer oder mehrerer Dateien vom System. Dies geschieht in einer Files-Sektion mittels des Befehls
+
+[source,winst]
+----
+delete -f Dateiname
+----
+
+oder für ein Verzeichnis mit Unterverzeichnissen
+
+[source,winst]
+----
+delete -sf Verzeichnisname\
+----
+
+Der Parameter +f+ steht dabei für force, um die Datei wirklich zu löschen, auch wenn diese schreibgeschützt ist,
+der Parameter +s+ für subdirectories (mit Unterverzeichnissen/rekursiv).
+Soll eine Datei oder ein Verzeichnis aus allen Benutzer-Profilen gelöscht werden,
+so kann diese Files-Sektion mit dem Parameter +/AllNTUserProfiles+ aufgerufen werden. (siehe {opsi-script}-Handbuch)
+
+Möchte man einen Verzeichnisbaum löschen, in dem sich auch Dateien mit dem Attribut „versteckt“ oder „systemdatei“ befinden,
+muss momentan ein Umweg über den Befehl `rmdir` gegangen werden, der über eine 'DosInAnIcon'-Sektion aufgerufen werden kann.
+
+[source,winst]
+----
+[DosInAnIcon_deleteDir]
+rmdir /S /Q "<Verzeichnis>"
+----
+
+Muss vor dem Löschen evtl. ein laufender Prozess beendet werden, so kann dies mit dem Namen des Prozesses (zu sehen im Task-Manager)
+und dem opsi-script-Befehl +KillTask+ geschehen:
+
+[source,winst]
+----
+KillTask "thunderbird.exe"
+----
+
+Sollte das Produkt – oder Teile davon – als Service laufen, so muss dieser vor der Deinstallation beendet werden.
+Man kann dazu den Service in der Registry auf “inaktiv“ schalten und den Rechner neu starten oder aber man benutzt den System-Befehl
+`net` mit dem Parameter +stop+, um den Service sofort zu stoppen und anschließend – ohne Neustart – die zugehörigen Dateien zu löschen.
+
+[source,winst]
+----
+net stop <servicename>
+----
+
+Besondere Vorsicht ist beim Löschen von .dll-Dateien geboten, die noch von anderen Produkten verwendet werden könnten.
+Sie müssen individuell behandelt werden, weshalb hier leider kein allgemein gültiges Rezept gegeben werden kann.
+
+Um einzelne Einträge aus der Registry mittels {opsi-script} zu löschen, kommt der Befehl +DeleteVar+ zum Einsatz,
+der innerhalb einer 'Registry'-Sektion eines {opsi-script}-Skripts verwendet werden kann.
+Er löscht Einträge aus dem momentan geöffneten Key:
+
+[source,winst]
+----
+DeleteVar <VarName>
+----
+
+Möchte man einen Registry-Key samt seiner Unterschlüssel und Registry-Variablen löschen, so geschieht dies mittels des {opsi-script}-Befehls +DeleteKey+, z.B.:
+
+[source,winst]
+----
+DeleteKey [HKLM\Software\Macromedia]
+----
+
 [[opsi-winclient-softwintegration-tutorial-deinstall-msi]]
 ==== Verfahren zur Deinstallation von MSI Produkten
 
@@ -356,82 +432,6 @@ Die Funktion getGuidListByDisplaynameRegex ist Bestandteil der Library osd-lib.o
 * Die Deinstallation durchführen:
 Nun können wir die Liste durchgehen und die gefundenen GUIDs zur Deinstalltion verwenden. Die passiert in der Sektion: `[Sub_Uninstallation_msi]`
 
-
-Sollten diese Methoden nicht oder nicht vollständig funktionieren, so muss mit einem opsi-script-Skript nachgeholfen werden,
-wie es im nächsten Abschnitt beschrieben ist.
-
-.Nützliche opsi-script-Befehle zur Deinstallation
-
-Wurde ein Produkt mit den opsi-script-Funktionen installiert oder gibt es keine Deinstallation vom Hersteller,
-so muss ein eigenes opsi-script-Skript zu Deinstallation geschrieben werden.
-Um den Programmierer bei dieser Arbeit zu unterstützen stellt der '{opsi-script}' einige Funktionen bereit,
-die speziell bei der Deinstallation notwendig oder hilfreich sind.
-Es soll an dieser Stelle nur ein kurzer Überblick gegeben werden,
-eine genaue Beschreibung der Befehle und deren Parameter findet sich im {opsi-script}-Handbuch.
-
-Der einfachste Fall ist das Löschen einer oder mehrerer Dateien vom System. Dies geschieht in einer Files-Sektion mittels des Befehls
-
-[source,winst]
-----
-delete -f Dateiname
-----
-
-oder für ein Verzeichnis mit Unterverzeichnissen
-
-[source,winst]
-----
-delete -sf Verzeichnisname\
-----
-
-Der Parameter +f+ steht dabei für force, um die Datei wirklich zu löschen, auch wenn diese schreibgeschützt ist,
-der Parameter +s+ für subdirectories (mit Unterverzeichnissen/rekursiv).
-Soll eine Datei oder ein Verzeichnis aus allen Benutzer-Profilen gelöscht werden,
-so kann diese Files-Sektion mit dem Parameter +/AllNTUserProfiles+ aufgerufen werden. (siehe {opsi-script}-Handbuch)
-
-Möchte man einen Verzeichnisbaum löschen, in dem sich auch Dateien mit dem Attribut „versteckt“ oder „systemdatei“ befinden,
-muss momentan ein Umweg über den Befehl `rmdir` gegangen werden, der über eine 'DosInAnIcon'-Sektion aufgerufen werden kann.
-
-[source,winst]
-----
-[DosInAnIcon_deleteDir]
-rmdir /S /Q "<Verzeichnis>"
-----
-
-Muss vor dem Löschen evtl. ein laufender Prozess beendet werden, so kann dies mit dem Namen des Prozesses (zu sehen im Task-Manager)
-und dem opsi-script-Befehl +KillTask+ geschehen:
-
-[source,winst]
-----
-KillTask "thunderbird.exe"
-----
-
-Sollte das Produkt – oder Teile davon – als Service laufen, so muss dieser vor der Deinstallation beendet werden.
-Man kann dazu den Service in der Registry auf “inaktiv“ schalten und den Rechner neu starten oder aber man benutzt den System-Befehl
-`net` mit dem Parameter +stop+, um den Service sofort zu stoppen und anschließend – ohne Neustart – die zugehörigen Dateien zu löschen.
-
-[source,winst]
-----
-net stop <servicename>
-----
-
-Besondere Vorsicht ist beim Löschen von .dll-Dateien geboten, die noch von anderen Produkten verwendet werden könnten.
-Sie müssen individuell behandelt werden, weshalb hier leider kein allgemein gültiges Rezept gegeben werden kann.
-
-Um einzelne Einträge aus der Registry mittels {opsi-script} zu löschen, kommt der Befehl +DeleteVar+ zum Einsatz,
-der innerhalb einer 'Registry'-Sektion eines {opsi-script}-Skripts verwendet werden kann.
-Er löscht Einträge aus dem momentan geöffneten Key:
-
-[source,winst]
-----
-DeleteVar <VarName>
-----
-
-Möchte man einen Registry-Key samt seiner Unterschlüssel und Registry-Variablen löschen, so geschieht dies mittels des {opsi-script}-Befehls +DeleteKey+, z.B.:
-
-[source,winst]
-----
-DeleteKey [HKLM\Software\Macromedia]
-----
 
 [[opsi-winclient-softwintegration-tutorial-64bit]]
 ==== Bekannte Besonderheiten der 64 Bit-Unterstützung
