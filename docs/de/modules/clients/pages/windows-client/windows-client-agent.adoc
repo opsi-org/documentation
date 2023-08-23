@@ -64,48 +64,37 @@ Der opsi-Loginblocker ist als Credential Provider Filter realisiert (Datei `c:\w
 [[opsi-manual-client-agent-msi]]
 == Client-Agent als MSI-Paket
 
-Den Client-Agent für Windows gibt es ebenfalls als MSI-Paket (MicroSoft Installer).
-//hier weitermachen
+//Link anpassen, wenn 4.3 stable ist
+Den Client-Agent für Windows gibt es ebenfalls als MSI-Paket (Microsoft Installer). Wir stellen es in unserem öffentlichen http://download.uib.de/4.2/stable/misc/opsi-client-agent.msi[Repository] zur Verfügung. Es bietet dieselben Parameter wie das Programm `oca-installation-helper[.exe]` (siehe Abschnitt <<opsi-manual-clientagent-subsequent-installation-oca-installation-helper>>), die Sie über das Property `INSTALL_PARAMS` übergeben:
 
-Die Installation des *opsi-client-agent* unter windows ist zusätzlich zu den anderen Möglichkeiten auch über ein MSI-Paket möglich.
-Wir stellen es in unserem http://download.uib.de/4.2/stable/misc/opsi-client-agent.msi[öffentlichen Repository] zur Verfügung.
-Das MSI-Paket kennt die gleichen Parameter wie der oca-installation-helper, welche über das Property "INSTALL_PARAMS" übergeben werden:
-
-[source,bash]
+[source,console]
 ----
 msiexec /i opsi-client-agent.msi INSTALL_PARAMS="--non-interactive --service-address=https://opsiserver.domain.tld:4447 --service-username=msi --service-password=secret"
 ----
 
-Um das MSI per Gruppenrichtlinie zu verteilen sollten die INSTALL_PARAMS über ein MST verändert werden.
-Das MST kann beispielsweise über die Software https://docs.microsoft.com/de-de/windows/win32/msi/orca-exe[Orca] erzeugt werden.
-
+TIP: Um das MSI-Paket per Gruppenrichtlinie zu verteilen, definieren Sie die `INSTALL_PARAMS` am besten in einer MST-Datei. Diese erstellen Sie beispielsweise über den Datenbanktabellen-Editor https://docs.microsoft.com/de-de/windows/win32/msi/orca-exe[Orca.exe], der im Windows Software Development Kit (SDK) enthalten ist.
 
 [[opsi-manual-client-agent-bitlocker-suspend]]
-== opsiclientd Bitlocker Suspend Feature
+== BitLocker-Schutz deaktivieren
 
-Clients mit aktivierter Bitlocker-Verschlüsselung mit manueller Passworteingabe beim Booten verhindern die unbeaufsichtigte Installation von Software und Patches.
+Windows-10-Clients mit aktivierter BitLocker-Verschlüsselung (manuelle Passworteingabe beim Booten) erlauben keine unbeaufsichtigte Installation von Software und Patches. Für Reboots, die von `opsiclientd`-Events ausgelöst wurden, können Sie daher die Passworteingabe unterdrücken, indem Sie das Feature `suspend_bitlocker_on_reboot` aktivieren.
 
-Genau wie der 'opsi-script' ist es nun auch möglich für Reboots, die von Events des opsiclientd ausgelöst werden, ebenfalls die Passwort-Eingabe beim Booten zu unterdrücken.
+WARNING: Das Deaktivieren des BitLocker-Schutzes ist zwangsläufig mit einem Sicherheitsverlust verbunden, da das Passwort als Klartext auf die Festplatte geschrieben wird.
 
-WARNING: Dieses Feature ist zwangsläufig mit einem Sicherheitsverlust verbunden. Bei diesem Vorgang wird das Passwort als Klartext auf die Festplatte geschrieben und ist damit auch potenziell eine Schwachstelle.
-
-Dieses Feature ist per default deaktiviert. Um diese Option nur auf ausgesuchten Clients zu aktivieren, muss zuerst eine Standardkonfiguration erstellt werden:
+Um das Feature auf ausgesuchten Clients zu aktivieren, erstellen Sie zuerst eine Standardkonfiguration:
 
 // cspell: ignore clientconfig Suspending
-[source,shell]
+[source,console]
 ----
-opsi-admin -d method config_createBool clientconfig.suspend_bitlocker_on_reboot "Suspending Bitlocker at Reboot" false
-----
-
-Der Standard-Wert false entspricht hierbei dem Wert in der mitgelieferten `opsiclientd.conf`.
-
-Zum Setzen des Host-Parameter über *opsi-cli* ist der folgende Befehl auf dem *opsi-Configserver* auszuführen
-(im Beispiel für einen Client mit der opsi-host-id `client.domain.de`):
-
-[source,shell]
-----
-opsi-admin -d method configState_create clientconfig.suspend_bitlocker_on_reboot client.domain.de true
+opsi-cli jsonrpc execute config_createBool clientconfig.suspend_bitlocker_on_reboot "Suspending Bitlocker at Reboot" false
 ----
 
-NOTE: Diese Option kann ebenfalls auf Clients aktiviert werden, die keine Bitlocker-Verschlüsselung aktiviert haben und sollte den Betrieb des opsiclientd nicht stören.
+Der Standardwert `false` entspricht hierbei dem Wert, der in der mitgelieferten Datei `opsiclientd.conf` steht (siehe Abschnitt <<opsi-manual-clientagent-configuration>>). Um den Host-Parameter für den Client `client.domain.de` zu setzen, geben Sie auf dem opsi-Configserver den folgenden Befehl ein:
+
+[source,console]
+----
+opsi-cli jsonrpc execute configState_create clientconfig.suspend_bitlocker_on_reboot client.domain.de true
+----
+
+NOTE: Diese Option können Sie auch auf Clients aktivieren, die keine BitLocker-Verschlüsselung verwenden. Das sollte den `opsiclientd`-Betrieb nicht stören.
 
