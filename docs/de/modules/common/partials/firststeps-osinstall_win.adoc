@@ -70,103 +70,36 @@ So gehen Sie vor, um das WinPE automatisch mit opsi zu erstellen:
 . Setzen Sie das Localboot-Produkt `opsi-winpe` für den Windows-Client auf `once`. Wählen Sie gegebenenfalls in den Produkt-Propertys rechts unten `x86` statt `x64` aus und speichern Sie die Änderungen über einen Rechtsklick / _Speichern_.
 . Wenn Sie Treiber für Massenspeicher (Festplatten) integrieren wollen, lesen Sie den Abschnitt <<firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi>>.
 . Lösen Sie das Installations-Event für den Client aus, z.{nbsp}B. per Rechtsklick /  _on-demand_ oder durch einen Reboot. 
-. Anschließend verschieben oder kopieren Sie den Inhalt des auf dem Client neu entstandenen Verzeichnisses `C:\winpe_<ARCH>\media\` ins bestehende Verzeichnis des zu installierenden Betriebssystems (`\\opsiserver\opsi_depot_rw\<Betriebssystem>\winpe\`).
-. Zum Schluss führen Sie diesen Kommandozeilenbefehl auf dem opsi-Server aus: 
+. Anschließend verschieben oder kopieren Sie den Inhalt des auf dem Client neu entstandenen Verzeichnisses `C:\winpe_<ARCH>\media\` ins bestehende Verzeichnis des zu installierenden Betriebssystems (`\\opsiserver\opsi_depot_rw\<Betriebssystem>\winpe\`). Ersetzen Sie `<ARCH>` durch `x86` (32{nbsp}Bit) oder `amd64` (64{nbsp}Bit).
+. Zum Schluss führen Sie den Befehl xref:server:components/commandline.adoc#server-components-opsi-set-rights[*opsi-set-rights*] auf dem opsi-Server aus: 
 
 [source,console]
 ----
 opsi-set-rights
 ----
 
-
 [[firststeps-osinstall-fill-base-packages-nt6-pe-manual]]
 ==== WinPE von Hand erstellen (Windows ADK)
 
-Step-by-Step
+Um ein WinPE von Hand für Windows 10 oder 11 zu erstellen, führen Sie zunächst _Start_ / _Programme_ / _Windows Kits_ / _Windows ADK_ / _Umgebung für Bereitstellungs- und Imageerstellungstools_ aus. Es erscheint eine Eingabe-Aufforderung, in der schon die benötigten Umgebungsvariablen gesetzt sind. In dieser Eingabe-Aufforderung geben Sie nun mehrere Befehle ein.
 
-Manuelles Erstellen eines PE für Windows 10 & Windows 11 (ADK)
+NOTE: Die Befehle für 32-Bit- und 64-Bit- sind nahezu identisch. Ersetzen Sie im ersten Kommando `<ARCH>` durch `x86` oder `amd64` -- je nachdem, welche Architektur Sie verwenden.
 
-Die Befehle für 32- und 64-Bit sind nahezu identisch, nur müssen die Einträge *<ARCH>* mit entweder *x86* , *amd64* oder *ia64* ersetzt werden.
+. Als Erstes erstellen Sie mit dem Tool CopyPE ein Arbeitsverzeichnis mit den WinPE-Standarddateien: +
+`copype.cmd <ARCH> C:\winpe`
 
-Führen Sie Start => Programme => Windows Kits => Windows ADK => "Umgebung für Bereitstellungs- und Imageerstellungstools" aus; eine Eingabe-Aufforderung erscheint (in dieser sind in der Folge benötigte Umgebungsvariablen gesetzt)
+. Dann mounten Sie das Image mounten: +
+`dism /Mount-Wim /WimFile:C:\winpe\media\sources\boot.wim /index:1 /MountDir:c:\winpe\mount`
 
-* WinPE kopieren:
-[source,shell]
-----
-copype.cmd <ARCH> C:\winpe
-----
+. Ersetzen Sie das Skript `startnet.cmd`; die Datei `c:\opsi\startnet.cmd` wird vom opsi-Linux-Bootimage zusammen mit dem `Wpeinit`-Aufruf in der `setup.py` erstellt: +
+`echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"`
 
-* Image mounten/einhängen: +
-[source,shell]
-----
-dism /Mount-Wim /WimFile:C:\winpe\media\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
-----
+. Hängen Sie das Image wieder aus: +
+`dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit`
 
-* Startnet.cmd ersetzen:
-[source,shell]
-----
-echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
-----
-(Hinweis: `c:\opsi\startnet.cmd` wird vom opsi-linuxbootimage in der `setup.py` erstellt nebst dem oben entfernten wpeinit-Aufruf).
+. Kopieren Sie den Inhalt von `C:\winpe\ISO` nach `/var/lib/opsi/depot/<productid>/winpe` und passen Sie danach die Rechte an: +
+`opsi-setup --set-rights /var/lib/opsi/depot/<productid>/winpe`
 
-* Image wieder aushängen:
-[source,shell]
-----
-dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
-----
-
-* Den Inhalt von `C:\winpe\ISO` nach `/var/lib/opsi/depot/<productid>/winpe` kopieren. +
-Rechte anpassen (z.B.):
-[source,shell]
-----
-opsi-setup --set-rights /var/lib/opsi/depot/<productid>/winpe
-----
-
-////
-===== Manuelles Erstellen eines PE für Windows 7 (WAIK)
-
-Die Befehle für 32- und 64-Bit sind nahezu identisch, nur müssen die Einträge *<ARCH>* mit entweder *x86* , *amd64* oder *ia64* ersetzt werden.
-
-Alles als Administrator aus der Eingabeaufforderung mit erweiterten Rechten ausführen.
-
-* WinPE kopieren:
-[source,shell]
-----
-"%ProgramFiles%\Windows AIK\Tools\PETools\copype.cmd" <ARCH> C:\winpe
-----
-
-* Image mounten/einhängen: +
-[source,shell]
-----
-"%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /mountrw "C:\winpe\winpe.wim" 1 "C:\winpe\mount"
-----
-
-* Startnet.cmd ersetzen:
-[source,shell]
-----
-echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"
-----
-(Hinweis: `c:\opsi\startnet.cmd` wird vom opsi-linuxbootimage in der `setup.py` erstellt nebst dem oben entfernten wpeinit-Aufruf).
-
-* Image wieder aushängen:
-[source,shell]
-----
-"%ProgramFiles%\Windows AIK\Tools\<ARCH>\imagex.exe" /commit /unmount "C:\winpe\mount"
-----
-
-* Verschieben des fertigen WinPE (von dort werden mehrere Files auf den Server verschoben).
-[source,shell]
-----
-move "C:\winpe\winpe.wim" "C:\winpe\ISO\sources\boot.wim"
-----
-
-* Den Inhalt von `C:\winpe\media`  nach `/var/lib/opsi/depot/<productid>/winpe` kopieren. +
-Rechte anpassen (z.B.):
-[source,shell]
-----
-opsi-setup --set-rights /var/lib/opsi/depot/<productid>/winpe
-----
-////
 [[firststeps-osinstall-fill-base-packages-nt6-extendpe]]
 === WinPE erweitern
 
