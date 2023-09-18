@@ -142,68 +142,38 @@ comment: Version          : 100.92.104.22900
 [[firststeps-osinstall-fill-base-packages-nt6-extendpe-manual]]
 ==== WinPE von Hand erweitern
 
-Für Dell-Hardware gibt es beispielsweise Netzwerk- und Speicher-Treiber, die der Hersteller speziell für den WinPE-Einsatz empfiehlt. Dieser Abschnitt beschreibt, wie Sie weitere Treiber von Hand in ein WinPE integrieren. Voraussetzung ist, dass Sie vorher alle Schritte zum Erstellen des WinPE ausgeführt haben (siehe Abschnitt <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>).
+Für Dell-Hardware gibt es beispielsweise link:https://www.dell.com/support/kbdoc/de-de/000108642/winpe-10-treiberpaket[Netzwerk- und Speicher-Treiber], die der Hersteller speziell für den WinPE-Einsatz empfiehlt. Dieser Abschnitt beschreibt, wie Sie solche Treiber von Hand in ein WinPE integrieren. Voraussetzung ist, dass Sie vorher alle Schritte zum Erstellen des WinPE ausgeführt haben (siehe Abschnitt <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>).
 
-//##hier
+. Laden Sie das WinPE10-Treiberpaket herunter und entpacken es, beispielsweise mit 7-Zip oder dem Befehl `expand`. Am besten legen Sie dazu ein neues Verzeichnis namens `dell-drivers` an und entpacken die `.cab`-Datei dorthin.
 
-Herunterladen von Dell-PE-Treibersammlung. 
-// Bitte beachten, dass für Windows 7 die WINPE 3.0 Treiber benötigt werden. 
-//
-Die heruntergeladene CAB-Datei muss nun lokal ausgepackt werden. Dies kann man mit 7zip oder aber mit dem Kommandozeilentool expand erledigen. Für die Übersichtlichkeit wird empfohlen ein Verzeichnis wie zum Beispiel dell-driver auf C: an zu legen und die CAB-Datei dort aus zu packen.
+. Untersuchen Sie das Image; dazu starten Sie als Administrator die Eingabeaufforderung und geben den folgenden Befehl ein: +
+`dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim`
 
+. Für den nächsten Schritt benötigen Sie den Index, den Sie aus der Ausgabe des vorigen Kommandos entnehmen. Da ein WinPE in der Regel aus einem einzigen Image besteht, sollte der Index 1 funktionieren. Mounten Sie das Image: +
+`dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount`
 
-* Nun wird zunächst das Image untersucht. Als Administrator die Eingabeaufforderung starten und folgenden Befehl eingeben:
+. Nun erweitern Sie das WinPE mit den ausgepackten Treibern: +
+`dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse` +
+Für 32-Bit-Systeme ersetzen Sie `x64` durch `x86`. Das Treiberpaket von Dell beinhaltet die Treiber für beide Architekturen.
 
-[source,shell]
-----
-dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
-----
+. Hängen Sie das Image wieder aus und übernehmen Sie die Änderungen: +
+`dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit`
 
-Aus der Ausgabe des Befehls braucht man für den nächsten Schritt den Index. Da in der Regel ein winpe aus einem einzigen Image besteht, sollte in der Regel der Index 1 immer funktioneren.
+. Kopieren Sie das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/var/lib/opsi/depot/<productid>/` und passen Sie die Rechte an: +
+`opsi-set-rights /var/lib/opsi/depot/<productid>/winpe`
 
-* Mit folgendem Befehl wird das Image gemountet:
-[source,shell]
-----
-dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
-----
-
-* Nun wird das PE mit den dafür ausgepackten Treibern erweitert:
-[source,shell]
-----
-dism /Image:C:\winpe\mount  /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
-----
-
-Für 32-Bit muss das `x64` durch `x86` ersetzt werden. Die Driver-CAB von Dell beinhaltet die Treiber für beide Architekturen.
-
-NOTE: Wenn man nur einen Treiber integrieren möchte, kann man die Option `/Recurse` weglassen und statt ein Verzeichnis direkt die inf-Datei des Treibers angeben. Weiterhin ist es möglich mit dem Parameter `/ForceUnsigned` auch nicht signierte Treiber in ein PE zu integrieren.
-
-* Zum Schluss wird das Image wieder ausgehängt und die Änderungen übernommen:
-[source,shell]
-----
-dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
-----
-
-* Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/var/lib/opsi/depot/<productid>/` kopieren. +
-Rechte anpassen (z.B.):
-[source,shell]
-----
-opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
-----
-
+TIP: Wenn Sie nur einen einzigen Treiber integrieren möchten, können Sie die Option `/Recurse` aus Schritt 4. weglassen und direkt die `.inf`-Datei des Treibers anstelle eines Verzeichnisses angeben. Über den Parameter `/ForceUnsigned` können Sie auch nicht-signierte Treiber in ein WinPE integrieren.
 
 [[firststeps-osinstall-fill-base-packages-nt6-unattend]]
 === Die Datei *unattend.xml*
 
-Für unbeaufsichtigte Installationen gibt es eine Steuerdatei namens `unattend.xml`. 
-Sie finden diese im Verzeichnis `custom`, z.{nbsp}B. unter `/var/lib/opsi/depot/<productid>/custom`. 
-Die von uns mitgelieferte Datei `unattend.xml` enthält Verweise auf die Eigenschaften der Netboot-Produkte, darunter Platzhalter für den Namen des Administrator-Accounts und des dazugehörigen Passworts.
+Für unbeaufsichtigte Installationen gibt es eine Steuerdatei namens `unattend.xml`, die Sie im Verzeichnis `custom` finden, z.{nbsp}B. unter `/var/lib/opsi/depot/<productid>/custom` (siehe Abschnitt <<firststeps-osinstall-structure>>). Die Datei enthält Verweise auf die Eigenschaften der Netboot-Produkte, darunter Platzhalter für den Namen des Administrator-Accounts und des dazugehörigen Passworts (Standard: `nt123`).
 
-Mögliche Modifikationen an dieser Datei sollten in diesem Verzeichnis und nicht im opsi Verzeichnis gemacht werden.
+Darüber hinaus gibt es im Verzeichnis `opsi` des jeweiligen Netboot-Produktes eine Datei `unattend.xml.template`. Das ist das von uns getestete und regelmäßig aktualisierte Template. 
 
-////
-Dokumente zur Unattend.xml finden sich nach Installation des WAIK in
-`c:\Program Files\Windows\Waik\docs\chms`
-////
+NOTE: Wenn Sie Änderungen an der Datei `unattend.xml` vornehmen wollen, bearbeiten Sie die Datei im Verzeichnis `custom`, denn es hat Vorrang (siehe Abschnitt <<firststeps-osinstall-structure-opsicustom>>). 
+
+Die Datei `unattend.xml` enthält außerdem die Anweisung, nach der Windows-Installation im `opsi`-Verzeichnis eine Datei namens `postinst.cmd` auszuführen. Diese führt wiederum alle im Verzeichnis `opsi/postinst.d` liegenden Skripte aus. Weitere Informationen dazu finden Sie in Abschnitt <<firststeps-osinstall-structure-opsicustom>>. 
 
 [[firststeps-osinstall-fill-base-packages-nt6-drivers]]
 === Treiber integrieren
@@ -300,7 +270,7 @@ image::product-directory-tree.png["So sieht der Verzeichnisbaum für das Netboot
 * `setup.py` +
 Dies ist das Installationsskript, welches vom Bootimage ausgeführt wird.
 * `<productid>_<version>.control` +
-enthält die Metadaten des Produkts, so wie sie vom Paketierer bereitgestellt wurden. Die Datei liegt hier nur zu Informationszwecken, d.h. Änderungen an dieser Datei haben keinerlei Auswirkungen auf das System.
+enthält die Metadaten des Produktes, so wie sie vom Paketierer bereitgestellt wurden. Die Datei liegt hier nur zu Informationszwecken, d.h. Änderungen an dieser Datei haben keinerlei Auswirkungen auf das System.
 
 * `<productid>.files` +
 Diese Datei wird automatisch erzeugt und sollte nicht verändert werden.
@@ -327,6 +297,10 @@ Diese beiden Verzeichnisse enthalten Scripte und Konfigurationsdateien zur Steue
 Das Verzeichnis opsi enthält Dateien, die mit Updates jederzeit überspielt werden können. Hier sollten also keine Änderungen vorgenommen werden. Für Anpassungen können Sie Änderungen im Verzeichnis custom vornehmen, welches bei Updates nicht überspielt wird.
 
 Das Unterverzeichnis `postinst.d` enthält Scripte, welche nach der eigentlichen Installation des Betriebssystems über die `postinst.cmd` gestartet werden, um z.B. den opsi-client-agent zu installieren. Die Scripte werden dabei in alphabetischer Reihenfolge abgearbeitet. Um die Reihenfolge zu verdeutlichen, fangen die Dateinamen mit einer zweistelligen Nummer an (`10_dhcp.cmd`). Wollen Sie hier Erweiterungen vornehmen, so können Sie im Verzeichnis custom/postinst.d Scripte mit Nummern zwischen den vollen 10ern ablegen (`13_myscript.cmd`). Die vollen 10er sind für die Pflege durch opsi.org/uib reserviert. Das Script `99_cleanup.cmd` ist das letzte und endet mit einem Reboot.
+
+//nachdem das Windows fertig installiert ist, wollen wir bestimmte Dinge tun: in das fertige Windows den Client-Agent rein installieren, der nach Abschluss der OS-Inst dafür sorgt, dass opsi anfangen kann, die Applikationssoftware zu installieren. Die Skripte werden der Reihe nach abgearbeitet, deswegen nummeriert, das entscheidene Skript 
+// das Skript, was wir erwarten würden zur Client-Agent-Installation, ist hier gar nicht drin, weil das kommt mit dem opsi-Client-Agent
+
 
 [[firststeps-osinstall-structure-drivers]]
 === Verzeichnis *drivers*
