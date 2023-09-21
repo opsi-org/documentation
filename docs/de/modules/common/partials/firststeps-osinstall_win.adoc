@@ -324,6 +324,12 @@ Wenn Sie einen Pool von Windows-Rechnern administrieren, deren Treiber nicht in 
 
 opsi vereinfacht das Bereitstellen solcher Treiber -- diese müssen lediglich im korrekten Verzeichnis auf dem Depot-Server liegen. Ein Skript durchsucht diese Treiberverzeichnisse und erstellt einen Katalog, den das Bootimage nutzt, um automatisch die richtigen Treiber zu erkennen und einzubinden. Das funktioniert für Standardtreiber, USB-Treiber, HD-Audio-Treiber und Treiber für Festplattencontroller (Textmode-Treiber).
 
+Einbinden von Treibern bedeutet konkret:
+
+* Der Treiber wird auf die lokale Festplatte nach `c:\drv\<num>` kopiert.
+
+* Dem Windows-Setup wird über die Datei `unattend.xml` mitgeteilt, in den Verzeichnissen unterhalb von `c:\drv\` nach passenden Treibern zu suchen.
+
 NOTE: Windows erwartet die Treiber in einem bestimmten Format auf dem opsi-Server. Geeignet sind Treiberverzeichnisse, die mindestens eine `.inf`-Datei enthalten. Die Datei beschreibt den Treiber für das Windows-Setup-Programm. `setup.exe`-, `.zip`-Dateien oder anders verpackte Treiber sind für diesen Zweck ungeeignet!
 
 Es gibt verschiedene Möglichkeiten, Treiber für die OS-Installation mit opsi bereitzustellen:
@@ -337,115 +343,79 @@ Es gibt verschiedene Möglichkeiten, Treiber für die OS-Installation mit opsi b
 [[firststeps-osinstall-driverintegration-byaudit]]
 === Treiber automatisch zuordnen
 
-Der bevorzugte Weg, Treiber automatisch zuzuordnen, ist über die opsi-Hardware-Inventarisierung (siehe Abschnitt xref:clients:windows-client/rollout-products.adoc#firststeps-software-deployment-product-tests-inventory[Inventarisierung (*hwaudit*/*swaudit*)]).
+Der bevorzugte Weg, Treiber zuzuordnen, ist über die opsi-Hardware-Inventarisierung (siehe Abschnitt xref:clients:windows-client/rollout-products.adoc#firststeps-software-deployment-product-tests-inventory[Inventarisierung (*hwaudit*/*swaudit*)]). Dazu sucht opsi im Verzeichnis `<productid>/drivers/drivers/additional/byAudit` nach einem Verzeichnisnamen, der dem bei der Hardware-Inventarisierung gefundenen `<vendor>` entspricht. Im Ordner `<vendor>` sucht opsi nun nach einem Verzeichnisnamen, der dem bei der Hardware-Inventarisierung gefundenen `<model>` entspricht.
 
+NOTE: Findet opsi ein solches Verzeichnis, dann behandelt es dieses so, als wäre es über das Produkt-Property `additional_drivers` manuell zugewiesen worden (siehe Abschnitt <<firststeps-osinstall-driverintegration-additional>>).
 
-Treiber, die über die Felder `<vendor>/<model>` der Inventarisierung automatisch den Rechnern zugeordnet werden, ...
+TIP: Sie können die Treiber über die Management-Oberfläche `opsi-configed`, Reiter _Hardware-Information_, bereitstellen. Lesen Sie dazu auch den Abschnitt xref:gui:configed.adoc#opsi-manual-configed-automat-treiberintegration[Automatisierte Treiberintegration]. 
 
-Der im vorigen Abschnitt beschriebene Mechanismus der direkten Zuordnung von Treibern zu Geräten, kann seit dem 2 Teil des Service Release opsi 4.0.2 automatisiert werden. Dazu wird in dem Verzeichnis `./drivers/drivers/additional/byAudit` nach einem Verzeichnisnamen gesucht der dem bei der Hardwareinventarisierung gefundenen 'Vendor' entspricht. In diesem 'Vendor' Verzeichnis wird nun nach einem Verzeichnisnamen gesucht, das dem bei der Hardwareinventarisierung gefundenen 'Model' entspricht. Wird ein solches Verzeichnis gefunden, so wird dieses Verzeichnis genauso behandelt, als wäre es über das Produkt-Property 'additional_drivers' manuell zugewiesen.
+Das opsi-Linux-Bootimage arbeitet die Treiber in dieser Reihenfolge ab:
 
-Dabei können seit opsi 4.0.5 die Treiber für einen opsi-Client über den opsi-configed im Reiter Hardwareinventarisiering bereitgestellt werden (vgl.:opsi-Handbuch Automatisierte Treiberintegration).
-//Client auswählen, Reiter Hardware-Informationen, ich kann das auch von Hand kopieren, wenn ich das einmal gemacht habe, werden die hochgel. Treiber automat. für jeden dieser vendor gefunden, von daher ist die Vorgehensweise sehr gut, insb. für Firmen, die eine überschaubare Anzahl von Rechnertypen haben, für jeden Rechnertyp enmal Treiberverzeichnis runterladen, nciht benötigte entfernen, dann hochladen ins Netboot-Produkt, das bringen wir heutzutage bei, nach additional/byAudit (im Rahmen des Hardware-Audits automatisch finden)
+1. Zuerst sucht opsi im Verzeichnis `<vendor>/<model> (<sku>)`.
+2. Findet opsi hier nichts, schaut es nach `<system vendor>/<system model>`.
+3. Als Fallback-Lösung sucht opsi nach `<motherboard vendor>/<motherboard model>`.
 
-Die Abarbeitung im opsi-Linux-Bootimage erfolgt in der Reihenfolge
-
-* `<vendor>/<model> (<sku>)`
-* ohne Fund greift der Fallback auf `<system vendor>/<system model>`
-* ohne Fund greift der Fallback auf `<motherboard vendor>/<motherboard model>`.
-
-Einige Hersteller verwenden Modellbezeichnungen, die für diese Methode sehr ungünstig sind, da man einige Sonderzeichen wie / nicht in Datei- oder Verzeichnisnamen verwenden darf. Ein Beispiel dafür wäre als Modelbezeichnung: "5000/6000/7000". Ein Verzeichnis mit dieser Bezeichnung ist wegen den Sonderzeichen nicht gestattet. Seit der dritten Service Release opsi 4.0.3 werden deshalb folgende Sonderzeichen: < > ? " : | \ / * intern durch ein _ ersetzt. Mit dieser Änderung kann man oben genanntes schlechtes Beispiel als: "5000_6000_7000" anlegen und das Verzeichnis wird automatisch zu gewiesen, obwohl die Information in der Hardwareinventarisierung nicht der Verzeichnisstruktur enstprechen.
+Einige Hersteller verwenden Modellbezeichnungen, die für diese automatische Methode über `hwaudit` sehr ungünstig sind -- Sonderzeichen wie `/` oder `:` sind nicht erlaubt in Datei- oder Verzeichnisnamen. So wäre es z.{nbsp}B. möglich, dass ein Verzeichnis namens `5000/6000/7000` entsteht. opsi ersetzt daher intern die folgenden Sonderzeichen durch einen Unterstrich (`_`): `<`, `>`, `?`, `"`, `:`, `|`, `\`, `/` und `*`. Für das eben erwähnte Beispiel würde opsi also ein Verzeichnis namens `5000_6000_7000` anlegen und automatisch zuweisen, obwohl die Hardware-Inventarisierung einen anderen Namen geliefert hat.
 
 [[firststeps-osinstall-driverintegration-additional]]
 === Treiber manuell zuordnen
 
-Zusätzliche Treiber, die unabhängig von ihrer Zuordnung bzw. Erkennung über die PCI- oder USB-IDs installiert werden sollen, gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses `./drivers/drivers/additional`. Über das Produkt-Property 'additional_drivers' können Sie einen oder mehrere Pfade von Treiberverzeichnissen innerhalb von `./drivers/drivers/additional` einem Client zu ordnen. Im Produkt-Property 'additional_drivers' angegebene Verzeichnisse werden rekursiv durchsucht und alle enthaltenen Treiber eingebunden. Dabei wird auch symbolischen Links gefolgt. Dies können Sie nutzen, um für bestimmte Rechner-Typen ein Verzeichnis zu erstellen (z.B. dell-optiplex-815).
+Treiber, die Sie unabhängig von ihrer Zuordnung bzw. Erkennung über die PCI- oder USB-IDs installieren möchten, gehören in jeweils eigene Verzeichnisse unterhalb des Ordners `<productid>/drivers/drivers/additional`; Name oder Tiefe der Verzeichnisstruktur sind egal. Über das Produkt-Property `additional_drivers` (siehe Abschnitt <<firststeps-osinstall-driverintegration-additional>>) können Sie einen oder mehrere Pfade von Treiberverzeichnissen aus dem Ordner `<productid>/drivers/drivers/additional` einem Client zuordnen. 
 
-Wird in den über 'additional_drivers' angegebenen Treiberverzeichnissen ein Treiber für ein vorhandenes PCI-Gerät (oder HD-Audio, USB) gefunden, so wird für dieses Gerät kein weiterer Treiber aus `drivers/preferred/` oder `drivers/` mehr eingebunden ('additional_drivers' ist sozusagen 'super-preferred'). Damit hat 'additional_drivers' die Funktion Treiber hinzuzufügen, welche über die normale Treibererkennung nicht gefunden würden.
+TIP: Im Produkt-Property `additional_drivers` angegebene Verzeichnisse durchsucht opsi rekursiv und bindet alle enthaltenen Treiber ein. Dabei folgt opsi auch symbolischen Links. Das können Sie beispielsweise nutzen, um für bestimmte Rechnermodelle ein eigenes Verzeichnis zu erstellen (z.{nbsp}B. `dell-optiplex-815`).
 
+Findet opsi in den über `additional_drivers` angegebenen Verzeichnissen einen Treiber für ein vorhandenes PCI-Gerät (oder HD-Audio, USB), so bindet es für dieses Gerät keinen weiteren Treiber aus `drivers/preferred/` (siehe Abschnitt <<firststeps-osinstall-driverintegration-preferred>>) oder `drivers/` mehr ein. `additional_drivers` ist also dazu geeignet, Treiber hinzuzufügen, die über die normale Treiberekennung nicht gefunden werden (siehe Abschnitt <<firststeps-osinstall-driverintegration-processing>>).
 
 [[firststeps-osinstall-driverintegration-generaldrivers]]
 === Allgemeine Treiber
 
-Wenn die Hardwareausstattung sehr heterogen ist, kann es sinnvoll sein mit allgemeinen Treiberpaketen zu arbeiten. +
-Allgemeine Treiber legen Sie ab unter `./drivers/drivers`. +
-
-//.inf-Datei: 55 min Aufzeichnung
-##Screenshots##
-
-////
-Solche allg. Treiber Pakete finden Sie http://driverpacks.net/ . +
-Laden Sie die gewünschten Treiber Pakete in ein temporäres Verzeichnis herunter und entpacken die Treiberpakete mit:
-[source,shell]
-----
-./extract_driver_pack.py <pfad zu dem temporären Verzeichnis mit den komprimierten driverpacks>
-----
-Hiermit werden die Treiber entpackt und in das Verzeichnis `./drivers/drivers/` abgelegt. +
-Nachteil dieser Pakete ist, das sich hier auch Treiber finden welche zwar von der Beschreibung zu Ihrer Hardware passen aber nicht unbedingt mit Ihrer Hardware funktionieren. +
-////
-Treiber welche im Verzeichnis `./drivers/drivers/` liegen, werden anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden.
+Wenn die Hardware-Ausstattung sehr heterogen ist, kann es sinnvoll sein, mit allgemeinen Treiberpaketen zu arbeiten. Solche Pakete legen Sie im Verzeichnis `<productid>/drivers/drivers` ab. Diese Treiber erkennt opsi anhand ihrer PCI-Kennungen (bzw. USB- oder HD-Audio-Kennungen) in der Beschreibungsdatei des Treibers als zur Hardware passend und bindet sie ins Windows-Setup mit ein.
 
 [[firststeps-osinstall-driverintegration-preferred]]
 === Spezielle Treiber
 
-Treiber, die zu Ihrer Hardware gehören, aber nicht speziell zugeordnet sind
+Treiber, die zu Ihrer Hardware gehören, aber nicht speziell zugeordnet sind, können Sie von den Websites der Gerätehersteller beziehen. Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb von `<productid>/drivers/drivers/preferred`. opsi erkennt die Treiber anhand ihrer PCI-Kennungen (bzw. USB- oder HD-Audio-Kennungen) in der Beschreibungsdatei des Treibers als zur Hardware passend, zieht sie den unter `<productid>/drivers/drivers` abgelegten Treibern vor und bindet sie ins Windows-Setup mit ein.
 
-Haben Sie nur wenige unterschiedliche Hardware zu unterstützen, so können Sie die Treiber bei den Herstellern suchen. +
-Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses +
-`./drivers/drivers/preferred`. +
-Treiber welche im Verzeichnis `./drivers/drivers/preferred` liegen,
-werden gegenüber den Treibern in `./drivers/drivers/` bevorzugt anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden. +
-Finden sich z.B. zu eine PCI-ID in unterschiedlichen Treiber unter `preferred`, so kann dies zu Problemen bei der Treiber Zuordnung führen. In diesem Fall ist eine direkte Zuordnung der Treiber zu dem Client notwendig.
+NOTE: Gibt es beispielsweise für eine PCI-ID unterschiedliche Treiber im Verzeichnis `preferred`, kann das zu Problemen bei der Treiberzuordnung führen. In solchen Fällen ist eine direkte Zuordnung der Treiber zu einem Client notwendig.
 
 [[firststeps-osinstall-driverintegration-structure]]
 === Ablage im Verzeichnis *drivers*
 
-Im Verzeichnis des Netboot-Produktes gibt es Platz für manuell und automatisch hinzugefügte Treiber.
+Im Verzeichnis `drivers` des Netboot-Produktes gibt es Platz für manuell und automatisch hinzugefügte Treiber.
 
 .So sieht der Verzeichnisbaum im Ordner `drivers`aus.
-image::drivers-directory-tree.png["So sieht der Verzeichnisbaum im Ordner `drivers`aus.", pdfwidth=80%]
+image::drivers-directory-tree.png["So sieht der Verzeichnisbaum im Ordner `drivers`aus.", pdfwidth=80%, width=800]
 
+opsi arbeitet die Treiber nach einer festgelegten Reihenfolge ab und setzt unterschiedliche Prioritäten.
 
 [[firststeps-osinstall-driverintegration-processing]]
 === Priorität der Treiber
 
-Abarbeitung der unterschiedlichen Ebenen der Treiberintegration
-//in 90 % der Fälle reicht dieses automatisch Hochladen, 
-
-Als oberste Priorität werden alle Treiber eingebunden, welche über das Property 'additional_drivers' bzw. die über die Inventarisierungsdaten in `./drivers/drivers/additional/byAudit` gefunden werden. Im Rahmen der Einbindung von Treibern wird geprüft für welche der Hardware eines Geräts (anhand der PCI-,USB-,HDAudio-Kennungen) hierdurch ein Treiber bereit gestellt wurde. Nur für Geräte für die auf diese Weise noch kein Treiber bereitgestellt wurde wird über die nachfolgenden Methoden ein Treiber gesucht.
-
-Für Geräte denen nicht über 'additional_drivers' (bzw. 'byAudit') ein Treiber zu geordnet wurde wird anhand der PCI Kennung (bzw. USB-, HDAudio-Kennung) ein passender Treiber gesucht und eingebunden.
-
-'Einbindung' von Treiber bedeutet dabei:
-
-* Der Treiber wird auf die lokale Festplatte nach `c:\drv\<num>` kopiert.
-
-* Dem Windows Setup wird in der unattended Datei mitgeteilt, in den Verzeichnissen unterhalb von `c:\drv\` nach passenden Treibern zu suchen.
+Oberste Priorität haben Treiber, die über das Produkt-Property `additional_drivers` bzw. über die Inventarisierungs-Daten aus `<productid>/drivers/driversadditional/byAudit` eingebunden sind. opsi prüft zuerst anhand der PCI-, USB- oder HD-Audio-Kennungen, ob es hier für die Hardware einen Treiber gibt. Gibt es hier keinen passenden Treiber, durchsucht opsi die anderen Verzeichnisse (`<productid>/drivers/drivers/preferred` und `<productid>/drivers/drivers`).
 
 [[firststeps-osinstall-driverintegration-drivercheck]]
 === Treiber hinzufügen und prüfen
 
-Nach jedem Hinzufügen eines Treibers oder jeden anderen Änderung im `./drivers/drivers` Verzeichnis (oder darunter) rufen Sie im Stammverzeichnis des netboot Produktes Verzeichnis folgenden Befehl auf, um die Rechte korrekt zu setzen:
-[source,shell]
+Nach jedem Hinzufügen eines Treibers oder nach jeder anderen Änderung im Verzeichnis `<productid>/drivers/drivers` (oder seinen Unterverzeichnissen) rufen Sie im Stammverzeichnis des Netboot-Produktes den folgenden Befehl auf, um die Rechte korrekt zu setzen:
+
+[source,sonsole]
 ----
 opsi-set-rights ./drivers
 ----
 
-Wenn Sie Treiber in die Verzeichnisse `./drivers/drivers` oder `./drivers/drivers/preferred` abgelegt haben, dann
- rufen Sie das Script `./create_driver_links.py` auf. Dieses durchsucht die Verzeichnisse und erzeugt eine Reihe von Links anhand deren die Zuordnung der Treiber zu bestimmter Hardware (PCI-IDs, USB-IDs, HD-Audio-IDs) zu erkennen ist. Die Treiber aus dem preferred Verzeichnis werden von dem Script bevorzugt verwendet.
+Wenn Sie Treiber in den Verzeichnissen `<productid>/drivers/drivers` oder `<productid>/drivers/drivers/preferred` abgelegt haben, dann rufen Sie außerdem das Skript `./create_driver_links.py` auf. Es durchsucht die Verzeichnisse und erzeugt eine Reihe von Links, damit die Zuordnung der Treiber zur Hardware gelingt. Das Skript behandelt die Treiber aus dem `preferred`-Verzeichnis bevorzugt.
 
-Das `setup.py` Script des Bootimages untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese werden dann auf die Festplatte kopiert und die unattend.xml entsprechend gepatcht.
-////
-Das Script `create_driver_links.py` durchsucht auch bei NT5 Produkten einmalig den 'i386' Baum und extrahiert die Inf-Dateien der von Windows mitgelieferten Treiber nach 'windows_builtin'. Sollten Sie am i386-Baum eine Änderung vornehmen (z.B. durch das Einspielen eines Servicepacks) so löschen Sie dieses Verzeichnis und führen `create_driver_links.py` erneut aus. Bei NT6 Produkten werden die Treiber welche sich im WinPE finden als 'windows_builtin' erkannt.
-////
+Das Skript `setup.py` untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese kopiert es dann auf die Festplatte und passt die Datei `unattend.xml` entsprechend an.
 
-Liegt zu einem Client eine Hardware-Inventarisierung vor, so kann über den Befehl:
-[source,shell]
+Liegt zu einem Client eine Hardware-Inventarisierung vor, so können Sie über den folgenden Befehl ausgeben, welche Treiber das Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs und `additional_drivers` (bzw. `byAudit`) zur Installation auswählen würde und zu welcher Hardware noch kein Treiber bereitsteht:
+
+[source,console]
 ----
 ./show_drivers.py <clientname>
 ----
-ausgegeben werden, welche Treiber das Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs und 'additional_drivers' (bzw. 'byAudit') zur Installation auswählen würde und zu welcher Hardware noch kein Treiber bereit steht.
 
-Kontrollieren Sie die Ausgabe von `show_drivers.py` um zu prüfen ob die gewünschten Treiber eingebunden werden.
+Kontrollieren Sie die Ausgabe von `show_drivers.py`, um sicherzustellen, dass die gewünschten Treiber eingebunden werden.
+//##hier
 
 Es kann vorkommen, das Treiberverzeichnisse von Herstellern Treiber für unterschiedliche Betriebssystemversionen ( z.B. Windows 7/8.1/10) oder Konfigurationen (SATA / SATA-Raid) enthalten. Das kann nicht automatisch unterschieden werden. Wenn Sie die Vermutung haben, das ein erkannter Treiber falsch ist, so verschieben Sie diesen Treiber in das Verzeichnis `drivers/exclude` und führen `create_driver_links.py` bzw. `show_drivers.py <clientname>` erneut aus. Treiber die in
 `drivers/exclude` liegen werden bei der Treiberintegration nicht berücksichtigt.
