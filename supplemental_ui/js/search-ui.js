@@ -457,7 +457,9 @@
 
   function highliteMatches () {
     const params = new URLSearchParams(window.location.search.slice(1))
+    
     const query = params.get('q')
+    if (query == undefined || query == null) return
     searchWord(query)
   }
   
@@ -502,9 +504,9 @@
     );
     searchInput.addEventListener('click', confineEvent);
     searchResultContainer.addEventListener('click', confineEvent);
-    if (facetFilterInput) {
-      facetFilterInput.parentElement.addEventListener('click', confineEvent);
-      facetFilterInput.addEventListener('change', (e) => toggleFilter(e, index));
+    if (componentFilterInput) {
+      componentFilterInput.parentElement.addEventListener('click', confineEvent);
+      componentFilterInput.addEventListener('change', (e) => toggleFilter(e, index));
     }
     document.documentElement.addEventListener('click', clearSearchResults);
     
