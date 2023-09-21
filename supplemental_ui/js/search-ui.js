@@ -118,7 +118,8 @@
   const searchResultContainer = document.createElement('div');
   searchResultContainer.classList.add('search-result-dropdown-menu');
   searchInput.parentNode.appendChild(searchResultContainer);
-  const facetFilterInput = document.querySelector('#search-field input[type=checkbox][data-facet-filter]');
+  const componentFilterInput = document.querySelector('#search-field input[type=checkbox][data-component-filter]');
+  const versionFilterInput = document.querySelector('#search-field input[type=checkbox][data-version-filter]');
 
   function appendStylesheet (href) {
     if (!href) return
@@ -305,14 +306,27 @@
   }
 
   function filter (result, documents) {
-    const facetFilter = facetFilterInput && facetFilterInput.checked && facetFilterInput.dataset.facetFilter;
-    if (facetFilter) {
-      const [field, value] = facetFilter.split(':');
+    const componentFilter = componentFilterInput && componentFilterInput.checked && componentFilterInput.dataset.componentFilter;
+    const versionFilter = versionFilterInput && versionFilterInput.checked && versionFilterInput.dataset.versionFilter;
+    if (componentFilter || versionFilter) {
+      
       return result.filter((item) => {
         const ids = item.ref.split('-');
         const docId = ids[0];
         const doc = documents[docId];
-        return field in doc && doc[field] === value
+        if (componentFilter && versionFilter) {
+          const [component, componentTitle] = componentFilter.split(":");
+          const [version, versionValue] = versionFilter.split(":");
+          return component in doc && doc[component] === componentTitle && version in doc && doc[version] === versionValue
+        }
+        else if (componentFilter){
+          const [component, componentTitle] = componentFilter.split(":");
+          return component in doc && doc[component] === componentTitle
+        }
+        else {
+          const [version, versionValue] = componentFilter.split(":");
+          version in doc && doc[version] === versionValue
+        }
       })
     }
     return result
@@ -403,8 +417,8 @@
   }
 
   function enableSearchInput (enabled) {
-    if (facetFilterInput) {
-      facetFilterInput.disabled = !enabled;
+    if (componentFilterInput) {
+      componentFilterInput.disabled = !enabled;
     }
     searchInput.disabled = !enabled;
     searchInput.title = enabled ? '' : 'Loading index...';
