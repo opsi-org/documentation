@@ -34,7 +34,7 @@ Die nächsten Abschnitte erläutern die wesentlichen Elemente eines `opsi-script
 WinBatch_tightvnc_silent_install
 
 [WinBatch_tightvnc_silent_install]
-msiexec /i %scriptpath%\tightvnc-2.8.81-gpl-setup-64bit.msi /quiet /norestart
+msiexec /i "%ScriptPath%\tightvnc-2.8.81-gpl-setup-64bit.msi" /quiet /norestart
 ----
 
 // angelehnt an https://wiki.opsi.org/userspace:tightvnc, bitte einmal gegenchecken
@@ -83,32 +83,28 @@ Die primären Sektionen (also die Hauptprogramme) steuern den Ablauf des Skripte
 Hier ein paar Beispiele:
 
 * *%ProgramFilesDir%*: `c:\program files`
-* *%ProgramFiles32Dir%*: `c:\Program Files (x86)`
-* *%Systemroot%*: `c:\windows`
+* *%ProgramFiles32Dir%*: `c:\program files (x86)`
+* *%SystemRoot%*: `c:\windows`
 * *%System%*: `c:\windows\system32`
 * *%opsiTmpDir%*: `c:\opsi.org\tmp`
-* *%Scriptpath%*: <Pfad zu laufenden Skript>
+* *%ScriptPath%*: <Pfad zu laufendem Skript>
 
 [[opsi-softwintegration-tutorial-second-example]]
 ==== Beispiel: TightVNC installieren
 
-Zur Erläuterung drucken wir hier ein Beispiel-Skript zur Installation des Programms link:https://www.tightvnc.com/download.php[TightVNC] ab.
+Zur Erläuterung drucken wir hier ein Beispiel-Skript zur Installation des Programms link:https://www.tightvnc.com/download.php[TightVNC] ab. Theoretisch wäre der `msiexec`-Aufruf in der sekundären Sektion `WinBatch_tightvnc_silent_install` ausreichend; bei einer wiederholten Installation erscheint jetzt aber (wegen des Neustarts eines laufenden Services) ein interaktiver Dialog. Wenn das Dialogfenster auftaucht, wird es mit Hilfe von AutoIt geschlossen:
 
-nun ein einfaches Script zur Installation von _tightvnc_.
-Eigentlich würde dieses Script mit dem Aufruf der Silent-Installation in der _Winbatch-Sektion_ auskommen.
-Bei einer wiederholten Installation erscheint hier (wegen des Neustarts eines laufenden Services) jedoch ein interaktiver Dialog.
-Dieses Dialog-Fenster wird (so es auftaucht) mithilfe von _AutoIt_ geschlossen.
 
-[source,winst]
+[source,ini]
 ----
 [Actions]
-Message "Installiere tightvnc 1.3.9 ..."
+Message "Installiere TightVNC 2.8.81 (MSI-Paket)"
 ExecWith_autoit_confirm "%ScriptPath%\autoit3.exe" WINST /letThemGo
 WinBatch_tightvnc_silent_install
 KillTask "autoit3.exe"
 
 [WinBatch_tightvnc_silent_install]
-"%ScriptPath%\tightvnc-1.3.9-setup.exe" /silent
+msiexec /i "%ScriptPath%\tightvnc-2.8.81-gpl-setup-64bit.msi" /quiet /norestart
 
 [ExecWith_autoit_confirm]
 ; Wait for the confirm dialog which only appears if tightvnc was installed before as service
@@ -123,38 +119,47 @@ Send("N")
 [[opsi-softwintegration-tutorial-elementary-commands]]
 ==== Elementare Befehle für primäre Sektionen
 
+Die nächsten Abschnitte erklären kurz die elementaren Befehle für primäre Sektionen, darunter Variablen, Anweisungen, bedingte Anweisungen, Funktionen usw. Eine vollständige Referenz finden Sie im xref:opsi-script-manual:opsi-script-manual.adoc[`opsi-script`-Kapitel].
+
 [[opsi-softwintegration-tutorial-elementary-commands-string-variable]]
 ===== String-Variable
 
-//In Ihrem Beispiel wird eine Variable namens $ProductId$ deklariert und ihr der Wert "firefox" zugewiesen.
 Variablen-Deklaration:: `DefVar <variable name> [= <initial value>]`
 
 Variablen-Zuweisung:: `Set <variable name> = <value>`
 
-[source]
+Im folgenden Beispiel wird eine Variable namens $ProductId$ deklariert und ihr der Wert `"firefox"` zugewiesen:
+
+[source,ini]
 ----
 DefVar $ProductId$
 Set $ProductId$ = "firefox"
 ----
 
-oder
+Alternativ geht es auch kürzer:
 
-[source]
+[source,ini]
 ----
 DefVar $ProductId$ = "firefox"
 ----
 
+IMPORTANT: String-Variablen werden in primären und sekundären Sektionen unterschiedlich behandelt. In primären Sektionen sind es eigenständige Objekte, in sekundären Sektionen werden sie vor der Ausführung der Sektion durch den Inhalt der Variable ersetzt. Achten Sie besonders darauf, wenn Sie entsprechende String-Ausdrücke im Skript mit Copy{nbsp}&{nbsp}Paste kopieren/einfügen.
 
-IMPORTANT: Stringvariablen werden in primären und sekundären Sektionen unterschiedlich behandelt.
-In primären Sektionen sind Stringvariablen eigenständige Objekte.
-Nur hier können sie deklariert und ihnen Werte zugewiesen werden.
-Entsprechend ist die Verbindung von Variablen und Strings zu einem Stringausdruck mit einem Operator `"+"` durchzuführen. +
-Beispiel: `"Installing "+ $ProductId$ +" ..."` +
-In sekundären Sektionen werden Stringvariablen vor der Ausführung der Sektion durch den Inhalt der Variable ersetzt. +
-Beispiel: `"Installing $ProductId$ ..."` +
-Dies ist zu beachten, wenn entsprechende Stringausdrücke per Cut&Paste im Skript kopiert werden. +
-Der Vorteil dieser Konstruktion ist, dass in Sektionen die außerhalb des _opsi-script_ ausgeführt werden (DosBatch / Execwith)
-problemlos mit opsi-script-Variablen gearbeitet werden kann.
+Demzufolge können Sie String-Variablen nur in primären Sektionen deklarieren und ihnen Werte zuweisen. Die Verbindung von Variablen und Strings zu einem String-Ausdruck benötigt den Operator `"+"`:
+
+[source,ini]
+----
+"Installing "+ $ProductId$ +" ..."
+----
+
+In sekundären Sektionen werden String-Variablen vor der Ausführung der Sektion durch den Inhalt der Variable ersetzt:
+
+[source,ini]
+----
+"Installing $ProductId$ ..."
+----
+
+Der Vorteil dieser Konstruktion ist, dass Sie auch in Sektionen, die außerhalb des `opsi-script`-Skriptes ausgeführt werden (`DosBatch`, `ExecWith`), problemlos mit `opsi-script`-Variablen arbeiten können.
 
 [[opsi-softwintegration-tutorial-elementary-commands-message]]
 ===== Anweisungen: *Message* und *ShowBitmap*
@@ -164,7 +169,7 @@ problemlos mit opsi-script-Variablen gearbeitet werden kann.
 Zur Textausgabe während der Installation: +
 `Message <string>`
 
-[source]
+[source,ini]
 ----
 Message "Installing "+ $ProductId$ +" ..."
 ----
@@ -172,7 +177,7 @@ Message "Installing "+ $ProductId$ +" ..."
 Zur Ausgabe einer Grafik während der Installation: +
 `ShowBitmap <filename> <subtitle>`
 
-[source]
+[source,ini]
 ----
 ShowBitmap "%ScriptPath%\python.png" "Python"
 ----
@@ -194,7 +199,7 @@ else: Dieser Teil ist ebenfalls optional. Wenn keine der vorherigen Bedingungen 
 endif: Dies markiert das Ende des bedingten Konstrukts. Es zeigt an, dass die bedingte Überprüfung hier endet.
 
 
-[source]
+[source,ini]
 ----
 if <condition>
 	;statement(s)
@@ -259,7 +264,7 @@ Wie solche Properties erstellt werden, ist im Kapitel
 
 Der Zugriff auf die Werte der Properties geschieht über die Funktion `GetProductProperty`:
 
-[source]
+[source,ini]
 ----
 if GetProductProperty("example-property", "no") = "yes"
 	Files_copy_extra_files
