@@ -1,0 +1,109 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      05.06.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[server-components-dhcp-pxe]]
+= DHCP-Server/PXE-Boot
+
+Ein DHCP-Server (Dynamic Host Configuration Protocol) richtet Geräte in einem Netzwerk automatisch ein. Dazu gehört etwa die Zuweisung von IP-Adresse, Netzmaske, Gateway, Domain Name Server (DNS) und auch die Konfiguration von Netzwerk-Boot (PXE). Preboot Execution Environment ermöglicht es, Computer über das Netzwerk zu starten und ein Betriebssystem zu laden. Geräte, die über einen PXE-fähigen Netzwerkadapter verfügen, greifen dazu über das Netzwerk auf ein Boot-Image zu, das das Betriebssystem oder andere benötigte Startdateien enthält.
+
+NOTE: PXE kann sowohl mit BIOS (Basic Input/Output System) als auch mit UEFI (Unified Extensible Firmware Interface) verwendet werden. PXE selbst ist unabhängig von der Firmware des Computers. Die verwendeten Bootloader unterscheiden sich voneinander.
+
+Der opsi-Depotserver fungiert in diesem Fall als Boot-Server -- opsi ermöglicht also das Durchführen automatisierter Prozesse unabhängig von einem auf dem Client installierten Betriebssystem.
+
+Um PXE-Boot zu ermöglichen, muss ein DHCP-Server dem Netzwerkgerät zusätzliche Informationen mitteilen. Bei Verwendung des TFTP-Protokolls sind das die folgenden:
+
+* *Boot-Server (DHCP-Option 66)*: IP-Adresse des TFTP-Servers (auch Next-Server genannt)
+* *Boot-Filename (DHCP-Option 67)*: Der Pfad zum Bootloader auf dem TFTP-Server. Diese Option muss für UEFI- und BIOS-Geräte unterschiedlich konfiguriert werden.
+
+TIP: Mehr Informationen zu TFTP (Trivial File Transfer Protocol) finden Sie in Kapitel xref:server:components/tftpd.adoc[TFTP-Server].
+
+[[server-components-dhcp-on-opsi-server]]
+== DHCP auf dem opsi-Depotserver
+
+Ein opsi-Depotserver kann als DHCP-Server dienen.
+Dabei besteht die Möglichkeit, die DHCP-Server-Konfiguration automatisch mit opsi zu verwalten.
+
+Auf dem opsi-Server installieren Sie dazu den ICS-DHCP-Server. Der Name des Paketes hängt von der verwendeten Linux-Distribution ab; es heißt entweder `isc-dhcp-server` oder `dhcp-server`. Schauen Sie im Zweifelsfall im Handbuch bzw. in den Paketquellen des Linux-Systems nach.
+
+NOTE: Die vorkonfigurierte virtuelle Maschine (siehe Kapitel xref:server:installation/preconfigured-vm.adoc[Vorkonfigurierte virtuelle Maschine]) ist bereits mit einem DHCP-Server ausgestattet. Er ist so konfiguriert, dass er IP-Adressen ausschließlich an bekannte Clients vergibt (keine freien Leases).
+
+[[server-components-dhcp-on-opsi-server-autoconf]]
+==== Automatische DHCP-Konfiguration
+
+opsi kann wie gesagt den DHCP-Server automatisch konfigurieren, wenn er auf dem opsi-Server installiert ist. In dem Fall erzeugt und aktualisiert opsi auch Client-Einträge. Sie hinterlegen dazu lediglich die MAC-Adresse und gegebenenfalls die IP-Adresse, beispielsweise wenn Sie einen Client über die Management-Oberfläche *opsi-configed* anlegen (siehe Kapitel xref:configed:configed.adoc[Management-Oberfläche *opsi-configed*]).
+
+Die automatische DHCP-Konfiguration über opsi konfigurieren Sie in der Datei `/etc/opsi/backends/dhcpd.conf` auf dem opsi-Configserver, z.{nbsp}B. so:
+
+[source,toml]
+----
+# -*- coding: utf-8 -*-
+
+module = 'DHCPD'
+
+config = {
+    "enabled":                 True,
+    "dhcpdOnDepot":            True,
+    "fixedAddressFormat":      "FQDN", # or IP
+    "dhcpdConfigFile":         "/etc/dhcp/dhcpd.conf",
+    "reloadConfigCommand":     "sudo service isc-dhcp-server restart",
+    "defaultClientParameters": { "next-server": "10.11.12.13" }
+}
+----
+
+Die Konfigurations-Parameter haben die folgende Bedeutung:
+
+* `enabled`:
+  ** `True`: Die automatische Konfiguration ist aktivert.
+  ** `False`: Die automatische Konfiguration ist deaktivert.
+* `dhcpdOnDepot`:
+  ** `False`: Der DHCP-Server auf dem opsi-Configserver verwaltet alle Clients.
+  ** `True`: Die Clients verden in der DHCP-Konfiguration des zugeordneten Depots verwaltet.
+* `fixedAddressFormat`:
+  ** `FQDN`: Für die Client-Einträge wird der FQDN als Adresse verwendet.
+  ** `IP`: Für die Client-Einträge wird die IP-Adresse verwendet.
+* `dhcpdConfigFile`: Der Pfad zur ISC-DHCP-Konfigurationsdatei; fehlt dieser Eintrag, wird der Pfad automatisch ermittelt (empfohlen und Standard).
+* `reloadConfigCommand`: Das Kommado, das nach Änderungen an der Konfigurationsdatei ausgeführt wird, um diese zu aktivieren. Fehlt dieser Eintrag, wird der Befehl automatisch ermittelt (empfohlen und Standard).
+* `defaultClientParameters`: Client-Konfigurations-Parameter, die für jeden Client gesetzt werden sollen; fehlt dieser Eintrag, werden sie automatisch ermittelt (empfohlen und Standard).
+
+[[server-components-external-dhcp-server]]
+== Externer DHCP-Server
+
+Wenn Sie die PXE-Boot-Funktionalität des opsi-Servers nutzen wollen und bereits ein DHCP-Server in Ihrem Netzwerk existiert, der auch die opsi-Clients verwalten soll, müssen Sie die Konfiguration dieses DHCP-Servers anpassen:
+
+* *Boot-Server (DHCP-Option 66)*: Tragen Sie für den Boot-Server die IP-Adresse Ihres opsi-Depotservers ein.
+* *Boot-Filename (DHCP-Option 67)*: Konfigurieren Sie Ihren DHCP-Server so, dass er UEFI-Geräten als Boot-Filename `opsi/opsi-linux-bootimage/loader/shimx64.efi.signed` und Legcy-BIOS-Geräten als Boot-Filename `opsi/opsi-linux-bootimage/loader/opsi-netboot.bios` zuweist.
+
+Das folgende Beispiel zeigt eine Konfiguration eines ISC-DHCP-Servers:
+
+[source,toml]
+----
+next-server 10.10.1.2;
+if substring (option vendor-class-identifier, 19, 1) = "0" {
+	filename "opsi/opsi-linux-bootimage/loader/opsi-netboot.bios";
+}
+else if substring (option vendor-class-identifier, 19, 1) = "7" {
+	filename "opsi/opsi-linux-bootimage/loader/shimx64.efi.signed";
+}
+----

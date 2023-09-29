@@ -1,0 +1,1318 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      08.05.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[development-jsonrpc-api]]
+== JSON-RPC-API
+
+Die Zentrale opsi API basiert auf JSON-RPC (JavaScript Object Notation Remote Procedure Call).
+
+Die API enthält eine Schnittstellenbeschreibung, die alle RPC-Methoden dokumentiert.
+Diese kann über die RPC-Methode *backend_getInterface* abgerufen werden.
+
+Diese Liste der Methoden ist auch auf der
+xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[opsiconfd Admin-Seite im Tab RPC-Interface]
+einsehbar.
+
+Die JSON-RPC-API basiert auf Objekten.
+Ein Objekt hat eine Reihe von Attributen.
+
+Als Beispiel dient hier ein Objekt vom Typ *Product* das ein opsi-Produkt beschreibt:
+
+[source,json]
+----
+"ident": "javavm;1.6.0.20;2"
+"id": "javavm"
+"description": "Java 1.6"
+"changelog": ""
+"advice": ""
+"userLoginScript": ""
+"name": "SunJavaRuntimeEnvironment"
+"priority": 0
+"packageVersion": "2"
+"productVersion": "1.6.0.20"
+"windowsSoftwareIds": null
+"productClassIds": null
+"type": "LocalbootProduct"
+"licenseRequired": false
+"setupScript": "javavm.ins"
+"updateScript": ""
+"uninstallScript": "deljvm.ins"
+"alwaysScript": ""
+"onceScript": ""
+"customScript": ""
+----
+
+Zu jedem Objekt gibt es eine Reihe von Operationen. In der Regel sind dies:
+
+* *getObjects*: Liefert eine Liste von Objekten zurück, die auf den angegebenen Filter passen.
+Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend befüllt.
+* *getHashes*: Wie *getObjects*, nur dass ungeprüfte Rohdaten aus dem Backend direkt ausgeliefert werden.
+Arbeitet performanter als *getObjects*, ist jedoch mit Vorsicht zu verwenden.
+* *getIdents* Liefert eine Liste von Objekt-IDs zurück, die auf den angegebenen Filter passen.
+Über den *returnTyp* kann die Datenstruktur der Elemente im Ergebnis gewählt werden.
+Mögliche Werte sind hierbei: *unicode*, *list* und *hash*.
+* *insertObject*: Erzeugt ein neues Objekt. Existiert das Objekt bereits, wird es mit den neuen Werten komplett überschrieben.
+Hierbei werden Attribute, die nicht (oder mit dem Wert *null*) übergeben werden, im Backend auf *null* gesetzt.
+* *updateObject*: Aktualisiert ein Objekt. Attribute, die nicht (oder mit dem Wert *null*) übergeben werden,
+werden hierbei im Backend *nicht* geändert. Existiert das Objekt nicht, findet keine Änderung statt, es wird *kein* Objekt erzeugt.
+* *createObjects*: Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an *insertObject* übergeben.
+* *updateObjects*: Es kann ein Objekt oder eine Liste von Objekten übergeben werden. Jedes Objekt wird intern an *insertObject* übergeben falls es noch nicht existiert, andernfalls jedoch an *updateObject*.
+* *create*: Erzeugt ein neues Objekt und nimmt hierbei alle möglichen Attribute als einzelne Parameter entgegen.
+Intern wird hierbei *createObjects* verwendet. Existierende Objekte werden also komplett überschrieben.
+* *deleteObjects*: Löscht eine Liste von Objekten. Es muss hierbei zwingend eine Liste übergeben werden. Es werden nur die das Objekt identifizierenden Attribute (*type*/*id*/*ident*) zur Auswahl der zu löschenden Objekte verwendet.
+* *delete*: Löscht das über die angegebenen Parameter identifizierte Objekt.
+
+TIP: Zum Aktualisieren eines Objekts bietet sich in der Regel die Verwendung der Methode  an.
+Zum Beispiel kann über *productOnClient_updateObjects* der Zustand eines Paketes auf einem Client aktualisiert werden.
+Ob das Objekt dabei bereits existiert oder nicht, spielt dann keine Rolle.
+
+Die Namen der Methoden setzen sich zusammen aus:
+
+*<Objekt-Typ>_<Operation>*
+
+Die *getObjects*-Methoden haben zwei optionale Parameter:
+
+* *attributes*
+* *filter*
+
+Der Parameter  dient dazu, nur bestimmte Attribute des Objektes abzufragen, was Geschwindigkeitsvorteile bringen kann.
+Wird eine Liste von Attributen angegeben, werden nur diese aus dem Backend gelesen.
+Die restlichen Attribute werden mit dem Wert  zurückgegeben.
+Attribute die das Objekt identifizieren (//) werden immer befüllt.
+Wenn alle Attribute ausgelesen werden sollen (default), kann  oder  als  übergeben werden.
+
+Beispiel für die Methode *product_getObjects*, parametrisiert mit *attributes:["name"]* für das Produkt *javavm*:
+
+[source,json]
+----
+"onceScript": null,
+"ident": "javavm;1.6.0.20;2",
+"windowsSoftwareIds": null,
+"description": null,
+"setupScript": null,
+"changelog": null,
+"customScript": null,
+"advice": null,
+"uninstallScript": null,
+"userLoginScript": null,
+"name": "Sun Java Runtime Environment",
+"priority": null,
+"packageVersion": "2",
+"productVersion": "1.6.0.20",
+"updateScript": null,
+"productClassIds": null,
+"alwaysScript": null,
+"type": "LocalbootProduct",
+"id": "javavm",
+"licenseRequired": null
+----
+
+Mit dem Parameter *filter* kann die Liste der Objekte gefiltert werden.
+So schränkt für *product_getObjects* der Filter *{"id":"javavm"}* die Rückgabe auf das Object mit der ID *javavm* ein.
+Mehrere übergebene Filter-Attribute werden hierbei -verknüpft.
+Wird für ein Attribut eine Liste von Werten übergeben, resultiert hieraus eine -Verknüpfung.
+Für Strings kann ein `\*` als Platzhalter verwendet werden.
+Wenn nicht gefiltert werden soll (default), kann *null* oder *{}* als *filter* übergeben werden.
+
+Beispiel für *product_getIdents* mit Filter `{"id":["opsi-client-agent","opsi-script"],"productVersion":"4.1*"}` (*returnType* = *hash*):
+
+[source,json]
+----
+[
+    {
+        "id": "opsi-client-agent",
+        "productVersion": "4.1.0.0",
+        "packageVersion": "47"
+    },
+    {
+        "id": "opsi-client-agent",
+        "productVersion": "4.1.1.40",
+        "packageVersion": "1"
+    },
+    {
+        "id": "opsi-script",
+        "productVersion": "4.12.4.21",
+        "packageVersion": "1"
+    },
+    {
+        "id": "opsi-script",
+        "productVersion": "4.12.4.23",
+        "packageVersion": "1"
+    }
+]
+----
+
+Bei den Methoden, denen ein oder mehrere Objekte übergeben werden,
+muss dies als JSON-Objekt bzw. als Liste von JSON-Objekten geschehen.
+
+Die wichtigsten Objekte sind:
+
+* *auditHardwareOnHost* (clientspezifische Hardwareinformationen)
+* *auditHardware* (clientunabhängige Hardwareinformationen)
+* *auditSoftwareOnClient* (clientspezifische Softwareinformationen)
+* *auditSoftware* (clientunabhängige Softwareinformationen)
+* *auditSoftwareToLicensePool* (Lizenzmanagement)
+* *configState* (Verwaltung von Zusatzkonfigurationen)
+* *config* (Verwaltung von neuen typisierten Zusatzkonfigurationen)
+* *group* (Gruppenverwaltung)
+* *host* (Server und Clients)
+* *licenseContract* (Lizenzmanagement)
+* *licenseOnClient* (Lizenzmanagement)
+* *licensePool* (Lizenzmanagement)
+* *objectToGroup* (Gruppenverwaltung)
+* *productDependency* (Produktabhängigkeiten)
+* *productOnClient* (Infos zu einem Produkt bezogen auf einen Client)
+* *productOnDepot* (Infos zu einem Produkt bezogen auf ein Depot)
+* *productPropertyState* (Depot und Client bezogene Product Property Werte)
+* *productProperty* (Definition der Product Properties)
+* *product* (Produkt Metadaten)
+* *softwareLicenseToLicensePool* (Lizenzmanagement)
+* *softwareLicense* (Lizenzmanagement)
+
+Daneben gibt es noch eine Reihe von weiteren Objekten mit speziellen Operationen,
+die nicht diesem Objekt-Schema folgen, z.B.:
+
+* `backend_getLicensingInfo`
+* `network_sendBroadcast`
+* `accessControl_userIsAdmin`
+
+Weiterhin gibt es Methoden, die kein *<Objekt-Typ>_*-Prefix besitzen.
+Diese sind in der Regel alte Methoden, die zur Wahrung der Abwärts-Kompatibilität beibehalten worden sind.
+
+
+[[development-jsonrpc-api-storage-host]]
+=== Host  (Server und Clients)
+
+Beispiel für einen OpsiClient:
+
+[source,json]
+----
+ method host_getObjects [] {"id":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "xpclient.vmnat.local",
+          "description" : "",
+          "created" : "2012-03-22 12:13:52",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.101",
+          "notes" : "Created by opsi-deploy-client-agent at Wed, 24 Aug 2011 10:24:36",
+          "oneTimePassword" : "",
+          "lastSeen" : "2012-03-30 16:20:04",
+          "hardwareAddress" : "00:0c:29:35:70:a7",
+          "opsiHostKey" : "1234567890abcef1234567890abcdef",
+          "type" : "OpsiClient",
+          "id" : "xpclient.vmnat.local"
+          }
+]
+----
+
+Die meisten dieser Daten finden sich im *Clients*-Tab des opsi-configed.
+
+Mögliche Werte für *type*:
+
+* *OpsiClient*
+* *OpsiDepotserver*
+* *OpsiConfigserver* (ist auch ein *OpsiDepotserver*)
+
+*OpsiDepotserver* und *OpsiConfigserver* besitzen mehr Attribute als ein *OpsiClient*.
+
+Beispiel für einen *OpsiConfigserver**:
+
+[source,json]
+----
+ method host_getObjects [] {"id":"sepiolina.vmnat.local"}
+[
+          {
+          "masterDepotId" : null,
+          "ident" : "sepiolina.vmnat.local",
+          "networkAddress" : "172.16.166.0/255.255.255.128",
+          "description" : "",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.1",
+          "repositoryRemoteUrl" : "webdavs://sepiolina.vmnat.local:4447/repository",
+          "depotLocalUrl" : "file:///var/lib/opsi/depot",
+          "isMasterDepot" : true,
+          "notes" : "",
+          "hardwareAddress" : null,
+          "maxBandwidth" : 0,
+          "repositoryLocalUrl" : "file:///var/lib/opsi/repository",
+          "opsiHostKey" : "1234567890abcef1234567890abcdef",
+          "type" : "OpsiConfigserver",
+          "id" : "sepiolina.vmnat.local",
+          "depotWebdavUrl" : "webdavs://sepiolina:4447/depot",
+          "depotRemoteUrl" : "smb://sepiolina/opsi_depot"
+          }
+]
+----
+Die meisten dieser Daten finden sich in der *depot configuration* des opsi-configed.
+
+[[development-jsonrpc-api-storage-group]]
+=== Group (Gruppen Verwaltung)
+
+Beschreibt Gruppen und Ihre hierarchiche Struktur.
+Es existieren die Typen *HostGroup* und *ProductGroup*.
+
+Beispiel für ein *Group*-Objekt:
+
+[source,json]
+----
+ method group_getObjects
+ [
+       {
+          "ident" : "sub2",
+          "description" : "sub2",
+          "notes" : "",
+          "parentGroupId" : null,
+          "type" : "HostGroup",
+          "id" : "sub2"
+          },
+          {
+          "ident" : "subsub",
+          "description" : "subsub",
+          "notes" : "",
+          "parentGroupId" : "sub2",
+          "type" : "HostGroup",
+          "id" : "subsub"
+          }
+]
+----
+
+[[development-jsonrpc-api-storage-objectToGroup]]
+=== ObjectToGroup (Verwaltung von Gruppenzugehörigkeiten)
+
+Beschreibt die Mitgliedschaft von Objekten in Gruppen.
+Beispiel für *ObjectToGroup*-Objekte:
+
+[source,json]
+----
+ method objectToGroup_getObjects
+[
+         {
+          "groupType" : "HostGroup",
+          "ident" : "HostGroup;sub2;win7.vmnat.local",
+          "type" : "ObjectToGroup",
+          "groupId" : "sub2",
+          "objectId" : "win7.vmnat.local"
+          },
+          {
+          "groupType" : "HostGroup",
+          "ident" : "HostGroup;subsub;win7x64.vmnat.local",
+          "type" : "ObjectToGroup",
+          "groupId" : "subsub",
+          "objectId" : "win7x64.vmnat.local"
+          },
+        {
+          "groupType" : "ProductGroup",
+          "ident" : "ProductGroup;opsiessentials;opsi-client-agent",
+          "type" : "ObjectToGroup",
+          "groupId" : "opsiessentials",
+          "objectId" : "opsi-client-agent"
+          },
+          {
+          "groupType" : "ProductGroup",
+          "ident" : "ProductGroup;opsiessentials;opsi-winst",
+          "type" : "ObjectToGroup",
+          "groupId" : "opsiessentials",
+          "objectId" : "opsi-winst"
+          }
+]
+----
+
+[[development-jsonrpc-api-storage-product]]
+=== Product (Pake-Metadaten)
+
+Beschreibt die Meta-Daten eines Produktes wie sie bei der Erstellung des Produktes definiert wurden.
+
+Beispiel für ein *Product*-Objekt:
+
+[source,json]
+----
+ method product_getObjects [] {"id":"jedit","productVersion":"4.5"}
+[
+          {
+          "onceScript" : "",
+          "ident" : "jedit;4.5;3",
+          "windowsSoftwareIds" :
+                    [
+
+                    ],
+          "description" : "jEdit with opsi-winst Syntax-Highlighting",
+          "setupScript" : "setup.ins",
+          "changelog" : "",
+          "customScript" : "",
+          "advice" : "",
+          "uninstallScript" : "uninstall.ins",
+          "userLoginScript" : "",
+          "name" : "jEdit programmer's text editor",
+          "priority" : 0,
+          "packageVersion" : "3",
+          "productVersion" : "4.5",
+          "updateScript" : "update.ins",
+          "productClassIds" :
+                    [
+
+                    ],
+          "alwaysScript" : "",
+          "type" : "LocalbootProduct",
+          "id" : "jedit",
+          "licenseRequired" : false
+          }
+]
+----
+NOTE: Im Fall von mehreren Depotservern, können hier unterschiedliche Versionen eines `product` auftauchen.
+
+Die Attribute *productClassIds* und *windowsSoftwareIds* werden im Moment nicht verwendet.
+
+[[development-jsonrpc-api-storage-productProperty]]
+=== ProductProperty (Definition von Produkt-Eigenschaften)
+
+Beschreibt die Eigenschaften eines *Product* wie sie bei der Erstellung des Paketes definiert wurden.
+
+Beispiel für ein `ProductProperty` Objekt:
+
+[source,json]
+----
+ method productProperty_getObjects [] {"productId":"jedit","productVersion":"4.5"}
+[
+          {
+          "ident" : "jedit;4.5;3;start_server",
+          "description" : "Should the jedit derver started at every startup ?",
+          "editable" : false,
+          "defaultValues" :
+                    [
+                    false
+                    ],
+          "multiValue" : false,
+          "productVersion" : "4.5",
+          "possibleValues" :
+                    [
+                    false,
+                    true
+                    ],
+          "packageVersion" : "3",
+          "type" : "BoolProductProperty",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          }
+]
+----
+NOTE: Die für einen Client verwendeten default Werte finden sich nicht hier, sondern werden Depot-spezifisch in `productPropertyState` Objekten gespeichert.
+
+[[development-jsonrpc-api-storage-productPropertyState]]
+=== ProductPropertyState (Depot- oder Client-spezifische Paket-Einstellungen)
+
+Beschreibt:
+
+* Die Standard-Werte eines *ProductProperty* auf einem Depot
+* Die Client-spezifischen Einstellungen eines 'ProductProperty'.
+
+Beispiel für *ProductPropertyState*-Objekte:
+
+[source,json]
+----
+ method productPropertyState_getObjects [] {"productId":"jedit"}
+[
+          {
+          "ident" : "jedit;start_server;sepiolina.vmnat.local",
+          "objectId" : "sepiolina.vmnat.local",
+          "values" :
+                    [
+                    false
+                    ],
+          "type" : "ProductPropertyState",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          },
+         {
+          "ident" : "jedit;start_server;xpclient.vmnat.local",
+          "objectId" : "xpclient.vmnat.local",
+          "values" :
+                    [
+                    true
+                    ],
+          "type" : "ProductPropertyState",
+          "propertyId" : "start_server",
+          "productId" : "jedit"
+          }
+
+]
+----
+
+
+[[development-jsonrpc-api-storage-productDependency]]
+=== ProductDependency (Paket-Abhängigkeiten)
+
+Beschreibt die Abhängigkeit eines Paketes zu einem anderen Paket wie sie bei der Erstellung des Paketes definiert wurden.
+
+Beispiel für ein *ProductDependency*-Objekt:
+
+[source,json]
+----
+method productDependency_getObjects [] {"productId":"jedit","productVersion":"4.5"}
+[
+          {
+          "ident" : "jedit;4.5;3;setup;javavm",
+          "productAction" : "setup",
+          "requiredPackageVersion" : null,
+          "requirementType" : "before",
+          "requiredInstallationStatus" : "installed",
+          "productVersion" : "4.5",
+          "requiredProductId" : "javavm",
+          "requiredAction" : null,
+          "requiredProductVersion" : null,
+          "type" : "ProductDependency",
+          "packageVersion" : "3",
+          "productId" : "jedit"
+          }
+]
+----
+
+[[development-jsonrpc-api-storage-productOnClient]]
+=== ProductOnClient (Client-spezifische Informationen zu einem Paket z.B. Installationsstatus)
+
+Beschreibt, welche Produkte in welchen Versionen auf welchem Client installiert sind.
+
+Beispiel eines *ProductOnClient*-Objektes:
+
+[source,json]
+----
+ method productOnClient_getObjects [] {"productId":"jedit","clientId":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "jedit;LocalbootProduct;xpclient.vmnat.local",
+          "actionProgress" : "",
+          "actionResult" : "successful",
+          "clientId" : "xpclient.vmnat.local",
+          "modificationTime" : "2012-03-30 15:49:04",
+          "actionRequest" : "none",
+          "targetConfiguration" : "installed",
+          "productVersion" : "4.5",
+          "productType" : "LocalbootProduct",
+          "lastAction" : "setup",
+          "packageVersion" : "3",
+          "actionSequence" : -1,
+          "type" : "ProductOnClient",
+          "installationStatus" : "installed",
+          "productId" : "jedit"
+          }
+]
+----
+
+[[development-jsonrpc-api-storage-productOnDepot]]
+=== ProductOnDepot (Depot-spezifische Informationen zu einem Paket)
+
+Beschreibt, welches Produkt in welcher Version auf welchem Depot installiert ist.
+
+Beispiel für *ProductOnDepot*-Objekte:
+
+[source,json]
+----
+ method productOnDepot_getObjects [] {"productId":"jedit"}
+[
+          {
+          "ident" : "jedit;LocalbootProduct;4.4.1;2;depotserver.vmnat.local",
+          "locked" : false,
+          "productVersion" : "4.4.1",
+          "productType" : "LocalbootProduct",
+          "depotId" : "depotserver.vmnat.local",
+          "type" : "ProductOnDepot",
+          "packageVersion" : "2",
+          "productId" : "jedit"
+          },
+          {
+          "ident" : "jedit;LocalbootProduct;4.5;3;sepiolina.vmnat.local",
+          "locked" : false,
+          "productVersion" : "4.5",
+          "productType" : "LocalbootProduct",
+          "depotId" : "sepiolina.vmnat.local",
+          "type" : "ProductOnDepot",
+          "packageVersion" : "3",
+          "productId" : "jedit"
+          }
+]
+----
+NOTE: Im Fall von mehreren Depotservern, können hier unterschiedliche Versionen eines Produktes auftauchen.
+
+
+[[development-jsonrpc-api-storage-config]]
+=== Config (Verwaltung der Standard-Werte der Konfigurationen)
+
+Beschreibt die verfügbaren Konfigurationen.
+
+Beispiel für ein *Config*-Objekt:
+
+[source,json]
+----
+ method config_getObjects [] {"id":"opsiclientd.event_gui_startup.active"}
+[
+          {
+          "ident" : "opsiclientd.event_gui_startup.active",
+          "description" : "gui_startup active",
+          "defaultValues" :
+                    [
+                    true
+                    ],
+          "editable" : false,
+          "multiValue" : false,
+          "possibleValues" :
+                    [
+                    false,
+                    true
+                    ],
+          "type" : "BoolConfig",
+          "id" : "opsiclientd.event_gui_startup.active"
+          }
+]
+----
+
+[[development-jsonrpc-api-storage-configState]]
+=== ConfigState (Verwaltung der Client-spezifischen Konfigurationen)
+
+Client-spezifischer Zustand einer Konfiguration.
+
+Beispiel für ein *ConfigState*-Objekt:
+
+[source,json]
+----
+ method configState_getObjects [] {"configId":"opsiclientd.event_gui_startup.active"}
+[
+          {
+          "configId" : "opsiclientd.event_gui_startup.active",
+          "ident" : "opsiclientd.event_gui_startup.active;wanclient.vmnat.local",
+          "values" :
+                    [
+                    false
+                    ],
+          "objectId" : "wanclient.vmnat.local",
+          "type" : "ConfigState"
+          }
+]
+----
+NOTE: Ein *ConfigState* Objekt kann nicht erzeugt werden ohne das das *Config* Objekt existiert auf das es referenziert.
+
+
+[[development-jsonrpc-api-storage-auditHardwareOnHost]]
+=== AuditHardwareOnHost (Client-spezifische Hardware Informationen)
+
+Beschreibt die ermittelten Hardware-Informationen inclusive der Client-spezifischen Daten.
+*AuditHardwareOnHost*-Objekte enthalten die Hardware-spezifischen und Client-spezifischen Attribute,
+*AuditHardware*-Objekte nur Hardware-spezifische Attribute.
+
+Das Attribut *state* ist historisch bedingt und besitzt aktuell keine Bedeutung mehr.
+
+Beispiele für *AuditHardwareOnHost*-Objekte:
+
+[source,json]
+----
+ method auditHardwareOnHost_getObjects [] {"hostId":"xpclient.vmnat.local","hardwareClass":"NETWORK_CONTROLLER","ipAddress":"172.16.166.101"}
+[
+          {
+          "vendorId" : "1022",
+          "macAddress" : "00:0C:29:35:70:A7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 1,
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "ipEnabled" : "True",
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-03-30 15:48:15",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceId" : "2000",
+          "autoSense" : null,
+          "netConnectionStatus" : "Connected",
+          "maxSpeed" : null,
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "serialNumber" : null,
+          "lastseen" : "2012-03-30 15:48:15",
+          "model" : null,
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : "Ethernet 802.3"
+          },
+          {
+          "vendorId" : "1022",
+          "macAddress" : "00:0C:29:35:70:A7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 0,
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "ipEnabled" : "True",
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-03-08 14:26:14",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "VMware, Inc.",
+          "description" : "VMware Accelerated AMD PCNet Adapter",
+          "subsystemDeviceId" : "1022",
+          "deviceId" : "2000",
+          "autoSense" : null,
+          "netConnectionStatus" : "Connected",
+          "maxSpeed" : null,
+          "name" : "VMware Accelerated AMD PCNet Adapter",
+          "serialNumber" : null,
+          "lastseen" : "2012-03-10 14:47:15",
+          "model" : null,
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : "Ethernet 802.3"
+          },
+   {
+          "vendorId" : "1022",
+          "macAddress" : "00:0c:29:35:70:a7",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "state" : 0,
+          "deviceType" : null,
+          "subsystemVendorId" : "1022",
+          "ipEnabled" : null,
+          "type" : "AuditHardwareOnHost",
+          "firstseen" : "2012-02-29 15:43:21",
+          "revision" : "10",
+          "hostId" : "xpclient.vmnat.local",
+          "vendor" : "Advanced Micro Devices [AMD]",
+          "description" : "Ethernet interface",
+          "subsystemDeviceId" : "2000",
+          "deviceId" : "2000",
+          "autoSense" : "",
+          "netConnectionStatus" : "yes",
+          "maxSpeed" : null,
+          "name" : "79c970 [PCnet32 LANCE]",
+          "serialNumber" : "00:0c:29:35:70:a7",
+          "lastseen" : "2012-03-30 14:58:30",
+          "model" : "79c970 [PCnet32 LANCE]",
+          "ipAddress" : "172.16.166.101",
+          "adapterType" : ""
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-auditHardware]]
+=== AuditHardware (Client-unabhängige Hardware Informationen)
+
+Beschreibt die ermittelten Hardware-Informationen ohne die Client-spezifischen Daten.
+Beispiele für *AuditHardware*-Objekte:
+
+[source,json]
+----
+ method auditHardware_getObjects [] {"hardwareClass":"NETWORK_CONTROLLER","vendorId":"1022"}
+[
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices [AMD]",
+          "name" : "79c970 [PCnet32 LANCE]",
+          "subsystemDeviceId" : "2000",
+          "deviceType" : null,
+          "subsystemVendorId" : "1022",
+          "autoSense" : "",
+          "model" : "79c970 [PCnet32 LANCE]",
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "",
+          "description" : "Ethernet interface"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "VMware, Inc.",
+          "name" : "VMware Accelerated AMD PCNet Adapter",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "VMware Accelerated AMD PCNet Adapter"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+  {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : "Ethernetadapter der AMD-PCNET-Familie",
+          "subsystemDeviceId" : "1022",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "2000",
+          "autoSense" : null,
+          "model" : null,
+          "revision" : "10",
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : "Ethernet 802.3",
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+          {
+          "vendorId" : "1022",
+          "deviceId" : "2000",
+          "maxSpeed" : null,
+          "vendor" : "Advanced Micro Devices (AMD)",
+          "name" : null,
+          "subsystemDeviceId" : "2000",
+          "deviceType" : "PCI",
+          "subsystemVendorId" : "1022",
+          "autoSense" : null,
+          "model" : "",
+          "revision" : null,
+          "type" : "AuditHardware",
+          "hardwareClass" : "NETWORK_CONTROLLER",
+          "adapterType" : null,
+          "description" : "Ethernetadapter der AMD-PCNET-Familie"
+          },
+(....)
+]
+----
+
+
+[[development-jsonrpc-api-storage-auditSoftwareOnClient]]
+=== AuditSoftwareOnClient (Client-spezifische Software Informationen)
+
+Beschreibt die ermittelten Software-Informationen inklusive der Client-spezifischen Daten.
+
+Beispiele für *AuditSoftwareOnClient*-Objekte:
+
+[source,json]
+----
+ method auditSoftwareOnClient_getObjects  [] {"name":"jEdit 4.5.0","clientId":"xpclient.vmnat.local"}
+[
+          {
+          "ident" : "jEdit 4.5.0;4.5.0;;;x86;xpclient.vmnat.local",
+          "licenseKey" : "",
+          "name" : "jEdit 4.5.0",
+          "uninstallString" : "\\\"C:\\\\Programme\\\\jEdit\\\\unins000.exe\\\"",
+          "usageFrequency" : -1,
+          "clientId" : "xpclient.vmnat.local",
+          "lastUsed" : "0000-00-00 00:00:00",
+          "subVersion" : "",
+          "language" : "",
+          "state" : 1,
+          "version" : "4.5.0",
+          "lastseen" : "2012-03-30 16:19:55",
+          "binaryName" : "",
+          "type" : "AuditSoftwareOnClient",
+          "firstseen" : "2012-03-30 16:19:55",
+          "architecture" : "x86"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-auditSoftware]]
+=== AuditSoftware (Client-unahängige Software Informationen)
+
+Beschreibt die ermittelten Software-Informationen ohne die Client-spezifischen Daten.
+
+Beispiel für *AuditSoftware*-Objekte:
+
+[source,json]
+----
+ method auditSoftware_getObjects  [] {"name":"jEdit 4.5.0"}
+[
+          {
+          "windowsDisplayVersion" : "4.5.0",
+          "ident" : "jEdit 4.5.0;4.5.0;;;x64",
+          "name" : "jEdit 4.5.0",
+          "windowsSoftwareId" : "jedit_is1",
+          "windowsDisplayName" : "jEdit 4.5.0",
+          "installSize" : -1,
+          "subVersion" : "",
+          "language" : "",
+          "version" : "4.5.0",
+          "architecture" : "x64",
+          "type" : "AuditSoftware"
+          },
+          {
+          "windowsDisplayVersion" : "4.5.0",
+          "ident" : "jEdit 4.5.0;4.5.0;;;x86",
+          "name" : "jEdit 4.5.0",
+          "windowsSoftwareId" : "jedit_is1",
+          "windowsDisplayName" : "jEdit 4.5.0",
+          "installSize" : -1,
+          "subVersion" : "",
+          "language" : "",
+          "version" : "4.5.0",
+          "architecture" : "x86",
+          "type" : "AuditSoftware"
+          }
+]
+
+----
+
+
+[[development-jsonrpc-api-storage-auditSoftwareToLicensePool]]
+=== AuditSoftwareToLicensePool (Lizenzmanagement)
+
+Beschreibt die Zuordnung von Mustern aus der Software-Inventarisierung (*AuditSoftware*) zu einzelnen Lizenzpools.
+
+Beispiel für *AuditSoftwareToLicensePool*-Objekte:
+
+[source,json]
+----
+ method auditSoftwareToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
+[
+          {
+          "ident" : "Windows 7 Professional N;6.1;00376-165;de-DE;x64;win7-msdn-prof",
+          "name" : "Windows 7 Professional N",
+          "language" : "de-DE",
+          "subVersion" : "00376-165",
+          "licensePoolId" : "win7-msdn-prof",
+          "version" : "6.1",
+          "architecture" : "x64",
+          "type" : "AuditSoftwareToLicensePool"
+          },
+          {
+          "ident" : "Windows 7 Professional N;6.1;00376-165;de-DE;x86;win7-msdn-prof",
+          "name" : "Windows 7 Professional N",
+          "language" : "de-DE",
+          "subVersion" : "00376-165",
+          "licensePoolId" : "win7-msdn-prof",
+          "version" : "6.1",
+          "architecture" : "x86",
+          "type" : "AuditSoftwareToLicensePool"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-softwareLicenseToLicensePool]]
+=== SoftwareLicenseToLicensePool (Lizenzmanagement)
+
+Beschreibt die Zuordnung von *softwareLicenseIds* zu *licensePoolIds*.
+
+Beispiel für ein *SoftwareLicenseToLicensePool*-Objekt:
+
+[source,json]
+----
+method softwareLicenseToLicensePool_getObjects [] {"licensePoolId":"win7-msdn-prof"}
+[
+          {
+          "licensePoolId" : "win7-msdn-prof",
+          "softwareLicenseId" : "uib-msdn-win7-vol",
+          "ident" : "uib-msdn-win7-vol;win7-msdn-prof",
+          "licenseKey" : "12345-12345-12345-12345-3dbv6",
+          "type" : "SoftwareLicenseToLicensePool"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-softwareLicense]]
+=== SoftwareLicense (Lizenzmanagement)
+
+Beschreibt die existierenden Softwarelizenzen und deren Metadaten.
+
+Beispiel für ein *SoftwareLicense*-Objekt:
+
+[source,json]
+----
+ method softwareLicense_getObjects [] {"id":"uib-msdn-win7-vol"}
+[
+          {
+          "ident" : "uib-msdn-win7-vol;msdn-uib",
+          "maxInstallations" : 0,
+          "boundToHost" : null,
+          "expirationDate" : "0000-00-00 00:00:00",
+          "licenseContractId" : "msdn-uib",
+          "type" : "VolumeSoftwareLicense",
+          "id" : "uib-msdn-win7-vol"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-licenseContract]]
+=== LicenseContract (Lizenzmanagement)
+
+Beschreibt die existierenden Lizenzverträge und deren Metadaten.
+
+Beispiel für ein *LicenseContract*-Objekt:
+
+[source,json]
+----
+ method licenseContract_getObjects [] {"id":"msdn-uib"}
+[
+          {
+          "ident" : "msdn-uib",
+          "description" : "",
+          "conclusionDate" : "2011-04-22 00:00:00",
+          "notificationDate" : "0000-00-00 00:00:00",
+          "notes" : "",
+          "expirationDate" : "0000-00-00 00:00:00",
+          "partner" : "Microsoft",
+          "type" : "LicenseContract",
+          "id" : "msdn-uib"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-licenseOnClient]]
+=== LicenseOnClient (Lizenzmanagement)
+
+Beschreibt, welcher Client welche Lizenz in Verwendung hat.
+
+Beispiel für ein *LicenseOnClient*-Objekt:
+
+[source,json]
+----
+ method licenseOnClient_getObjects  [] {"clientId":"win7client.vmnat.local"}
+[
+          {
+          "softwareLicenseId" : "uib-msdn-win7-vol",
+          "ident" : "uib-msdn-win7-vol;win7-msdn-prof;win7client.vmnat.local",
+          "licenseKey" : "12345-12345-12345-12345-3dbv6",
+          "notes" : "",
+          "clientId" : "win7client.vmnat.local",
+          "licensePoolId" : "win7-msdn-prof",
+          "type" : "LicenseOnClient"
+          }
+]
+----
+
+
+[[development-jsonrpc-api-storage-licensePool]]
+=== LicensePool (Lizenzmanagement)
+
+Beschreibt einen Lizenzpool und dessen Zuordnung zu Produkten.
+
+Beispiel für ein *LicensePool*-Objekt:
+
+[source,json]
+----
+ method licensePool_getObjects [] {"id":"win7-msdn-prof"}
+[
+          {
+          "ident" : "win7-msdn-prof",
+          "type" : "LicensePool",
+          "description" : "MSDN Keys",
+          "productIds" :
+                    [
+                    "win7",
+                    "win7-x64"
+                    ],
+          "id" : "win7-msdn-prof"
+          }
+]
+----
+
+[[development-jsonrpc-api-changeobjekts]]
+=== Beispiel für die Änderung eines Keys in mehreren Objekten
+
+Hier soll erläutert werden, wie Änderungen an einem Objekt durch geführt werden können.
+Als Beispiel wird das `host` Objekt verwendet, welches über die Auswahl auf den Typ `OpsiDepotserver` eingeschränkt wird:
+
+[source,json]
+----
+ method host_getObjects '[]' {"type":"OpsiDepotserver"}
+[
+          {
+          "masterDepotId" : null,
+          "ident" : "configserver.vmnat.local",
+          "networkAddress" : "172.16.166.0/255.255.255.128",
+          "description" : "",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.1",
+          "repositoryRemoteUrl" : "webdavs://configserver.vmnat.local:4447/repository",
+          "depotLocalUrl" : "file:///var/lib/opsi/depot",
+          "isMasterDepot" : true,
+          "notes" : "",
+          "hardwareAddress" : null,
+          "maxBandwidth" : 0,
+          "repositoryLocalUrl" : "file:///var/lib/opsi/repository",
+          "opsiHostKey" : "17835c8d52170dcd06ba3c5089a74815",
+          "type" : "OpsiConfigserver",
+          "id" : "configserver.vmnat.local",
+          "depotWebdavUrl" : "webdavs://configserver.vmnat.local:4447/depot",
+          "depotRemoteUrl" : "smb://configserver/opsi_depot"
+          },
+          {
+          "masterDepotId" : null,
+          "ident" : "depotserver.vmnat.local",
+          "networkAddress" : "172.16.166.128/25",
+          "description" : "Depot Server",
+          "inventoryNumber" : "",
+          "ipAddress" : "172.16.166.150",
+          "repositoryRemoteUrl" : "webdavs://depotserver.vmnat.local:4447/repository",
+          "depotLocalUrl" : "file:///var/lib/opsi/depot",
+          "isMasterDepot" : true,
+          "notes" : "",
+          "hardwareAddress" : "00:0c:29:7d:eb:55",
+          "maxBandwidth" : 0,
+          "repositoryLocalUrl" : "file:///var/lib/opsi/repository",
+          "opsiHostKey" : "8284d506278667cb25cc2f9f992a024d",
+          "type" : "OpsiDepotserver",
+          "id" : "depotserver.vmnat.local",
+          "depotWebdavUrl" : "webdavs://depotserver.vmnat.local:4447/depot",
+          "depotRemoteUrl" : "smb://depotserver/opsi_depot"
+          }
+]
+----
+
+Zur Änderung der Werte für den Key *maxBandwidth* würde dieser Aufruf eine Datei erzeugen, in der die max. Bandbreite auf allen Depotservern von *0* auf *100* geändert wird.
+An der Datei können auch händisch Änderungen vorgenommen werden.
+
+[source,json]
+----
+opsi-admin -d method host_getObjects '[]' '{"type":"OpsiDepotserver"}' | sed  -e 's/"maxBandwidth"\s:\s0/"maxBandwidth" : 100/' > /tmp/maxBand.json
+----
+
+Hiermit wird die geänderte Konfiguration in das Opsi-Backend übernommen:
+
+[source,json]
+----
+opsi-admin -d method host_createObjects < /tmp/maxBand.json
+----
+
+[[development-jsonrpc-api-special]]
+=== Spezielle Methoden
+
+Es gibt eine Reihe von speziellen Methoden.
+Einige davon werden nachfolgend vorgestellt.
+
+[[development-jsonrpc-api-special-getClientToDepotserver]]
+=== configState_getClientToDepotserver
+Diese Methode liefert Informationen darüber, welchem Depot ein Client zugeordnet ist.
+
+
+Beispiel:
+[source,json]
+----
+method configState_getClientToDepotserver [] "client1.company.internal"
+[
+          {
+          "depotId" : "opsi.company.internal",
+          "alternativeDepotIds" :
+                    [
+
+                    ],
+          "clientId" : "client1.company.internal"
+          }
+]
+----
+
+[[development-jsonrpc-api-special-hostControl]]
+=== Kommunikation mit Hosts
+
+Die *hostControl*-Methoden werden verwendet, um mit den Clients zu kommunizieren und diese zu steuern.
+Zusätzlich existieren *hostControlSafe*-Methoden.
+Beide Varianten haben einen Parameter *hostIds*.
+Bei *hostControl* ist dieser optional. Ohne Angabe des Parameters werden die Aktionen auf allen Clients durchgeführt.
+Bei *hostControlSafe* ist der Parameter zwingend. Falls alle Clients angesprochen werden sollen, muss hier `*` angegeben werden.
+
+Seit opsi 4.3 werden die *hostControl*-Methoden bevorzugt über den opsi-Message-Bus ausgeführt.
+
+* *hostControlSafe_execute* +
+Führt den Befehl *command* auf den Clients aus. +
+Parameter: *command*, *hostIds*
+
+* *hostControlSafe_fireEvent* +
+Führt ein opsiclientd-Event auf den Clients aus.
+Falls sich aktuell ein anderes Event in einer unterbrechbaren Phase befindet, wird dieses unterbrochen und stattdessen das neue Event gestartet.
+Eine Phase ist unterbrechbar, wenn es entweder noch keine Daten verändert oder Aktionen ausgeführt hat oder es sich um eine Wartephase handelt bei einem Event, was *processActions = False* gesetzt hat (z.B. *sync*, *sync_completed*).
+Parameter: *event*, *hostIds*
+
+* *hostControlSafe_getActiveSessions* +
+Ermittelt die auf den Clients aktiven Benutzer-Sessions. +
+Parameter: *hostIds*
+
+* *hostControlSafe_opsiclientdRpc* +
+Führt die Methode (*method*) mit den gegebenen Parametern (*params*) auf dem Service des opsiclientd aus. +
+Das ist eine generische Methode, da sich hierüber alle Methoden ausführen lassen. +
+Der einfachste Weg die verfügbaren Methoden zu ermitteln ist sich auf das Control-Interface des Zielclients zu verbinden.
+Dieses ist zu erreichen unter *https://<client-address>:4441* +
+Parameter: *method*, *params*, *hostIds*
+
+* *hostControlSafe_reachable* +
+Überprüft, ob der opsi-Client erreichbar ist.
+Seit opsi 4.3 gilt ein Client als Verbunden, wenn er mit dem opsi-Message-Bus verbunden ist.
+Parameter: *hostIds*
+
+* *hostControlSafe_reboot* +
+Startet die Clients neu. +
+Parameter: *hostIds*
+
+* *hostControlSafe_showPopup* +
+Zeigt eine Nachricht in einem Popup-Fenster auf den Clients. +
+Parameter: *message hostIds*
+
+* *hostControlSafe_shutdown* +
+Fährt die Clients herunter. +
+Parameter: *hostIds*
+
+* *hostControlSafe_start* +
+Sendet ein Wake-On-LAN-Signal an die MAC-Adressen der Clients. +
+Parameter: *hostIds*
+
+* *hostControlSafe_uptime* +
+Ermittelt die Uptime der Clients in Sekunden. +
+Parameter: *hostIds*
+
+[[development-jsonrpc-api-special-log]]
+=== Arbeit mit Logs
+
+Die folgenden Methoden drehen sich um die Arbeit mit Logs.
+
+* *log_read* +
+Liest ein opsi-Log vom Server.  +
+Parameter: *logType*, *objectId*, *maxSize* +
+Mögliche Log-Arten sind *instlog* (opsi-script-Logs), *clientconnect* (opsiclientd-Logs), *userlogin*, *bootimage* sowie *opsiconfd*. +
+Als Parameter *objectId* wird die *clientId* eines Clients angegeben.
+
+* *log_write* +
+Schreibt eine Logdatei zum Server. +
+Parameter: *logType*, *data*, *objectId*, *append* +
+Log-Arten und *objectId* wie unter *log_read* beschrieben. +
+Mittels *append* (boolean) wird gesteuert, ob der neue Inhalt an ein eventuell bestehendes Logfile angehängt wird.
+
+[[development-jsonrpc-api-group-tutorial]]
+=== Tutorial: Arbeit mit Gruppen
+
+Die Methoden beginnen *group_*, arbeiten also auf Gruppen.
+Es existieren zwei Arten von Gruppen: *Host-Gruppen* (*type = HostGroup*) und *Produkt-Gruppen* (*type = ProductGroup*).
+
+Das Erstellen von Host-Gruppen ist auch über die Methode *group_createHostGroup* möglich.
+Die Parameter sind *id*, *description* (Beschreibung), *notes* (Notizen) und *parentGroupId* (ID der übergeordneten Gruppe).
+Die *id* muss angegeben werden und muss einzigartig sein.
+
+IMPORTANT: Gruppen werden anhand ihrer ID identifiziert. Diese ID muss Gruppen-übergreifend einzigartig sein.
+
+
+Ein Beispiel für das Anlegen einer Gruppe:
+[source,shell]
+----
+opsi-admin -d method group_createHostGroup "windows-clients" "Windows clients"
+----
+
+Über *group_getObjects* können Gruppen ausgelesen werden.
+Hier ein Beispiel um die gerade angelegte Gruppe zu lesen:
+[source,shell]
+----
+opsi-admin -d method group_getObjects [] '{"id": "windows-clients", "type": "HostGroup"}'
+----
+
+Wollen Sie Untergruppen anlegen, so müssen Sie als *parentGroupId* die ID der übergeordneten Gruppe angeben.
+Hier als Beispiel eine Untergruppe zur gerade angelegten Gruppe:
+[source,shell]
+----
+opsi-admin -d method group_createHostGroup "win10-clients" "Windows 10 clients" "" "windows-clients"
+----
+
+Wenn Sie mit dem Directory arbeiten wollen, so wird dieses intern als Gruppe mit der ID *clientdirectory* behandelt.
+Clients dürfen im Directory immer nur in einer Gruppe sein - standardmäßig sind sie der Gruppe mit der ID *NICHT_ZUGEWIESEN* zugewiesen.
+Verwenden Sie opsi in einer anderen Sprache, kann der Gruppenname abweichen.
+Dafür, dass die Clients immer in nur einer Gruppe sind, wenn sie im Directory sein sollen, muss vom jeweiligen Administrator gesorgt werden, da das Backend an dieser Stelle nicht eingreift.
+
+Die Zuordnung von Clients zur Gruppe geschieht über *ObjectToGroup*-Objekte.
+Wir legen einen Client mit dem folgenden Befehl an:
+[source,shell]
+----
+opsi-admin -d method host_createOpsiClient "client1.company.internal"
+----
+
+Diesen fügen wir der Untergruppe von vorhin hinzu:
+[source,shell]
+----
+opsi-admin -d method objectToGroup_create "HostGroup" "win10-clients" "client1.company.internal"
+----
+
+Um das Ergebnis zu überprüfen, können wir wie folgt die Zuordnung abfragen:
+[source,shell]
+----
+opsi-admin -d method objectToGroup_getObjects [] '{"groupType": "HostGroup", "groupId": "win10-clients"}'
+----
+
+Um den Client wieder aus der Gruppe zu entfernen, können Sie so vorgehen:
+[source,shell]
+----
+opsi-admin -d method objectToGroup_delete "HostGroup" "win10-clients" "client1.company.internal"
+----
+
+Sie können die Gruppe auch löschen:
+[source,shell]
+----
+opsi-admin -d method group_delete "win10-clients"
+----
+
+
+[[development-jsonrpc-api-backend-extender]]
+== Erweiterungen der API-Methoden
+
+Bei Bedarf können zusätzliche Methoden definiert werden.
+Hierfür werden Python-Quelltext-Dateien mit `.conf`-Endung in `/etc/opsi/backendManager/extend.d` angelegt.
+Über das `self`-Object können alle weiteren API-Methoden in der Custom-Methode verwendet werden.
+
+Beispiel:
+[source,python]
+----
+@rpc_method
+def custom_create_client(self, name):
+	client_id = f"{name}.company.internal"
+	self.host_createOpsiClient(id=client_id, description="Created by custom method")
+	return self.host_getObjects(id=client_id)[0]
+----
+
+
+[[development-jsonrpc-api-api-access]]
+== Zugriff auf die API
+
+Die API basiert auf link:https://www.jsonrpc.org/specification[JSON-RPC] über HTTPS.
+Die JSON-RPC-Requests werden per *POST* an den Endpoint */rpc* (`\https://<server-address>:4447/rpc`) des opsi-Configservers gesendet.
+Die Authentifizierung erfolgt in der Regel über *basic authentication*.
+
+Ein curl-Beispiel:
+
+[source,shell]
+----
+curl -k -X POST \
+	-u "adminuser:secret" \
+	-H 'Content-Type: application/json' \
+	-d '{"jsonrpc":"2.0","id":"1","method":"host_getObjects","params":[[], {"type":"OpsiClient"}]}' \
+	https://opsi.domain.internal:4447/rpc
+----

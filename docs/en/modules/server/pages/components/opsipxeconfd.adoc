@@ -1,0 +1,100 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      06.06.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-components-opsipxeconfd]]
+= Der Dienst *opsipxeconfd*
+
+Der Dienst `opsipxeconfd` erstellt auf dem opsi-Depotserver Named Pipes für Clients, die per PXE-Boot starten (siehe Kapitel xref:server:components/dhcp-server.adoc[DHCP-Server/PXE-Boot]). Diese Named Pipes dienen dazu, eine einmalige Konfiguration für die Clients zu ermöglichen. Beim Erstellen sind sie zunächst leer, bis ein Client eine Leseanforderung stellt. Erst dann werden die Named Pipes dynamisch mit den entsprechenden Daten befüllt. Nachdem die Daten gelesen wurden, werden die Named Pipes wieder entfernt.
+
+NOTE: Diese Methode ermöglicht eine flexible und temporäre Konfiguration der Clients über Named Pipes, ohne dass dauerhaft Dateien oder Konfigurations-Informationen auf den Clients gespeichert werden müssen. 
+
+[[server-components-opsipxeconfd-config]]
+== Konfiguration
+
+Den `opsipxeconfd` können Sie über die Datei `/etc/opsi/opsipxeconfd.conf`, über Umgebungsvariablen oder über Kommandozeilen-Parameter beim Aufruf konfigurieren. Dabei gilt die folgende Reihenfolge:
+
+. Einträge in der Konfigurationsdatei überschreiben die Standardeinstellungen.
+. Umgebungsvariablen überschreiben Einträge in der Konfigurationsdatei.
+. Kommandozeilen-Parameter überschreiben Umgebungsvariablen.
+
+TIP: Eine Liste aller Konfigurationsoptionen erhalten Sie, wenn Sie den folgenden Befehl in ein Terminalfenster eingeben:
+
+// cSpell:disable
+[source,console]
+----
+opsipxeconfd --help
+...
+--pxe-conf-template PXECONFTEMPLATE
+                              Location of the pxe config template. [env var:
+                              OPSIPXECONFD_PXE_CONF_TEMPLATE] (default:
+                              /tftpboot/linux/pxelinux.cfg/install)
+...
+----
+// cSpell:enable
+
+Hinter dem Namen des Kommandozeilenparameters (z.{nbsp}B. `--pxe-conf-template`) steht die dazugehörige Umgebungsvariable in Großbuchstaben (hier: `OPSIPXECONFD_PXE_CONF_TEMPLATE`). Wenn Sie einen Blick in die Konfigurationsdatei werfen, dann sehen Sie, dass die Option hier (`pxe config template`) heißt.
+
+* In der Konfigurationsdatei `/etc/opsi/opsipxeconfd.conf` steht z.{nbsp}B.:
+
+[source,toml]
+----
+pxe config template = /tftpboot/linux/pxelinux.cfg/install
+----
+
+* Über die Umgebungsvariable erfolgt die Einrichtung so:
+
+[source,console]
+----
+OPSIPXECONFD_PXE_CONF_TEMPLATE="/tftpboot/linux/pxelinux.cfg/install"
+----
+
+* Der Aufruf auf der Kommandozeile sieht so aus:
+
+[source,console]
+----
+opsipxeconfd --pxe-conf-template /tftpboot/linux/pxelinux.cfg/install
+----
+
+NOTE: Änderungen an der Konfiguration können Sie in der Regel im laufenden Betrieb über den Befehl `opsipxeconfd reload` übernehmen. 
+[[server-components-opsipxeconfd-cli]]
+== Kommandozeilenbefehle
+
+Außer den genannten Befehlen kennt der `opsipxeconfd` ein paar weitere Kommandos. So überprüft `opsipxeconfd status` beispielsweise Verbindungen. Zum Aktualisieren der Boot-Konfiguration eines Clients geben Sie dieses Kommando ein:
+
+[source,console]
+----
+opsipxeconfd update <clientId>
+----
+
+So aktualisieren Sie die Boot-Konfiguration eines Clients aus einer bestimmten Cache-Datei:
+
+[source,console]
+----
+opsipxeconfd update <clientID> <pfad-zur-cache-datei>
+----
+
+Normalerweise kümmert sich systemd um den Start und den Stopp des Dienstes. Darüber hinaus ist es möglich, den Dienst manuell zu stoppen (`opsipxeconfd stop`) bzw. zu starten (`opsipxeconfd start`).
+
