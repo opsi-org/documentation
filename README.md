@@ -17,7 +17,7 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
 
-1) To Start go to [docs.opsi.org](https://docs.opsi.org) and click `Edit this Page` on the right of the page you want to edit.
+1) First, go to [docs.opsi.org] (https://docs.opsi.org) and click the `Edit this page` button at the top right of the page you want to edit.
 
 ![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
 
@@ -315,7 +315,7 @@ Diese Listings besitzen den folgenden Aufbau:
 ```
 Gültige Typen sind beispielweise: `console`, `shell`, `bash`, `ini`, `xml`, `html`, `css`.
 
-*Achtung:* Es gibt einen Unterschied zwischen `[source,console]` und `[source,shell]`: 
+*Achtung:* Es gibt einen Unterschied zwischen `[source,console]` und `[source,shell]`:
 
 * `[source,console]` stellt Text dar, das in eine Konole (also eine Terminalanwendung) eingegeben wird
 * `[source,shell]` ist für Inhalte von Shellskripten (Alternative: `[source,bash]`, `[source,zsh]`)

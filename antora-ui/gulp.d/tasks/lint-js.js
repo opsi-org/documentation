@@ -6,7 +6,7 @@ const vfs = require('vinyl-fs')
 module.exports = (files) => (done) =>
   vfs
     .src(files)
-    .pipe(eslint())
+    .pipe(eslint({fix:true}))
     .pipe(eslint.format())
     .pipe(eslint.failAfterError())
     .on('error', done)
