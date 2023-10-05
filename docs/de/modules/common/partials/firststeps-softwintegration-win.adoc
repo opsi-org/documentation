@@ -237,6 +237,62 @@ So sieht die Deinstallation unter Angabe einer GUID aus:
 msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
 ----
 
+Die GUID kann sich bei demselben Produkt von Version zu Version ändern. Um vorhandene und eventuell ältere Installationen zu löschen, müssen Sie also ermitteln, welche GUID diese Installationen haben. Eine Möglichkeit ist über den `MsiName` des Paketes, den der `opsi-setup-detector` aus der MSI-Datei ermittelt. 
+
+Der `MsiName` taucht im `Uninstall`-Eintrag der Registry als `DisplayName` auf. So können Sie also den `MsiName` verwenden, um die passenden `GUID` zu finden. Schneiden Sie dazu Informationen zur Architektur und Version vom Ende des `MsiName` ab und verpacken das Ganze in reguläre Ausdrücke:
+
+[source,ini]
+----
+; Finding the MsiId by the Displayname from Registry:
+; Be sure that the Displayname is set correctly:
+Set $DisplayName$ = 'short msi name'
+; escape all regex relevant chars with '\' : '\^$.|?*+()[{'
+set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)
+; '(?i)' = case insensitive ; '.*' = 0 or more of any thing
+set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'
+Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)
+;-----------------------------------------------------
+
+; ---------------------------------------------------------------
+comment "run the uninstallation "
+; ----------------------------------------------------------------
+
+if count($UninstallList$) int> "0"
+	Comment "Uninstalling all found versions"
+	for %uninstallEntry% in $UninstallList$ do Sub_Uninstallation_msi
+endif
+
+[Sub_Uninstallation_msi]
+set $MsiVersion$ = TakeString(0, splitstring('%uninstallEntry%', "="))
+set $MsiId$ = TakeString(1, splitstring('%uninstallEntry%', "="))
+
+if stringtobool(checkForMsiProduct($MsiId$))
+	Message "Uninstalling :"  + $ProductId$ + " " + $MsiVersion$+ "..."
+	Winbatch_Uninstall_1
+	Set $ExitCode$ = getlastexitcode
+	if stringtobool(isMsiExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
+		LogError $ErrorString$
+		isfatalerror $ErrorString$
+	else
+		Comment $ErrorString$
+	endif
+else
+	Comment "No previously installed " + $ProductId$ + " version found"
+endif
+----
+
+In diesem Skript-Teil passiert Folgendea:
+
+* `Set $DisplayName$ = 'short msi name'`: Setzt die Variable `$DisplayName$` auf den `MsiName`, kürzt nicht benötigte anhängende Informationen. 
+
+* `set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`: Präpariert den `$DisplayName$` als Suche mit regulären Ausdrücken, versteckt (maskiert) alle Sonderzeichen.
+
+* `set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`: Bestimmt, dass der zu suchende String am Anfang der Zeile steht und keines oder beliebige Zeichen folgen dürfen.
+
+* `Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)`: Sucht in der Registry; die Funktion `getGuidListByDisplaynameRegex` ist Bestandteil der Bibliothek `osd-lib.opsiscript` und erzeugt eine Liste von als passend gefundenen Einträgen in der Form `<MsiVersion> = <msi GUID>`.
+
+* `[Sub_Uninstallation_msi]`: Die Sektion verwendet die gefundenen GUID zur Deinstallation.
+
 Sollten diese Methoden nicht oder nicht vollständig funktionieren, helfen Sie mit einem `opsi-script`-Skript nach, wie es der nächste Abschnitt beschreibt.
 
 === *opsi-script* Nützliche Befehle zur Deinstallation
@@ -301,73 +357,7 @@ Einen Registry-Key mitsamt seiner Unterschlüssel und Registry-Variablen lösche
 DeleteKey [HKLM\Software\Macromedia]
 ----
 
-//##HIER
-Dies ist der Code der vom opsi-setup-detector zu Deinstallation von MSI erzeugt wird:
-
-[source,winst]
-----
-; Finding the MsiId by the Displayname from Registry:
-; Be sure that the Displayname is set correctly:
-Set $DisplayName$ = 'short msi name'
-; escape all regex relevant chars with '\' : '\^$.|?*+()[{'
-set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)
-; '(?i)' = case insensitive ; '.*' = 0 or more of any thing
-set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'
-Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)
-;-----------------------------------------------------
-
-; ---------------------------------------------------------------
-comment "run the uninstallation "
-; ----------------------------------------------------------------
-
-if count($UninstallList$) int> "0"
-	Comment "Uninstalling all found versions"
-	for %uninstallEntry% in $UninstallList$ do Sub_Uninstallation_msi
-endif
-
-[Sub_Uninstallation_msi]
-set $MsiVersion$ = TakeString(0, splitstring('%uninstallEntry%', "="))
-set $MsiId$ = TakeString(1, splitstring('%uninstallEntry%', "="))
-
-if stringtobool(checkForMsiProduct($MsiId$))
-	Message "Uninstalling :"  + $ProductId$ + " " + $MsiVersion$+ "..."
-	Winbatch_Uninstall_1
-	Set $ExitCode$ = getlastexitcode
-	if stringtobool(isMsiExitcodeFatal($ExitCode$, "true", $ErrorString$ ))
-		LogError $ErrorString$
-		isfatalerror $ErrorString$
-	else
-		Comment $ErrorString$
-	endif
-else
-	Comment "No previously installed " + $ProductId$ + " version found"
-endif
-----
-
-Kurze Beschreibung was in diesem Scriptteil passiert:
-
-* `Set $DisplayName$ = 'short msi name'` +
-Setzen der Variable $DisplayName$ auf den `MsiName` gekürzt um störende anhängende Informationen.
-
-* Den $DisplayName$ als regular expression Suchstring präparieren: +
-Alle regular expression Sonderzeichen verstecken (maskieren): +
-`set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)` +
-Angeben, das der Suchstring am Anfang der Zeile steht und 0 oder mehr beliebige Zeichen folgen dürfen: +
-`set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`
-
-* Suchen in der Registry: +
-`Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)` +
-Die Funktion getGuidListByDisplaynameRegex ist Bestandteil der Library osd-lib.opsiscript und erzeugt eine Liste von als passend gefundenen Einträgen in der Form: +
-<MsiVersion> = <msi GUID> 
-
-* Die Deinstallation durchführen:
-Nun können wir die Liste durchgehen und die gefundenen GUIDs zur Deinstalltion verwenden. Die passiert in der Sektion: `[Sub_Uninstallation_msi]`
-
-
 [[opsi-winclient-softwintegration-tutorial-64bit]]
-== Bekannte Besonderheiten der 64 Bit-Unterstützung
+== 64-Bit-Unterstützung
 
-Der {opsi-script} ist ein 32-Bit Programm.
-Skripte zur Installation von 32-Bit Programmen funktionieren in der Regel auch auf 64-Bit Systemen korrekt. +
-Für die Installation von 64-Bit Software mit {opsi-script} und allgemein
-beim Arbeiten auf 64-Bit-Systemen beachten Sie bitte das entsprechende Kapitel im link:https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/64bit.html[opsi-script manual, 64 Bit-Unterstützung unter Windows].
+`opsi-script` ist ein 32-Bit-Programm. Skripte zur Installation von 32-Bit-Programmen funktionieren in der Regel auch auf 64-Bit-Systemen korrekt. Für die Installation von 64-Bit-Software mit `opsi-script` und generell für das Arbeiten auf 64-Bit-Systemen beachten Sie das Kapitel xref:opsi-script-manual:64bit.adoc[64-Bit-Unterstützung unter Windows].
