@@ -1,0 +1,100 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      23.08.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-win-client-agent]]
+= Client-Agent (Windows)
+
+Mit opsi verteilen Sie Software ganz automatisch auf den Clients, indem Sie Installationen oder Updates direkt auf dem Server anfordern. Dabei ist keinerlei Benutzer-Interaktion erforderlich. Ohne dass Anwender etwas davon mitbekommen, läuft die Installation im Hintergrund ab. Damit ist auch sichergestellt, dass verunsicherte Benutzer eine Installation abbrechen können.
+
+Um diese automatischen Vorgänge zu ermöglichen, nutzt opsi einen speziellen Agenten auf den Client-Computern: Der Client-Agent sorgt dafür, dass Installationen und Aktualisierungen reibungslos und ohne jegliche Benutzerbeteiligung ablaufen.
+
+include::common:partial$opsi-client-agent.adoc[]
+
+[[opsi-manual-client-agent-directories]]
+== Wichtige Verzeichnisse
+
+// cspell: ignore program, loginblocker
+//%programfiles%\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf
+
+Das Installationsverzeichnis des Windows-Client-Agent ist `c:\program files (x86)\opsi.org\opsi-client-agent`. Es enthält alle Komponenten, darunter auch die Ordner `opsiclientd`, `notifier` und `opsi-script`. Weiterhin finden sich in den Unterverzeichnissen die Konfigurationsdateien, einige Bibliotheken und die grafischen Vorlagen der genannten Programme.
+
+NOTE: Das Verzeichnis `c:\program files (x86)\opsi.org\opsi-client-agent` ist gegen Veränderungen durch Benutzer geschützt; lediglich der Administrator hat hier Schreibrechte. Die Datei `c:\program files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` darf nur mit Administratorrechten gelesen werden.
+
+Darüber hinaus gibt es unter Windows das Verzeichnis `c:\opsi.org`, das eine Reihe von variablen Daten enthält, z.{nbsp}B. Logdateien (Verzeichnis `log`), den Paket-Cache der xref:opsi-modules:wan-support.adoc[WAN/VPN-Erweiterung] (Verzeichnis `cache`), Zertifikate und einiges mehr.
+
+Die Logdatei des `opsiclientd` ist `c:\opsi.org\log\opsiclientd.log`, die des <<opsi-manual-client-agent-opsi-login-blocker>> heißt `c:\opsi.org\log\opsi_loginblocker.log`.
+
+[[opsi-manual-client-agent-opsi-login-blocker]]
+== opsi-Loginblocker
+
+// cspell: ignore loginblockerstart
+Unter Windows gibt es den opsi-Loginblocker (siehe <<blocklogin-notifier>>). Er verhindert, dass sich Benutzer anmelden, während eine Installation läuft. Die Anmeldemaske erscheint erst, wenn die Installation beendet ist.
+
+TIP: In der Voreinstellung ist der opsi-Loginblocker aktiv (`on`), was das Property `loginblockerstart` des Localboot-Produktes `opsi-client-agent` bestimmt. 
+
+.In der Voreinstellung ist der opsi-Loginblocker aktiv.
+image::opsi-loginblockerstart-properties.png["In der Voreinstellung ist der opsi-Loginblocker aktiv", pdfwidth=70%]
+
+Der opsi-Loginblocker ist als Credential Provider Filter realisiert (Datei `c:\windows\system32\OpsiLoginBlocker.dll`). Er blockiert alle Credential Provider, bis ein Event abgeschlossen oder ein Timeout (Standard: 120 Sekunden) erreicht ist.
+
+// cspell: ignore msiexec, interactive
+[[opsi-manual-client-agent-msi]]
+== Client-Agent als MSI-Paket
+
+//Link anpassen, wenn 4.3 stable ist
+Den Client-Agent für Windows gibt es ebenfalls als MSI-Paket (Microsoft Installer). Wir stellen es in unserem öffentlichen http://download.uib.de/4.2/stable/misc/opsi-client-agent.msi[Repository] zur Verfügung. Es bietet dieselben Parameter wie das Programm `oca-installation-helper[.exe]` (siehe Abschnitt <<opsi-manual-clientagent-subsequent-installation-oca-installation-helper>>), die Sie über das Property `INSTALL_PARAMS` übergeben:
+
+[source,console]
+----
+msiexec /i opsi-client-agent.msi INSTALL_PARAMS="--non-interactive --service-address=https://opsiserver.domain.tld:4447 --service-username=msi --service-password=secret"
+----
+
+TIP: Um das MSI-Paket per Gruppenrichtlinie zu verteilen, definieren Sie die `INSTALL_PARAMS` am besten in einer MST-Datei. Diese erstellen Sie beispielsweise über den Datenbanktabellen-Editor https://docs.microsoft.com/de-de/windows/win32/msi/orca-exe[Orca.exe], der im Windows Software Development Kit (SDK) enthalten ist.
+
+[[opsi-manual-client-agent-bitlocker-suspend]]
+== BitLocker-Schutz deaktivieren
+
+Windows-10-Clients mit aktivierter BitLocker-Verschlüsselung (manuelle Passworteingabe beim Booten) erlauben keine unbeaufsichtigte Installation von Software und Patches. Für Reboots, die von `opsiclientd`-Events ausgelöst wurden, können Sie daher die Passworteingabe unterdrücken, indem Sie das Feature `suspend_bitlocker_on_reboot` aktivieren.
+
+WARNING: Das Deaktivieren des BitLocker-Schutzes ist zwangsläufig mit einem Sicherheitsverlust verbunden, da das Passwort als Klartext auf die Festplatte geschrieben wird.
+
+Um das Feature auf ausgesuchten Clients zu aktivieren, erstellen Sie zuerst eine Standardkonfiguration:
+
+// cspell: ignore clientconfig Suspending
+[source,console]
+----
+opsi-cli jsonrpc execute config_createBool clientconfig.suspend_bitlocker_on_reboot "Suspending Bitlocker at Reboot" false
+----
+
+Der Standardwert `false` entspricht hierbei dem Wert, der in der mitgelieferten Datei `opsiclientd.conf` steht (siehe Abschnitt <<opsi-manual-clientagent-configuration>>). Um den Host-Parameter für den Client `client.domain.de` zu setzen, geben Sie auf dem opsi-Configserver den folgenden Befehl ein:
+
+[source,console]
+----
+opsi-cli jsonrpc execute configState_create clientconfig.suspend_bitlocker_on_reboot client.domain.de true
+----
+
+NOTE: Diese Option können Sie auch auf Clients aktivieren, die keine BitLocker-Verschlüsselung verwenden. Das sollte den `opsiclientd`-Betrieb nicht stören.
+

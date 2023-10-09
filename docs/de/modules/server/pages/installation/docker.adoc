@@ -23,132 +23,16 @@
 
 include::common:partial$opsi_terms.adoc[]
 
-[[server-installation-docker]]
-= opsi als Docker-Container
+include::server:partial$docker/docker.adoc[]
 
-Seit 2022 gibt es ein link:https://github.com/opsi-org/opsi-docker[Docker-Image], mit dem Sie einen Configserver oder einen Depotserver einrichten können. Es setzt auf das Orchestrierungswerkzeug Docker Compose, das es ermöglicht, mehrere Container zu definieren, diese miteinander zu verbinden und auf einem Docker-Host auszuführen. Sie benötigen mindestens Docker Compose 1.17.0 und die Docker-Engine 17.09.0 oder neuer.
+include::server:partial$docker/docker-quick-start.adoc[]
 
-NOTE: Beachten Sie, dass ausschließlich WebDAV als Protokoll zur Kommunikation mit dem opsi-Depot zum Einsatz kommt; eine Samba-Unterstützung gibt es in dieser Variante nicht. Außerdem benötigen Sie eine Lizenz für die MySQL-Erweiterung, denn das File Backend wird nicht unterstützt (siehe Kapitel xref:opsi-modules:modules.adoc[opsi-Erweiterungen]).
+include::server:partial$docker/docker-compose.adoc[]
 
-Installieren Sie Docker bzw. Docker Desktop unter Linux, Windows oder macOS. Dass die Installation erfolgreich war, können Sie schnell mit dem folgenden Befehl im Terminal überprüfen:
+include::server:partial$docker/docker-configserver.adoc[]
 
-[source,console]
-----
-docker run --rm hello-world
-----
+include::server:partial$docker/docker-depotserver.adoc[]
 
-Als Antwort sollten Sie diese Ausgabe sehen:
+include::server:partial$docker/docker-scripts.adoc[]
 
-[source,console]
-----
-Hello from Docker!
-This message shows that your installation appears to be working correctly.
-[...]
-----
-
-[[server-installation-docker-quick]]
-== Quick Start
-
-Um den Docker-Container in Betrieb zu nehmen, sind lediglich drei Befehle nötig:
-
-[source,console]
-----
-git clone https://github.com/opsi-org/opsi-docker.git
-cd opsi-docker/opsi-server
-./opsi-server.sh start
-----
-
-[[server-installation-docker-compose]]
-== Docker Compose
-
-Die Konfigurationsdatei `docker-compose.yml` definiert Netzwerke, Volumes und diese vier Dienste (Abschnitt `services`):
-
-* `mysql`: installiert den Datenbankserver MariaDB
-* `redis`: installiert die In-Memory-Datenbank Redis mit dem RedisTimeSeries-Modul
-* `grafana`: spielt ein aktuelles Grafana ein
-* `opsi-server`: installiert die Pakete `opsiconfd`, `opsipxeconfd`, `opsi-tftpd-hpa` und `opsi-utils` in der jeweils aktuellsten Version
-
-Am Anfang der Datei sind einige X Properties (sogenannte Extension fields) definiert, z.{nbsp}B. `x-restart-policy`, `x-common-variables` usw. Diese YAML-Anker kommen zum Einsatz, um Einstellungen zwischen den Diensten auszutauschen.
-
-NOTE: Aus Sicherheitsgründen sollten Sie alle Passwörter in der Datei `docker-compose.yml` ändern: `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `REDIS_PASSWORD`, `GF_SECURITY_ADMIN_PASSWORD` und `OPSI_ADMIN_PASSWORD`.
-
-Ein Kennwort für den Benutzer `root` ist nicht gesetzt. Sie können dieses über `OPSI_ROOT_PASSWORD` festlegen:
-
-[source,toml]
-----
-OPSI_ROOT_PASSWORD: <passwort>
-----
-
-TIP: Wenn Sie TFTP-Netzwerk-Boot (und damit `opsipxeconfd` und `opsi-tftp-hpa`) nicht benötigen, können Sie die Variable `OPSI_TFTPBOOT` auf `"false"` setzen.
-
-Die nächsten beiden Abschnitte erklären, wie Sie die Konfigurationsdatei `docker-compose.yml` anpassen, um einen Configserver oder einen Depotserver aufzusetzen.
-
-[[server-installation-docker-compose-config]]
-=== opsi-Configserver
-
-Nachdem Sie die Einstellungen für den Hostnamen und die Domain im Bereich `opsi-server` an Ihr Netzwerk angepasst haben, setzen Sie die Variable `OPSI_HOST_ROLE` auf `configserver`:
-
-[source,toml]
-----
-OPSI_HOST_ROLE: configserver
-----
-
-Unter Linux und macOS starten Sie alle Dienste über `./opsi-server.sh start`, unter Windows mit dem Befehl `.\opsi-server.ps1 start` (siehe Abschnitt <<server-installation-docker-scripts>>). Den Status des Containers überprüfen Sie mit dem Befehl `./opsi-server.sh status` (Linux, macOS) bzw. `.\opsi-server.ps1 status`, und die Logfiles betrachten Sie mit `./opsi-server.sh logs` bzw. `.\opsi-server.ps1 logs`.
-
-.Überprüfen Sie den Status und die Logfiles mit dem Skript `opsi-server.sh`.
-image::opsi-server-script.png["Überprüfen Sie den Status und die Logfiles mit dem Skript `opsi-server.sh`.", pdfwidth=80%]
-
-[[server-installation-docker-compose-depot]]
-=== opsi-Depotserver
-
-Kontrollieren Sie die Einstellungen für Netzwerk und Volumes. Die beiden Dienste `mysql` und `grafana` benötigen Sie für einen Depotserver nicht, daher können Sie diese auskommentieren oder löschen. Achten Sie darauf, `mysql` dann auch im Abschnitt `opsi-server` aus dem `depends_on`-Attribut zu entfernen.
-
-Setzen Sie die Variable `OPSI_HOST_ROLE` auf `depotserver`:
-
-[source,toml]
-----
-OPSI_HOST_ROLE: depotserver
-----
-
-Für einen Depotserver setzen Sie außerdem die beiden Variablen `OPSI_SERVICE_ADDRESS` (Service-URL des opsi-Configservers) und `OPSI_HOST_KEY` (Host-Key des Depots). Danach starten Sie alle Dienste über `./opsi-server.sh start` (Linux, macOS) bzw. `.\opsi-server.ps1 start` (Windows).
-
-NOTE: Den Host-Key des opsi-Depotservers finden Sie z.{nbsp}B. im Admin-Interface des opsi-Configservers auf dem Reiter `Depots`. Dort können Sie bei Bedarf auch einen neuen opsi-Depotserver anlegen.
-
-[[server-installation-docker-scripts]]
-== Die Helfer-Skripte
-
-Wir haben zwei Helfer-Skripte beigelegt, die den Umgang mit dem opsi-Docker-Container erleichtern. Unter Linux und macOS verwenden Sie das Skript `opsi-server.sh`. Machen Sie dieses zunächst ausführbar:
-
-[source,console]
-----
-chmod +x opsi-server.sh
-----
-
-Danach rufen Sie es als normaler Benutzer ohne weitere Parameter oder Optionen auf, um eine Onlinehilfe einzublenden:
-
-[source,console]
-----
-./opsi-server.sh
-Usage: ./opsi-server.sh <command>
-
-Commands:
-  edit                      Edit docker-compose.yml.
-  start                     Start all containers.
-  status                    Show running containers.
-  stop                      Stop all containers.
-  logs [service]            Attach to container logs (all logs or supplied service).
-  shell [service]           Exexute a shell in a running container (default service: opsi-server).
-  update                    Update and restart all containers.
-  open-volumes              Open volumes directory in explorer.
-  inspect [service]         Show detailed container informations (default service: opsi-server).
-  diff [service]            Show container's filesystem changes (default service: opsi-server).
-  prune                     Delete all containers and unassociated volumes.
-  export-images             Export images as archive.
-  import-images [archive]   Import images from archive.
-  build [--no-cache]        Build opsi-server image. Use --no-cache to build without cache.
-  publish                   Publish opsi-server image.
-----
-
-Das zweite Skript `opsi-server.ps1` ist für Windows-Anwender und den Einsatz auf der Windows PowerShell gedacht. Es hat im Wesentlichen die gleichen Optionen und Parameter; lediglich die letzten beiden Kommandos (`build` und `publish`) sind nicht verfügbar.
-
-Der opsi-Server ist jetzt bereit für die xref:server:installation/next-steps.adoc[nächsten Schritte].
+include::server:partial$installation-next-steps.adoc[]

@@ -1,0 +1,158 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      14.06.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+Das Kommandozeilen-Werkzeug `opsi-package-updater` dient dazu, opsi-Produkte aus einem oder mehreren Repositorys zu laden und auf dem opsi-Depotserver zu installieren. Es ist dafür gedacht, opsi-Pakete zeitgesteuert automatisch zu aktualisieren (z.{nbsp}B. über einen Cronjob).
+
+NOTE: Repositorys sind Quellen, die opsi-Pakete zum Download anbieten. Sie können jedes Repository gesondert in Hinblick auf Zugang und Verhalten konfigurieren.
+
+Geben Sie `opsi-package-updater --help` ein, um die Onlinehilfe anzuzeigen:
+
+[source,console]
+----
+opsi-package-updater --help
+usage: opsi-package-updater [-h] [--version] [--config CONFIGFILE]
+                            [--verbose | --log-level {0,1,2,3,4,5,6,7,8,9}]
+                            [--force-checksum-calculation] [--repo repository_name]
+                            [--use-inactive-repository] [--ignore-errors] [--no-zsync]
+                            {install,update,download,list} ...
+
+Updater for local opsi products. Operates in different MODEs: install, update, download and list. Each
+mode has their own options that can be viewed with MODE -h
+[…]
+----
+
+Verwenden Sie den Parameter  `--repo`, um die Operationen auf ein einzelnes Repository einzuschränken.
+
+Der `opsi-package-updater` unterstützt die folgenden Kommandos:
+
+* `list`: verfügbare Repositorys oder opsi-Pakete auflisten
+* `download`: opsi-Pakete aus einem Repository herunterladen
+* `install`: opsi-Pakete aus einem Repository herunterladen und installieren
+* `update`: lokal installierte opsi-Pakete aus den Repositorys aktualisieren
+
+
+Für alle Kommandos gibt es eine eigene Hilfe, die Sie über `opsi-package-updater <command> --help` einblenden.
+
+TIP: Mit dem Parameter `-v` (verbose) gestalten Sie die Ausgabe ausführlicher. Den Schalter können Sie auch mehrfach verwenden (`-vv`, `-vvv` usw.).
+
+=== Beispiele
+
+So zeigen Sie die aktivierten Repositorys an:
+
+[source,console]
+----
+opsi-package-updater list --active-repos
+----
+
+So listen Sie die in den Repositorys verfügbaren Pakete auf:
+
+[source,console]
+----
+opsi-package-updater list --products
+----
+
+So installieren Sie das Paket `ubuntu` aus dem Repository `uib_linux`; gleichzeitig sorgt `-vv` für eine sehr ausführliche Ausgabe:
+
+[source,console]
+----
+opsi-package-updater -vv --repo uib_linux install ubuntu
+----
+
+So laden Sie alle in den aktivierten Repositorys verfügbaren Pakete herunter und installieren sie:
+
+[source,console]
+----
+opsi-package-updater install
+----
+
+So zeigen Sie die verfügbaren Aktualisierungen an:
+
+[source,console]
+----
+opsi-package-updater list --updatable-products
+----
+
+So aktualisieren Sie die lokal installierten Pakete `firefox` und `javavm` aus den Repositorys; `-vv` produziert informativen Output:
+
+[source,console]
+----
+opsi-package-updater -vv update firefox javavm
+----
+
+[[server-components-opsi-package-updater-repositories]]
+=== Repositorys
+
+Die allgemeinen Einstellungen zum `opsi-package-updater` finden Sie in der Datei `/etc/opsi/opsi-package-updater.conf`. In mehreren Abschnitten ist dort unter anderem geregelt, wo die opsi-Pakete liegen (`packageDir`), wie das Logfile (`logFile`) und wie das Verzeichnis mit den Repositorys heißt (`repositoryConfigDir`). Außerdem nehmen Sie hier Einstellungen zur Benachrichtigung per E-Mail und zu Wake on LAN (WoL) auf den Clients vor.
+
+Die Konfigurationsdateien für die einzelnen Repositorys finden Sie im Verzeichnis `/etc/opsi/package-updater.repos.d/`. Dort liegt auch eine kommentierte Vorlage (Datei `example.repo.template`), die alle verfügbaren Optionen auflistet und erklärt.
+
+Es gibt zwei Arten von Repositorys: Internet-Repositorys und opsi-Server-Repositorys.
+
+==== Internet-Repositorys
+
+Internet-Repositorys sind gekennzeichnet durch die folgenden Parameter:
+
+* `baseURL`: die Adresse, z.{nbsp}B. `\http://download.uib.de`
+* `dirs`: eine kommaseparierte Liste von Verzeichnissen, z.{nbsp}B. `opsi4.3/products/localboot, opsi4.3/products/netboot`
+* `username` und `password` für Repositorys, die eine Authentifizierung erfordern
+* `authcertfile` und `authkeyfile` für zertifikatsbasierte Authentifizierung
+* `verifyCert`: Aktivierung und Deaktivierung der Server-Zertifikats-Prüfung für HTTPS-Verbindungen
+* `proxy`: Proxyserver
+
+NOTE: Einen Proxyserver können Sie für jedes Repository über die gleichnamige Option einrichten; alternativ tragen Sie den Proxyserver in der Datei `/etc/opsi/opsi-package-updater.conf` ein.
+
+==== opsi-Server-Repositorys
+
+Wenn Sie in der Repository-Konfigurationsdatei hinter `opsiDepotId` die Host-ID eines anderen opsi-Servers eintragen, handelt es sich um ein opsi-Server-Repository. Bei einem opsi-Depotserver steht an dieser Stelle der zentrale opsi-Configserver. Damit bezieht der Depotserver Pakete aus dem Repository `/var/lib/opsi/repository` des Configservers.
+
+[[server-components-opsi-package-updater-actions]]
+==== Repository-Verhalten
+
+Für jedes Repository können Sie darüber hinaus ein paar Einstellungen zum Verhalten vornehmen:
+
+* `autoupdate`: Aktuellere Versionen installierter Pakete werden heruntergeladen und installiert.
+* `autoinstall`: Verfügbare Pakete, die lokal noch nicht installiert sind, werden heruntergeladen und installiert.
+* `autosetup`: Neu installierte und aktualisierte Pakete werden für alle Clients, auf denen diese Pakete installiert sind, auf `setup` gesetzt.
+* `onlyDownload`: Neue Pakete werden nur heruntergeladen.
+* `ignoreErrors`: Wenn bei einzelnen Paketen Fehler auftreten, führt das nicht zum Abbruch.
+
+TIP: Die Option `onlyDownload` kommt oft in Verbindung mit aktivierten Benachrichtigungen zum Einsatz. So kann nach dem Herunterladen der neuen Pakete automatisch eine E-Mail verschickt werden, und die eigentliche Installation bleibt einem Administrator überlassen.
+
+[[server-components-opsi-package-updater-install-default-products]]
+=== Standard-Produkte einspielen
+
+Um die opsi-Standard-Produkte aus den uib-Repositorys einzuspielen, verwenden Sie den folgenden Befehl:
+
+[source,console]
+----
+opsi-package-updater -v install
+----
+
+Das Kommando aktualisiert alle vorhandenen opsi-Pakete inklusive der Templates für Betriebssystem-Installationen aus den opsi-Repositorys.
+
+.Installieren Sie die Standard-Produkte auf Ihrem opsi-Server.
+image::opsi-package-updater.png["Installieren Sie die Standard-Produkte auf Ihrem opsi-Server.", pdfwidth=80%]
+
+TIP: Bei Verwendung der vorkonfigurierten virtuellen Maschine können Sie alternativ das Desktop-Icon doppelklicken um die Standard-Produkte zu installieren.

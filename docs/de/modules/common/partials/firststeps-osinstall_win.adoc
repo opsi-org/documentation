@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      07.09.2023
+:Date:      18.09.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -142,82 +142,52 @@ comment: Version          : 100.92.104.22900
 [[firststeps-osinstall-fill-base-packages-nt6-extendpe-manual]]
 ==== WinPE von Hand erweitern
 
-Für Dell-Hardware gibt es beispielsweise Netzwerk- und Speicher-Treiber, die der Hersteller speziell für den WinPE-Einsatz empfiehlt. Dieser Abschnitt beschreibt, wie Sie weitere Treiber von Hand in ein WinPE integrieren. Voraussetzung ist, dass Sie vorher alle Schritte zum Erstellen des WinPE ausgeführt haben (siehe Abschnitt <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>).
+Für Dell-Hardware gibt es beispielsweise link:https://www.dell.com/support/kbdoc/de-de/000108642/winpe-10-treiberpaket[Netzwerk- und Speicher-Treiber], die der Hersteller speziell für den WinPE-Einsatz empfiehlt. Dieser Abschnitt beschreibt, wie Sie solche Treiber von Hand in ein WinPE integrieren. Voraussetzung ist, dass Sie vorher alle Schritte zum Erstellen des WinPE ausgeführt haben (siehe Abschnitt <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>).
 
-//##hier
+. Laden Sie das WinPE10-Treiberpaket herunter und entpacken es, beispielsweise mit 7-Zip oder dem Befehl `expand`. Am besten legen Sie dazu ein neues Verzeichnis namens `dell-drivers` an und entpacken die `.cab`-Datei dorthin.
 
-Herunterladen von Dell-PE-Treibersammlung. 
-// Bitte beachten, dass für Windows 7 die WINPE 3.0 Treiber benötigt werden. 
-//
-Die heruntergeladene CAB-Datei muss nun lokal ausgepackt werden. Dies kann man mit 7zip oder aber mit dem Kommandozeilentool expand erledigen. Für die Übersichtlichkeit wird empfohlen ein Verzeichnis wie zum Beispiel dell-driver auf C: an zu legen und die CAB-Datei dort aus zu packen.
+. Untersuchen Sie das Image; dazu starten Sie als Administrator die Eingabeaufforderung und geben den folgenden Befehl ein: +
+`dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim`
 
+. Für den nächsten Schritt benötigen Sie den Index, den Sie aus der Ausgabe des vorigen Kommandos entnehmen. Da ein WinPE in der Regel aus einem einzigen Image besteht, sollte der Index 1 funktionieren. Mounten Sie das Image: +
+`dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount`
 
-* Nun wird zunächst das Image untersucht. Als Administrator die Eingabeaufforderung starten und folgenden Befehl eingeben:
+. Nun erweitern Sie das WinPE mit den ausgepackten Treibern: +
+`dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse` +
+Für 32-Bit-Systeme ersetzen Sie `x64` durch `x86`. Das Treiberpaket von Dell beinhaltet die Treiber für beide Architekturen.
 
-[source,shell]
-----
-dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim
-----
+. Hängen Sie das Image wieder aus und übernehmen Sie die Änderungen: +
+`dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit`
 
-Aus der Ausgabe des Befehls braucht man für den nächsten Schritt den Index. Da in der Regel ein winpe aus einem einzigen Image besteht, sollte in der Regel der Index 1 immer funktioneren.
+. Kopieren Sie das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/var/lib/opsi/depot/<productid>/` und passen Sie die Rechte an: +
+`opsi-set-rights /var/lib/opsi/depot/<productid>/winpe`
 
-* Mit folgendem Befehl wird das Image gemountet:
-[source,shell]
-----
-dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount
-----
-
-* Nun wird das PE mit den dafür ausgepackten Treibern erweitert:
-[source,shell]
-----
-dism /Image:C:\winpe\mount  /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse
-----
-
-Für 32-Bit muss das `x64` durch `x86` ersetzt werden. Die Driver-CAB von Dell beinhaltet die Treiber für beide Architekturen.
-
-NOTE: Wenn man nur einen Treiber integrieren möchte, kann man die Option `/Recurse` weglassen und statt ein Verzeichnis direkt die inf-Datei des Treibers angeben. Weiterhin ist es möglich mit dem Parameter `/ForceUnsigned` auch nicht signierte Treiber in ein PE zu integrieren.
-
-* Zum Schluss wird das Image wieder ausgehängt und die Änderungen übernommen:
-[source,shell]
-----
-dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit
-----
-
-* Das Verzeichnis `C:\winpe\ISO` als Verzeichnis `winpe` nach `/var/lib/opsi/depot/<productid>/` kopieren. +
-Rechte anpassen (z.B.):
-[source,shell]
-----
-opsi-set-rights /var/lib/opsi/depot/<productid>/winpe
-----
-
+TIP: Wenn Sie nur einen einzigen Treiber integrieren möchten, können Sie die Option `/Recurse` aus Schritt 4. weglassen und direkt die `.inf`-Datei des Treibers anstelle eines Verzeichnisses angeben. Über den Parameter `/ForceUnsigned` können Sie auch nicht-signierte Treiber in ein WinPE integrieren.
 
 [[firststeps-osinstall-fill-base-packages-nt6-unattend]]
 === Die Datei *unattend.xml*
 
-Für unbeaufsichtigte Installationen gibt es eine Steuerdatei namens `unattend.xml`. 
-Sie finden diese im Verzeichnis `custom`, z.{nbsp}B. unter `/var/lib/opsi/depot/<productid>/custom`. 
-Die von uns mitgelieferte Datei `unattend.xml` enthält Verweise auf die Eigenschaften der Netboot-Produkte, darunter Platzhalter für den Namen des Administrator-Accounts und des dazugehörigen Passworts.
+Für unbeaufsichtigte Installationen gibt es eine Steuerdatei namens `unattend.xml`, die Sie im Verzeichnis `custom` finden, z.{nbsp}B. unter `/var/lib/opsi/depot/<productid>/custom` (siehe Abschnitt <<firststeps-osinstall-structure>>). Die Datei enthält Verweise auf die Eigenschaften der Netboot-Produkte, darunter Platzhalter für den Namen des Administrator-Accounts und des dazugehörigen Passworts (Standard: `nt123`).
 
-Mögliche Modifikationen an dieser Datei sollten in diesem Verzeichnis und nicht im opsi Verzeichnis gemacht werden.
+Darüber hinaus gibt es im Verzeichnis `opsi` des jeweiligen Netboot-Produktes eine Datei `unattend.xml.template`. Das ist das von uns getestete und regelmäßig aktualisierte Template. 
 
-////
-Dokumente zur Unattend.xml finden sich nach Installation des WAIK in
-`c:\Program Files\Windows\Waik\docs\chms`
-////
+NOTE: Wenn Sie Änderungen an der Datei `unattend.xml` vornehmen wollen, bearbeiten Sie die Datei im Verzeichnis `custom`, denn es hat Vorrang (siehe Abschnitt <<firststeps-osinstall-structure-opsicustom>>). 
+
+Die Datei `unattend.xml` enthält außerdem die Anweisung, nach der Windows-Installation im `opsi`-Verzeichnis eine Datei namens `postinst.cmd` auszuführen. Diese führt wiederum alle im Verzeichnis `opsi/postinst.d` liegenden Skripte aus. Weitere Informationen dazu finden Sie in Abschnitt <<firststeps-osinstall-structure-opsicustom>>. 
 
 [[firststeps-osinstall-fill-base-packages-nt6-drivers]]
 === Treiber integrieren
 
-Die Treiberintegration verläuft wie hier: <<firststeps-osinstall-driverintegration>> beschrieben.
+Im Idealfall gelingt die Windows-Installation, und alle im Rechner enthaltenen Geräte funktionieren. In der Praxis ist es aber häufig so, dass fast alles funktioniert, aber bestimmte Komponenten nicht -- etwa die Bluetooth-Schnittstelle eines Notebooks. Aber auch wenn alles funktioniert, gibt es oft bessere oder neuere Hardware-Treiber. Es kann also sein, dass Hardware-Hersteller wie Lenovo oder Dell eigene Treiber empfehlen und zum Download anbieten. 
+
+TIP: Wie die Integration solcher Treiber gelingt, beschreibt der Abschnitt <<firststeps-osinstall-driverintegration>> ausführlich.
 
 [[firststeps-osinstall-fill-base-packages-nt6-installfiles]]
 === Installationsmedien bereitstellen
 
-Kopieren der Installations-DVD nach +
-`/var/lib/opsi/depot/<productid>/installfiles`
-und passen Sie Rechte/Eigentümer an:
+Kopieren Sie den Inhalt der Windows-Installations-DVD nach `/var/lib/opsi/depot/<productid>/installfiles` und passen Sie die Zugriffsrechte bzw. den Eigentümer an:
 
-[source,shell]
+[source,console]
 ----
 opsi-set-rights /var/lib/opsi/depot/<productid>/installfiles
 ----
@@ -225,63 +195,72 @@ opsi-set-rights /var/lib/opsi/depot/<productid>/installfiles
 [[firststeps-osinstall-fill-base-packages-nt6-logfiles]]
 === Logdateien 
 
+Im Folgenden geben wir einen Überblick über die bei der OS-Installation geschriebenen Logdateien:
+
 * `c:\Windows\Panther\setupact.log`: +
-Log bis Ende Setup-Phase 4 (läuft unter WinPE)
+Protokoll bis zum Ende der Setup-Phase 4 (läuft unter WinPE)
 
 * `c:\Windows\Panther\setupact.err`: +
-Fehler-Log bis Ende Setup-Phase 4 (läuft unter WinPE)
+Fehlerprotokoll bis zum Ende Setup-Phase 4 (läuft unter WinPE)
 
 * `c:\Windows\Panther\UnattendGC\setupact.log`: +
-Log ab Specialize-Phase
+Protokoll ab der Specialize-Phase
 
 * `c:\Windows\Panther\UnattendGC\setupact.err`: +
-Fehler-Log ab Specialize-Phase
+Fehlerprotokoll ab der Specialize-Phase
 
-* `c:\Windows\System32\Winevt\Logs\*`
+* `c:\Windows\System32\winevt\Logs\*`: +
+mehrere Ereignis-Protokolle
 
-* `c:\Windows\ntbtlog.txt` (nur nach aktivierter Startprotokollierung)
+* `c:\Windows\ntbtlog.txt`: +
+Protokoll, das Windows während des Startvorgangs erstellt (sofern aktiviert)
+
+.Viele der bei der OS-Installation geschriebenen Logdateien finden Sie im Verzeichnis `c:\Windows\Panther\`.
+image::logdateien-os-install.png["Viele der bei der OS-Installation geschriebenen Logdateien finden Sie im Verzeichnis `c:\Windows\Panther\`.", pdfwidth=80%]
 
 [[firststeps-osinstall-productkey]]
 == Windows-Produktschlüssel hinterlegen
 
-Wenn Sie über das Modul opsi-Lizenzmanagement verfügen, können Sie die Windows Lizenzschlüssel über das Lizenzmanagement Modul verwalten. Lesen Sie dazu das Lizenzmanagement Handbuch bzw. das entsprechende Kapitel im opsi-Handbuch.
-//wenn die Erweiterung genutzt wird, sieht das Netboot-Produkt das und wird von sich aus sagen: oh, es gibt ein Lizenzmanagement, ich frag den opsi-Server mal, ob es für mich als Netboot-Produkt einen Lizenzpool gibt und ob da Lizenzen liegen, das heißt, der würde anfragen: ich bin ein Win10, da gibt's nen Pool, den Key beziehe ich von da, dann interessiert auch nicht, was da im Produkt-Key steht, 
+TIP: Wenn Sie das Modul xref:opsi-modules:licensemanagement.adoc[Lizenzmanagement] erworben haben, können Sie die Windows-Produktschlüssel über diese Erweiterung verwalten. Das Netboot-Produkt zur OS-Installation erkennt das Modul automatisch und fragt beim opsi-Server nach, ob es einen passenden Lizenzpool gibt. Ist das der Fall, bezieht es den Windows-Produktschlüssel von dort.
 
-Haben Sie kein Lizenzmanagement oder wollen dieses nicht verwenden, gehen Sie wie folgt vor.
+Wenn Sie kein Lizenzmanagement-Modul haben oder dieses nicht zur Verwaltung der Windows-Produktschlüssel verwenden möchten, tragen Sie den Key über die xref:clients:windows-client/opsiconfiged.adoc[Management-Oberfläche *opsi-configed*] ein:
 
-Wenn Sie bereits opsi-Clients eingerichtet haben, können Sie im opsi-Konfigurationseditor einen Windows-Produktschlüssel per Client eintragen:
+. Wählen Sie aus der linken Seitenleiste einen Client aus.
+. Wechseln Sie zum Reiter _Netboot-Produkte_.
+. Wählen Sie dort das gewünschte Netboot-Produkt aus, z.{nbsp}B. _win10-x64_.
+. Klappen Sie auf der rechten Seite die _Property-Konfiguration_ aus und blättern Sie bis zum Eintrag _productkey_.
+. Klicken Sie in die Spalte _Property_Wert_.
+. Tragen Sie den Produktschlüssel im sich öffnenden Dialog ein und klicken Sie auf das Pluszeichen.
+. Das grüne Häkchen erscheint nun in Rot; klicken Sie darauf, um die Änderungen zu speichern und den Dialog zu schließen.
+. Speichern Sie abschließend die Änderungen im Backend über einen Klick auf das rote Häkchen oben links.
 
-* einen Client auswählen
-* zum Tab Netboot-Produkte wechseln
-* dort zB. das Produkt win10-x64 auswählen
-* rechts in der Schalter-Liste in die Property-Zeile productkey gehen
-* in das Value-Feld den Schlüssel eintragen und mit Klick auf  "+" hinzufügen
-* durch Klick auf das "rote Häckchen" speichern und das Feld verlassen
-* die Änderungen im Backend speichern ("rotes Häckchen" oben rechts).
+.Den Windows-Produktschlüssel hinterlegen Sie in den Produkteigenschaften.
+image::product-key.png["Den Windows-Produktschlüssel hinterlegen Sie in den Produkteigenschaften.", pdfwidth=80%]
 
+Alternativ können Sie einen Standard-Produktschlüssel für das komplette opsi-Depot vergeben. Die dazu notwendigen Schritte im `opsi-configed` sehen so aus:
 
-Oder Sie vergeben einen Default für den Windows-Produktschlüssel für das komplette opsi-Depot, was ebenfalls über den opsi-Konfigurationseditor erledigt werden kann:
-
-* im Konfigurationseditor die Depoteigenschaften auswählen (Kachel rechts oben)
-* zum Tab Produkt-Defaultproperties wechseln
-* dort zB. das Produkt win10-x64 auswählen
-* rechts in der Schalter-Liste in die Property-Zeile productkey gehen
-* in das Value-Feld den Schlüssel eintragen und mit Klick auf  "+" hinzufügen
-* durch Klick auf das "rote Häckchen" speichern und das Feld verlassen
-* die Änderungen im Backend speichern ("rotes Häckchen" oben rechts).
+. Klicken Sie rechts oben auf die Kachel _Depoteigenschaften_. 
+. Öffnen Sie den Reiter _Produkt-Defaultproperties_.
+. Wählen Sie dort das gewünschte Netboot-Produkt aus, z.{nbsp}B. _win10-x64_.
+. Klappen Sie auf der rechten Seite die _Property-Bearbeitung auf Depot(s)_ aus und blättern Sie bis zum Eintrag _productkey_.
+. Klicken Sie in die Spalte _Property_Wert_.
+. Tragen Sie den Produktschlüssel im sich öffnenden Dialog ein und klicken Sie auf das Pluszeichen.
+. Das grüne Häkchen erscheint nun in Rot; klicken Sie darauf, um die Änderungen zu speichern und den Dialog zu schließen.
+. Speichern Sie abschließend die Änderungen im Backend über einen Klick auf das rote Häkchen oben links.
 
 [[firststeps-osinstall-start]]
 == Windows-Installation starten
 
-Zum Starten einer Windows-Installation wählen Sie nun im opsi-configed den betreffenden Client aus, setzen unter dem Karteireiter 'Netboot-Produkte' für die gewünschten Betriebssystem (z.B. win10-x64) die Aktion auf 'setup' und klicken auf den roten Haken (der wieder grün wird).
+Um die Windows-Installation zu starten, wählen Sie in der Management-Oberfläche `opsi-configed` den Client aus und wechseln zum Reiter _Netboot-Produkte_. Setzen Sie für das gewünschte Netboot-Produkt (z.{nbsp}B. _win10-x64_) in der Spalte _Angefordert_ die Aktion auf _setup_ und klicken links oben auf das rote Häkchen; es wird anschließend wieder grün.
 
-Der Client sollte jetzt beim Booten ein Linux Bootimage übers Netz ziehen, in dem Sie nochmal die PC-Neu-Installation bestätigen müssen. Dann sollte alles automatisch weiter laufen, bis schließlich die Logon-Aufforderung des installierten Windows auf dem Bildschirm steht.
+Das Client zieht jetzt beim Booten ein Linux-Bootimage übers Netz. Im Bootmenü bestätigen Sie die PC-Neu-Installation. Anschließend sollte alles automatisch laufen, bis Sie schließlich den Windows-Anmeldebildschirm sehen.
 
-NOTE: Sollte nach dem Laden des Bootimages der Bildschirm schwarz bleiben oder die Netzwerkkarte nicht (korrekt) funktionieren, so muss für diese konkrete Hardware evtl. die Startparameter des Bootimages angepasst werden. +
-Dies können Sie im 'opsi-configed' im Tab 'Hostparameter' am Eintrag 'opsi-linux-bootimage.append' tun. +
-Details hierzu finden Sie im opsi Handbuch im Kapitel 'Netboot Produkte'.
+NOTE: Sollte nach dem Laden des Bootimages der Bildschirm schwarz bleiben oder die Netzwerkkarte nicht (korrekt) funktionieren, können Sie die Startparameter des Bootimages an die verwendete Hardware anpassen. Dazu wählen Sie in der Management-Oberfläche `opsi-configed` auf dem Reiter _Host-Parameter_ den Eintrag _opsi-linux-bootimage.append_ aus und klicken in die Spalte _Property-Wert_ (siehe Abschnitt xref:opsi-products:netboot-products.adoc#opsi-manual-netboot-bootimage-parametrization[Parameter für das Linux-Bootimage]).
 
-WARNING: Vorsicht bei Clients mit einer über 2TB großen Festplatte. In einem nicht UEFI-System beträgt die maximale Partitionsgröße 2 Terabyte. Sofern eine größere Partition angelegt werden soll schlägt die Installation fehl. Dies ist technisch durch die standard Partitionstabelle bedingt. Sie müssen die Festplatte in zwei Partitionen aufteilen. Dies können Sie über die Product-Properties steuern. Oder Sie erwerben das UEFI-Modul, wodurch diese technische Limietierung entfällt.
+.Die Parameter für das Linux-Bootimage können Sie über den `opsi-configed` anpassen.
+image::bootimage-parameter.png["Die Parameter für das Linux-Bootimage können Sie über den `opsi-configed` anpassen.", pdfwidth=80%]
+
+WARNING: Vorsicht bei Clients mit großen Festplatten: Auf Nicht-UEFI-Systemen beträgt die maximale Partitionsgröße 2{nbsp}TByte! Wenn Sie eine größere Partition anlegen, schlägt die Installation fehl. Sie können entweder mehrere Partitionen anlegen oder die UEFI-Erweiterung installieren (siehe Kapitel xref:opsi-modules:uefi.adoc[opsi mit UEFI/GPT]).
 
 [[firststeps-osinstall-structure]]
 == Aufbau der Netboot-Produkte 
@@ -291,215 +270,157 @@ Dieser Abschnitt beschreibt den Aufbau der Windows-Netboot-Produkte zur unbeaufs
 [[firststeps-osinstall-structure-dirs]]
 === Übersicht des Verzeichnisbaums
 
+Ein Netboot-Produkt für eine automatische Windows-Installation enthält (je nach Windows-Version) unterschiedliche Verzeichnisse und Dateien.
+
 .So sieht der Verzeichnisbaum für das Netboot-Produkt `win10-x64` aus.
 image::product-directory-tree.png["So sieht der Verzeichnisbaum für das Netboot-Produkt `win10-x64` aus.", pdfwidth=80%]
-
-[[firststeps-osinstall-structure-files]]
-=== Skripte und andere Dateien
-
-* `setup.py` +
-Dies ist das Installationsskript, welches vom Bootimage ausgeführt wird.
-* `<productid>_<version>.control` +
-enthält die Metadaten des Produkts, so wie sie vom Paketierer bereitgestellt wurden. Die Datei liegt hier nur zu Informationszwecken, d.h. Änderungen an dieser Datei haben keinerlei Auswirkungen auf das System.
-
-* `<productid>.files` +
-Diese Datei wird automatisch erzeugt und sollte nicht verändert werden.
-
-* `create_driver_links.py` +
-`show_drivers.py` +
-//Links nach unten richtig setzen
-Dies sind Scripte zur Treiberintegration, die im Kapitel <<firststeps-osinstall-driverintegration,Vereinfachte Treiberintegration in die automatische Windowsinstallation>>, näher erläutert werden.
 
 [[firststeps-osinstall-structure-i386]]
 === Verzeichnisse *installfiles* und *winpe*
 
-* `installfiles` +
-Enthält den Inhalt der Installations-CD.
+* `installfiles`: +
+Das Verzeichnis enthält den Inhalt des Installations-Mediums.
 
-* `winpe` +
-Enthält ein bootbares winpe Image.
+* `winpe`: +
+Das Verzeichnis enthält ein bootbares WinPE-Image.
 
 [[firststeps-osinstall-structure-opsicustom]]
 === Verzeichnisse *opsi* und *custom*
 
-Diese beiden Verzeichnisse enthalten Scripte und Konfigurationsdateien zur Steuerung der Betriebssysteminstallation. Während der Installation wirken diese Verzeichnisse zusammen, indem die Dateien aus custom Vorrang haben.
+Diese beiden Verzeichnisse enthalten Skripte und Konfigurationsdateien zur Steuerung der Betriebssystem-Installation. Während der Installation wirken diese Verzeichnisse zusammen; die Dateien aus `custom` haben Vorrang.
 
-Das Verzeichnis opsi enthält Dateien, die mit Updates jederzeit überspielt werden können. Hier sollten also keine Änderungen vorgenommen werden. Für Anpassungen können Sie Änderungen im Verzeichnis custom vornehmen, welches bei Updates nicht überspielt wird.
+NOTE: Ein Update kann Inhalte des Verzeichnisses `opsi` jederzeit überschreiben, daher sollten Sie hier keine Änderungen vornehmen. Ihre eigenen Anpassungen gehören ins Verzeichnis `custom`, das bei Aktualisierungen *nicht* überschrieben wird.
 
-Das Unterverzeichnis `postinst.d` enthält Scripte, welche nach der eigentlichen Installation des Betriebssystems über die `postinst.cmd` gestartet werden, um z.B. den opsi-client-agent zu installieren. Die Scripte werden dabei in alphabetischer Reihenfolge abgearbeitet. Um die Reihenfolge zu verdeutlichen, fangen die Dateinamen mit einer zweistelligen Nummer an (`10_dhcp.cmd`). Wollen Sie hier Erweiterungen vornehmen, so können Sie im Verzeichnis custom/postinst.d Scripte mit Nummern zwischen den vollen 10ern ablegen (`13_myscript.cmd`). Die vollen 10er sind für die Pflege durch opsi.org/uib reserviert. Das Script `99_cleanup.cmd` ist das letzte und endet mit einem Reboot.
+Im Unterverzeichnis `postinst.d` liegen Skripte, die nach der OS-Installation über `postinst.cmd` gestartet werden. Die Skripte übernehmen verschiedene Aufgaben, z.{nbsp}B. das Einspielen des Client-Agent, damit opsi die Applikationssoftware installierne kann. Die Skripte werden in alphabetischer Reihenfolge abgearbeitet und sind daher nummeriert: `05_copy_drivers.cmd`, `10_dhcp.cmd`, `20_try.ps1` usw. 
+
+Eigene Skripte gehören ins Verzeichnis `custom/postinst.d`. Wählen Sie für den Dateinamen Ziffern zwischen `11_` und `19_` (z.{nbsp}B. `13_myscript.cmd`). Alles zwischen `01_` und `10_` ist für Skripte von opsi.org/uib reserviert. Das Skript `99_cleanup.cmd` ist das letzte und startet den Rechner neu.
 
 [[firststeps-osinstall-structure-drivers]]
 === Verzeichnis *drivers*
 
-Dieses Verzeichnis dient der Treiberintegration und ist im folgenden Kapitel beschrieben.
+Dieses Verzeichnis dient der Treiberintegration und ist im Abschnitt <<firststeps-osinstall-driverintegration>> beschrieben.
+
+[[firststeps-osinstall-structure-files]]
+=== Skripte und andere Dateien
+
+Weiterhin finden Sie auf oberster Ebene im Produktverzeichnis folgende Dateien:
+
+* `setup.py`: +
+Das ist das Installationsskript, das vom Bootimage ausgeführt wird.
+
+* `<productid>.files`: +
+Diese Datei enthält Informationen zu Dateien und Verzeichnissen im Produktverzeichnis, darunter die Größe und Prüfsummen. Sie wird automatisch erzeugt und sollte nicht verändert werden.
+
+* `create_driver_links.py`: +
+Das Skript verlinkt Treiber mit Verzeichnissen des Netboot-Produktes.
+
+* `show_drivers.py`: +
+Das Skript integriert Treiber, was der nächste Abschnitt (<<firststeps-osinstall-driverintegration>>) näher erläutert.
 
 [[firststeps-osinstall-driverintegration]]
 == Vereinfachte Treiberintegration 
 
-Administriert man einen Pool von PCs, die Geräte besitzen, deren Treiber nicht in der Windows-Standardinstallation enthalten sind, so ist es meist sinnvoll, diese Treiber direkt in die Installation zu integrieren. Bei Netzwerkgeräten kann dies teilweise sogar unumgänglich sein, denn ein startendes Windows ohne Netzwerkkarte ist für den Administrator nicht ohne weiteres erreichbar.
+Wenn Sie einen Pool von Windows-Rechnern administrieren, deren Treiber nicht in der Windows-Standardinstallation enthalten sind, ist es in der Regel sinnvoll, diese Treiber direkt in die Installation zu integrieren. Bei Netzwerkgeräten ist das teilweise sogar unumgänglich, denn ein startendes Windows-System ohne Netzwerkkarte ist nicht ohne Weiteres erreichbar.
 
-Opsi unterstützt Sie durch eine Automatisierung der Treibereinbindung und vereinfacht so die Bereitstellung der Treiber. Dabei müssen die Treiber nur in dem korrekten Verzeichnis abgelegt werden. Durch den Aufruf eines Scripts werden dann die Treiberverzeichnisse durchsucht und ein Katalog erstellt, anhand dessen das Bootimage automatisch die richtigen Treiber erkennen und einbinden kann. Dabei können sowohl Standard-Treiber, USB-Treiber, HD-Audio-Treiber wie auch Treiber für Festplattencontroller (Textmode Treiber) abgelegt und automatisch eingebunden werden.
+opsi vereinfacht das Bereitstellen solcher Treiber -- diese müssen lediglich im korrekten Verzeichnis auf dem Depot-Server liegen. Ein Skript durchsucht diese Treiberverzeichnisse und erstellt einen Katalog, den das Bootimage nutzt, um automatisch die richtigen Treiber zu erkennen und einzubinden. Das funktioniert für Standardtreiber, USB-Treiber, HD-Audio-Treiber und Treiber für Festplattencontroller (Textmode-Treiber).
 
-Damit die Treiber sofort bei der Windowsinstallation mit installiert werden, müssen Sie in einer bestimmten Form auf dem Server hinterlegt werden. Hierzu sind Treiberverzeichnisse geeignet, die eine '\*.inf'-Datei enthalten, die den Treiber für das Windows-Setupprogramm beschreibt. Irgendwelche in `setup.exe`, '*.zip' oder anders verpackten Treiber sind hier unbrauchbar. Mit dem Programm 'double driver' (http://www.boozet.org/dd.htm) können Sie von einem installierten Rechner die Treiber im geeigneten Format extrahieren.
+Einbinden von Treibern bedeutet konkret:
 
-Es stehen mehrere Ebenen zur Bereitstellung von Treibern zur Verfügung:
+* Der Treiber wird auf die lokale Festplatte nach `c:\drv\<num>` kopiert.
 
-//(historische Aufzählung, Schulung nur noch: Treiber die über die Felder <vendor>/<model> der Inventarisierung automatisch den Rechnern zu geordnet werden, Reihenfolge ändern
+* Dem Windows-Setup wird über die Datei `unattend.xml` mitgeteilt, in den Verzeichnissen unterhalb von `c:\drv\` nach passenden Treibern zu suchen.
 
-* Allgemeine Treiber Pakete 
-//1. Verfahren, doch nicht so gut?
+NOTE: Windows erwartet die Treiber in einem bestimmten Format auf dem opsi-Server. Geeignet sind Treiberverzeichnisse, die mindestens eine `.inf`-Datei enthalten. Die Datei beschreibt den Treiber für das Windows-Setup-Programm. `setup.exe`-, `.zip`-Dateien oder anders verpackte Treiber sind für diesen Zweck ungeeignet!
 
-* Treiber die zu Ihrer Hardware gehören aber nicht speziell zu geordnet sind
-//preferred
+Es gibt verschiedene Möglichkeiten, Treiber für die OS-Installation mit opsi bereitzustellen:
 
-* Treiber die manuell Rechnern zu geordnet sind
-//Verzeichnis additional, 
+* <<firststeps-osinstall-driverintegration-byaudit>> 
+* <<firststeps-osinstall-driverintegration-additional>>
+* <<firststeps-osinstall-driverintegration-generaldrivers>>
+* <<firststeps-osinstall-driverintegration-preferred>>
 
-* Treiber die über die Felder <vendor>/<model> der Inventarisierung automatisch den Rechnern zu geordnet werden.
-//insbes. für Firmen gut, additional byAudit
-
-Wie diese unterschiedlichen Ebenen verwendet werden können ist im folgenden beschrieben:
-
-[[firststeps-osinstall-driverintegration-generaldrivers]]
-=== Allgemeine Treiberpakete
-
-Wenn die Hardwareausstattung sehr heterogen ist, kann es sinnvoll sein mit allgemeinen Treiberpaketen zu arbeiten. +
-Allgemeine Treiber legen Sie ab unter `./drivers/drivers`. +
-
-//.inf-Datei: 55 min Aufzeichnung
-##Screenshots##
-
-////
-Solche allg. Treiber Pakete finden Sie http://driverpacks.net/ . +
-Laden Sie die gewünschten Treiber Pakete in ein temporäres Verzeichnis herunter und entpacken die Treiberpakete mit:
-[source,shell]
-----
-./extract_driver_pack.py <pfad zu dem temporären Verzeichnis mit den komprimierten driverpacks>
-----
-Hiermit werden die Treiber entpackt und in das Verzeichnis `./drivers/drivers/` abgelegt. +
-Nachteil dieser Pakete ist, das sich hier auch Treiber finden welche zwar von der Beschreibung zu Ihrer Hardware passen aber nicht unbedingt mit Ihrer Hardware funktionieren. +
-////
-Treiber welche im Verzeichnis `./drivers/drivers/` liegen, werden anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden.
-
-[[firststeps-osinstall-driverintegration-preferred]]
-=== Spezielle Hardwaretreiber
-
-Treiber, die zu Ihrer Hardware gehören, aber nicht speziell zugeordnet sind
-
-Haben Sie nur wenige unterschiedliche Hardware zu unterstützen, so können Sie die Treiber bei den Herstellern suchen. +
-Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses +
-`./drivers/drivers/preferred`. +
-Treiber welche im Verzeichnis `./drivers/drivers/preferred` liegen,
-werden gegenüber den Treibern in `./drivers/drivers/` bevorzugt anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden. +
-Finden sich z.B. zu eine PCI-ID in unterschiedlichen Treiber unter `preferred`, so kann dies zu Problemen bei der Treiber Zuordnung führen. In diesem Fall ist eine direkte Zuordnung der Treiber zu dem Client notwendig.
-
-[[firststeps-osinstall-driverintegration-additional]]
-=== Zusätzliche Treiber
-
-Treiber, die manuell Rechnern zugeordnet sind
-
-Zusätzliche Treiber, die unabhängig von ihrer Zuordnung bzw. Erkennung über die PCI- oder USB-IDs installiert werden sollen, gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses `./drivers/drivers/additional`. Über das Produkt-Property 'additional_drivers' können Sie einen oder mehrere Pfade von Treiberverzeichnissen innerhalb von `./drivers/drivers/additional` einem Client zu ordnen. Im Produkt-Property 'additional_drivers' angegebene Verzeichnisse werden rekursiv durchsucht und alle enthaltenen Treiber eingebunden. Dabei wird auch symbolischen Links gefolgt. Dies können Sie nutzen, um für bestimmte Rechner-Typen ein Verzeichnis zu erstellen (z.B. dell-optiplex-815).
-
-Wird in den über 'additional_drivers' angegebenen Treiberverzeichnissen ein Treiber für ein vorhandenes PCI-Gerät (oder HD-Audio, USB) gefunden, so wird für dieses Gerät kein weiterer Treiber aus `drivers/preferred/` oder `drivers/` mehr eingebunden ('additional_drivers' ist sozusagen 'super-preferred'). Damit hat 'additional_drivers' die Funktion Treiber hinzuzufügen, welche über die normale Treibererkennung nicht gefunden würden.
 
 [[firststeps-osinstall-driverintegration-byaudit]]
 === Treiber automatisch zuordnen
 
+Der bevorzugte Weg, Treiber zuzuordnen, ist über die opsi-Hardware-Inventarisierung (siehe Abschnitt xref:clients:windows-client/rollout-products.adoc#firststeps-software-deployment-product-tests-inventory[Inventarisierung (*hwaudit*/*swaudit*)]). Dazu sucht opsi im Verzeichnis `<productid>/drivers/drivers/additional/byAudit` nach einem Verzeichnisnamen, der dem bei der Hardware-Inventarisierung gefundenen `<vendor>` entspricht. Im Ordner `<vendor>` sucht opsi nun nach einem Verzeichnisnamen, der dem bei der Hardware-Inventarisierung gefundenen `<model>` entspricht.
 
-//Verweis opsi-win-driver-update bei Localboot-Produkte, ab min 1:20, 4.2-Branch
+NOTE: Findet opsi ein solches Verzeichnis, dann behandelt es dieses so, als wäre es über das Produkt-Property `additional_drivers` manuell zugewiesen worden (siehe Abschnitt <<firststeps-osinstall-driverintegration-additional>>).
 
-Treiber, die über die Felder `<vendor>/<model>` der Inventarisierung automatisch den Rechnern zugeordnet werden, ...
+TIP: Sie können die Treiber über die Management-Oberfläche `opsi-configed`, Reiter _Hardware-Information_, bereitstellen. Lesen Sie dazu auch den Abschnitt xref:gui:configed.adoc#opsi-manual-configed-automat-treiberintegration[Automatisierte Treiberintegration]. 
 
-Der im vorigen Abschnitt beschriebene Mechanismus der direkten Zuordnung von Treibern zu Geräten, kann seit dem 2 Teil des Service Release opsi 4.0.2 automatisiert werden. Dazu wird in dem Verzeichnis `./drivers/drivers/additional/byAudit` nach einem Verzeichnisnamen gesucht der dem bei der Hardwareinventarisierung gefundenen 'Vendor' entspricht. In diesem 'Vendor' Verzeichnis wird nun nach einem Verzeichnisnamen gesucht, das dem bei der Hardwareinventarisierung gefundenen 'Model' entspricht. Wird ein solches Verzeichnis gefunden, so wird dieses Verzeichnis genauso behandelt, als wäre es über das Produkt-Property 'additional_drivers' manuell zugewiesen.
+Das opsi-Linux-Bootimage arbeitet die Treiber in dieser Reihenfolge ab:
 
-Dabei können seit opsi 4.0.5 die Treiber für einen opsi-Client über den opsi-configed im Reiter Hardwareinventarisiering bereitgestellt werden (vgl.:opsi-Handbuch Automatisierte Treiberintegration).
+1. Zuerst sucht opsi im Verzeichnis `<vendor>/<model> (<sku>)`.
+2. Findet opsi hier nichts, schaut es nach `<system vendor>/<system model>`.
+3. Als Fallback-Lösung sucht opsi nach `<motherboard vendor>/<motherboard model>`.
 
-Die Abarbeitung im opsi-Linux-Bootimage erfolgt in der Reihenfolge
+Einige Hersteller verwenden Modellbezeichnungen, die für diese automatische Methode über `hwaudit` sehr ungünstig sind -- Sonderzeichen wie `/` oder `:` sind nicht erlaubt in Datei- oder Verzeichnisnamen. So wäre es z.{nbsp}B. möglich, dass ein Verzeichnis namens `5000/6000/7000` entsteht. opsi ersetzt daher intern die folgenden Sonderzeichen durch einen Unterstrich (`_`): `<`, `>`, `?`, `"`, `:`, `|`, `\`, `/` und `*`. Für das eben erwähnte Beispiel würde opsi also ein Verzeichnis namens `5000_6000_7000` anlegen und automatisch zuweisen, obwohl die Hardware-Inventarisierung einen anderen Namen geliefert hat.
 
-* `<vendor>/<model> (<sku>)`
-* ohne Fund greift der Fallback auf `<system vendor>/<system model>`
-* ohne Fund greift der Fallback auf `<motherboard vendor>/<motherboard model>`.
+[[firststeps-osinstall-driverintegration-additional]]
+=== Treiber manuell zuordnen
 
-Einige Hersteller verwenden Modellbezeichnungen, die für diese Methode sehr ungünstig sind, da man einige Sonderzeichen wie / nicht in Datei- oder Verzeichnisnamen verwenden darf. Ein Beispiel dafür wäre als Modelbezeichnung: "5000/6000/7000". Ein Verzeichnis mit dieser Bezeichnung ist wegen den Sonderzeichen nicht gestattet. Seit der dritten Service Release opsi 4.0.3 werden deshalb folgende Sonderzeichen: < > ? " : | \ / * intern durch ein _ ersetzt. Mit dieser Änderung kann man oben genanntes schlechtes Beispiel als: "5000_6000_7000" anlegen und das Verzeichnis wird automatisch zu gewiesen, obwohl die Information in der Hardwareinventarisierung nicht der Verzeichnisstruktur enstprechen.
+Treiber, die Sie unabhängig von ihrer Zuordnung bzw. Erkennung über die PCI- oder USB-IDs installieren möchten, gehören in jeweils eigene Verzeichnisse unterhalb des Ordners `<productid>/drivers/drivers/additional`; Name oder Tiefe der Verzeichnisstruktur sind egal. Über das Produkt-Property `additional_drivers` (siehe Abschnitt <<firststeps-osinstall-driverintegration-additional>>) können Sie einen oder mehrere Pfade von Treiberverzeichnissen aus dem Ordner `<productid>/drivers/drivers/additional` einem Client zuordnen. 
 
+TIP: Im Produkt-Property `additional_drivers` angegebene Verzeichnisse durchsucht opsi rekursiv und bindet alle enthaltenen Treiber ein. Dabei folgt opsi auch symbolischen Links. Das können Sie beispielsweise nutzen, um für bestimmte Rechnermodelle ein eigenes Verzeichnis zu erstellen (z.{nbsp}B. `dell-optiplex-815`).
+
+Findet opsi in den über `additional_drivers` angegebenen Verzeichnissen einen Treiber für ein vorhandenes PCI-Gerät (oder HD-Audio, USB), so bindet es für dieses Gerät keinen weiteren Treiber aus `drivers/preferred/` (siehe Abschnitt <<firststeps-osinstall-driverintegration-preferred>>) oder `drivers/` mehr ein. `additional_drivers` ist also dazu geeignet, Treiber hinzuzufügen, die über die normale Treiberekennung nicht gefunden werden (siehe Abschnitt <<firststeps-osinstall-driverintegration-processing>>).
+
+[[firststeps-osinstall-driverintegration-generaldrivers]]
+=== Allgemeine Treiber
+
+Wenn die Hardware-Ausstattung sehr heterogen ist, kann es sinnvoll sein, mit allgemeinen Treiberpaketen zu arbeiten. Solche Pakete legen Sie im Verzeichnis `<productid>/drivers/drivers` ab. Diese Treiber erkennt opsi anhand ihrer PCI-Kennungen (bzw. USB- oder HD-Audio-Kennungen) in der Beschreibungsdatei des Treibers als zur Hardware passend und bindet sie ins Windows-Setup mit ein.
+
+[[firststeps-osinstall-driverintegration-preferred]]
+=== Spezielle Treiber
+
+Treiber, die zu Ihrer Hardware gehören, aber nicht speziell zugeordnet sind, können Sie von den Websites der Gerätehersteller beziehen. Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb von `<productid>/drivers/drivers/preferred`. opsi erkennt die Treiber anhand ihrer PCI-Kennungen (bzw. USB- oder HD-Audio-Kennungen) in der Beschreibungsdatei des Treibers als zur Hardware passend, zieht sie den unter `<productid>/drivers/drivers` abgelegten Treibern vor und bindet sie ins Windows-Setup mit ein.
+
+NOTE: Gibt es beispielsweise für eine PCI-ID unterschiedliche Treiber im Verzeichnis `preferred`, kann das zu Problemen bei der Treiberzuordnung führen. In solchen Fällen ist eine direkte Zuordnung der Treiber zu einem Client notwendig.
 
 [[firststeps-osinstall-driverintegration-structure]]
 === Ablage im Verzeichnis *drivers*
 
-Struktur des Treiber Verzeichnisses und Ablage der Treiber
+Im Verzeichnis `drivers` des Netboot-Produktes gibt es Platz für manuell und automatisch hinzugefügte Treiber.
 
-[source,configfile]
-----
-/var/
-  !-lib/
-     !-opsi/depot/
-        !-<productid>/
-           !-drivers
-              |-classes/		(Links auf Treiber über Geräteklassen)
-              |-hdaudioids/		(Links auf HD-Audio Treiber)
-              |-pciids/			(Links auf Treiber über PCI-Kennung)
-              |-pci.ids			(PCI Datenbank)
-              |-usbids/			(Links auf Treiber über USB-Kennung)
-              |-usb.ids			(USB Datenbank)
-              |-vendors/		(Links auf Treiber über Hersteller)
-              !-drivers			(Platz für allg. Treiber Packs)
-                 |-additional/		(Für manuell zugeordnete Treiber)
-                    |-byAudit/		Modell spezifische Treiber welche
-                       |-<vendor>		über die Hardwareinventarisierung
-                          |-<model>		zugeordnet werden
-                 |-buildin/		(Daten aus dem i386 Baum)
-                 |-preferred/		(geprüfte Treiber)
-                 |-exclude/		(ausgeschlossene Treiber)
-                 !-mydriverpacks/	(Beispiel Treiber Pack)
-----
+.So sieht der Verzeichnisbaum im Ordner `drivers`aus.
+image::drivers-directory-tree.png["So sieht der Verzeichnisbaum im Ordner `drivers`aus.", pdfwidth=80%, width=800]
+
+opsi arbeitet die Treiber nach einer festgelegten Reihenfolge ab und setzt unterschiedliche Prioritäten.
 
 [[firststeps-osinstall-driverintegration-processing]]
 === Priorität der Treiber
 
-Abarbeitung der unterschiedlichen Ebenen der Treiberintegration
-
-Als oberste Priorität werden alle Treiber eingebunden, welche über das Property 'additional_drivers' bzw. die über die Inventarisierungsdaten in `./drivers/drivers/additional/byAudit` gefunden werden. Im Rahmen der Einbindung von Treibern wird geprüft für welche der Hardware eines Geräts (anhand der PCI-,USB-,HDAudio-Kennungen) hierdurch ein Treiber bereit gestellt wurde. Nur für Geräte für die auf diese Weise noch kein Treiber bereitgestellt wurde wird über die nachfolgenden Methoden ein Treiber gesucht.
-
-Für Geräte denen nicht über 'additional_drivers' (bzw. 'byAudit') ein Treiber zu geordnet wurde wird anhand der PCI Kennung (bzw. USB-, HDAudio-Kennung) ein passender Treiber gesucht und eingebunden.
-
-'Einbindung' von Treiber bedeutet dabei:
-
-* Der Treiber wird auf die lokale Festplatte nach `c:\drv\<num>` kopiert.
-
-* Dem Windows Setup wird in der unattended Datei mitgeteilt, in den Verzeichnissen unterhalb von `c:\drv\` nach passenden Treibern zu suchen.
+Oberste Priorität haben Treiber, die über das Produkt-Property `additional_drivers` bzw. über die Inventarisierungs-Daten aus `<productid>/drivers/driversadditional/byAudit` eingebunden sind. opsi prüft zuerst anhand der PCI-, USB- oder HD-Audio-Kennungen, ob es hier für die Hardware einen Treiber gibt. Gibt es hier keinen passenden Treiber, durchsucht opsi die anderen Verzeichnisse (`<productid>/drivers/drivers/preferred` und `<productid>/drivers/drivers`).
 
 [[firststeps-osinstall-driverintegration-drivercheck]]
 === Treiber hinzufügen und prüfen
 
-Nach jedem Hinzufügen eines Treibers oder jeden anderen Änderung im `./drivers/drivers` Verzeichnis (oder darunter) rufen Sie im Stammverzeichnis des netboot Produktes Verzeichnis folgenden Befehl auf, um die Rechte korrekt zu setzen:
-[source,shell]
+Nach jedem Hinzufügen eines Treibers oder nach jeder anderen Änderung im Verzeichnis `<productid>/drivers/drivers` (oder seinen Unterverzeichnissen) rufen Sie im Stammverzeichnis des Netboot-Produktes den folgenden Befehl auf, um die Rechte korrekt zu setzen:
+
+[source,sonsole]
 ----
 opsi-set-rights ./drivers
 ----
 
-Wenn Sie Treiber in die Verzeichnisse `./drivers/drivers` oder `./drivers/drivers/preferred` abgelegt haben, dann
- rufen Sie das Script `./create_driver_links.py` auf. Dieses durchsucht die Verzeichnisse und erzeugt eine Reihe von Links anhand deren die Zuordnung der Treiber zu bestimmter Hardware (PCI-IDs, USB-IDs, HD-Audio-IDs) zu erkennen ist. Die Treiber aus dem preferred Verzeichnis werden von dem Script bevorzugt verwendet.
+Wenn Sie Treiber in den Verzeichnissen `<productid>/drivers/drivers` oder `<productid>/drivers/drivers/preferred` abgelegt haben, dann rufen Sie außerdem das Skript `./create_driver_links.py` auf. Es durchsucht die Verzeichnisse und erzeugt eine Reihe von Links, damit die Zuordnung der Treiber zur Hardware gelingt. Das Skript behandelt die Treiber aus dem `preferred`-Verzeichnis bevorzugt.
 
-Das `setup.py` Script des Bootimages untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese werden dann auf die Festplatte kopiert und die unattend.xml entsprechend gepatcht.
-////
-Das Script `create_driver_links.py` durchsucht auch bei NT5 Produkten einmalig den 'i386' Baum und extrahiert die Inf-Dateien der von Windows mitgelieferten Treiber nach 'windows_builtin'. Sollten Sie am i386-Baum eine Änderung vornehmen (z.B. durch das Einspielen eines Servicepacks) so löschen Sie dieses Verzeichnis und führen `create_driver_links.py` erneut aus. Bei NT6 Produkten werden die Treiber welche sich im WinPE finden als 'windows_builtin' erkannt.
-////
+Das Skript `setup.py` untersucht die Hardware des zu installierenden Computers und identifiziert die notwendigen Treiber. Diese kopiert es dann auf die Festplatte und passt die Datei `unattend.xml` entsprechend an.
 
-Liegt zu einem Client eine Hardware-Inventarisierung vor, so kann über den Befehl:
-[source,shell]
+Liegt zu einem Client eine Hardware-Inventarisierung vor, so können Sie über das Skript `show_drivers.py` ausgeben, welche Treiber das Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs und `additional_drivers` (bzw. `byAudit`) zur Installation auswählen würde und zu welcher Hardware noch kein Treiber bereitsteht:
+
+[source,console]
 ----
 ./show_drivers.py <clientname>
 ----
-ausgegeben werden, welche Treiber das Bootimage via PCI-IDs, USB-IDs, HD-Audio-IDs und 'additional_drivers' (bzw. 'byAudit') zur Installation auswählen würde und zu welcher Hardware noch kein Treiber bereit steht.
 
-Kontrollieren Sie die Ausgabe von `show_drivers.py` um zu prüfen ob die gewünschten Treiber eingebunden werden.
+Kontrollieren Sie die Ausgabe von `show_drivers.py`, um sicherzustellen, dass die gewünschten Treiber eingebunden werden.
 
-Es kann vorkommen, das Treiberverzeichnisse von Herstellern Treiber für unterschiedliche Betriebssystemversionen ( z.B. Windows 7/8.1/10) oder Konfigurationen (SATA / SATA-Raid) enthalten. Das kann nicht automatisch unterschieden werden. Wenn Sie die Vermutung haben, das ein erkannter Treiber falsch ist, so verschieben Sie diesen Treiber in das Verzeichnis `drivers/exclude` und führen `create_driver_links.py` bzw. `show_drivers.py <clientname>` erneut aus. Treiber die in
-`drivers/exclude` liegen werden bei der Treiberintegration nicht berücksichtigt.
+NOTE: Es kann vorkommen, dass Treiberverzeichnisse von Herstellern Treiber für mehrere Betriebssysteme (z.{nbsp}B. Windows 10, Windows 11 usw.) oder Konfigurationen (SATA, SATA-Raid usw.) enthalten. opsi kann das nicht unterscheiden. Wenn Sie vermuten, dass ein erkannter Treiber falsch ist, dann verschieben Sie diesen ins Verzeichnis `<productid>/drivers/exclude`; dort liegende Treiber berücksichtigt opsi bei der Integration nicht. Führen Sie anschließend `./create_driver_links.py` bzw. `./show_drivers.py` erneut aus. 
 
-Beispiel einer `show_drivers.py` Ausgabe für einen Client:
+==== Ausgabe von *show_drivers.py* (Beispiele)
 
-[source,shell]
+[source,console]
 ----
 ./show_drivers.py pcdummy
 
@@ -532,8 +453,9 @@ Additional drivers
      /var/lib/opsi/depot/<productid>/drivers/drivers/additional/ati_hdaudio_azalia
 ----
 
-Beispiel für einen Client mit 'additional_drivers':
-[source,shell]
+Beispiel für einen Client mit `additional_drivers`:
+
+[source,console]
 ----
  ./show_drivers.py e5800
 Manually selected drivers (additional)
@@ -600,8 +522,9 @@ HD-Audio-Devices
       Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64
 ----
 
-Beispiel für einen Client mit 'byAudit':
-[source,shell]
+Beispiel für einen Client mit `byAudit`:
+
+[source,console]
 ----
  ./show_drivers.py pctry5detlef
 Manually selected drivers (additional)
@@ -649,7 +572,7 @@ PCI-Devices
       Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
    [10DE:0052]  NVIDIA : NVIDIA nForce PCI-Systemverwaltung
       Using build-in windows driver
-   [10DE:005C]  (StandardsystemgerÃ¤te) : PCI Standard-PCI-zu-PCI-Brücke
+   [10DE:005C]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
       No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005C' not found
 
 USB-Devices
@@ -660,38 +583,26 @@ HD-Audio-Devices
    No devices installed
 ----
 
-TIPPS::
-* Treiberverzeichnisname `NDIS1` sind Vista-Treiber ; `NDIS2` sind Win7-Treiber
+==== Weitere Tipps und Hinweise
 
-* NDIS Versionen: +
-(https://en.wikipedia.org/wiki/Network_Driver_Interface_Specification)
+Die Network Driver Interface Specification (NDIS) ist ein gemeinsam von Microsoft und 3Com entwickelter Standard zur Integration von Netzwerkkarten. Folgende link:https://de.wikipedia.org/wiki/Network_Driver_Interface_Specification[NDIS-Versionen] wurden implementiert: 
 
-----
-NDIS 6.0: Windows Vista
-NDIS 6.1: Windows Vista SP1, Server 2008, Windows Embedded Compact 7, Windows Embedded Compact 2013
-NDIS 6.20: Windows 7, Server 2008 R2
-NDIS 6.30: Windows 8, Windows Server 2012
-NDIS 6.40: Windows 8.1, Windows Server 2012 R2
-NDIS 6.50: Windows 10, version 1507
-NDIS 6.60: Windows Server 2016 and Windows 10, version 1607
-NDIS 6.70: Windows 10, version 1703
-NDIS 6.80: Windows 10, version 1709
-NDIS 6.81: Windows 10, version 1803
-NDIS 6.82: Windows 10, version 1809
-NDIS 6.83: Windows 10, version 1903
+* NDIS 6.0: Windows Vista
+* NDIS 6.1: Windows Vista SP1, Server 2008, Windows Embedded Compact 7, Windows Embedded Compact 2013
+* NDIS 6.20: Windows 7, Microsoft Windows Server 2008 R2
+* NDIS 6.30: Windows 8, Windows Server 2012
+* NDIS 6.40: Windows 8.1, Windows Server 2012 R2
+* NDIS 6.50: Windows 10, Version 1507
+* NDIS 6.51: Windows 10, Version 1511
+* NDIS 6.60: Windows 10 und Windows Server 2016, Version 1607
+* NDIS 6.70: Windows 10, Version 1703
+* NDIS 6.80: Windows 10, Version 1709
+* NDIS 6.81: Windows 10, Version 1803
+* NDIS 6.82: Windows 10 und Windows Server 2019, Version 1809
+* NDIS 6.83: Windows 10, Version 1903
 
-//
-NDIS 6.81: Windows 10, version 1803[8]
-NDIS 6.82: Windows 10, version 1809 and Windows Server 2019[9]
-NDIS 6.83: Windows 10, version 1903 and Windows Server 2022[10]
-NDIS 6.84: Windows 10, version 2004[11]
-NDIS 6.85: Windows 10, version 21H2[12]
-NDIS 6.86: Windows 11, version 21H2[13]
-----
+Einige Chipsatz-Treiber enthalten Beschreibungsdateien, die sehr viel Hardware aufführen, ohne aber tatsächlich Treiber zu liefern. Das ist beispielsweise bei `cougar.inf` oder `ibexahci.inf` von Intel der Fall. Wenn ein solches Verzeichnis mit "Pseudo-Treibern" per `additional_drivers` bzw. per `byAudit` zugewiesen wird, gilt die Hardware als "erkannt", und opsi sucht nicht weiter nach Treibern im `preferred`-Verzeichnis.
 
-* Manche Chipsatztreiber enthalten Beschreibungsdateien, welche sehr viel Hardware aufführen ohne hierzu tatsächlich Treiber zu liefern. Ein Beispiel hierfür ist z.B. die `cougar.inf` oder `ibexahci.inf` von Intel. Wird ein solches 'Pseudo-Treiber' Verzeichnis per 'additional_drivers' (bzw. 'byAudit') zu geordnet, so führt dies dazu, das die hier aufgeführte Hardware von der weiteren Suche nach Treibern im 'preferred' Verzeichnis ausgeschlossen wird.
+SATA-Treiber und SATA-RAID-Treiber beziehen sich auf dieselbe PCI-Kennung. Ein SATA-RAID-Treiber wird mit einem Einzelplatten-System aber nicht funktionieren.
 
-* SATA-Treiber und SATA-RAID Treiber beziehen sich auf die selbe PCI-Kennung. Ein SATA-RAID Treiber wird aber mit einem Einzelplatten System nicht funktionieren.
-
-* Kontrollieren Sie die Ausgabe von `./show_drivers.py` genau !
-
+IMPORTANT: Kontrollieren Sie die Ausgabe von `./show_drivers.py` ganz genau, bevor Sie die automatische OS-Installation starten!

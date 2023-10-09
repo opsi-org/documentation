@@ -1,0 +1,409 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      26.06.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[server-components-opsiconfd]]
+= Der Dienst *opsiconfd*
+
+Der zentrale Dienst auf jedem opsi-Server ist der `opsiconfd`. Er stellt über HTTPS (Port 4447) verschiedene Services bereit:
+
+* */rpc*: JSON-RPC-API
+* */dav*: WebDAV-Zugriff auf Workbench, Repository, Depot, Boot-Verzeichnis
+* */admin*: xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[Admin-Seite] für Status-Informationen und Administrations-Aufgaben
+* */grafana*: Reverse-Proxy-Zugriff auf einen lokalen Grafana-Server (siehe Kapitel xref:server:components/grafana.adoc[Grafana])
+* */status*: einfache Statusausgabe für Monitoring-Werkzeuge
+* */public*: öffentliche Dateifreigabe ohne Authentifizierung
+
+NOTE: Sie können den `opsiconfd` über Addons erweitern. So ist beispielsweise das opsi-WebGUI ein solches Addon. Mehr dazu lesen Sie in Abschnitt <<server-components-opsiconfd-admin-page-addons>>.
+
+[[server-components-opsiconfd-cli]]
+== Kommandozeilen-Interface
+
+Der `opsiconfd` besitzt ein Kommandozeilen-Interface, das die folgenden Befehle bereitstellt:
+
+* `start`: Startet den `opsiconfd` (Standardkommando).
+* `stop`: Stoppt einen laufenden `opsiconfd`.
+* `force-stop`: Wie `stop`, bricht zusätzlich aktive Client-Verbindungen ab.
+* `status`: Zeigt den Service-Status an (gleicher Output wie `systemctl status`).
+* `restart`: Startet den `opsiconfd`-Service neu (`systemctl restart`).
+* `reload`: Sendet ein `SIGHUP`-Signal an laufende `opsiconfd`-(Worker-)Prozesse. Die Prozesse lesen die Konfigurationsdateien daraufhin neu ein.
+//TODO: Links am Ende checken
+* `setup`: Startet ein <<server-components-opsiconfd-setup>>.
+* `log-viewer`: Gibt die `opsiconfd`-Logs (siehe Abschnitt <<server-components-opsiconfd-logs>>) im Terminal aus.
+* `health-check`: Startet einen <<server-components-opsiconfd-health-check>>.
+* `backup`: Erstellt ein Backup (siehe Abschnitt xref:server:components/backup.adoc#server-components-opsiconfd-backup[*opsiconfd backup/restore*]).
+* `restore`: Stellt ein Backup wieder her (siehe Abschnitt xref:server:components/backup.adoc#server-components-opsiconfd-backup[*opsiconfd backup/restore*]).
+
+[[server-components-opsiconfd-server-id-role]]
+== Server-Rolle
+
+Ein opsi-Server kann die Rolle eines opsi-Configservers oder die eines opsi-Depotservers übernehmen. Die Konfigurationsdatei `/etc/opsi/opsi.conf` legt die Rolle fest. Ab opsi 4.3 definiert diese Konfigurationsdatei auch die ID des Servers.
+
+.Die Konfigurationsdatei `/etc/opsi/opsi.conf` legt unter anderem die Server-Rolle fest.
+image::opsi-conf.png["Die Konfigurationsdatei `/etc/opsi/opsi.conf` legt unter anderem die Server-Rolle fest.", width=788, pdfwidth=80%]
+
+NOTE: Wenn Sie den opsi-Server als Docker-Container betreiben, steuern Umgebungsvariablen das Verhalten (siehe Abschnitt xref:modules:server/installation/docker.adoc#server-installation-docker-compose[Docker Compose]).
+
+Beispiel für einen opsi-Configserver:
+
+[source,toml]
+----
+[host]
+id = "opsi.domain.tld"
+key = "5b4324721a114195098bdaf3fab54a9f"
+server-role = "configserver"
+
+[service]
+url = "https://localhost:4447"
+----
+
+Beispiel für einen opsi-Depotserver:
+
+[source,toml]
+----
+[host]
+id = "opsi-depot.domain.tld"
+key = "a1b5098fabcaf315b13249cba1a24d17"
+server-role = "depotserver"
+
+[service]
+url = "https://opsi.domain.tld:4447"
+----
+
+NOTE: Ab opsi 4.3 löst die Datei `/etc/opsi/opsi.conf` die Datei `/etc/opsi/backends/jsonrpc.conf` ab.
+
+[[server-components-opsiconfd-config]]
+== Konfiguration
+
+Den `opsiconfd` können Sie über die Datei `/etc/opsi/opsiconfd.conf`, über Umgebungsvariablen oder über Kommandozeilen-Parameter beim Aufruf konfigurieren. Dabei gilt die folgende Reihenfolge:
+
+. Einträge in der Konfigurationsdatei überschreiben die Standardeinstellungen.
+. Umgebungsvariablen überschreiben Einträge in der Konfigurationsdatei.
+. Kommandozeilen-Parameter überschreiben Umgebungsvariablen.
+
+TIP: Eine Liste aller Konfigurationsoptionen erhalten Sie, wenn Sie den folgenden Befehl in ein Terminalfenster eingeben:
+
+// cSpell:disable
+[source,console]
+----
+opsiconfd --help
+...
+--admin-networks ADMIN_NETWORKS [ADMIN_NETWORKS ...]
+                A list of network addresses from which administrative connections are allowed.
+                [env var: OPSICONFD_ADMIN_NETWORKS]
+                (default: ['0.0.0.0/0', '::/0'])
+...
+----
+// cSpell:enable
+
+Hinter dem Namen des Kommandozeilenparameters (z.{nbsp}B. `--admin-networks`) steht die dazugehörige Umgebungsvariable in Großbuchstaben (hier: `ADMIN_NETWORKS`). Lassen Sie die beiden vorangestellten Bindestriche `--` weg, erhalten Sie den Namen der Option für die Konfigurationsdatei (`admin-networks`).
+
+* In der Konfigurationsdatei `/etc/opsi/opsiconfd.conf` steht z.{nbsp}B.: 
+
+[source,toml]
+----
+admin-networks = [10.1.1.0/24,192.168.1.0/24]
+----
+
+* Über die Umgebungsvariable erfolgt die Einrichtung so: 
+
+[source,console]
+----
+OPSICONFD_ADMIN_NETWORKS="[10.1.1.0/24,192.168.1.0/24]"
+----
+
+* Der Aufruf auf der Kommandozeile sieht so aus: 
+
+[source,console]
+----
+opsiconfd --admin-networks 10.1.1.0/24 192.168.1.0/24
+----
+
+NOTE: Änderungen an der Konfiguration können Sie in der Regel im laufenden Betrieb über den Befehl `opsiconfd reload` übernehmen. Einige Parameter erfordern jedoch einen Neustart über `opsiconfd restart`.
+
+// cSpell:ignore hostcontrol
+[[server-components-opsiconfd-host-control]]
+== Die Datei *hostcontrol.conf*
+
+Über die HostControl-Funktionalität können Sie opsi-Clients steuern. Seit opsi 4.3 findet das bevorzugt über den opsi-Message-Bus statt. Das bisherige Verfahren existiert jedoch weiterhin; in diesem Fall baut der opsi-Configserver eine Verbindung zum Client-Agent auf und führt über diese Verbindung Kommandos aus. Über Wake on LAN (WOL) können Pakete im Netzwerk versendet werden, um Clients bei Bedarf zu starten.
+
+Die HostControl-Konfiguration befindet sich in der Datei `/etc/opsi/backends/hostcontrol.conf`. Hier stehen die folgenden Parameter zur Verfügung:
+
+* `useMessagebus`: Der Parameter steuert, wie der opsi-Message-Bus für HostControl verwendet wird. Die folgenden Werte sind erlaubt:
+  ** `False`: Der opsi-Message-Bus wird nicht verwendet, das heißt, dass für jedes Kommando eine Verbindung zum `opsi-client-agent` aufgebaut wird.
+  ** `True`: Es wird ausschließlich der opsi-Message-Bus verwendet. Ist ein Client nicht mit dem opsi-Message-Bus verbunden, gilt er als nicht erreichbar, und das Kommando wird nicht ausgeführt. Wenn alle Clients so konfiguriert sind, dass sie den opsi-Message-Bus verwenden, ist das die bevorzugte Einstellung.
+  ** `hybrid` (Standard): Der opsi-Message-Bus wird verwendet, wenn der Client eine aktive Message-Bus-Verbindung hat. Falls nicht, wird eine Verbindung zum `opsi-client-agent` aufgebaut-
+* `opsiclientdPort`: Netzwerkport für die Verbindungsaufnahme zu einem `opsi-client-agent`
+* `hostRpcTimeout`: Timeout in Sekunden bei der Verbindungsaufnahme zu einem `opsi-client-agent`
+* `resolveHostAddress`: Der Parameter steuert die Namensauflösung:
+  ** `True`: Beim Verbindungsaufbau vom opsi-Configserver zum `opsi-client-agent` wird die IP-Adresse des opsi-Clients bevorzugt über die Namensauflösung ermittelt.
+  ** `False`: Beim Verbindungsaufbau wird die im opsi-Backend hinterlegte IP-Adresse bevorzugt.
+* `maxConnections`: maximale Anzahl simultaner Verbindungen zu Client-Agents
+* `broadcastAddresses`: WOL-Pakete werden an Broadcast-Adressen verschickt; dieser Parameter ordnet Netzwerkadressen den Broadcast-Adressen zu. Die Zuordnung hat die folgende Form: +
+`{ "<network-address>": { "<broadcast-address>": <port-list> } }` +
+
+Dieses Beispiel verdeutlicht die Konfiguration:
+
+[source,toml]
+----
+"broadcastAddresses": {
+                "0.0.0.0/0": {
+                        "255.255.255.255": [7, 9, 12287]
+                },
+                "10.10.0.0/16": {
+                        "10.10.1.255": [12287],
+                        "10.10.2.255": [12287]
+                },
+                "10.10.3.0/24": {
+                        "10.10.3.255": [12287]
+                },
+                "192.168.1.0/24": {
+                        "192.168.1.255": [12287, 9, 12287]
+                }
+        }
+----
+
+Einer Netzwerkadresse können mehrere Broadcast-Adressen zugeordnet werden. Für jede Broadcast-Adresse können unterschiedliche Ports konfiguriert werden. Die passenden Broadcast-Adressen werden auf Basis der im opsi-Backend hinterlegten IP-Adresse eines Clients ermittelt. Ist die IP-Adresse hierbei Teil mehrerer Netzwerke, wird der spezifischste Eintrag verwendet.
+
+[[server-components-opsiconfd-setup]]
+== Der Befehl *opsiconfd setup*
+
+include::server:partial$opsiconfd-setup.adoc[]
+
+[[server-components-opsiconfd-admin-page]]
+== Admin-Seite
+
+Die `opsiconfd`-Admin-Seite stellt Status-Informationen und Administrations-Aufgaben zum `opsiconfd` im Webbrowser zur Verfügung.
+Der Zugriff erfolgt über `\https://<opsi-server>:4447/admin`; Benutzer müssen Mitglied der opsi-Admin-Gruppe sein (siehe Kapitel xref:server:components/authorization.adoc[Berechtigungen]). Die nächsten Abschnitte stellen kurz die einzelnen Reiter vor.
+
+[[server-components-opsiconfd-admin-page-info]]
+=== Info
+
+Hier sehen Sie allgemeine Informationen zum `opsiconfd`, darunter auch die Anzahl der verbundenen Depotserver und Clients, Angaben zur opsi-CA und zum Serverzertifikat.
+
+In der unteren Hälfte sehen Sie die `opsiconfd`-Konfiguration; über den Button _Service reload_ laden Sie die Konfiguration neu.
+
+.Auf dem Reiter _Info_ können Sie auch die `opsiconfd`-Konfiguration betrachten.
+image::opsi-webinterface-info.png["Auf dem Reiter _Info_ können Sie auch die `opsiconfd`-Konfiguration betrachten.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-maintenance]]
+=== Maintenance
+
+Auf diesem Reiter können Sie den `opsiconfd` in den Wartungsmodus versetzen und diesen auch wieder beenden. In der Zeit gibt es dann keine Client-Aktivität. Klicken Sie die Schaltfläche _Set application to 'maintenance' state_, um den Maintenance-Modus zu aktivieren. Am oberen Rand sehen Sie die Meldung `"accomplished": true` und daneben auch IP-Adressen, für die der Wartungsmodus nicht gilt -- das sind in der Regel die Localhost-IP 127.0.0.1 und die IP-Adresse des opsi-Configservers. Alle Zugriffe von anderen Rechnern aus sind dann nicht mehr möglich; Anwender sehen die Nachricht _Maintenance mode, please try again later_. 
+
+TIP: Ins Feld _Address exceptions (optional)_ können Sie weitere IP-Adressen eintragen, von denen aus Sie auf den `opsiconfd` auch im Maintenance-Modus zugreifen wollen. Mehrere IPs trennen Sie durch Kommata voneinander.
+
+Über den Button _Set application to 'normal' state_ beenden Sie den Maintenance-Modus wieder.
+
+.Der Reiter _Maintenance_ (de)aktiviert den Wartungsmodus und zeigt den aktuellen Status an.
+image::opsi-webinterface-maintenance.png["Der Reiter _Maintenance_ (de)aktiviert den Wartungsmodus und zeigt den aktuellen Status an.", pdfwidth=80%]
+
+NOTE: In der Voreinstellung wechselt der opsi-Configserver in den Maintenance-Modus, wenn Sie ein Backup erstellen oder eine Sicherungskopie wiederherstellen (siehe Kapitel xref:server:components/backup.adoc[Backup des opsi-Servers]).
+
+[[server-components-opsiconfd-admin-page-users]]
+=== Users
+
+Hier richten Sie die Zwei-Faktor-Authentifizierung für Benutzer auf dem opsi-Configserver ein. Nachdem Sie die `opsiconfd`-Konfiguration entsprechend angepasst und den Dienst neu gestartet haben, generieren Sie über den Button _Generate new secret and activate TOTP_ ein Einmalpasswort. Es besteht aus sechs Ziffern und wird zusätzlich zur Anmeldung am opsi-Server benötigt (siehe Abschnitt xref:server:components/authorization.adoc#server-components-authorization-multi-factor[Zwei-Faktor-Authentifizierung]).
+
+.Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.
+image::opsi-webinterface-2fa.png["Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-clients]]
+=== Clients
+
+Die Seite zeigt Informationen über verbundene Clients und Sessions an. Gesperrte Clients erscheinen in der Liste _Blocked Clients_. Einzelne Clients können Sie im Bereich _Unblock Clients_ über deren IP-Adresse und _Execute_ freigeben; alternativ entsperren Sie über _Unblock all clients_ alle gesperrten Client auf einmal.
+
+NOTE: Beachten Sie, dass Clients in diesem Fall (Web-)Clients meint, die auf die Admin-Seite zugreifen. Hier finden Sie keine Informationen über mit opsi verwaltete Rechner. Die Admin-Seite sperrt einen Client z.{nbsp}B. dann, wenn es zu viele fehlgeschlagene Anmeldeversuche gab.
+
+Um alle Sessions eines Clients zu löschen, geben Sie dessen IP-Adresse im Feld _Delete client sessions_ ein und bestätigen das mit _Execute_.
+
+.Auf diesem Reiter sehen Sie eine Liste gesperrter Clients und geben diese ggf. wieder frei.
+image::opsi-webinterface-blocked-clients.png["Auf diesem Reiter sehen Sie eine Liste gesperrter Clients und geben diese ggf. wieder frei.", width=800, pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-depots]]
+=== Depots
+
+Im oberen Bereich des Reiters können Sie weitere Depotserver zu Ihrer opsi-Umgebung hinzufügen. Dazu tragen Sie in die beiden Felder die Depot-ID (also den FQDN des opsi-Depotservers) und eine Beschreibung ein. Nach einem Klick auf _Create depot_ sollten Sie das neue Depot in der Tabelle sehen; hier steht im Feld _Messagebus_ noch _not connected_. Damit Configserver und Depotserver miteinander kommunizieren können, führen Sie auf dem Depotserver noch das folgende Kommando aus:
+
+[source,console]
+----
+opsiconfd setup --register-depot
+----
+
+NOTE: Beachten Sie, dass das Kommando `opsi-setup --register-depot` nach dem Wechsel von opsi 4.2 auf 4.3 nicht mehr verfügbar ist (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-setup[*opsi-setup*]).
+
+.Neue opsi-Depots tragen Sie auf diesem Reiter ein.
+image::opsi-webinterface-depot.png["Neue opsi-Depots tragen Sie auf diesem Reiter ein.", pdfwidth=80%]
+
+Falls es gesperrte Produkte auf einem Depotserver gibt, erscheinen diese ebenfalls auf diesem Reiter im Bereich _Locked Products_. Über den Button _Unlock_ neben einem Produkt heben Sie die Sperre für dieses eine Produkt auf; _Unlock all_ hebt die Sperre für alle gesperrten Produkte auf.
+
+.Gibt es gesperrte Produkte? Der Reiter _Depots_ zeigt diese an und bietet einen Button zum Entsperren.
+image::opsi-webinterface-depot-lock.png["Gibt es gesperrte Produkte? Der Reiter _Depots_ zeigt diese an und bietet einen Button zum Entsperren.", width=800, pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-rpc-info]]
+=== RPC-Infos
+
+Die Tabelle auf diesem Reiter zeigt die letzten RPC-Aufrufe an. Sie können die Anzeige per Klick auf den Namen der Tabellenspalte sortieren.
+
+.In dieser Tabelle sehen Sie die letzten RPC-Aufrufe.
+image::opsi-webinterface-rpc-list.png["In dieser Tabelle sehen Sie die letzten RPC-Aufrufe.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-rpc-interface]]
+=== RPC-Interface
+
+Dieser Reiter führt alle zur Verfügung stehenden Methoden der JSON-RPC-API auf. Wenn Sie die Checkbox _Show deprecated methods_ anklicken, tauchen auch veraltete Methoden im Drop-down-Menü auf. Wählen Sie aus dem Drop-down-Menü _Method_ eine Methode aus. Je nach Methode sehen Sie weitere Eingabefelder, etwa Attribute, Filter oder verfügbare Parameter. Die Felder erwarten eine gültige JSON-Kodierung; auf eventuelle Syntaxfehler weist das Interface hin.
+
+Ein Klick auf den Button _Execute_ führt die Methode aus. Anfrage, Verarbeitungsdauer und Ergebnis erscheinen darunter im JSON-Format.
+
+.Über diesen Reiter können Sie Methoden der JSON-RPC-API ausführen.
+image::opsi-webinterface-rpc-interface.png["Über diesen Reiter können Sie Methoden der JSON-RPC-API ausführen.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-redis-interface]]
+=== Redis-Interface
+
+Hier können Sie Redis-Status-Informationen anzeigen, Redis-Befehle ausführen und den Cache leeren. Klicken Sie auf _Info+_, um detaillierte Informationen zur Redis-Version, dem Betriebssystem, der Architektur des Servers usw. einzublenden.
+
+Die Antwort im unteren Bereich des Reiters erscheint im JSON-Format.
+
+.Zeigen Sie auf diesem Reiter Informationen zu Redis an.
+image::opsi-webinterface-redis.png["Zeigen Sie auf diesem Reiter Informationen zu Redis an.", pdfwidth=80%]
+
+NOTE: Über die Schaltfläche _Debug keys_ können Sie Keys (Schlüssel, also die Bezeichnungen für die verschiedenen Datenstrukturen, die in der Datenbank gespeichert sind) debuggen. Das kann hilfreich sein zur Fehlersuche, Leistungsüberwachung oder Datenanalyse. Beachten Sie, dass ein versehentliches Löschen oder Überschreiben eines Schlüssels zu Datenverlust führen kann; erstellen Sie im Zweifelsfall vorher ein Backup (siehe Kapitel xref:server:components/backup.adoc[Backup des opsi-Servers]).
+
+[[server-components-opsiconfd-admin-page-addons]]
+=== Addons
+
+Auf diesem Reiter installieren Sie `opsiconfd`-Erweiterungen. Diese laden Sie zunächst aus unseren https://download.uib.de/[Repositorys] herunter und speichern sie auf dem opsi-Server. Dann klicken Sie auf dem Reiter _Addons_ auf _Durchsuchen_, navigieren im Dateiauswahldialog zur Zip-Datei, wählen diese aus und klicken dann auf _Install addon_. 
+
+Zu den bereits installierten Erweiterungen sehen Sie in der Tabelle neben dem Namen und der ID auch die Versionsnummer und den Installationspfad auf dem Server.
+
+.Installieren Sie Addons und zeigen Sie Informationen zu diesen an.
+image::opsi-webinterface-addons.png["Installieren Sie Addons und zeigen Sie Informationen zu diesen an.", width=800, pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-logviewer]]
+=== Log Viewer
+
+Der Reiter bietet schnellen Zugriff auf die `opsiconfd`-Logfiles (siehe Abschnitt <<server-components-opsiconfd-logs>>). Sie können die Anzeige vergrößern (Button _Maximize_), die Protokolle nach Log-Level (_Filter by level_), Kontext (_Filter by context_) und eigenen Suchbegriffen (_Filter by message_) filtern. Über Checkboxen aktivieren Sie weitere Funktionen, wie das automatische Zusammenfassen von mehrzeiligen Informationen zu einer einzigen zusammenhängenden Zeile (_Collapse multi-line_) und das automatische Scrollen (_Auto scroll_). Die Schriftgröße beeinflussen Sie über die beiden Buttons neben _Font size_.
+
+.Die Admin-Seite bietet schnellen Zugriff auf die `opsiconfd`-Logfiles.
+image::opsi-webinterface-log-viewer.png["Die Admin-Seite bietet schnellen Zugriff auf die `opsiconfd`-Logfiles.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-terminal]]
+=== Terminal
+
+Wechseln Sie zu diesem Reiter, um ein Terminalfenster auf dem opsi-Server zu öffnen. Dazu wählen Sie aus dem Drop-down-Menü _Host_ einen opsi-Server in Ihrer Umgebung aus (Voreinstellung: _Configserver_) und klicken auf _Connect_. Anschließend startet das Terminal im Browser; Sie sind als Benutzer `opsiconfd` angemeldet und starten damit in dessen Home-Verzeichnis `/var/lib/opsi`. 
+
+.Öffnen Sie über diesen Reiter ein Terminal auf dem opsi-Server.
+image::opsi-webinterface-terminal.png["Öffnen Sie über diesen Reiter ein Terminal auf dem opsi-Server.", pdfwidth=80%]
+
+Klicken Sie auf den Button _Maximize_, um das Menü am oberen Rand der Admin-Seite auszublenden und dem Terminal mehr Raum zu geben. _Normalize_ bringt Sie zurück zur alten Ansicht. Alternativ schalten Sie über _Fullscreen_ in die Vollbildansicht, die Sie über die Taste [Esc] verlassen können. Über das Plus und das Minus neben _Font size_ können Sie die Schriftgröße verändern, und ein Klick auf _Disconnect_ schließt das Terminal im Browser.
+
+TIP: Sie können Dateien per Klick oder per Drag{nbsp}&{nbsp}Drop hochladen. Das ist beispielsweise praktisch, wenn Sie ein selbst gebautes opsi-Paket (Dateiendung `.opsi`) installieren wollen. So gehen Sie dazu vor:
+
+. Öffnen Sie das Terminal im Browser.
+. Wechseln Sie ins Verzeichnis mit den Paketen: `cd /var/lib/opsi/repository`
+. Ziehen Sie das Paket aus dem Dateimanager ins Browser-Terminal. (`ls -l` listet zur Kontrolle alle Dateien im aktuellen Verzeichnis auf.)
+. Installieren Sie das Paket: `opsi-package-manager -i <paket.opsi>` (siehe auch Abschnitt xref:server:components/commandline.adoc#server-components-opsi-package-manager[*opsi-package-manager*])
+
+[[server-components-opsiconfd-admin-page-messagebus]]
+=== Messagebus
+
+Auf dem Reiter können Sie (zu Test- und Debugging-Zwecken) Nachrichten über den Message Bus versenden und empfangen. Der opsi-Server nutzt den Message Bus, um Nachrichten an andere Komponenten zu senden (z.{nbsp}B. Installationsaufträge, Änderungen der Konfiguration oder Statusabfrage von Clients). 
+
+Wählen Sie dazu aus dem Drop-down-Menü neben dem Button _Send_ eines der Templates aus und füllen Sie es im oberen Feld mit den richtigen Werten. Klicken Sie abschließend auf _Send_. Im unteren Bereich des Reiters sehen Sie die gesendete Nachricht (links) und die Antwort vom opsi-Message-Bus (rechts).
+
+.Kommunizieren Sie mit dem opsi-Message-Bus über diesen Reiter.
+image::opsi-webinterface-messagebus.png["Kommunizieren Sie mit dem opsi-Message-Bus über diesen Reiter.", pdfwidth=80%]
+
+[[server-components-opsiconfd-admin-page-licensing]]
+=== Licensing
+
+Auf dem Reiter _Licensing_ können Sie einsehen, welche xref:opsi-modules:modules.adoc[opsi-Erweiterungen] lizenziert sind. Die erste Tabelle zeigt Informationen zum Lizenznehmer (Name, aktive und nicht-aktive Clients usw.), darunter sehen Sie eine detaillierte Auflistung über die opsi-Module, wann eine Lizenz ausgestellt wurde, wie lange sie noch gültig ist usw. Blättern Sie ans Ende des Reiters, um neue Lizenzen im neuen Format (Endung `.opsilic`) einzuspielen. Diese werden auf dem opsi-Server im Verzeichnis `/etc/opsi/licenses` gespeichert. 
+
+.Informationen zu Lizenzen für die Erweiterungen finden Sie auf diesem Reiter.
+image::opsi-webinterface-licensing.png["Informationen zu Lizenzen für die Erweiterungen finden Sie auf diesem Reiter.", pdfwidth=80%]
+
+NOTE: Frühere opsi-Versionen nutzten zur Freischaltung die Datei `/etc/opsi/modules`. Sie behält ihre Gültigkeit, neue Lizenzen stellen wir jedoch nur noch im neuen Format aus. Wenden Sie sich an mailto:sales@uib.de[sales@uib.de], um eine Lizenzdatei im neuen Format zu erhalten.
+
+[[server-components-opsiconfd-admin-page-grafana]]
+=== Grafana
+
+Der Reiter _Grafana_ leitet Sie zum xref:server:components/grafana.adoc[Grafana-Dashboard] weiter. Sobald Sie den Tab anklicken, wird das _opsiconfd main dashboard_ auf dem Grafana-Server angelegt bzw. aktualisiert. Außerdem wird der Benutzer `opsidashboard` angelegt, der für den Zugriff auf das Dashboard verwendet wird.
+
+[[server-components-opsiconfd-health-check]]
+== Health-Check
+
+Der `opsiconfd` stellt einen Health Check bereit, der verschiedene Einstellungen und Versionen von opsi-Komponenten überprüfen und damit Hinweise auf eventuelle Probleme geben kann. Sie können den Health Check auf verschiedenen Wegen starten. Alle Varianten beziehen ihre Daten vom API-Call `service_healthCheck`. Die opsi-API liefert die Daten im JSON-Format zurück. Eine solche JSON-Datei ist besonders bei Support-Anfragen nützlich.
+
+Eine Möglichkeit, einen Health Check zu starten, ist über die Admin-Seite, Reiter _RPC-Interface_ (siehe Abschnitt <<server-components-opsiconfd-admin-page-rpc-interface>>). Auf der Kommandozeile rufen Sie den Befehl `opsiconfd health-check` auf. Über den Parameter `--help` blenden Sie eine Onlinehilfe ein; `opsiconfd health-check --manual` gibt eine Beschreibung aller Checks aus. Ohne weitere Optionen läuft der Check einmal durch und schreibt seine Ergebnisse nach Stdout.
+
+.Den Health Check können Sie im Terminal starten.
+image::opsi-health-check.png["Den Health Check können Sie im Terminal starten.", pdfwidth=80%]
+
+TIP: Alternativ können Sie den Health Check auch mit dem Kommandozeilentool `opsi-cli` aufrufen (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli-commands-support[*opsi-cli support*]). Einen schnellen Zugriff auf ein Terminal auf dem opsi-Server bietet die Admin-Seite über den Reiter _Terminal_ (siehe Abschnitt <<server-components-opsiconfd-admin-page-terminal>>).
+
+[[server-components-opsiconfd-logs]]
+== Logfiles
+
+// cSpell:ignore log-viewer
+Der `opsiconfd` verwendet Redis, um die Logfiles zu schreiben (siehe Kapitel xref:server:components/redis.adoc[Redis]). Darüber hinaus legt der `opsiconfd` im Verzeichnis `/var/log/opsi/opsiconfd` eigene Logfiles ab.
+
+NOTE: Wenn Probleme mit dem Zugriff auf Redis bestehen, findet keine Protokollierung statt. Um dennoch Logfiles zu generieren, können Sie den Parameter `log-mode` auf `local` stellen.
+
+opsi unterscheidet 10 verschiedene Log-Level:
+
+* *0 - nothing*: Logging komplett deaktiviert
+* *1 - essential*: sehr wichtige Meldungen
+* *2 - critical*: kritische Fehler
+* *3 - error*: Fehler
+* *4 - warning*: Warnungen
+* *5 - notice*: wichtige Hinweise
+* *6 - info*: weitere Informationen
+* *7 - debug*: Meldungen zur Fehlersuche
+* *8 - trace*: sehr viele Details, z.{nbsp}B. Mitschnitt der Kommunikation
+* *9 - secret*: vertrauliche Informationen
+
+Die folgenden Parameter steuern den Log-Level:
+
+* *log-level*: allgemeines Log-Level (bis zu welchem Log-Level werden Meldungen in den Redis-Stream übertragen)
+* *log-level-stderr*: Level der Ausgaben auf dem Terminal (Stderr)
+* *log-level-file*: Log-Level der Logdateien
+
+Verwenden Sie das Kommando `opsiconfd log-viewer`, um die Protokolle im Terminal zu betrachten:
+
+[source,console]
+----
+opsiconfd log-viewer -l 6 --log-filter="client_address=192.168.1.1"
+----
+
+Da der Aufruf den Log-Stream direkt aus Redis liest, erfolgt die Ausgabe maximal bis zur Stufe `log-level`.
+
+Alternativ können Sie die Logfiles auf dem Reiter _Log Viewer_ im Admin-Interface anschauen (siehe Abschnitt <<server-components-opsiconfd-admin-page-logviewer>>).
+
+=== Filter
+
+Der `opsiconfd` gliedert die Logfiles in Kanäle und Kontexte. Daher können Sie die Meldungen filtern, um nur bestimmte Informationen zu erhalten. Den Log-Level für einen Kanal setzen Sie mit dem Parameter `log-levels`. Über `.*:4,opsiconfd\.headers:8` werden nur Warnungen protokolliert, Meldungen im Kanal `opsiconfd.headers` jedoch mit dem Log-Level `trace`.
+
+Nach Kontexten filter der Parameter `log-filter`. Für den `opsiconfd` kommt im Wesentlichen der Kontext `client_address` zum Einsatz. So können Sie beispielsweise mit `client_address=192.168.1.1,192.168.1.2` bestimmen, dass Sie nur Meldungen sehen, die mit den beiden Clients mit der IP 192.168.1.1 und 192.168.1.2 zusammenhängen.
+

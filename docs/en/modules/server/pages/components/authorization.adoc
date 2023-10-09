@@ -1,0 +1,216 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      26.06.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+
+[[server-components-authorization]]
+= Berechtigungen
+
+In diesem Kapitel geht es um die Benutzer- und Gruppenverwaltung auf dem opsi-Server. Es erklärt, welche Accounts und Gruppen in der Voreinstellung mit administrativen Rechten ausgestattet sind und wie Sie eigene Konten für die Verwaltung des opsi-Servers anlegen. Außerdem erklärt das Kapitel, wie Sie einen opsi-Server in eine Windows-Domäne einbinden, wie Sie einen Verzeichnisdienst zur Authentifizierung nutzen und eine Zwei-Faktor-Authentifizierung für den Server einrichten.
+
+[[server-components-authorization-users-and-groups]]
+== Benutzer und Gruppen
+
+opsi verwendet die folgenden Benutzer- und Gruppenaccounts:
+
+* `opsiconfd`: ein Konto für den gleichnamigen Systemdienst `opsiconfd` (siehe Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*]); Account muss Mitglied der Gruppen `opsiadmin` und `opsifileadmins` sein
+* `pcpatch`: ein Account, den die opsi-Clients für den Zugriff via CIFS (Samba) auf das opsi-Depot verwenden; muss Mitglied in der Gruppe `opsifileadmins` sein (siehe Abschnitt <<server-components-authorization-pcpatch-password>>)
+
+NOTE: Zum Verwalten lokaler Benutzer und Gruppena auf dem opsi-Server nutzen Sie die Linux-Standardwerkzeuge `useradd`, `usermod`, `groupadd`, `groupmod` usw. (siehe Abschnitt <<server-components-authorization-create-local-users>>). Alternativ binden Sie den opsi-Configserver an eine bestehende Windows-Domäne (siehe Abschnitt <<server-components-authorization-domain-join>>) oder an LDAP/Active Directory (siehe Abschnitt <<server-components-authorization-ldap-authentication>>) an.
+
+Zum Steuern von Berechtigungen verwendet opsi die folgenden Gruppen:
+
+* `opsiadmin`: Mitglieder dieser Gruppe können administrativ auf den opsi-Service zugreifen, das heißt, sie erhalten vollen Zugriff über die Management-Oberfläche `opsi-configed`, das opsi-WebGUI, die `opsiconfd`-Admin-Seite usw.
+* `opsifileadmins`: Mitglieder dieser Gruppe können administrativ auf opsi-Dateien (Depot, Repository, Workbench) zugreifen.
+* `opsireadonly`: Mitglieder dieser Gruppe können nur lesend auf den opsi-Service zugreifen.
+
+Den Namen dieser Gruppen können Sie in der Konfigurationsdatei `/etc/opsi/opsi.conf` im Abschnitt `groups` ändern:
+
+// cSpell:disable
+[source,toml]
+----
+[groups]
+fileadmingroup = "opsifileadmins"
+admingroup = "opsiadmin"
+readonly = "opsireadonlys"
+----
+// cSpell:enable
+
+[[server-components-authorization-pcpatch-password]]
+=== Passwort für Benutzer *pcpatch*
+
+Da die opsi-Clients diesen Account für die Authentifizierung verwenden, muss der opsi-Configserver das Passwort kennen. Zu diesem Zweck ist das Kennwort verschlüsselt in der Datei `/etc/opsi/passwd` abgelegt. Bei der Installation eines opsi-Configservers wird automatisch ein Zufallskennwort gesetzt, das Sie in der Regel nicht ändern müssen.
+
+Das Passwort können Sie mit dem Kommandozeilentool `opsi-admin` ändern (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-admin[*opsi-admin*]):
+
+[source,console]
+----
+opsi-admin task setPcpatchPassword
+----
+
+Nach dem Drücken der Taste [Eingabe] erscheint ein Passwort-Prompt, und Sie können das Kennwort eintippen.
+
+NOTE: Das Passwort wird zusätzlich für den lokalen Unix- und Samba-Account geändert. Handelt es sich um einen Domänen-Account, müssen Sie das neue Passwort dort ebenfalls von Hand neu setzen.
+
+[[server-components-authorization-create-local-users]]
+=== Admin-Account anlegen
+
+Um lokale Benutzer und Gruppen auf dem opsi-Configserver anzulegen, nutzen Sie die Linux-Standardwerkzeuge. Das folgende Beispiel richtet einen neuen Benutzer namens `adminuser` ein und fügt diesen dann den beiden Gruppen `opsiadmin` und `opsifileadmins` hinzu. Damit erhält der Benutzer dann vollen administrativen Zugriff auf den opsi-Server.
+
+NOTE: Bei der vorkonfigurierten virtuellen Maschine und in unserem Docker-Container gibt es den Account `adminuser` bereits. Sie können die hier gezeigten Schritte aber zum Hinzufügen weiterer Accounts verwenden.
+
+Zuerst legen Sie das neue Konto über den Befehl `useradd` an:
+
+[source,console]
+----
+sudo useradd -m -s /bin/bash adminuser
+----
+
+Anschließend setzen Sie für den neuen Account ein Unix-Passwort (System):
+
+[source,console]
+----
+sudo passwd adminuser
+----
+
+Soll der Benutzer auch Dateizugriff per CIFS (Samba) erhalten, setzen Sie dafür ebenfalls ein Passwort:
+
+[source,console]
+----
+sudo smbpasswd -a adminuser
+----
+
+WARNING: Verwenden Sie in den Passwörtern kein *§*-Zeichen!
+
+Als Nächstes fügen Sie den neuen Benutzer den Gruppen `opsiadmin` und `opsifileadmins` hinzu:
+
+[source,console]
+----
+usermod -aG opsiadmin adminuser opsifileadmins
+----
+
+Geben Sie den Befehl `id` ein, um zu überprüfen, dass der Account `adminuser` existiert und den beiden Gruppen angehört:
+
+[source,console]
+----
+id adminuser
+# uid=1000(adminuser) gid=1000(opsiadmin) groups=1000(opsiadmin),999(opsifileadmins)
+----
+
+[[server-components-authorization-domain-join]]
+== opsi-Server in Windows-Domäne einbinden
+
+Statt mit lokalen Unix- und Samba-Accounts zu arbeiten, können Sie einen opsi-Server auch in eine Windows- bzw. Samba-4-Domäne einbinden. Dazu legen Sie in der Domäne die beiden Gruppen `opsiadmin` und `opsifileadmins` an.
+
+TIP: Wenn Sie die Gruppen anders nennen oder bestehende Gruppen verwenden möchten, dann ändern Sie die Namen auch in der Konfigurationsdatei `/etc/opsi/opsi.conf` entsprechend.
+
+Außerdem legen Sie den Benutzer `pcpatch` als Mitglied der Gruppe `opsifileadmins` sowie den Benutzer `opsiconfd` als Mitglied der Gruppen `opsiadmin` und `opsifileadmins` an.
+
+Entfernen Sie dann die beiden Gruppen `opsiadmin` und `opsifileadmins` aus den lokalen Unix-Gruppen (Befehl `groupdel`) und die lokalen Unix-Accounts `opsiconfd` und `pcpatch` (Befehl `userdel`).
+
+Nehmen Sie dann den opsi-Server in die Windows-Domäne auf. Schlagen Sie in der Dokumentation der eingesetzten Linux-Distribution nach, welche Schritte dazu jeweils erforderlich sind.
+
+Nach dem Domain Join führen Sie die folgenden zwei Befehle aus:
+
+[source,console]
+----
+opsiconfd setup
+opsi-set-rights
+----
+
+NOTE: Weitere Informationen zu den beiden Kommandos lesen Sie in den beiden Abschnitten xref:server:components/opsiconfd.adoc#server-components-opsiconfd-setup[*opsiconfd setup*] und xref:server:components/commandline.adoc#server-components-opsi-set-rights[*opsi-set-rights*].
+
+Setzen Sie abschließend das Passwort für den Benutzer `pcpatch` neu (siehe Abschnitt <<server-components-authorization-pcpatch-password>>).
+
+[[server-components-authorization-ldap-authentication]]
+== Authentifizierung gegen Verzeichnisdienst
+
+In der Voreinstellung nutzt opsi PAM (Pluggable Authentication Modules) zu Authentifizierung für verschiedene Dienste und Anwendungen. Das funktioniert mit lokalen Benutzern und Gruppen, aber auch, wenn der opsi-Server in eine Domäne eingebunden ist. Alternativ können Sie dafür auch Verzeichnisdienste wie LDAP (Lightweight Directory Access Protocol) oder AD (Active Directory) einsetzen. In dem Fall speichert der Verzeichnisdienst Benutzerkonten, Gruppen und anderen Identitätsinformationen an zentraler Stelle und ermöglicht die Authentifizierung und Autorisierung von Benutzern über verschiedene Dienste und Anwendungen.
+
+NOTE: Die Samba-Authentifizierung ist davon unabhängig. Die in diesem Abschnitt vorgestellte Herangehensweise eignet sich daher hauptsächlich für opsi-Umgebungen, in denen die Administratoren nicht per Samba, sondern per WebDAV auf die opsi-Shares zugreifen. Beim Betrieb eines opsi-Servers unter Docker ist das immer der Fall.
+
+TIP: Um einen LDAP-Server bzw. ein Active Directory anstelle von PAM für die Authentifizierung zu nutzen, ist die xref:opsi-modules:modules.adoc[opsi-Erweiterung] *opsi directory connector* erforderlich.
+
+=== Konfiguration
+
+Die Konfiguration findet über die Datei `/etc/opsi/opsi.conf` im Abschnitt `[ldap_auth]` statt. Egal, ob Sie opsi an AD/Samba 4 oder LDAP anbinden, in beiden Fällen definieren Sie die Adresse des Verzeichnisdienstes hinter `ldap_url`. Die URL hat den folgenden Aufbau:
+
+[source,toml]
+----
+ldap[s]://<Adresse-des-LDAP-Servers>[:port]/<base-dn>
+----
+
+Außerdem können Sie hinter der Option `username` den Benutzername für die Authentifizierung am LDAP/AD definieren; die Platzhalter `\{username\}` und `\{base\}` sind dabei erlaubt. Im Normalfall ist die Angabe der `ldap_url` jedoch ausreichend.
+
+Beispiel zur Anbindung an ein Active Directory bzw. Samba 4:
+
+[source,toml]
+----
+[ldap_auth]
+ldap_url = "ldaps://ad.company.de/dc=ad,dc=company,dc=de"
+----
+
+Beispiel zur Anbindung an einen OpenLDAP-Dienst:
+
+[source,toml]
+----
+[ldap_auth]
+ldap_url = "ldaps://ldap.company.org:636/dc=company,dc=org"
+username = "uid={username},dc=Users,{base}"
+----
+
+Nachdem Sie die Änderungen in der Konfigurationsdatei gespeichert haben, starten Sie den Dienst xref:server:components/opsiconfd.adoc[*opsiconfd*] neu.
+
+NOTE: Beachten Sie, dass die hinter `admingroup` definierte Gruppe in der Datei `/etc/opsi/opsi.conf` auch im Verzeichnisdienst existieren muss.
+
+[[server-components-authorization-multi-factor]]
+== Zwei-Faktor-Authentifizierung
+
+Der opsi-Server unterstützt die Zwei-Faktor-Authentifizierung und nutzt dazu den TOTP-Algorithmus. Time-based One-time Password ist ein Standardverfahren zur Zwei-Faktor-Authentifizierung (2FA), bei dem ein Einmalpasswort generiert wird. Dieses besteht aus sechs Ziffern und wird zusätzlich zur Anmeldung am opsi-Server benötigt.
+
+NOTE: Um die Zwei-Faktor-Authentifizierung einzurichten, benötigen Sie die xref:opsi-modules:modules.adoc[opsi-Erweiterung] WAN/VPN.
+
+=== Generelle Einrichtung
+// cSpell:ignore multi-factor-auth, inactive, totp_optional, totp_mandatory
+
+Um die Zwei-Faktor-Authentifizierung zu aktivieren, konfigurieren Sie den Dienst `opsiconfd` entsprechend siehe Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration]). Passen Sie die Konfigurationsdatei `/etc/opsi/opsiconfd.conf` an und definieren Sie hinter der Option `multi-factor-auth` einen der folgenden Werte:
+
+* `inactive`: Die Zwei-Faktor-Authentifizierung ist inaktiv (Standard). Das gilt auch für Benutzer mit konfiguriertem TOTP.
+* `totp_optional`: Die Zwei-Faktor-Authentifizierung über TOTP ist optional. Benutzer mit aktiviertem TOTP müssen dieses verwenden.
+* `totp_mandatory`: TOTP ist zwingend erforderlich. Benutzer ohne aktiviertes TOTP können sich nicht mehr anmelden.
+
+NOTE: Nachdem Sie Ihre Änderungen hinzugefügt haben, rufen Sie den Befehl `opsiconfd reload` auf.
+ 
+=== Benutzer-spezifische Einrichtung
+
+Die Einrichtung erfolgt über den Reiter _Users_ der xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[opsiconfd Admin-Seite]. Klicken Sie auf den Button _Generate new secret and activate TOTP_, um serverseitig ein Secret zu generieren und die Zwei-Faktor-Authentifizierung für den jeweiligen Benutzer zu aktivieren. 
+
+Den angezeigten QR-Code können Sie dann mit einer App wie etwa *2FA Authenticator (2FAS)* (Android und iOS) scannen. Die App generiert daraufhin alle 30 Sekunden ein neues Einmalpasswort, das der Benutzer dann bei der Authentifizierung an das normale Kennwort anhängen muss.
+
+.Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.
+image::opsi-webinterface-2fa.png["Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.", pdfwidth=80%]
+
+NOTE: Wenn Sie erneut auf den Button _Generate new secret and activate TOTP_ klicken, erzeugen Sie ein neues Secret. Der bisherige QR-Code des Benutzers verliert damit seine Gültigkeit.
+
+Um die Zwei-Faktor-Authentifizierung für einen Account zu deaktivieren, klicken Sie auf _Deactivate MFA_.

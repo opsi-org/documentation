@@ -118,7 +118,8 @@
   const searchResultContainer = document.createElement('div');
   searchResultContainer.classList.add('search-result-dropdown-menu');
   searchInput.parentNode.appendChild(searchResultContainer);
-  const facetFilterInput = document.querySelector('#search-field input[type=checkbox][data-facet-filter]');
+  const componentFilterInput = document.querySelector('#search-field input[type=checkbox][data-component-filter]');
+  const versionFilterInput = document.querySelector('#search-field input[type=checkbox][data-version-filter]');
 
   function appendStylesheet (href) {
     if (!href) return
@@ -204,7 +205,7 @@
       searchResultDataset.appendChild(createSearchResultItem(doc, sectionTitle, item, highlightingResult, query))
     })
   }
-  
+
 
   function createSearchResultItem (doc, sectionTitle, item, highlightingResult, query) {
     console.log("createSearchResultItem");
@@ -224,7 +225,7 @@
     const documentHit = document.createElement('div')
     documentHit.classList.add('search-result-document-hit')
     const documentHitLink = document.createElement('a')
-  
+
     //documentHitLink.href = siteRootPath + doc.url + (sectionTitle ? '#' + sectionTitle.hash : '')
     //set query param to search query
     let url = new URL(siteRootPath + doc.url, window.location.href)
@@ -233,7 +234,7 @@
     }
     url.searchParams.set('q', query)
     documentHitLink.href = url.href
-  
+
     documentHit.appendChild(documentHitLink)
     if (highlightingResult.sectionTitleNodes.length > 0) {
       const documentSectionTitle = document.createElement('div')
@@ -274,7 +275,7 @@
         url.searchParams.set('q',  node.text)
         documentHitLink.href = url.href
       }
-      
+
       documentHitLink.appendChild(element)
     })
     const searchResultItem = document.createElement('div')
@@ -305,14 +306,27 @@
   }
 
   function filter (result, documents) {
-    const facetFilter = facetFilterInput && facetFilterInput.checked && facetFilterInput.dataset.facetFilter;
-    if (facetFilter) {
-      const [field, value] = facetFilter.split(':');
+    const componentFilter = componentFilterInput && componentFilterInput.checked && componentFilterInput.dataset.componentFilter;
+    const versionFilter = versionFilterInput && versionFilterInput.checked && versionFilterInput.dataset.versionFilter;
+    if (componentFilter || versionFilter) {
+
       return result.filter((item) => {
         const ids = item.ref.split('-');
         const docId = ids[0];
         const doc = documents[docId];
-        return field in doc && doc[field] === value
+        if (componentFilter && versionFilter) {
+          const [component, componentTitle] = componentFilter.split(":");
+          const [version, versionValue] = versionFilter.split(":");
+          return component in doc && doc[component] === componentTitle && version in doc && doc[version] === versionValue
+        }
+        else if (componentFilter){
+          const [component, componentTitle] = componentFilter.split(":");
+          return component in doc && doc[component] === componentTitle
+        }
+        else {
+          const [version, versionValue] = componentFilter.split(":");
+          version in doc && doc[version] === versionValue
+        }
       })
     }
     return result
@@ -403,8 +417,8 @@
   }
 
   function enableSearchInput (enabled) {
-    if (facetFilterInput) {
-      facetFilterInput.disabled = !enabled;
+    if (componentFilterInput) {
+      componentFilterInput.disabled = !enabled;
     }
     searchInput.disabled = !enabled;
     searchInput.title = enabled ? '' : 'Loading index...';
@@ -439,14 +453,16 @@
   }
 
 
- 
+
 
   function highliteMatches () {
     const params = new URLSearchParams(window.location.search.slice(1))
+
     const query = params.get('q')
+    if (query == undefined || query == null) return
     searchWord(query)
   }
-  
+
   function searchWord(searchText) {
     let cont = document.querySelector("article");
     let pattern = new RegExp("(" + searchText + ")", "gi");
@@ -457,12 +473,12 @@
         hrefs.push(links[i].href)
     }
     cont.innerHTML = cont.innerHTML.replace(pattern, "<mark>$1</mark>");
-   
+
     let new_links = document.querySelectorAll(".xref");
     for (var i = 0; i < links.length; i++) {
         new_links[i].href = hrefs[i]
     }
-    
+
     let scrollPos = document.querySelector("mark").offsetTop - 200;
     window.scroll({ top: scrollPos, behavior: "auto" });
   }
@@ -488,15 +504,15 @@
     );
     searchInput.addEventListener('click', confineEvent);
     searchResultContainer.addEventListener('click', confineEvent);
-    if (facetFilterInput) {
-      facetFilterInput.parentElement.addEventListener('click', confineEvent);
-      facetFilterInput.addEventListener('change', (e) => toggleFilter(e, index));
+    if (componentFilterInput) {
+      componentFilterInput.parentElement.addEventListener('click', confineEvent);
+      componentFilterInput.addEventListener('change', (e) => toggleFilter(e, index));
     }
     document.documentElement.addEventListener('click', clearSearchResults);
-    
+
     highliteMatches()
-    
-    
+
+
   }
 
   // disable the search input until the index is loaded
