@@ -129,7 +129,7 @@ In den aktuellen Netboot-Produkten zur Linux-Installation gibt es unter anderem 
 
 * `user_password`: Setzt das Passwort für den Account `user`. (Default: `linux123`)
 
-* `proxy`: Falls erforderlich, tragen Sie hier die Adresse des Proxyservers ein (\`http://<ip>:<port>`). 
+* `proxy`: Falls erforderlich, tragen Sie hier die Adresse des Proxyservers ein (`http://<ip>:<port>`). 
 
 * `setup_after_install`: Tragen Sie hier eine Liste von opsi-Produkten ein, die im Anschluss an die OS-Installation auf `setup` gestellt werden sollen.
 
@@ -333,66 +333,47 @@ Laden Sie das passende ISO-Image herunter, z.{nbsp}B. von https://yum.oracle.com
 [[firststeps-osinstall-netboot-gen]]
 == Netboot-Produkte (generischer Installer)
 
-*Basis-Installation des OS per Netboot*
+Der Ablauf der Installation ist etwas anders als bei den distributionseigenen Installern: Zunächst wird per Netboot das opsi-Linux-Bootimage gebootet, das auch für die Installation von Windows-Rechnern zum Einsatz kommt. Das Bootimage bringt auch ein Werkzeug zum Partitionieren der Festplatte des neuen Clients mit; es richtet eine Root- (`/`) und eine Swap-Partition (`/swap`) ein und formatiert diese. Danach erfolgt die Installation des Grundsystems (mit Netzwerkkonfiguration und SSH, aber ohne grafische Oberfläche).
 
-Für die Installation eines Linux Basissystems wird zunächst per Netboot das Standard opsi-linux-bootimage gebootet (welches auch für die Windows-Installationen zum Einsatz kommt). +
-Von diesem Bootimage aus wird die Ziel-Festplatte partitioniert (/ und swap) und formatiert. Nun folgt die Installation des Grundsystems (mit Netzwerkkonfiguration und ssh aber ohne X11). Die Abläufe dieser Grundinstallation unterscheiden sich naturgemäß zwischen den unterschiedlichen Distributionen erheblich. Gemeinsam ist, dass die Installation direkt aus den Originalpaketen der Distribution erfolgt.
+NOTE: Die Installation des Grundsystems verläuft bei den einzelnen Distributionen jeweils anders. Allen gemeinsam ist, dass jeweils die Originalpakete der Distribution installiert werden.
 
-Optional kann nun der opsi-client-agent für Linux installiert werden. Dieser ist dann für die Installation und Konfiguration weiterer Software zuständig.
+Optional können Sie direkt im Anschluss den Client-Agent installieren, der sich um das Einspielen und Konfigurieren weiterer Software kümmert.
 
-Die opsi-Netboot-Produkte zur Linuxinstallation sind bereits als Open Source freigegeben.
-
-Bedingt dadurch, dass die Basisinstallation aus dem Standard opsi-linux-bootimage erfolgt, gibt es distributionsabhängig unterschiedlich bestimmte Dinge, welche sich erst in der Umgebung nach dem ersten Boot des Systems konfigurieren bzw. installieren lassen. Beispiele hierfür sind die SELinux-Installation bei den 'RedHat artigen' bzw. die Konfiguration der Tastatur bei den 'Debian artigen'. Hierfür gibt es ein Standard Localbootprodukt `l-os-postinst` welches diese Aufgaben übernimmt.
+Je nach Distribution konfigurieren Sie weitere Komponenten nach dem ersten Booten des Linux-Rechners. Das betrifft beispielsweise die Sicherheitsarchitektur SELinux bei den Red-Hat-basierten Systemen oder die Tastatur bei Debian-basierten Distributionen. Diese Aufgaben übernimmt das Localboot-Produkt `l-os-postinst`.
 
 [[firststeps-osinstall-netboot-generalproperties-gen]]
 === Allgemeine Propertys
 
-der Linux Netboot Produkte mit generic Installer
+Die folgenden Propertys steuern die Linux-Installationen in allen Netboot-Produkten:
 
-Die folgenden Propertys finden Sie zur Steuerung der Linuxinstallation in allen Netbootprodukten:
+* `architecture`: Mit welcher Architektur soll das Zielsystem installiert werden? Das beeinflusst außerdem das verwendete Boot-Image. (Default: `64bit`)
 
-* `askbeforeinst`: +
-Soll das Starten der Installation am Client bestätigt werden müssen?  (Default='true')
+* `askbeforeinst`: Soll das Starten der Installation am Client bestätigt werden müssen? (Default: `true`)
 
-* `architecture`: +
-Mit welcher Architektur soll das Zielsystem installiert werden? +
-Beeinflusst die Auswahl des bootimages und die Installationsarchitektur.  (Default='64bit')
+* `system_partition_size`: Wie groß soll die System-Partition sein? Sie können die Größe prozentual oder als absoluten Wert angeben (`G` = GByte). Wenn Sie weniger als 100{nbsp}% angeben, wird der verbleibende Rest als Daten-Partition verwendet (Property `data_partion_create` muss `true` sein). (Default: `100%`)
 
-* `system_partition_size`: +
-Größe der Systempartition. Die Größe kann in Prozent der Festplattengröße oder als absoluter Wert (G=Gigabyte) angegeben werden. Wenn Sie einen kleineren Wert als 100% angeben, wird der verbleibende Rest als Datenpartition verwendet (wenn das Property data_partion_create = true).  (Default='100%')
+* `swap_partition_size`: Geben Sie die Größe der Swap-Partition an. (Default: `2000M`)
 
-* `swap_partition_size`: +
-Größe der Swappartition.  (Default='2000M')
+* `data_partition_create`: Wenn `true`, wird eventuell verbleibender freier Festplattenplatz zum Erstellen einer Daten-Partition verwendet. (Default: `true`)
 
-* `data_partition_create`: +
-Verwende freien Plattenplatz zur Erstellung einer Datenpartition. (true/false).  (Default='true')
+* `data_partition_preserve`: Soll eine bereits bestehende Daten-Partition erhalten bleiben? (Default: `never`) Mögliche Werte sind:
+  - `always`: Installation abbrechen, wenn das Erhalten einer existierenden Partition mit dem Label `data` mit den angegebenen Partitionierungs-Daten nicht möglich ist.
+  - `if_possible`: Wird eine Partition mit dem Label `data` gefunden, und ist das Erhalten dieser Partition mit den angegebenen Partitionierungs-Daten nicht möglich, so wird die Partition gelöscht. 
+  - `never`: Die gesamte Partitions-Tabelle wird stets neu geschrieben. 
 
-* `data_partition_preserve`: +
-Soll eine existierende Datenpartition erhalten werden ? +
-*always* = Installation abbrechen wenn der Erhalt einer gefundenen Partition mit dem Label 'data' mit den angegebenen Partitionierungsdaten nicht möglich ist. +
-*if_possible* = Wird eine Partition mit dem Label 'data' gefunden und der Erhalt dieser Partition ist gemäß der angegebenen Partionierungsdaten nicht möglich, so wird die Partition gelöscht. +
-*never* = Die gesamte Partitionstabelle wird immer neu geschrieben.  (Default='never')
+* `language`: Bestimmt die zu installierende Sprache (Default: `de`)
 
-* `language`: +
-Welche Sprache / locale soll installiert werden.  (Default='de')
+* `console_keymap`: Legt das Tastatur-Layout fest. (Default: `de` bzw. von Distribution abhängig)
 
-* `console_keymap`: +
-Zu installierendes Tastaturlayout.  (Default=Distributionsabhängig / 'de')
+* `timezone`: Welche Zeitzone soll das Linux-System haben? (Default: `Europe/Berlin`)
 
-* `timezone`: +
-Welche Zeitzone soll verwendet werden?. (Default='Europe/Berlin')
+* `root_password`: Setzt das Passwort für `root`. (Default: `linux123`)
 
-* `root_password`: +
-Passwort für root.  (Default='linux123')
+* `user_password`: Setzt das Passwort für den Account `user`. (Default: `linux123`)
 
-* `user_password`: +
-Passwort für user.  (Default='linux123')
+* `online_repository`: Welches Distributions-Repository soll für die Installation verwendet werden? (*nicht bei SLES*) (Default: distributionsabhängig)
 
-* `online_repository`: +
-Repository der Distribution für die Installation. (Nicht bei SLES) (Default=Distributionsabhängig)
-
-* `proxy`: +
-Proxystring (wenn benötigt) in der Form: 'http://<ip>:<port>'. (Default=pass:[''])
+* `proxy`: Falls erforderlich, tragen Sie hier die Adresse des Proxyservers ein (`http://<ip>:<port>`). (Default: `pass:['']` 
 
 * `additional_packages`: +
 Welche zusätzlichen Pakete sollen installiert werden? Angabe der Pakete Leerzeichen separiert. (Default=pass:[''])
