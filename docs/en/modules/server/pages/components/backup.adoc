@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      26.06.2023
+:Date:      06.11.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -25,85 +25,85 @@ include::common:partial$opsi_terms.adoc[]
 
 
 [[server-components-backup]]
-= Backup des opsi-Servers
+= Backup of the opsi server
 
-Erstellen Sie regelmäßige Backups des opsi-Servers. Grundsätzlich können Sie dabei die gleiche Strategie verfolgen wie beim Sichern anderer Linux-Systeme. Dieses Kapitel erklärt die opsi-spezifischen Aspekte.
+Create regular backups of the opsi server. Basically, you can follow the same strategy as when backup other Linux systems. This chapter explains the opsi-specific aspects.
 
-Beim opsi-Backup geht es im Wesentlichen um diese Komponenten:
+The opsi backup essentially involves these components:
 
-* Sicherung der Dateien eines Depots
-* Sicherung der Redis-Datenbank
-* Sicherung der opsi-Datenbank
+* Backup the files of a depot
+* Backup of the Redis database
+* Backup of the opsi database
 
 [[server-components-backup-depot-files]]
-== Sicherung der Dateien
+== Backup the files
 
-Auf opsi-Depotservern sollten Sie die folgenden Verzeichnisse sichern:
+You should back up the following directories on opsi depot servers:
 
 * `/etc/opsi`
 * `/var/lib/opsi`
-* `/tftpboot/opsi` bzw. `/var/lib/tftpboot/opsi`
+* `/tftpboot/opsi` or `/var/lib/tftpboot/opsi`
 
-NOTE: `opsiconfd backup` (siehe Abschnitt <<server-components-opsiconfd-backup>>) sichert lediglich die Konfigurationsdateien aus `/etc/opsi` -- um die anderen Verzeichnisse müssen Sie sich selbst kümmern.
+NOTE: `opsiconfd backup` (see section <<server-components-opsiconfd-backup>>) only backs up the configuration files from `/etc/opsi` -- you have to take care of the other directories yourself.
 
-Hier noch einige Anmerkungen zu den Daten im Verzeichnis `/var/lib/opsi`:
+Here are a few notes on the data in the `/var/lib/opsi` directory:
 
-* `/var/lib/opsi/tmp`: Enthält temporäre Dateien, die Sie nicht sichern müssen.
-* `/var/lib/opsi/depot`: Der Inhalt dieses Ordners lässt sich in vielen Fällen nicht komplett aus den opsi-Paketen wiederherstellen, denn hier liegen zusätzliche Dateien wie Custom-Files, Windows-Installationsdateien, WinPE und Treiber, die nicht in den opsi-Paketen enthalten sind.
-* `/var/lib/opsi/repository`: Dieses Verzeichnis dient als Zwischenspeicher für opsi-Pakete; Sie können es daher vom Backup ausschließen. Beim Wiederherstellen kann es dann passieren, dass Sie erneut größere Datenmengen übertragen müssen.
+* `/var/lib/opsi/tmp`: Contains temporary files that you do not need to back up.
+* `/var/lib/opsi/depot`: In many cases, the contents of this folder cannot be completely restored from the opsi packages, because additional files such as custom files, Windows installation files, WinPE and drivers that are not contained in the opsi packages are located here.
+* `/var/lib/opsi/repository`: This directory is used as a cache for opsi packages; you can therefore exclude it from the backup. When restoring, you may then have to transfer large amounts of data again.
 
 
 [[server-components-backup-redis]]
-== Sicherung der Redis-Datenbank
+== Backup the Redis database
 
-Redis ist eine In-Memory-Datenbank, die alle Daten im Arbeitsspeicher vorhält. Das macht die Datenbank zwar extrem schnell, aber auch anfällig für Datenverluste -- etwa wenn der Strom ausfällt oder der Redis-Server-Prozess abrupt beendet wird.
+Redis is an in-memory database that stores all data in the main memory. Although this makes the database extremely fast, it also makes it susceptible to data loss - for example if the power fails or the Redis server process is abruptly terminated.
 
-In der Regel ist der Redis-Server daher so konfiguriert, dass die Daten in regelmäßigen Abständen auf die Festplatte geschrieben werden, um ihre Persistenz zu gewährleisten. Dies geschieht durch die Erstellung von sogenannten RDB-Snapshots. Dabei werden die Daten in bestimmten Zeitabständen auf die Festplatte geschrieben, um sicherzustellen, dass sie auch bei einem möglichen Serverausfall oder Neustart erhalten bleiben.
+The Redis server is therefore usually configured in such a way that the data is written to the hard disk at regular intervals to ensure its persistence. This is done by creating so-called RDB snapshots. The data is written to the hard disk at certain intervals to ensure that it is retained even in the event of a server failure or restart.
 
-Beim Herunterfahren des Redis-Servers werden die Daten ebenfalls auf die Festplatte geschrieben, sodass sie beim erneuten Start von dort wieder geladen werden können. Dadurch geht keine Information verloren und der Redis-Server kann den Betrieb nahtlos fortsetzen.
+When the Redis server is shut down, the data is also written to the hard disk so that it can be reloaded from there when the server is restarted. This means that no information is lost and the Redis server can continue to operate seamlessly.
 
-Eine alternative oder ergänzende Methode ist das sogenannte AOF (Append Only File). Dabei werden alle Schreibvorgänge in eine Datei geschrieben, anstatt nur periodische Snapshots zu erstellen. Die Datei wird fortlaufend aktualisiert. Bei einem Neustart kann der Redis-Server Daten aus der AOF-Datei wiederherstellen.
+An alternative or supplementary method is the so-called AOF (Append Only File). Here, all write processes are written to a file instead of just creating periodic snapshots. The file is updated continuously. On a restart, the Redis server can restore data from the AOF file.
 
-TIP: Weitere Details zum Thema finden Sie in der Redis-Dokumentation, Kapitel link:https://redis.io/docs/management/persistence/[Redis persistence].
+TIP: Further details on this topic can be found in the Redis documentation, chapter link:https://redis.io/docs/management/persistence/[Redis persistence].
 
-Sie können Redis mit dem folgenden Kommando anweisen, einen Datenbank-Dump zu erzeugen:
+You can instruct Redis to create a database dump with the following command:
 
 [source,console]
 ----
 redis-cli save
 ----
 
-Auf opsi-Servern finden Sie den gespeicherten Datenbank-Dump in der Datei `/var/lib/redis/dump.rdb`, wie in der Konfigurationsdatei `/etc/redis/redis.conf` definiert (siehe Kapitel xref:server:components/redis.adoc[Redis]).
+On opsi servers, you can find the saved database dump in the file `/var/lib/redis/dump.rdb`, as defined in the configuration file `/etc/redis/redis.conf` (see chapter xref:server:components/redis.adoc[Redis]).
 
-.Mit dem Befehl `redis-cli save` erzeugen Sie einen Dump der Redis-Datenbank.
-image::redis-cli-save.png["Mit dem Befehl `redis-cli save` erzeugen Sie einen Dump der Redis-Datenbank.", pdfwidth=80%]
+.Use the command `redis-cli save` to create a dump of the Redis database.
+image::redis-cli-save.png["Use the command `redis-cli save` to create a dump of the Redis database.", pdfwidth=80%]
 
-NOTE: Eigentlich ist das Sichern der Redis-Datenbank nicht notwendig, wenn Sie `opsiconfd backup` aufrufen (siehe nächster Abschnitt) -- ein solcher Datenbank-Dump bietet aber zusätzliche Sicherheit.
+NOTE: Actually, it is not necessary to save the Redis database if you call `opsiconfd backup` (see next section) -- but such a database dump offers additional security.
 
 [[server-components-backup-opsi-database]]
-== Sicherung der opsi-Datenbank
+== Backup of the opsi database
 
-opsi verwendet außerdem eine MySQL-/MariaDB-Datenbank (siehe Kapitel xref:server:components/mysql.adoc[MySQL-Server]). Diese können Sie mit dem Standardwerkzeug `mysqldump` sichern. Der Befehl erstellt einen Datenbank-Dump für MySQL- und MariaDB-Datenbanken und exportiert dann eine vollständige Datenbank (oder bestimmte Tabellen) in eine Datei, die Sie zur Wiederherstellung oder zum Import von Daten verwenden können.
+opsi also uses a MySQL/MariaDB database (see chapter xref:server:components/mysql.adoc[MySQL-Server]). You can back this up with the standard tool `mysqldump`. The command creates a database dump for MySQL and MariaDB databases and then exports a complete database (or specific tables) to a file that you can use to restore or import data.
 
-Der folgende Befehl erzeugt einen Dump der Datenbank namens `opsi`, komprimiert ihn und speichert ihn in der Datei `/var/backups/opsi.sql.bz2` ab:
+The following command creates a dump of the database called `opsi`, compresses it and saves it in the file `/var/backups/opsi.sql.bz2`:
 
 [source,console]
 ----
 mysqldump --single-transaction opsi | bzip2 > /var/backups/opsi.sql.bz2
 ----
 
-Die Datei `/var/backups/opsi.sql.bz2` können Sie anschließend von Hand sichern oder in Ihrer Backup-Strategie berücksichtigen.
+You can then back up the file `/var/backups/opsi.sql.bz2` manually or include it in your backup strategy.
 
-NOTE: Eigentlich ist das Sichern der MySQL-Datenbank nicht notwendig, wenn Sie `opsiconfd backup` aufrufen (siehe nächster Abschnitt) -- ein solcher Datenbank-Dump bietet aber zusätzliche Sicherheit.
+NOTE: It is not actually necessary to back up the MySQL database if you call `opsiconfd backup` (see next section) -- but such a database dump offers additional security.
 
 [[server-components-opsiconfd-backup]]
 == *opsiconfd backup/restore*
 
-xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*] ist der zentrale Dienst auf jedem opsi-Server. Sein Kommandozeilen-Interface stellt unter anderem die beiden Befehle `backup` und `restore` bereit. Damit sichern Sie die opsi-Datenbank und die -Konfigurationsdateien und spielen ein Backup wieder ein.
+xref:server:components/opsiconfd.adoc[The *opsiconfd*] service is the central service on every opsi server. Its command line interface provides, among other things, the two commands `backup` and `restore`. This allows you to back up the opsi database and configuration files and restore a backup.
 
-NOTE: Die opsi-Datenbank wird in diesem Fall objektbasiert gesichert, und es wird kein Datenbank-Dump erzeugt. Das erleichtert das Rückspielen des Backups in anderen Umgebungen -- auch wenn andere MySQL-Versionen zum Einsatz kommen.
+NOTE: In this case, the opsi database is backed up object-based and no database dump is created. This makes it easier to restore the backup in other environments - even if other MySQL versions are used.
 
-Eine Liste aller Parameter und deren Bedeutung erhalten Sie jeweils über `--help`:
+A list of all parameters and their meaning is available via `--help`:
 
 [source,console]
 ----
@@ -111,41 +111,39 @@ opsiconfd backup --help
 opsiconfd restore --help
 ----
 
-Beim Erzeugen und Wiederherstellen des Backups wird der opsi-Configserver in der Voreinstellung in den Maintenance-Modus versetzt (siehe auch Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-maintenance[*Maintenance*]).
-Damit ist sichergestellt, dass es während Backup und Restore keine Client-Aktivität gibt.
+When creating and restoring the backup, the opsi config server is set to maintenance mode by default (see also section xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-maintenance[*Maintenance*]).
+This ensures that there is no client activity during backup and restore.
 
-Der folgende Befehl erzeugt ein Backup im MessagePack-Format (`msgpack`) mit LZ4-Kompression:
+The following command creates a backup in MessagePack format (`msgpack`) with LZ4 compression:
 
 [source,console]
 ----
 opsiconfd backup --quiet --overwrite /var/backups/opsi-backup.msgpack.lz4
 ----
 
-Die Backup-Datei können Sie auch mit AES (Advanced Encryption Standard) verschlüsseln. Dazu verwenden Sie den Parameter `--parameter`. Optional schreiben Sie das Kennwort direkt dahinter; lassen Sie es weg, geben Sie es auf Aufforderung ein (und es erscheint anschließend nicht in der Bash-History).
+You can also encrypt the backup file with AES (Advanced Encryption Standard). To do this, use the parameter `--parameter`. Optionally, write the password directly after it; if you leave it out, enter it when prompted (and it will not appear in the bash history afterwards).
 
-.Ab opsi 4.3 können Sie opsi-Backups verschlüsseln und mit einem Passwort sichern.
-image::opsi-backup-pw.png["Ab opsi 4.3 können Sie opsi-Backups verschlüsseln und mit einem Passwort sichern.", pdfwidth=80%]
+.As of opsi 4.3 you can encrypt opsi backups and secure them with a password.
+image::opsi-backup-pw.png["Starting with opsi 4.3 you can encrypt opsi backups and secure them with a password.", pdfwidth=80%]
 
-So stellen Sie das eben angelegte Backup wieder her:
+How to restore the backup you just created:
 
 [source,console]
 ----
 opsiconfd restore /var/backups/opsi-backup.msgpack.lz4
 ----
 
-Wenn Sie die Sicherungskopie verschlüsselt haben, geben Sie ebenfalls `--password` und dann auf Aufforderung das vorher gesetzte Kennwort ein.
+If you have encrypted the backup copy, also enter `--password` and then the previously set password when prompted.
 
-CAUTION: Beim Wiederherstellen eines Backups werden standardmäßig weder Konfigurationsdateien noch Redis-Daten wiederhergestellt.
-Durch die Parameter `--redis-data` bzw. `--config-files` werden auch diese Daten wiederhergestellt.
-
-TIP: Mit dem Parameter `--server-id` ändern Sie die ID des opsi-Configservers beim Wiederherstellen.
+CAUTION: When restoring a backup, neither configuration files nor Redis data are restored by default.
+The parameters `--redis-data` or `--config-files` also restore this data.TIP: Use the `--server-id` parameter to change the ID of the opsi config server when restoring.
 
 [[server-components-backup-webinterface]]
-== Backup über Admin-Seite
+== Backup via admin page
 
-Alternativ zu den hier gezeigten Befehlen können Sie das Backup auch über die Admin-Seite des `opsiconfd` im Webbrowser erzeugen (siehe Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-maintenance[*Maintenance*]). Über Checkboxen im Bereich _Create backup_ definieren Sie, ob die Konfigurationsdateien berücksichtigt werden sollen, ob während des Backups der Maintenance-Modus aktiviert werden soll. Wenn Sie ins Feld _Password_ ein Kennwort eingeben, aktivieren Sie die AES-Verschlüsselung. Nach einem Klick auf den Button _Create backup_ landet die Sicherungskopie automatisch im Download-Verzeichnis des Webbrowsers. Der Dateiname setzt sich aus `opsiconfd-backup`, dem Datum und der Uhrzeit zusammen, z.{nbsp}B. `opsiconfd-backup-20230628-162048.msgpack.lz4`.
+As an alternative to the commands shown here, you can also create the backup via the `opsiconfd` admin page in the web browser (see section xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-maintenance[*Maintenance*]). Use the checkboxes in the _Create backup_ area to define whether the configuration files should be taken into account and whether maintenance mode should be activated during the backup. If you enter a password in the _Password_ field, you activate AES encryption. After clicking on the _Create backup_ button, the backup copy is automatically saved in the download directory of the web browser. The file name consists of `opsiconfd-backup`, the date and the time, e.g. `opsiconfd-backup-20230628-162048.msgpack.lz4`.
 
-Zur Wiederherstellung wählen Sie im Bereich _Restore Backup_ die gewünschte Sicherungskopie aus; der Button _Durchsuchen_ öffnet einen Dateiauswahldialog. Auch hier gibt es Checkboxen, um die Konfigurationsdateien auszuschließen und die Server-ID anzupassen. Aktivieren Sie hier _Other_ und tragen Sie ins Feld dahinter den FQDN des Servers ein, um die Sicherung auf einem anderen opsi-Configserver wiederherzustellen. Haben Sie das Backup verschlüsselt, geben Sie ins Feld _Password_ das Kennwort ein. Abschließend klicken Sie auf _Restore backup_.
+To restore, select the desired backup copy in the _Restore Backup_ area; the _Browse_ button opens a file selection dialog. There are also checkboxes here to exclude the configuration files and to adjust the server ID. Activate _Other_ here and enter the FQDN of the server in the field behind it to restore the backup on another opsi config server. If you have encrypted the backup, enter the password in the _Password_ field. Finally, click on _Restore backup_.
 
-.Auf dem Reiter _Maintenance_ der Admin-Seite können Sie auch Backups erzeugen und wiederherstellen.
-image::opsi-webinterface-backup.png["Auf dem Reiter _Maintenance_ der Admin-Seite können Sie auch Backups erzeugen und wiederherstellen.", pdfwidth=80%, width=500]
+.You can also create and restore backups on the _Maintenance_ tab of the admin page.
+image::opsi-webinterface-backup.png["You can also create and restore backups on the _Maintenance_ tab of the admin page.", pdfwidth=80%, width=500]
