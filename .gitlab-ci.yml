@@ -3,7 +3,6 @@ image: docker.uib.gmbh/opsi/opsidoc-antora:bookworm
 stages:
   # - lint
   - build
-  - package
   - publish
   - publish_ext
 
@@ -61,54 +60,6 @@ build-antora-bonifax:
       - build/bonifax/site
     expire_in: 2 days
 
-build-pdf-html:
-  stage: build
-  script: | 
-    for LANGUAGE in de en
-    do
-      for DOCUMENT in getting-started manual opsi-script-manual releasenotes macos-client-manual windows-client-manual linux-client-manual quickinstall supportmatrix opsi-script-reference-card
-      do
-        if [ $DOCUMENT == 'opsi-script-reference-card' ] && [ $LANGUAGE == 'de' ] 
-        then
-          echo "skip opsi-script-reference-card de"
-          continue
-        fi
-        ./tools/make-books.sh -l $LANGUAGE -m -n $DOCUMENT
-        echo "build/pdf/$LANGUAGE/$DOCUMENT/opsi-$DOCUMENT.pdf"
-        if [[ "${DOCUMENT}" == "opsi"* ]]; then
-          test -f build/pdf/$LANGUAGE/$DOCUMENT/$DOCUMENT.pdf
-          test -f build/html/$LANGUAGE/$DOCUMENT/$DOCUMENT.html
-        else
-          test -f build/pdf/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.pdf
-          test -f build/html/$LANGUAGE/opsi-$DOCUMENT/opsi-$DOCUMENT.html
-        fi
-      done
-    done
-  only:
-    - stable
-  artifacts:
-    paths:
-      - build/pdf
-      - build/html
-    expire_in: 2 days
-
-
-# Packaging and renaming of documents
-package_docs:
-  stage: package
-  before_script:
-    - apt update
-  script:
-    - make publish
-  only:
-    - stable
-  artifacts:
-    paths:
-      - pub/
-    expire_in: 7 days
-
-
-
 publish_antora_docs:
   stage: publish
   before_script:
@@ -122,38 +73,6 @@ publish_antora_docs:
   only:
     - devel
     - stable
-
-
-# Publishing documentation to internal server
-publish_docs:
-  stage: publish
-  before_script:
-    - 'which ssh-agent || (apt update && apt install -y openssh-client)'
-    - mkdir -p ~/.ssh
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
-  script:
-    - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/v4.2/"
-  only:
-    - stable
-
-
-
-# Publishing documentation to external server
-publish_docs_ext:
-  stage: publish_ext
-  when: manual
-  before_script:
-    - 'which ssh-agent || (apt update && apt -y install openssh-client)'
-    - mkdir -p ~/.ssh
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
-  script:
-    - scp -o StrictHostKeyChecking=no -r pub/* "$DOCUSER_EXT@$DOCSERVER_EXT:/var/www/opsi/htdocs/opsi4.2/$DOCTARGET/documentation/"
-  only:
-    - stable
-
-
 
 publish_to_docs_opsi_org:
   stage: publish_ext
