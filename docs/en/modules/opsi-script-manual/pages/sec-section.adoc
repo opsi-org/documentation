@@ -57,7 +57,7 @@ echo "Hello World"
 If you want to examine the output or return values of a section you may use one of the following functions:
 
 * `getOutStreamFromSection(<section with params>)` +
-for `DosInAnIcon` (`ShellInAnIcon`),`ExecWith` and `ExecPython` calls. See also xref:prim-section.adoc#getOutStreamFromSection[getOutStreamFromSection]
+for `ShellScript` (`ShellInAnIcon`),`ExecWith` and `ExecPython` calls. See also xref:prim-section.adoc#getOutStreamFromSection[getOutStreamFromSection]
 
 * `getreturnListFromSection(<section with params>)` +
 for `XMLPatch` sections and `opsiServiceCall` sections. See also xref:prim-section.adoc#getReturnListFromSection[getReturnListFromSection]
@@ -81,7 +81,7 @@ within this statement you may call the following section types:
 
 * winbatch
 * registry
-* DosBatch, DosInAnIcon, ShellBatch, ShellInAnIcon
+* ShellScript
 * ExecWith, ExecPython
 * Files
 
@@ -1900,8 +1900,8 @@ Starts a process that has a security token with elevated privileges. This modifi
 ** Functions only in the context of _opsi-script_.
 
 *  `getLastExitCode` +
-Returns a string that contains the value of the exitcode of the the process that was last called by a WinBatch / DosBatch / ExecWith section. +
-When using a DosBatch or ExecWith section, you will normally get the exitcode of the interpreter that was called. To get the exitcode of your script you have to define it explicitly.
+Returns a string that contains the value of the exitcode of the the process that was last called by a WinBatch / ShellScript / ExecWith section. +
+When using a ShellScript or ExecWith section, you will normally get the exitcode of the interpreter that was called. To get the exitcode of your script you have to define it explicitly.
 
 * `/RunAsLoggedOnUser` // since 4.11.3.5  [W] ; works only inside 'userLoginScripts'
 
@@ -1923,35 +1923,32 @@ WARNING: These options only know windows of 32-bit programms
 For further examples see the product 'opsi-script-test'
 expecially the sector with '$Flag_winst_winbatch$ = "on"'
 
-[[opsi-script-dosbatch]]
-== DOSBatch/DosInAnIcon (ShellBatch/ShellInAnIcon) Sections [W/L/M]
 
-Via DOSBatch (also called ShellBatch) sections a _opsi-script_ script uses Windows shell scripts for tasks which cannot be fulfilled by internal commands or for which already a batch script solution exists.
+[[opsi-script-shellscript]]
+== ShellScript section (since 4.12.10.0) [W/L/M] 
 
-_opsi-script_ waits until the DOS-batch ends, before it is proceeding with the next script-section.
+The ShellScript section (formerly called ShellBatch/ShellInAnIcon/ShellScript/DosInAnIcon) is primarily used to integrate existing command line routines and shell scripts into {opsi-script} or for tasks which cannot be fulfilled by {opsi-script} commands. A possible window of the called command line interpreter (cmd under Windows, bash under Linux/MacOs) is not displayed.
 
-A DOSBatch section is simply processed by writing the lines of the sections into the file `_opsiscript_<random>.cmd` in `c:\opsi.org\tmp\` and then calling this file in the context of a cmd.exe shell. This explains that a DosBatch section may contain all Windows shell commands can be used.
+NOTE: The previous section names ShellBatch/ShellInAnIcon/ShellScript/DosInAnIcon still work, but we recommend not to use them anymore.
+
+A ShellScript section is converted into a temporary file '_opsiscript_<random>.cmd' (Windows) or '_opsiscript_<random>.sh' (Linux/MacOS) when the opsi script is processed. The file is then executed with the (standard) command line interpreter of the operating system (cmd under Windows, bash under Linux/MacOs). Therefore, all shell commands can be used in a ShellScript section.
+
+The ShellScript section offers the following advantages over executing a pure shell script using the command line interpreter:
+
+* _{opsi-script}_ variables or constants in the ShellScript section are replaced with their content before execution and can thus be used easily within shell scripts.
+
+* The output of the shell script is saved in the log file.
+
+* The output of the shell script can be transferred to a string list and processed further.
+
+* The output of the shell script can be displayed in a separate window (parameter `/showoutput`). Closing this window, e.g. by a user, has no effect on further processing of the shell script.
 
 
-Compared with calling a cmd-file in a WinBatch section, the DOSBatch section
-presents certain advantages: +
+CAUTION: _{opsi-script}_ waits for the ShellScript section to finish before the opsi script is processed further.
+Do not use commands that wait for input.
 
-* _opsi-script_ variables or constants in the section can be easily used because they will be substituted before execution.
 
-* The output of a DosInAnIcon/ShellInAnIcon call at Windows is written to the log file.
-
-* The output of a DosInAnIcon/ShellInAnIcon or DosBatch/ShellBatch call at Linux is written to the log file.
-
-* The output of a DosInAnIcon/ShellInAnIcon call is written to an output window if the section is called with the parameter `/showoutput`.
-
-* The output of the shell commands can be captured by using the String list function.
-
-The section type 'DOSInAnIcon' or 'ShellInAnIcon' is identical to 'DOSBatch/ShellBatch' regarding syntax and execution method but has a different appearance: +
-For 'DOSInAnIcon/ShellInAnIcon', a shell process is created with view set to minimized. That has the consequence that it is executed "in an icon". No command window appears, user interaction is suppressed. The output of the call is written to the log file.
-
-WARNING: Don't use commands that wait for user interaction.
-
-[[opsi-script-dosbatch-params]]
+[[opsi-script-ShellScript-params]]
 === Parameter
 
 There are two kinds of parameters which may be passed to the section call:
@@ -1980,7 +1977,7 @@ You can add an encoding parameter after the WINST keyword. +
 Example : +
 [source,opsiscript]
 ----
-DosInAnIcon_do_encoding_example WINST /encoding "utf8"
+ShellScript_do_encoding_example WINST /encoding "utf8"
 ----
 For allowed encodings see xref:configuration-options.adoc#opsi-script-encoding[_opsi-script_ encoding]
 
@@ -1996,14 +1993,14 @@ Since 4.12.4.0 the following modifiers may be used that are well known from `win
 
 These opsi-script modifier have to be separated by the key word `winst` from the other parameters.
 
-Other parameters of a DosBatch section are directly passed as quasi command line parameters to the Windows shell script. +
-For example, we may call DosBatch_1 in Actions section to get a "Hello World" from the DOS echo command:
+Other parameters of a ShellScript section are directly passed as quasi command line parameters to the Windows shell script. +
+For example, we may call ShellScript_1 in Actions section to get a "Hello World" from the DOS echo command:
 [source,opsiscript]
 ----
 [Actions]
-DosBatch_1 today we say "Hello World"
+ShellScript_1 today we say "Hello World"
 
-[DosBatch_1]
+[ShellScript_1]
 @echo off
 echo %1 %2 %3 %4
 pause
@@ -2015,9 +2012,9 @@ The next example will be on a 64 bit system executed in a 64 bit cmd.exe and giv
 [source,opsiscript]
 ----
 [Actions]
-DosBatch_1 today we say winst /64bit
+ShellScript_1 today we say winst /64bit
 
-[DosBatch_1]
+[ShellScript_1]
 @echo off
 echo %1 %2 %3 %4
 pause
@@ -2032,7 +2029,7 @@ Code from opsi-script-test:
 ----
 comment "Testing parameters for ShellBatch"
 set $ConstTest$ = "Hello world"
-set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+set $list$ = getOutStreamFromSection('ShellScript_with_parameter world')
 set $CompValue$ = takeString(2,$list$)
 if ($ConstTest$ = $CompValue$)
 	comment "ShellBatch parameter passed"
@@ -2044,7 +2041,7 @@ endif
 comment "Testing parameters for ShellBatch"
 set $ConstTest$ = "Hello world"
 set $tmp$ = "world"
-set $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+set $list$ = getOutStreamFromSection('ShellScript_with_parameter $tmp$')
 set $CompValue$ = takeString(2,$list$)
 if ($ConstTest$ = $CompValue$)
 	comment "ShellBatch parameter passed"
@@ -2061,9 +2058,9 @@ produce the log:
 comment: Testing parameters for ShellBatch
 Set  $ConstTest$ = "Hello world"
   The value of the variable "$ConstTest$" is now: "Hello world"
-Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter world')
+Set  $list$ = getOutStreamFromSection('ShellScript_with_parameter world')
 
-  DosInAnIcon_with_parameter
+  ShellScript_with_parameter
     c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd saved back
     Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kj23Ej02.cmd world
     ExitCode 0
@@ -2100,9 +2097,9 @@ Set  $ConstTest$ = "Hello world"
   The value of the variable "$ConstTest$" is now: "Hello world"
 Set  $tmp$ = "world"
   The value of the variable "$tmp$" is now: "world"
-Set  $list$ = getOutStreamFromSection('DosInAnIcon_with_parameter $tmp$')
+Set  $list$ = getOutStreamFromSection('ShellScript_with_parameter $tmp$')
 
-  DosInAnIcon_with_parameter
+  ShellScript_with_parameter
     c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd saved back
     Executing "cmd.exe" /C c:\opsi.org\tmp\_opsiscript_Kz50Gi50.cmd world
     ExitCode 0
@@ -2136,7 +2133,7 @@ EndIf
 ----
 
 
-[[opsi-script-dosbatch-catchout]]
+[[opsi-script-ShellScript-catchout]]
 === Catch the output
 
 The output of the shell commands can be captured by using the string list function `getOutStreamFromSection()` from the _opsi-script_-scripts main-section
@@ -2145,7 +2142,7 @@ see also: +
 
 If the return list shall be evaluated programmatically it is advised to use the '@' prefix of commands. Such we suppress the repetition of the command line in the output which may different formats dependent on system configurations.
 
-[[opsi-script-dosbatch-examples]]
+[[opsi-script-ShellScript-examples]]
 === Examples
 
 For further examples see the product 'opsi-script-test'
@@ -2642,7 +2639,7 @@ For further examples watch the product 'opsi-script-test' an there especially '$
 [[opsi-script-execpython]]
 == ExecPython Sections [W/L/M]
 
-'ExecPython' sections are basically Shell-Sections (like 'DosInAnIcon') which call the – on the system installed – python script interpreter. It takes the section content as python script, and the section call parameter as parameters for the script.
+'ExecPython' sections are basically Shell-Sections (like 'ShellScript') which call the – on the system installed – python script interpreter. It takes the section content as python script, and the section call parameter as parameters for the script.
 
 Example:
 
@@ -2736,7 +2733,7 @@ For further examples watch the product 'opsi-script-test' and there especially
 [[opsi-script-execwith]]
 == ExecWith Sections [W/L/M]
 
-'ExecWith' sections are more general than 'ExecPython' or 'DosBatch' sections: Which program interprets the section lines given is determined by a parameter of the section call.
+'ExecWith' sections are more general than 'ExecPython' or 'ShellScript' sections: Which program interprets the section lines given is determined by a parameter of the section call.
 
 E.g, if we have some call
 
@@ -2811,20 +2808,20 @@ Since Version 4.11.3.5, if the interpreter path contains 'powershell.exe', the t
 
 * *Execution of scripts* +
 For PowerShell the script execution is disabled by default. So you have to enable it before you can use ExecWith with PowerShell.
-To achieve that there are two options: Either call the section using `ExecWith_name "powershell.exe" -ExecutionPolicy Bypass` to temporarily allow execution or enable it permanently using `DosInAnIcon` beforehand. +
+To achieve that there are two options: Either call the section using `ExecWith_name "powershell.exe" -ExecutionPolicy Bypass` to temporarily allow execution or enable it permanently using `ShellScript` beforehand. +
 Since: 4.12.4.35: If the execution policy `AllSigned` is detected, the PowerShell will be modified from calling the temporay script by `-File` to `-Command Get-Content -Path <tempfilename> | Out-String | Invoke-Expression`. In this mode the execution policy is ignored. In this mode any given `PASSPARAS` are also ignored. +
 Example:
 +
 [source,opsiscript]
 ----
-DosInAnIcon_setpolicy
+ShellScript_setpolicy
 ExecWith_powershell  powershell.exe
 set $exitcode$ = getLastExitcode
 if not ($exitcode$ = "0")
 	comment "powershell script failed"
 endif
 
-[DosInAnIcon_setpolicy]
+[ShellScript_setpolicy]
 echo "powershell set-executionpolicy RemoteSigned ..."
 powershell.exe set-executionpolicy RemoteSigned
 exit %ERRORLEVEL%
