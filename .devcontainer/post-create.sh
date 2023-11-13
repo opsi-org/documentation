@@ -9,6 +9,6 @@ cd antora-ui
 npm install
 
 # Install CSpell
-npm install cspell@latest
-npm install @cspell/dict-de-de
+sudo npm install -g cspell@latest
+sudo npm install -g @cspell/dict-de-de
 cspell link add @cspell/dict-de-de
