@@ -1,21 +1,20 @@
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
-  typeof define === 'function' && define.amd ? define(['exports'], factory) :
-  (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.antoraSearch = {}));
-})(this, (function (exports) { 'use strict';
+    typeof define === 'function' && define.amd ? define(['exports'], factory) :
+    (global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.antoraSearch = {}));
+})(this, (function (exports) {
+  'use strict';
 
-  function buildHighlightedText (text, positions, snippetLength) {
+  function buildHighlightedText(text, positions, snippetLength) {
     const textLength = text.length;
     const validPositions = positions
       .filter((position) => position.length > 0 && position.start + position.length <= textLength);
 
     if (validPositions.length === 0) {
-      return [
-        {
-          type: 'text',
-          text: text.slice(0, snippetLength >= textLength ? textLength : snippetLength) + (snippetLength < textLength ? '...' : ''),
-        },
-      ]
+      return [{
+        type: 'text',
+        text: text.slice(0, snippetLength >= textLength ? textLength : snippetLength) + (snippetLength < textLength ? '...' : ''),
+      }, ]
     }
 
     const orderedPositions = validPositions.sort((p1, p2) => p1.start - p2.start);
@@ -77,7 +76,7 @@
    * @param term
    * @return {{start: number, length: number}}
    */
-  function findTermPosition (lunr, term, text) {
+  function findTermPosition(lunr, term, text) {
     const str = text.toLowerCase();
     const len = str.length;
 
@@ -121,7 +120,7 @@
   const componentFilterInput = document.querySelector('#search-field input[type=checkbox][data-component-filter]');
   const versionFilterInput = document.querySelector('#search-field input[type=checkbox][data-version-filter]');
 
-  function appendStylesheet (href) {
+  function appendStylesheet(href) {
     if (!href) return
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -129,12 +128,12 @@
     document.head.appendChild(link);
   }
 
-  function highlightPageTitle (title, terms) {
+  function highlightPageTitle(title, terms) {
     const positions = getTermPosition(title, terms);
     return buildHighlightedText(title, positions, snippetLength)
   }
 
-  function highlightSectionTitle (sectionTitle, terms) {
+  function highlightSectionTitle(sectionTitle, terms) {
     if (sectionTitle) {
       const text = sectionTitle.text;
       const positions = getTermPosition(text, terms);
@@ -143,13 +142,13 @@
     return []
   }
 
-  function highlightText (doc, terms) {
+  function highlightText(doc, terms) {
     const text = doc.text;
     const positions = getTermPosition(text, terms);
     return buildHighlightedText(text, positions, snippetLength)
   }
 
-  function getTermPosition (text, terms) {
+  function getTermPosition(text, terms) {
     const positions = terms
       .map((term) => findTermPosition(globalThis.lunr, term, text))
       .filter((position) => position.length > 0)
@@ -161,7 +160,7 @@
     return positions
   }
 
-  function highlightHit (searchMetadata, sectionTitle, doc) {
+  function highlightHit(searchMetadata, sectionTitle, doc) {
     const terms = {};
     for (const term in searchMetadata) {
       const fields = searchMetadata[term];
@@ -176,8 +175,8 @@
     }
   }
 
-  function createSearchResult (result, store, searchResultDataset, query) {
-    console.log("createSearchResult");
+  function createSearchResult(result, store, searchResultDataset, query) {
+    // console.log("createSearchResult");
     let currentComponent
     result.forEach(function (item) {
       const ids = item.ref.split('-')
@@ -196,7 +195,10 @@
       if (componentVersion !== undefined && currentComponent !== componentVersion) {
         const searchResultComponentHeader = document.createElement('div')
         searchResultComponentHeader.classList.add('search-result-component-header')
-        const { title, displayVersion } = componentVersion
+        const {
+          title,
+          displayVersion
+        } = componentVersion
         const componentVersionText = `${title}${doc.version && displayVersion ? ` ${displayVersion}` : ''}`
         searchResultComponentHeader.appendChild(document.createTextNode(componentVersionText))
         searchResultDataset.appendChild(searchResultComponentHeader)
@@ -207,8 +209,8 @@
   }
 
 
-  function createSearchResultItem (doc, sectionTitle, item, highlightingResult, query) {
-    console.log("createSearchResultItem");
+  function createSearchResultItem(doc, sectionTitle, item, highlightingResult, query) {
+    // console.log("createSearchResultItem");
     const documentTitle = document.createElement('div')
     documentTitle.classList.add('search-result-document-title')
     highlightingResult.pageTitleNodes.forEach(function (node) {
@@ -230,7 +232,7 @@
     //set query param to search query
     let url = new URL(siteRootPath + doc.url, window.location.href)
     if (sectionTitle) {
-    url.hash = '#' + sectionTitle.hash
+      url.hash = '#' + sectionTitle.hash
     }
     url.searchParams.set('q', query)
     documentHitLink.href = url.href
@@ -254,12 +256,12 @@
         if (sectionTitle) {
           url.hash = '#' + sectionTitle.hash
         }
-        url.searchParams.set('q',  node.text)
+        url.searchParams.set('q', node.text)
         documentHitLink.href = url.href
         documentSectionTitle.appendChild(element)
       })
     }
-     //set query param to text hit
+    //set query param to text hit
     highlightingResult.pageContentNodes.forEach(function (node) {
       let element
       if (node.type === 'text') {
@@ -272,7 +274,7 @@
         if (sectionTitle) {
           url.hash = '#' + sectionTitle.hash
         }
-        url.searchParams.set('q',  node.text)
+        url.searchParams.set('q', node.text)
         documentHitLink.href = url.href
       }
 
@@ -288,7 +290,7 @@
     return searchResultItem
   }
 
-  function createNoResult (text) {
+  function createNoResult(text) {
     const searchResultItem = document.createElement('div');
     searchResultItem.classList.add('search-result-item');
     const documentHit = document.createElement('div');
@@ -300,12 +302,12 @@
     return searchResultItem
   }
 
-  function clearSearchResults (reset) {
+  function clearSearchResults(reset) {
     if (reset === true) searchInput.value = '';
     searchResultContainer.innerHTML = '';
   }
 
-  function filter (result, documents) {
+  function filter(result, documents) {
     const componentFilter = componentFilterInput && componentFilterInput.checked && componentFilterInput.dataset.componentFilter;
     const versionFilter = versionFilterInput && versionFilterInput.checked && versionFilterInput.dataset.versionFilter;
     if (componentFilter || versionFilter) {
@@ -318,12 +320,10 @@
           const [component, componentTitle] = componentFilter.split(":");
           const [version, versionValue] = versionFilter.split(":");
           return component in doc && doc[component] === componentTitle && version in doc && doc[version] === versionValue
-        }
-        else if (componentFilter){
+        } else if (componentFilter) {
           const [component, componentTitle] = componentFilter.split(":");
           return component in doc && doc[component] === componentTitle
-        }
-        else {
+        } else {
           const [version, versionValue] = componentFilter.split(":");
           version in doc && doc[version] === versionValue
         }
@@ -332,7 +332,7 @@
     return result
   }
 
-  function search (index, documents, queryString) {
+  function search(index, documents, queryString) {
     // execute an exact match search
     let query;
     let result = filter(
@@ -380,7 +380,7 @@
     return result
   }
 
-  function searchIndex (index, store, text) {
+  function searchIndex(index, store, text) {
     clearSearchResults(false);
     if (text.trim() === '') {
       return
@@ -396,11 +396,11 @@
     }
   }
 
-  function confineEvent (e) {
+  function confineEvent(e) {
     e.stopPropagation();
   }
 
-  function debounce (func, wait, immediate) {
+  function debounce(func, wait, immediate) {
     let timeout;
     return function () {
       const context = this;
@@ -416,7 +416,7 @@
     }
   }
 
-  function enableSearchInput (enabled) {
+  function enableSearchInput(enabled) {
     if (componentFilterInput) {
       componentFilterInput.disabled = !enabled;
     }
@@ -424,11 +424,11 @@
     searchInput.title = enabled ? '' : 'Loading index...';
   }
 
-  function isClosed () {
+  function isClosed() {
     return searchResultContainer.childElementCount === 0
   }
 
-  function executeSearch (index) {
+  function executeSearch(index) {
     const debug = 'URLSearchParams' in globalThis && new URLSearchParams(globalThis.location.search).has('lunr-debug');
     const query = searchInput.value;
     try {
@@ -445,7 +445,7 @@
     }
   }
 
-  function toggleFilter (e, index) {
+  function toggleFilter(e, index) {
     searchInput.focus();
     if (!isClosed()) {
       executeSearch(index);
@@ -455,38 +455,103 @@
 
 
 
-  function highliteMatches () {
+  function highliteMatches() {
     const params = new URLSearchParams(window.location.search.slice(1))
 
     const query = params.get('q')
+
     if (query == undefined || query == null) return
     searchWord(query)
+
   }
+
 
   function searchWord(searchText) {
-    let cont = document.querySelector("article");
-    let pattern = new RegExp("(" + searchText + ")", "gi");
 
-    let links = document.querySelectorAll(".xref");
-    let hrefs = []
-    for (var i = 0; i < links.length; i++) {
+    // console.log(searchText);
+    // console.log(window.location.href.includes("#"));
+    if (window.location.href.includes("#")) {
+      // let url = window.location.href.split("?")
+      // window.location.href =  url[0] + "#" + url[1].split("#")[1];
+
+      history.replaceState && history.replaceState(
+        null, '', location.pathname + location.search.replace(/[\?&]q=[^&]+/, '').replace(/^&/, '?') + location.hash
+      );
+
+
+    } else {
+      history.replaceState && history.replaceState(
+        null, '', location.pathname + location.search.replace(/[\?&]q=[^&]+/, '').replace(/^&/, 'q=null') + location.hash
+      );
+
+      // let sections = document.getElementsByClassName("sect1");
+      // let article = document.querySelectorAll("article")
+      // console.log(document.querySelectorAll("body > div > main > div.content > article > div.sect1 > div"));
+      // console.log(document.querySelectorAll("sectionbody.admonitionblock"));
+      // let sections = document.querySelectorAll("p") + document.getElementsByClassName("sectionbody.imageblock") + document.getElementsByClassName("sectionbody.admonitionblock");
+      // let sections = document.getElementsByClassName("sectionbody");
+
+      // let sections = document.querySelectorAll("body > div > main > div.content > article :not(.toc-menu) :not(.anchor)");
+      let sections = document.querySelectorAll("p, .imageblock :not(img), .admonitionblock")
+      // console.log(sections);
+      let links = document.querySelectorAll(".xref");
+      let hrefs = []
+      for (var i = 0; i < links.length; i++) {
         hrefs.push(links[i].href)
-    }
-    cont.innerHTML = cont.innerHTML.replace(pattern, "<mark>$1</mark>");
+      }
 
-    let new_links = document.querySelectorAll(".xref");
-    for (var i = 0; i < links.length; i++) {
+      let images = document.querySelectorAll("img");
+      let sources = []
+      for (var i = 0; i < images.length; i++) {
+        sources.push(images[i].src)
+      }
+
+      for (let k = 0; k < sections.length; k++) {
+
+        // console.log(sections[k]);
+        let pattern = new RegExp("(" + searchText + ")", "gi");
+
+
+
+
+
+        sections[k].innerHTML = sections[k].innerHTML.replace(pattern, "<mark>$1</mark>");
+
+
+
+      }
+      let new_links = document.querySelectorAll(".xref");
+      for (var i = 0; i < new_links.length; i++) {
         new_links[i].href = hrefs[i]
+      }
+      let new_images = document.querySelectorAll("img");
+      for (var i = 0; i < new_images.length; i++) {
+        new_images[i].src = sources[i]
+      }
+      // console.log(document.querySelector("mark"));
+      if (document.querySelector("mark") !== undefined && document.querySelector("mark") != null) {
+        let scrollPos = document.querySelector("mark").offsetTop - 200;
+        console.log(scrollPos);
+        window.scroll({
+          top: scrollPos,
+          behavior: "auto"
+        });
+      }
+
+
     }
 
-    let scrollPos = document.querySelector("mark").offsetTop - 200;
-    window.scroll({ top: scrollPos, behavior: "auto" });
+
+
   }
 
 
-  function initSearch (lunr, data) {
+  function initSearch(lunr, data) {
     const start = performance.now();
-    const index = { index: lunr.Index.load(data.index), store: data.store };
+    const index = {
+      index: lunr.Index.load(data.index),
+      store: data.store
+    };
     enableSearchInput(true);
     searchInput.dispatchEvent(
       new CustomEvent('loadedindex', {
@@ -520,6 +585,8 @@
 
   exports.initSearch = initSearch;
 
-  Object.defineProperty(exports, '__esModule', { value: true });
+  Object.defineProperty(exports, '__esModule', {
+    value: true
+  });
 
 }));
