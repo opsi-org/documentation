@@ -1,0 +1,694 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      11.01.2021
+:doctype: book
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-clientagent-overview]]
+== Overview
+
+You install the client agent on all computers that you want to manage with opsi. When the computer is started (before the user logs on), the client agent contacts the opsi config server. Based on the information stored there, the client agent checks whether there are updates or new packages for the client. 
+
+The program xref:opsi-script-manual:opsi-script-manual.adoc[opsi-script] takes care of the installation, the necessary scripts and software packages are available in the opsi depot (a file share). While the installation is running, there is no possibility and no need to intervene in the process.
+
+To prevent users from logging on to the system before the installation is complete, the so-called login blocker is also installed under Windows. It ensures that a login is only possible after the installation has been completed.
+
+[[opsi-manual-clientagent-installation]]
+== Installation
+
+When you (re)install an operating system via opsi, the client agent is installed automatically. Alternatively, you can use the <<opsi-manual-clientagent-subsequent-installation>>. Please note that this only applies to Windows and Linux; opsi does not currently support an OS installation for macOS.
+
+TIP: To uninstall the opsi client agent on a client, set the product to _uninstall_ in the management interface.
+
+[[opsi-manual-clientagent-subsequent-installation]]
+=== Install client agent subsequently
+
+// cspell: ignore installer, help
+Various methods are available for subsequent installation or repair of the client agent:
+
+* as an MSI package (Windows only, see section xref:clients:windows-client/windows-client-agent.adoc#opsi-manual-client-agent-msi[Install client agent via MSI])
+* automatically as part of an operating system installation (Windows and Linux)
+* manually from a (depot) directory using the `oca-installation-helper[.exe]` (see section xref:windows-client/windows-client-agent.adoc#opsi-manual-clientagent-subsequent-installation-oca-installation-helper[])
+* via push from the server (`opsi-deploy-client-agent`)
+* via the installer (`opsi-client-agent-installer.exe`, `opsi-linux-client-agent-installer.run`, `opsi-mac-client-agent-installer.command`)
+* in the opsi service context (client agent updates itself)
+
+TIP: You can download the installer (without authentication) from an opsi server in your environment via the address `\https://<opsi-server>:4447/public/opsi-client-agent/`. Here you will find packages for Windows, Linux and macOS.
+
+In most cases (except when upgrading in the opsi service context) the `oca-installation-helper[.exe]` is used. This application essentially fulfills the following purposes:
+
+* It copies the installation files (if necessary) to a local temporary directory (e.g. call via UNC path).
+* It displays a dialog window in which you can enter further information about the installation (e.g. client ID, opsi service URL, user name and password).
+* It creates the client in the opsi service if it does not yet exist.
+* It starts `opsi-script` and carries out the actual installation.
+
+NOTE: The installer always establishes a service connection so that the product properties from the server are always used (regardless of the installation mode).
+
+[[opsi-manual-clientagent-subsequent-installation-oca-installation-helper]]
+==== *oca-installation-helper* parameters
+
+The program `oca-installation-helper[.exe]` requires root rights; it knows some parameters and options which you display with `--help`.
+
+The online help of *oca-installation-helper*
+image::oca_installer_help.png["The online help of *oca-installation-helper*", pdfwidth=80%]
+
+You can automate the installation with these parameters:
+
+// cspell: ignore adminuser, crypt, encode
+[source,console]
+----
+oca-installation-helper --service-address https://10.1.2.3:4447 --service-username adminuser --service-password <password> --non-interactive
+----
+
+You can optionally encrypt the `service-password`. To do this, generate the encrypted password in a first step:
+
+[source,console]
+----
+oca-installation-helper --encode-password <password>
+----
+
+The result is a character string that begins with `\{crypt}`. You then pass this after the parameter `--service-password`:
+
+[source,console]
+----
+oca-installation-helper --service-password \{crypt}w5TDjcOQw5PDjsOr
+----
+
+If you start the installation manually, the following configuration files (if available) are evaluated with descending priority to set the parameters:
+
+* `.\files\custom\install.conf` (or `./files/custom/install.conf`)
+* `.\install.conf` (or `./install.conf`)
+* the respective local file `opsiclientd.conf`
+
+Here is an example of an `install.conf` file to automate the installation:
+
+[source,toml]
+----
+client_id =
+service_address = server.domain.tld
+service_username = adminuser
+service_password = {crypt}w5TDjcOQw5PDjsOr
+dns_domain = subdomain.domain.tld
+interactive = false
+----
+
+NOTE: Please note that parameters set on the command line always take precedence over the configuration file!
+
+// cspell: ignore Zeroconf, crypt, noreboot, Temp, interactive
+If you do not specify an address for the opsi service (`--service-address`), the installer will try to determine it automatically via Zeroconf.
+
+You can assign a client to a depot and a host group using the `--depot` and `--group` parameters. You need administrative rights to do this.
+
+Use the `--finalize` parameter to specify what happens after the installation is complete. You can choose between `noreboot` (default, `opsiclientd` is started without triggering an event), `reboot` and `shutdown`. 
+
+By default, the `oca-installation-helper` logs its work. Under Linux and macOS you will find the log file under `/tmp/oca-installation-helper.log`, under Windows it is located in the directory `C:\Users\<userid>\AppData\Local\Temp`.
+
+[[opsi-manual-clientagent-components]]
+== Components
+
+The opsi client agent consists of several components:
+
+* `opsiclientd`: the central client agent service (see section <<opsi-manual-clientagent-opsiclientd>>)
+* `opsi-notifier`: dialog window to inform users (see section <<opsi-manual-clientagent-opsi-notifier>>)
+* `opsi-login-blocker`: prevents user login until the installation is complete (Windows only, see section <<opsi-manual-clientagent-opsi-notifier>>)
+
+[[opsi-manual-clientagent-opsiclientd]]
+=== *opsiclientd*
+
+The central client agent service is called `opsiclientd`. The service runs permanently in the background and can perform special actions in certain situations. These are referred to below as events. The main functions and features of the `opsiclientd` service are:
+
+* *Event-based control*: The `opsiclientd` can react to various events in the system. An example of such an event is the start of the `opsiclientd` service.
+
+* *Control via web service*: Access to this interface is possible via the network; it is used to trigger installations (`push`) and also for maintenance purposes.
+
+* *Remote configuration*: You can make all important settings globally via the host parameters or for individual clients (`opsi-configed`). 
+
+* Contact to the opsi config server: As soon as a configured event occurs, the `opsiclientd` contacts the opsi config server. It queries configurations and pending action requests via JSON-RPC. The standard event is `gui_startup`, which takes place when the computer or the graphical user interface is started and therefore before the user logs in.
+
+* *opsi-notifier*: The `opsiclientd` starts the `opsi-notifier` for interaction and communication with the user.
+
+* *opsi-depot*: If required, the `opsiclientd` establishes a connection to the depot server, updates the local `opsi-script`-installation and starts `opsi-script` to process the pending action requests (installation/uninstallation of packages).
+
+
+// cSpell:ignore notifier
+[[opsi-manual-clientagent-opsi-notifier]]
+=== *opsi-notifier*/*opsi-login-blocker*
+//TODO: new screenshots for opsiclientd-action-notifier.png and opsiclientd-shutdown-notifier_timepicker.png, uniform, same size/font
+
+The `opsi-notifier` is used for interaction with the users. It outputs `opsiclientd` status messages on the one hand and dialogs for controlling the `opsiclientd` on the other. Configuration files define the function and appearance of the dialogs. 
+
+The `opsi-notifier` can appear in different situations and look different in each case:
+
+Blocklogin Notifier::
+You will see this notifier on Windows systems while the opsi login blocker is active (see section xref:clients:windows-client/windows-client-agent.adoc#opsi-manual-client-agent-opsi-login-blocker[opsi-Loginblocker]). By default, you will see a padlock in the top right corner of the screen.
+
+[[blocklogin-notifier]]
+.*opsiclientd*: Blocklogin Notifier
+image::opsiclientd-blocklogin-notifier.png["*opsiclientd*: Blocklogin Notifier", pdfwidth=15%]
+
+Event Notifier::
+Starts when an event occurs, provides information about the event process and offers the option to cancel the processing of an event,
+cancel the processing of an event.
+
+.*opsiclientd*: Event Notifier
+image::opsiclientd-event-notifier.png["*opsiclientd*: Event Notifier", pdfwidth=30%]
+
+Action Notifier::
+The notifier starts when actions are to be executed. It offers the option of canceling them and executing them at a different time.
+
+[[action-notifier]]
+.*opsiclientd*: Action Notifier
+image::opsiclientd-action-notifier.png["*opsiclientd*: Action Notifier", pdfwidth=30%]
+
+Shutdown Notifier::
+Starts when a shutdown/reboot is to be executed on the client. It is possible to cancel the process or select a different time from a drop-down menu.
+
+// cSpell:ignore timepicker
+.*opsiclientd*: Shutdown notifier with time selection (*timepicker*)
+[[opsi-manual-clientagent-image-shutdown-notifier_timepicker]]
+image::opsiclientd-shutdown-notifier_timepicker.png["*opsiclientd*: Shutdown Notifier with time selection (*timepicker*)", pdfwidth=30%]
+
+TIP: You can read more about the configuration of the shutdown notifier in the next section, which deals with the sequence of events and the most important parameters for controlling events.
+
+[[opsi-manual-clientagent-event-flow]]
+== Event flow
+
+As already mentioned, the `opsiclientd` service runs permanently in the background and starts events in certain situations. After the `opsiclientd` has made contact with the opsi server and authenticated itself, it asks about pending actions. For example, if there is a new version of a program, the server transmits this information and also tells the client agent from which depot it should obtain the package. The `opsiclientd` mounts the corresponding share and starts `opsi-script` with the appropriate credentials for the service. After `opsi-script` has completed the installation, the `opsiclientd` unmounts the share and initiates a reboot of the client if required.
+
+You can flexibly configure the exact sequence of an event (see section <<opsi-manual-clientagent-configuration-events>>). In order to adapt settings to your environment, it is important to understand the flow logic. Therefore, <<event-flow>> shows an overview of the flow of a standard event (`event_gui_startup`) and the communication between the opsi components. 
+
+NOTE: In addition to the event `event_gui_startup` for Windows, there is now also the event `event_startup` for Linux. Both events are largely identical; they are triggered when the `opsiclientd` service is started (i.e. when the client boots). There are also events that start when the client shuts down, when there is a network connection, etc.
+
+[[event-flow]]
+Overview of the flow of a standard event
+image::eventflowchart.png["Illustration: Flow of a standard event", pdfwidth=80%, width=1000]
+
+
+Below you will find a step-by-step summary of the process:
+
+
+// cSpell:ignore user_cancelable_after, action_user_cancelable, action_cancel_counter, shutdown_cancel_counter, shutdown_user_cancelable, shutdown_warning_repetition_time, shutdown_user_selectable_time
+
+
+. When an event is started, `event_notifier_command` is executed. The client now attempts to contact the opsi config server. If no connection to the opsi config server can be established within `connection_timeout` seconds, the current event is terminated with an error. If no connection can be established after `user_cancelable_after` seconds, a button is activated in the `opsi-notifier` which the user can use to cancel the connection. If the user is not to have the option of canceling, `user_cancelable_after` must be set to a value greater than or equal to `connection_timeout`. When an event is canceled, the `opsiclientd` finally sends its log file to the service and the event is finished.
+
+. As soon as the connection to the opsi config server is established, it is no longer possible to terminate it. If the connection is established, the `opsiclientd` asks whether there are any action requests for the client. If there are none, the event ends again. If an action request exists, the system first checks whether an `action_warning_time` has been defined. The default value is 0; in this case, the event continues without an action notifier and no `action_notifier_command` is executed. If an `action_warning_time` > 0 is set, the number indicates the number of seconds that the notifier is visible. The action notifier (see <<action-notifier>>) reports the pending action and displays the countdown. If the user does not click on _Cancel_ or the countdown has expired, the action continues automatically.
+
+NOTE: Whether there is a _Cancel_ button depends on the `action_user_cancelable` parameter. If this is > 0, the number determines the number of consecutive cancels, i.e. the user can postpone the pending action just as many times. Once the maximum value has been reached (or if `action_user_cancelable` = 0), the user can no longer postpone the action. A button that interrupts the waiting time and starts the action without further delay is always visible.
+
+TIP: The `action_user_cancelable` parameter is particularly useful if, for example, a user opens their laptop in a meeting or at a conference, sees the message that an update of the Office package is pending and wants to postpone the update to a later date. The system administrator ultimately decides how often an employee can reject an update until the action takes place in any case.
+
+
+[start=3]
+. The two parameters `action_message` and `action_message[lang]` configure the message text that appears in the notifier. In addition, the two placeholders `%action_user_cancelable%` (total number of possible cancels) and `%action_cancel_counter%` (number of cancels already performed) are available. If the user does not cancel the action, the `action_cancel_counter` is reset and `opsi-script` starts working.
+
+
+. As soon as `opsi-script` is finished, it checks whether the client needs to be restarted. In this case, `opsi-script` transmits the information to `opsiclientd` that the computer requires a reboot and executes the `shutdown_notifier_command`. If no reboot is required, the event is terminated. However, if the reboot is necessary, the next step is to check whether there is a `shutdown_warning_time`. If this = 0, the client restarts without warning. If the parameter is > 0, the Shutdown Notifier displays a countdown similar to the Action Notifier. It is visible for `shutdown_warning_time` seconds.
+
+. The parameter `shutdown_user_cancelable` defines how often the user may cancel and thus postpone a reboot. The Shutdown Notifier always offers the option of executing the shutdown/reboot immediately. If the user postpones the reboot/shutdown request, the shutdown notifier reappears after `shutdown_warning_repetition_time` seconds.
+
+. The two parameters `shutdown_warning_message` and `shutdown_warning_message[lang]` configure the message text that appears in the shutdown notifier. In addition, the two placeholders `%shutdown_user_cancelable%` (total number of possible shutdowns) and `%shutdown_cancel_counter%` (number of shutdowns that have already taken place) are available. After the shutdown/reboot, the `shutdown_cancel_counter` parameter is reset.
+
+NOTE: If you set the host parameter `opsiclientd.event_on_demand.shutdown_user_selectable_time = true`, you change the shutdown notifier for the `on_demand` event. This dialog now displays a drop-down menu and users can select the desired time for shutdown/reboot here. The `shutdown_warning_repetition_time` then no longer plays a role. You can also configure the behavior for other events; the next section goes into more detail on how to set this up. 
+
+Please note that no log file is transferred to the opsi config server if the connection between client and server fails. A detailed error description can then be found in the `opsiclientd.log` file on the client.
+
+TIP: The timeline on the `opsiclientd` info page (see section <<opsi-manual-clientagent-infopage>>) shows the sequence of events and also the user's actions.
+
+[[opsi_manual_opsi-client-agent_webapi]]
+== Web interface
+
+The `opsiclientd` service provides a web interface at `\https://<client-address>:4441`. Enter the URL in the address line of a web browser and either authenticate yourself with the local administrator account (an empty password is not permitted), or enter the host ID (FQDN, full host name including DNS domain) as the user name and the opsi host key as the password.
+
+One option for authentication is the local administrator account of the client.
+image::opsiclientd-control-server-web-interface.png["One option for authentication is the client's local administrator account.", pdfwidth=70%, width=800]
+
+The web interface provides access to the following three subpages:
+
+// cspell: ignore viewer
+* _opsiclientd info page_: shows in compact form what the `opsiclientd` is doing (see section <<opsi-manual-clientagent-infopage>>)
+* _opsiclientd log viewer_: view and search log files (see also section <<opsi-manual-clientagent-logging>>)
+* _opsiclientd control interface_: offers the option of calling JSON-RPC methods (see section <<opsi-manual-clientagent-control-interface>>)
+
+[[opsi-manual-clientagent-infopage]]
+=== *opsiclientd* info page
+
+As so many different components work together and are sometimes even active at the same time, the `opsiclientd` log file quickly becomes confusing. For this reason, there is a separate info page for each client, which you can access in the web browser via the URL `\https://<Client-IP>:4441/info.html`. <<infopage>> shows the info page after a push installation with activated product caching.
+
+[[infopage]]
+The info page displays the processes on a timeline.
+image::opsiclientd_infopage_event_on_demand.png["The info page shows the processes on a timeline.", pdfwidth=70%]
+
+[[opsi-manual-clientagent-control-interface]]
+=== *opsiclientd*-Control-Interface
+
+You can call JSON-RPC methods via the _opsiclientd control interface_ page. The next two sections show two examples of how to start such JSON-RPC queries.
+
+[[opsi_manual_opsi-client-agent_webapi_log_read]]
+==== Read log files
+
+// cspell: ignore opsi_loginblocker, notifier_block_login, notifier_event
+The JSON-RPC method `log_read` reads an existing log file on the client and writes the results to the browser window. There are the following three parameters for `log_read`:
+
+* `logType`: Possible values are: `opsiclientd`, `opsi-client-agent`, `opsi-script`, `opsi_loginblocker`, `notifier_block_login` and `notifier_event`.
+* `extension`: You can use the parameter to display rotated log files (`_1.log`, `_2.log` etc.); possible values are: `0` to `9`
+* `maxSize`: The parameter limits the output to the specified value in bytes.
+
+[[opsi_manual_opsi-client-agent_webapi_update_component]]
+==== Update client agent component
+
+The JSON-RPC method `updateComponent` can update a client agent component. It knows these two parameters:
+
+* `component`: Possible value is `opsiclientd`.
+* `url`: The update is loaded from the specified URL. Possible protocols are `http`, `https` and `file`. The update must be provided as a `.zip`, `.tar`, `tar.gz` or `tar.bz2` archive.
+
+// cspell: ignore insecure
+Alternatively, you can also upload the archive via a `POST` request to `/upload/update/opsiclientd`:
+
+[source,console]
+----
+curl --insecure --request POST \
+        --user ':<opsi-client-host-key>' \
+        --header 'Content-Disposition: filename=oca.zip' \
+        --data-binary '@path/to/opsiclientd_windows_x86_<version>.zip' \
+        https://<client-address>:4441/upload/update/opsiclientd
+----
+
+[[opsi-manual-clientagent-configuration]]
+== Configuration
+
+The following sections present various options for configuring the client agent. The `opsiclientd.conf` file is the central setup file, which you will find in different directories on the client computer depending on the operating system (see below). The files published in our link:https://github.com/opsi-org/opsiclientd/blob/devel/opsiclientd_data/[GitHub repository] show the default values for Windows, Linux and macOS.
+
+Our GitHub repository contains an *opsiclientd.conf* with default values.
+image::github-client-agent.png["Our GitHub repository contains an *opsiclientd.conf* with default values.", pdfwidth=80%]
+
+NOTE: Since the opsi config server automatically overwrites the `opsiclientd.conf` file, you should only edit it for test purposes. To configure the client agent, it is better to use the options shown in the next sections.
+
+// cSpell:ignore notepad
+CAUTION: If you edit the `opsiclientd.conf` file in the text editor, make sure that the editor supports UTF-8 encoding. Some editors (e.g. `notepad.exe`) do not support UTF-8, which leads to broken umlauts.
+
+[[opsi-manual-clientagent-configuration-webservice]]
+=== Host parameters
+
+To configure the client agent and (re)write entries in the `opsiclientd.conf` file, set host parameters. The entries follow this scheme: `opsiclientd.<name of section>.<name of option>`. An example:
+
+[source,console]
+----
+opsiclientd.event_gui_startup.action_warning_time = 20
+----
+
+This host parameter sets the value for the `action_warning_time` option in the `[event_gui_startup]` section to `20`.
+
+TIP: There are basically two flavors of settings: *Boolean* and *Unicode*: Boolean configurations can be either `true` or `false`, while Unicode configurations accept strings as values; multiple strings are allowed.
+
+There are two options for changing host parameters:
+
+* <<opsi-manual-clientagent-configuration-webservice-opsi-configed>>
+<<opsi-manual-clientagent-configuration-webservice-opsi-cli>>
+
+[[opsi-manual-clientagent-configuration-webservice-opsi-configed]]
+==== *opsi-configed*
+
+In the graphical management interface `opsi-configed` you can set host parameters either for all or for individual clients. You can access the host parameters for all clients after selecting the _Server configuration_ view via the _Host parameters_ tab.
+
+You configure the host parameters for all clients in the *Server configuration* view.
+image::opsiclientd-configuration-via-configed-serverdefault.png["Configure the host parameters for all clients in the *Server configuration* view.", pdfwidth=70%]
+
+You will see the property name in the left-hand column and the value in the right-hand column. Click on an entry in the right-hand column to open a dialog box with a selection menu and change a value.
+
+Alternatively, you can configure individual clients via the _Client configuration_ view. Select a client on the left-hand side and then open the _Host parameters_ tab in the right-hand window area. Click on a value in the _Property value_ column to open a selection menu.
+
+You configure the host parameters for individual clients in the *Client configuration* view.
+image::opsiclientd-configuration-via-configed.png["You configure the host parameters for individual clients in the *Client configuration* view.",pdfwidth=70%]
+
+[[opsi-manual-clientagent-configuration-webservice-opsi-cli]]
+==== *opsi-cli*
+
+Alternatively, you can use the command line tool `opsi-cli` to create, modify or delete host parameters (see section xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]):
+
+[source,console]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.action_warning_time
+opsi-cli jsonrpc execute config_delete opsiclientd.event_gui_startup.action_warning_time
+----
+
+The first command creates a host parameter in Unicode format, the second deletes a host parameter (regardless of whether Unicode or Boolean). Both examples apply to all clients. To change host parameters specifically for a particular client, enter the name of the client in the call:
+
+[source,console]
+----
+opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.action_warning_time "client1.domain.de" "120"
+opsi-cli jsonrpc execute configState_delete opsiclientd.event_gui_startup.action_warning_time "client1.domain.de"
+----
+
+[[opsi-manual-clientagent-configuration-events]]
+=== Configuring events
+
+The client agent can be used in very different situations. A wide range of configuration options are therefore available for setting up events (see section <<opsi-manual-clientagent-event-flow>>). A section of the form `[event_<event name>]` initiates a new event configuration. It can be deactivated using the `active = false` option. If there is no event configuration for an event type or if it is deactivated, the corresponding event type is completely deactivated.
+
+TIP: Event configurations can "inherit" from each other. For example, if the ID of another event configuration is set via the "super" option, it inherits all the options of the parent configuration (except for "active"). Inherited options can be overwritten. Deactivating events does not affect the inheritance.
+
+==== Types
+
+
+There are various event types. In addition to templates (`type = template`), the following event types are available:
+
+
+* `gui_startup`: An event of type `gui_startup` occurs when the client (the GUI) is started. It is the most common event and is active by default.
+* `custom`: Such events can determine themselves when they are generated. Under Windows, for example, a WQL query can serve as a trigger; the WMI Query Language is an SQL variant for the queries in Windows Management Instrumentarium (WMI). To do this, use the `wql` option to specify a corresponding expression, and as soon as this returns a result, a custom event is started with the respective configuration. *Attention:* If no value is set for the `wql` option, this event practically never occurs, but can be triggered via the web service interface of the `opsiclientd` if required.
+* `user_login`: Is triggered when a user logs on to the system.
+* `timer`: Occurs at fixed intervals (every `<interval>` seconds).
+* `sync_completed`: Is triggered when the synchronization of configurations (`sync_config_from_server`, `sync_config_to_server`) or products (`cache_products`) has been completed.
+* `on_demand`: The event occurs when it has been explicitly requested, e.g. via the `opsi-configed` (see chapter xref:gui:configed.adoc[Management interface *opsi-configed*]) or via the extension xref:opsi-modules:software-on-demand.adoc[Software On Demand].
+
+==== Preconditions
+// cSpell:ignore precondition, user_logged_in, config_cached, products_cached, cache
+
+There are also event preconditions that describe certain system states (e.g. whether a user is currently logged in). Preconditions have their own sections in the configuration file; `[precondition_<precondition-id>]` introduces the declaration. Possible options for preconditions are:
+
+* `user_logged_in`: Is fulfilled if a user is logged into the system.
+* `config_cached`: Is fulfilled when the caching of configurations is complete.
+* `products_cached`: Is fulfilled when the caching of products has been completed.
+
+A precondition is fulfilled if all specified options apply.
+
+You can assign a precondition to an event configuration. To do this, specify this in curly brackets in the declaration, e.g. `[event_on_demand\{user_logged_in}]`.
+
+NOTE: For an event configuration with a precondition, there must always be a corresponding event configuration without a precondition. For example, if there is an event configuration `event_on_demand\{user_logged_in}`, then there must also be `event_on_demand`!
+
+The event configuration with precondition automatically inherits from the event configuration without precondition. If an event occurs, the client agent first checks which preconditions are fulfilled. If none of the preconditions are fulfilled, the event configuration without precondition applies. If one of the preconditions is fulfilled, the event configuration linked to this precondition applies. If several preconditions are fulfilled, the precondition that is defined most precisely, i.e. that has the most options, is preferred.
+
+==== Example: Reboot and inform user
+
+The following example explains the configuration with preconditions in more detail. It may be necessary to reboot the computer as part of an installation. If a user is currently logged on to the system, they should be informed of the pending reboot. An appropriate waiting time before executing the reboot is also desirable. It may also be useful to allow the user to decide whether the computer should be rebooted at a later time. If no user is logged on at the time of the required reboot, the reboot should take place immediately without any further waiting time.
+
+You can configure the event accordingly with `event_on_demand`:
+
+* Define a precondition `user_logged_in`, which is fulfilled if a user is logged on to the system: +
+[source,toml]
+----
+[precondition_user_logged_in]
+user_logged_in = true
+----
+
+* Define an event without precondition (`event_on_demand`) and set the `shutdown_warning_time` to `0` (immediate reboot without message): +
+[source,toml]
+----
+[event_on_demand]
+shutdown_warning_time = 0
+----
+
+* Also define an event with precondition (`event_on_demand\{user_logged_in}`) and set the `shutdown_warning_time` to `300` (300 seconds, 5 minutes): +
+
+[source,toml,subs="-attributes"]
+----
+[event_on_demand{user_logged_in}]
+shutdown_warning_time = 300
+----
+
+[[opsi-manual-clientagent-working-window]]
+=== Working Window (time window)
+
+For all events, you can define a time window that limits the event to a period within a configurable start and end time. To do this, define the `working_window` option in the event configuration. If the option does not exist or has no or an invalid value for the time window, the `working_window` is considered empty. This means that there is no time limit for the event.
+
+NOTE: Enter the start and end time in the format `hh:mm` and use a single hyphen as a separator. Spaces between the start and end time are not permitted!
+
+[source,toml]
+----
+working_window = 07:00-22:00
+----
+
+You set up a time window via the host parameter `working_window` -- either via the management interface `opsi-configed` or on the command line (see section <<opsi-manual-clientagent-configuration-webservice>>).
+
+==== Examples: Working window globally and for individual clients
+
+The following examples show how to define different time windows as host parameters with the command line tool `opsi-cli`.
+
+* Example 1: Create an empty `working_window` for the `event_gui_startup` event globally; the time restriction is set for the individual clients (see example 3): +
+[source,console]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.working_window
+----
+
+* Example 2: Create a global `working_window` for the time between 20:00 and 07:00 for the event `event_gui_startup`: +
+[source,console]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_gui_startup.working_window "gui_startup.working_window" "20:00-07:00"
+----
+
+* Example 3: Set up a specific time window for the client `client1.domain.de` (between 07:00 and 19:00 for the event `event_gui_startup`): +
+[source,console]
+----
+opsi-cli jsonrpc execute configState_create opsiclientd.event_gui_startup.working_window "client1.domain.de" "07:00-19:00"
+----
+
+TIP: If the start time is greater than the end time (`23:59-00:00`), then the time window applies beyond the nightly change of day. To define time windows for the day (start time < end time, `07:00-19:00`) and for the night (start time > end time, `20:00-07:00`).
+
+[[opsi-clientagent-configuration-ip-version]]
+=== IP version (IPv4/IPv6)
+
+
+The central client agent service `opsiclientd` supports both protocols, IPv4 and IPv6. Normally, the protocol is automatically selected when connecting to the opsi service, which is defined in the `[global]` section of the `opsiclientd.conf` file:
+
+
+[source,toml]
+----
+[global]
+ip_version = auto
+----
+
+
+However, it is possible to set up one of the two protocols permanently. To do this, assign either `4` or `6` to the `ip_version` option:
+
+
+[source,toml]
+----
+[global]
+ip_version = 4
+----
+
+
+[[opsi-clientagent-configuration-proxy]]
+=== Proxy server
+
+
+You can configure an HTTP(S) proxy via the host parameter `opsiclientd.global.proxy_url`. The value defined behind it follows the scheme `\http://<user>:<password>@<proxy-url>:<proxy-port>`, e.g. `\http://proxyuser:proxypass123@proxy.domain.local:8080`.
+
+
+There are three basic options:
+
+
+* `proxy_url = system`: The system-wide settings for a proxy server apply (default).
+* `proxy_url =`: If no value is set, no proxy server is used. The proxy settings of the system are ignored in this case.
+* `proxy_url = <url>`: The proxy server specified via the URL is used, the system-wide settings are ignored. The URL follows the scheme `\http(s)://<proxy-user>:<proxy-password>@<proxy-url>:<proxy-port>`.
+
+[[opsi-manual-clientagent-configuration-eventcontrol_over_productgroups]]
+=== Include/exclude product groups
+
+As of opsi 4.3, you can define product groups for each event in the configuration, whose products are then to be processed.There are two procedures for this:
+
+* Negative list (exclusion): To exclude one or more product groups from processing, enter their IDs after the `exclude_product_group_ids` option; separate multiple IDs with commas. The products in this/these group(s) are ignored in the event, but may remain on `setup` if this action is set.
+* Positive list (inclusion): Behind the option `include_product_group_ids` you define one or more product groups (separated by commas) whose products may be processed -- provided a corresponding action is set.
+
+TIP: You can either make the settings globally in `[event_default]` or specifically in a certain event. For example, set `exclude_product_group_ids` in the `on_demand` event to exclude packages that are set to `setup` from push installations. If the client is restarted regularly with `gui_startup` (default), the excluded packages would still be installed on the client.
+
+
+NOTE: For clients on which the WAN/VPN extension is installed, you must also include the options in the `[cache_service]` section. Although the cache service is triggered by the sync event, it does not have access to the sync event itself.
+
+CAUTION: Please note that the feature does not take product dependencies into account.So make absolutely sure that you do not override any dependencies during configuration!
+
+[[opsi-manual-clientagent-logging]]
+== Logfiles
+
+// cSpell:ignore clientconnect
+
+The `opsiclientd` transmits its log files to the opsi config server (see figure <<event-flow>>); you can find these in the directory `/var/log/opsi/clientconnect/`. The individual logs have either the name of the client or its IP in the name and end with `.log`.
+
+TIP: You can also view the log files via the management interface `opsi-configed`. To do this, select a client in the client view on the left-hand side and then open the _Logfiles_ / _clientconnect_ tab. Below the display you will find a search field, filter functions and a slider that sets the log level.
+
+The lines in the log file are structured according to the following scheme:
+
+----
+[<log level>] [<date time>] [source of the message] Message (source code file|line number)
+----
+
+opsi distinguishes between 10 different log levels: 0 (no messages) to 9 (confidential information). Further information on this can be found in the chapter xref:server:components/opsiconfd.adoc[The *opsiconfd* service] in the section xref:server:components/opsiconfd.adoc#server-components-opsiconfd-logs[Logfiles].
+
+[[opsi-manual-clientagent-control]]
+== Remote control
+
+Via the web service interface of the `opsiclientd` you can not only configure the client agent, but also transmit other instructions, for example:
+
+* Send messages (pop-ups)
+* Trigger events (e.g. `on_demand`)
+
+You can either send the instructions via the management interface `opsi-configed` or use the command line tool `opsi-cli` (see section xref:server:components/commandline.adoc#server-components-opsi-cli[*opsi-cli*]). To do this, execute JSON-RPC methods `hostControlSafe_*` (see section xref:server:components/commandline.adoc#server-components-opsi-cli-commands-jsonrpc[jsonrpc]). These have the following form:
+
+[source,console]
+----
+opsi-cli jsonrpc execute hostControlSafe_xx *hostIds
+----
+
+The parameter `*hostIds` can have the following values:
+
+* `["*"]`, which means that the call applies to all clients
+* a client name, e.g. `"client.uib.local"`
+* a list of clients (`["<client1>", "<client2>", ...]`), e.g. `["client1.uib.local", "client2.uib.local"]`
+* a wildcard, where `\*` serves as a placeholder, e.g. `"client.*"` or `"\*.uib.*"`
+
+If a client computer cannot be reached (e.g. because it is switched off), an error message is issued for it.
+
+[[opsi-manual-clientagent-control-messages]]
+=== Sending messages (pop-ups)
+
+Section xref:gui:configed.adoc#opsi-manual-configed-client-editing-send-message[Send messages] shows how to send messages to the clients via the management interface. On the command line, use `opsi-cli` and call the JSON-RPC method `hostControlSafe_showPopup`:
+
+[source,console]
+----
+opsi-cli jsonrpc execute hostControlSafe_showPopup "A text..." "client.uib.local"
+----
+
+[[opsi-manual-clientagent-control-fire-event]]
+=== Triggering events
+
+You can also request a client from the opsi-server to execute the set action requests. You can read how to do this via `opsi-configed` in section xref:gui:configed.adoc#opsi-manual-configed-host-actions-opsiclientd-event[Trigger events (push installation)].
+
+// cspell: ignore hostControlSafe_fireEvent
+On the command line with `opsi-cli`, call the JSON-RPC method `hostControlSafe_fireEvent` and specify the name of the event, followed by one or more clients:
+
+[source,console]
+----
+opsi-cli jsonrpc execute hostControlSafe_fireEvent "on_demand" "client.uib.local"
+----
+
+[[opsi-manual-clientagent-control-misc]]
+== Maintenance work (shutdown/reboot)
+
+You can also shut down and restart clients via the `opsiclientd` web service. You can access this function via the `opsi-configed` management interface. First select a client and then select _Shutdown_ or _Reboot_ from the _OpsiClient_ menu. Alternatively, right-click on a client on the _Clients_ tab in the main window and select _Shutdown_ or _Reboot_ from the context menu.
+
+With `opsi-cli` on the command line, the shutdown works like this:
+
+[source,console]
+----
+opsi-cli jsonrpc execute hostControlSafe_shutdown *hostIds
+----
+
+To reboot, enter the following command:
+
+[source,console]
+----
+opsi-cli jsonrpc execute hostControlSafe_reboot *hostIds
+----
+
+//cspell: ignore corporate
+[[opsi-manual-clientagent-ci]]
+== Adapt client agent to corporate identity
+
+If you adapt the appearance of the client agent to your own corporate identity (CI), this can contribute significantly to user acceptance. For example, insert your own company logo in the background so as not to unsettle your users.
+
+All visual elements, including the 'opsi-notifier' and 'opsi-script', use the same components to display graphics. These elements are customized in a similar way: 
+
+* You can specify colors either as a symbolic name (`clRed`), as a hexadecimal value (`$FF00FF`) or as a list of RGB values (`(255,0,0)`).
+* You can use a bitmap format such as BMP, PNG, JPEG etc. as the background image. 
+
+NOTE: The image formats mentioned are container formats, which means that PNG is not necessarily the same as PNG. If an image cannot be displayed, try converting it to another format.
+
+//cspell: ignore depot, skin
+[[opsi-manual-clientagent-ci-opsi-script]]
+=== *opsi-script*
+
+Files that configure the appearance of `opsi-script` can be found in the directory `/var/lib/opsi/depot/opsi-client-agent/files/opsi-script/skin`:
+
+* `bg.png`: The standard background image over which text messages and product logos are displayed at runtime; you can customize the name in the `skin.ini` file.
+
+* `skin.ini`: The configuration file defines the background image and where, in which color and font messages appear.
+ 
+In this directory you will find the background image and the configuration file for *opsi-script*.
+image::opsi-script-configuration-skin.png["In this directory you will find the background image and the configuration file for *opsi-script*.",pdfwidth=70%, width=800]
+
+[[opsi-manual-clientagent-ci-opsiclientd]]
+=== *opsiclientd*
+
+The `/var/lib/opsi/depot/opsi-client-agent/files/opsi-notifier/notifier.d` directory contains files that determine the appearance of the various notifiers. Each notifier has its own background image and a configuration file:
+
+
+//cspell: ignore notifiers, userlogin, rights
+* `action.bmp`/`action.ini`: Setup for the action notifier (displays pending action)
+* `block_login.bmp`/`block_login.ini`: Configuration for the blocklogin notifier
+* `event.bmp`/`event.ini`: Configuration for the event notifier (shows active event with connection to the opsi server)
+* `popup.bmp`/`popup.ini`: Configuration of pop-ups sent by the server
+* `shutdown.bmp`/`shutdown.ini`: Setup for the Shutdown Notifier, which indicates a pending shutdown or reboot
+* `shutdown_select.bmp`/`shutdown_select.ini`: Configures the dialog for the shutdown notifier with time selection
+* `userlogin.bmp`/`userlogin.ini`: Configuration for the user login notifier
+* `wait_for_gui.bmp`/`wait_for_gui.ini`: Configuration of the notifier that waits for the start of the graphical user interface
+
+[[opsi-manual-clientagent-ci-custom]]
+=== The directory *custom* 
+
+CAUTION: Files from the two directories `/var/lib/opsi/depot/opsi-client-agent/files/opsi-script/skin` and `/var/lib/opsi/depot/opsi-client-agent/files/opsi-notifier/notifier.d` are not protected from changes and are installed when upgrading to a new version of the client agent.
+
+To protect your own customizations, there is the directory `/var/lib/opsi/depot/opsi-client-agent/files/custom`. When the client agent is updated, all the data it contains is automatically backed up and restored - so your customizations are not lost during an update. You will find the following subdirectories in the `custom` directory:
+
+* `files/custom/install.conf`: The values defined here influence the behavior of the `oca-installation-helper[.exe]` program from a depot share. The file overwrites `/var/lib/opsi/depot/opsi-client-agent/install.conf`.
+
+* `files/custom/opsi-script/skin/`: The files in this directory are copied to the directory `/var/lib/opsi/depot/opsi-client-agent/files/opsi-script/skin` when the client agent is installed.
+
+* `files/custom/notifier/`: All files from this directory are copied to the directory `/var/lib/opsi/depot/opsi-client-agent/files/opsi-notifier/notifier.d` during the installation of the client agent.
+
+NOTE: To avoid errors, correct the access rights of files and directories on an opsi server (see section xref:server:components/commandline.adoc#server-components-opsi-set-rights[*opsi-set-rights*]):
+
+[source,console]
+----
+opsi-setup --set-rights /var/lib/opsi/depot/opsi-client-agent
+----
+
+// cspell: ignore systray, systray_check_interval, productid, productname, productversion
+
+[[opsi-manual-clientagent-systray-program]]
+== The systray program 
+
+The client agent provides a systray program that runs in the taskbar of the respective desktop environment. It provides quick access to important functions and performs the following tasks:
+
+* regularly inform you about upcoming installations (optional)
+* actively request a pending installation (right mouse button context menu)
+* check whether there are any pending installations (also context menu)
+
+The systray program of the client agent informs about upcoming installations.
+image::opsi-systray-message.png["The systray program of the Client-Agent informs about upcoming installations."].
+
+You can control various actions via the context menu of the right mouse button.
+image::opsi-systray-menue.png["You can control various actions via the context menu of the right mouse button."].
+
+There is also a systray program under macOS that you control with the right mouse button.
+image::opsi-systray-macos.png["There is also a systray program under macOS that you control with the right mouse button.", pdfwidth=70%, width=326]
+
+By default, the systray program of the client agent is not installed. To retrofit the tool and configure it, open the product properties of the localboot product `opsi-client-agent` (Windows), `opsi-linux-client-agent` (Linux) or `opsi-mac-client-agent` (macOS) in the `opsi-configed` management interface:
+
+* `systray_install`: Should the systray programme be installed? (`true`/`false`, default: `false`)
+* `systray_check_interval`: How often should the programme check whether installations are pending for the client? (Number of seconds, default: `180`) *Attention*: Small values mean a high load for the server! If `0` is set here, then no regular checks take place.
+* `systray_request_notify_format`: Format for notifications about pending installations; possible values are: `"productid : request"`, `"productname : request"` (default) and `"productname productversion : request"`.
+
+You configure the systray programme via product properties.
+image::opsi-systray-properties.png["Configure the systray programme via product properties.", width=800, pdfwidth=70%]
+
+TIP: If the systray icon is not visible on a Linux client, check the desktop environment settings. Under current GNOME and Unity versions, you may have to retrofit and activate the AppIndicator extension. Further information on this can be found in the manuals for your Linux distribution.
+
+The systray programme under Linux (GNOME Shell)
+image::opsi-systray-linux.png["The systray programme under Linux (GNOME Shell)", width=527, pdfwidth=70%]
+
+
+
