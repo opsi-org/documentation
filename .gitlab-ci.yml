@@ -2,6 +2,7 @@ image: docker.uib.gmbh/opsi/opsidoc-antora:bookworm
 
 stages:
   # - lint
+  - test
   - build
   - publish
   - publish_ext
@@ -28,6 +29,18 @@ stages:
     #- cspell lint -c cspell.json docs/de/modules/server
     #- cspell lint -c cspell.json docs/de/modules/clients
 
+test-antora-build:
+  stage: test
+  script:
+    - *install_toolchain
+    - cd antora-ui
+    - gulp bundle
+    - gulp bundle:pack
+    - cd ..
+    - npx antora --log-level=debug --log-failure-level warn head-playbook.yml
+  except:
+    - v4.2
+
 build-antora:
   stage: build
   script:
@@ -39,6 +52,9 @@ build-antora:
     - npx antora -v
     - npx antora --log-level=debug antora-playbook.yml
     - touch build/docs-opsi-org/site/index.html
+  only:
+    - main
+    - v4.2
   artifacts:
     paths:
       - build/docs-opsi-org/site
@@ -55,6 +71,8 @@ build-antora-bonifax:
     - npx antora -v
     - npx antora --log-level=debug bonifax-playbook.yml
     - touch build/bonifax/site/index.html
+  except:
+    - v4.2
   artifacts:
     paths:
       - build/bonifax/site
@@ -72,7 +90,6 @@ publish_antora_docs:
     - rsync -e "ssh -o StrictHostKeyChecking=no" --delete -azv build/bonifax/site/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/antora/"
   only:
     - main
-    - v4.2
 
 publish_to_docs_opsi_org:
   stage: publish_ext
