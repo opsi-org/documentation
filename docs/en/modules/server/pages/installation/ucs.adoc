@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      06.11.2023
+:Date:      18.12.2023
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -23,45 +23,43 @@
 
 include::common:partial$opsi_terms.adoc[]
 
-
-
 [[server-installation-ucs]]
-= Installation under UCS
+= Installation on UCS
 
-There are two ways to install the opsi server under Univention Corporate Server (UCS):
+On Univention Corporate Server (UCS), there are two methods to install the opsi server:
 
-* xref:server:installation/ucs.adoc#server-installation-ucs-appcenter[Installation via the Univention App Center]
-* xref:server:installation/ucs.adoc#server-installation-ucs-manual[Manual installation via the uib repositories]
+* xref:server:installation/ucs.adoc#server-installation-ucs-appcenter[Installation via the Univention App Center] (available only for UCS 5.0 or newer)
+* xref:server:installation/ucs.adoc#server-installation-ucs-manual[Manual installation via the uib repositories] (for UCS 4.4 and 5.0)
 
-Both variants lead to a functioning opsi server, but should not run together on one server. Decide in advance which installation suits your environment. If you obtain opsi via the Univention App Center, you may have to wait longer for updates. Switching to a new UCS version is only possible once all installed apps are available under the new UCS version. If you decide to install via the uib repositories, you will receive updates promptly.
+Both approaches result in a fully functional opsi server, but they should not be used simultaneously on the same server. Consider which installation method is most suitable for your environment before proceeding. If you choose to install opsi through the Univention App Center, be aware that updates may take longer to become available. Additionally, upgrading to a new UCS version (like moving from 4.4 to 5.0) is contingent on the availability of all installed apps for the new version. If you opt for installation via the uib repositories, you'll receive updates more promptly.
 
 [[server-installation-ucs-appcenter]]
 == Installation via the App Center
 
-In the link:https://www.univention.de/produkte/univention-app-center/app-katalog/opsi/[Univention App Center catalog] you will find opsi for UCS version 5.0. During installation, the package manager automatically installs additional packages: `opsi-tftpd-hpa` and `univention-mariadb`.
+In the link:https://www.univention.com/products/app-catalog/opsi/[Univention App Center catalog], you can find opsi for UCS version 5.0. During installation, the package manager will automatically add additional packages, including `opsi-tftpd-hpa` and `univention-mariadb`.
 
-NOTE: The first opsi server in a UCS environment configures an existing MariaDB server as the backend. All further opsi config servers register opsi as opsi depot server. If there is already an opsi config server in the UCS environment during installation, the `opsi-package-updater` tool is configured to obtain the packages from this server.
+NOTE: In a UCS environment, the first opsi server configures an existing MariaDB server to function as the backend. Any subsequent opsi config servers in the same environment are registered as opsi depot servers. If an opsi config server is already present in the UCS environment during installation, the `opsi-package-updater` tool will be configured to source its packages from this server.
 
 [[server-installation-ucs-manual]]
-== Manual installation
+== Manual Installation
 
-Before you install the opsi server under Univention Corporate Server manually, make a few preparations.
+Before proceeding with the manual installation of the opsi server on Univention Corporate Server, ensure the following prerequisites are met.
 
 === Preparations
 
-* Samba must be installed and configured. If the UCS server is a member of an AD domain, install `univention-samba`, which sets up and configures Samba as a member server without domain controller functionality. The package `univention-samba4`, on the other hand, sets up Samba as an AD domain controller.
+* Ensure Samba is installed and configured. For UCS servers that are members of an AD domain, `univention-samba` should be installed. This package configures Samba as a member server without domain controller functionality. Alternatively, `univention-samba4` sets up Samba as an AD domain controller.
 
-* A MariaDB server must be installed and configured. To do this, install `univention-mariadb`; the package `univention-mysql` is a meta package since UCS 4.3 that installs the MariaDB server.
+* MariaDB server installation and configuration are required. Install `univention-mariadb` for this purpose. Since UCS 4.3, `univention-mysql` has been a meta package that installs the MariaDB server.
 
-* If the UCS computer is also to be used as a DHCP server, configure the DHCP daemon before installing opsi and start it.
+* If the UCS computer is also to be used as a DHCP server, configure the DHCP daemon before installing opsi and start the service.
 
-In principle, installation is possible on servers with the UCS roles Primary Directory Node, Backup Directory Node, Replica Directory Node and Managed Node.
+Installation of the opsi server is feasible on servers with various UCS roles, including Primary Directory Node, Backup Directory Node, Replica Directory Node, and Managed Node.
 
-CAUTION: If you do not install the opsi server on a Primary Directory Node, but on a computer with a different UCS system role, the UCS server must first join the domain.
+CAUTION: If the opsi server is not being installed on a Primary Directory Node, but rather on a computer with a different UCS system role, it is crucial that the UCS server first joins the domain.
 
-The configuration file `/etc/opsi/opsi.conf` defines the group for Samba access to the shares; the name is `opsifileadmins`. All users who are to receive access rights for the shares of opsi (opsi packagers) must be members of the `opsifileadmins` group accordingly.
+The configuration file `/etc/opsi/opsi.conf` specifies the group for Samba access to the shares; this group is named `opsifileadmins`. To grant access rights to the opsi shares (for users who create opsi packages), all relevant users must be members of the `opsifileadmins` group.
 
-=== Configuration of the package sources
+=== Configurng Repositories
 
 Make sure that the directory `/usr/local/share/keyrings` exists:
 
@@ -70,7 +68,7 @@ Make sure that the directory `/usr/local/share/keyrings` exists:
 sudo mkdir -p /usr/local/share/keyrings
 ----
 
-Add the opsi repository that matches your distribution to the package sources:
+Add the opsi repository that matches your distribution:
 
 *Univention UCS 5.0:*
 [source,console]
@@ -82,15 +80,14 @@ sudo echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" > /etc/apt/sources.list.d
 curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
 ----
 
-
-Check whether the import of the GnuPG key was successful:
+To confirm the successful import of the GnuPG key, you can use the following command:
 
 [source,console]
 ----
-gpg /usr/local/share/keyrings/opsi.gpg 2>/dev/null
+gpg --show-keys /usr/local/share/keyrings/opsi.gpg 2>/dev/null
 ----
 
-The following lines, among others, should appear in the output:
+In the output, you should see lines similar to the following, among others:
 
 [source,console]
 ----
@@ -99,8 +96,7 @@ pub   rsa2048 2017-09-30 [SC] [expires: 2025-11-19]
 uid           home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>
 ----
 
-
-=== Installing the packages
+=== Installing the Packages
 
 Install the package `opsi-server-full`:
 
@@ -109,11 +105,10 @@ Install the package `opsi-server-full`:
 sudo univention-install opsi-server-full
 ----
 
-If the opsi server is to run on a UCS system role other than Primary Directory Node,
-additionally execute the command `univention-run-join-scripts`.
+If the opsi server is to be installed on a UCS system with a role other than the Primary Directory Node, it's necessary to execute the command `univention-run-join-scripts` as an additional step.
 
-Users must be members of the `opsiadmin` group in order to use the `opsi-configed` management interface. During installation, the user `administrator` is automatically added to this group. Other accounts are added via the UMC module _User management_, tab _Groups_.
+For users to access the `opsi-configed` management interface, they must be members of the `opsiadmin` group. During the installation process, the `Administrator` user is automatically added to this group. To add other accounts, use the _User management_ module in UMC, specifically the _Groups_ tab.
 
 include::server:partial$package-based-end.adoc[]
 
-The opsi server is now ready for xref:server:installation/next-steps.adoc[next steps].
+The opsi server is now set up and ready for the xref:server:installation/next-steps.adoc[next steps].
