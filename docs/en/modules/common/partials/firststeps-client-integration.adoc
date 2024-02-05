@@ -27,111 +27,52 @@ include::common:partial$opsi_terms.adoc[]
 [[opsi-getting-started-firststeps-software-deployment-client-integration]]
 = Integrating existing Clients
 
-To include existing clients in opsi, the opsi-client-agent (or opsi-linux-client-agent/opsi-mac-client-agent) must be installed on them.
-This can be realised in several ways. After you have installed the opsi-client-agent as described below, the client will also appear in the client list of opsi-configed, unless you have already added the client there.
+To add existing clients with an already installed operating system to opsi, install the client agent on the respective computer. The client will then appear in the client list of the management interface, even if you have not yet added it there.
 
-Basically there is the possibility to install the agent <<opsi-getting-started-firststeps-software-deployment-client-integration-installer,on the client>> or <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,to start the installation from the server>>.
+There are two different methods to install the client agent:
 
-Executing the installation directly on the client is suitable for individual computers.
-For a mass rollout of the agent, have a look at <<opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy,opsi-deploy-client-agent>>.
-If there is already another way to distribute software available, then it is also possible to distribute the opsi-client-agent by using the opsi-client-agent-installer or the opsi-client-agent MSI-package.
+* <<firststeps-software-deployment-client-integration-installer>>: This method involves installation on the client and is suitable for individual computers.
+* <<firststeps-software-deployment-client-integration-opsi-deploy>>: This method involves initiating installation on the server, suitable for mass rollout.
 
-Once the agent is installed, available opsi products can be xref:windows-client/rollout-products.adoc#opsi-getting-started-firststeps-software-deployment-product-tests[installed] on these clients.
+NOTE: After the client agent has been installed, you can deploy opsi products to the client (see chapter xref:clients:windows-client/rollout-products.adoc[Deploying Products (Client)]).
 
-
+[[firststeps-software-deployment-client-integration-installer]]
 include::common:partial$firststeps-client-installer.adoc[]
-.
 
 [[opsi-getting-started-firststeps-software-deployment-client-integration-opsi-deploy]]
-== Using opsi-deploy-client-agent
+== *Using opsi-deploy-client-agent*
 
-The `opsi-deploy-client-agent` program installs the opsi-client-agent (or opsi-linux-client-agent/opsi-mac-client-agent) directly from the opsi-Server on the clients.
-This makes it easy to integrate a large number of clients from a server into an opsi environment.
+The `opsi-deploy-client-agent` tool distributes the opsi client agent directly from the opsi server to the clients. This method offers a convenient way to integrate a large number of clients directly from the server into the opsi environment.
+
+NOTE: If another software distribution option is already in place, it is advisable to perform the initial rollout via the `client-agent-installer` or the MSI package of the client agent.
 
 Requirements for Windows clients:
 
-* an open C$ share
-* an open admin$ share
-* an administrative account
-* Running services RpcSs and RpcEptMapper (enabled for win8 and later by default)
-* Firewall permitting "file and printer sharing" and "windows management instrumentation (WMI)"
-* Registry key HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\LocalAccountTokenFilterPolicy should have value 1
+* An open `c$` share.
+* An open `admin$` share.
+* An administrative account.
+* The services `RpcSs` and `RpcEptMapper` must be running (from Windows 8, this is the default setting).
+* A firewall that allows _File and Printer Sharing_ and _Windows Management Instrumentation (WMI)_.
+* The registry key `HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\LocalAccountTokenFilterPolicy` should have the value `1`.
 
-Requirements for Linux clients:
+You can find the `opsi-deploy-client-agent` on the opsi server in the directory `/var/lib/opsi/depot/opsi-client-agent`. The program requires `root` rights; alternatively, it is sufficient if the user is a member of the `opsifileadmins` group. The tool performs the following steps:
 
-* ssh-access with a user that can perform "sudo" or is root itself.
+. It creates clients on the server.
+. It copies the installation and configuration files (e.g., the host key).
+. It starts the installation via `oca-installation-helper` (non-interactive).
 
-The `opsi-deploy-client-agent` program can be found at `/var/lib/opsi/depot/opsi-client-agent` (or opsi-linux-client-agent, opsi-mac-client-agent). +
-Execute the script with 'root' privileges or as a user being part of the "opsifileadmins" group.
+The `opsi-deploy-client-agent` tool accepts IP addresses, hostnames, and FQDNs. It attempts to automatically recognize the type of address provided by the user.
 
-The program creates the client on the server, then copies the installation files and the configuration information, including the pckey, to the client. After copying the necessary information, `opsi-deploy-client-agent` starts the installation on the client by calling oca-installation-helper (non-interactive).
+To begin, change to the main directory of the program:
 
-With the `opsi-deploy-client-agent` you can also install to a list of clients.
-To do this, either any number of clients can be passed as the last parameter or the clients can be read from a file using the '-f' option.
-When using a file, there must be a client on every line.
-
-The program can work with IP addresses, hostnames or FQDNs. It will try to automatically detect what type of address it is processing.
-
-Possible parameters can be found by using `--help`:
-[source,shell]
+[source,console]
 ----
-usage: opsi-deploy-client-agent [-h] [--version] [--verbose] [--debug-file DEBUG_FILE] [--username USERNAME]
-                                [--password PASSWORD] [--use-fqdn | --use-hostname | --use-ip-address]
-                                [--ignore-failed-ping]
-                                [--reboot | --shutdown | --start-opsiclientd | --no-start-opsiclientd]
-                                [--hosts-from-file HOST_FILE] [--skip-existing-clients] [--threads MAX_THREADS]
-                                [--install-timeout INSTALL_TIMEOUT] [--depot DEPOT] [--group GROUP] [--smbclient | --mount]
-                                [--keep-client-on-failure | --remove-client-on-failure]
-                                [--failed-clients-file FAILED_CLIENTS_FILE]
-                                [host [host ...]]
-
-Deploy opsi client agent to the specified clients. The c$ and admin$ must be accessible on every client. Simple File Sharing
-(Folder Options) should be disabled on the Windows machine.
-
-positional arguments:
-  host                  The hosts to deploy the opsi-client-agent to.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --version, -V         show program's version number and exit
-  --verbose, -v         increase verbosity (can be used multiple times)
-  --debug-file DEBUG_FILE
-                        Write debug output to given file.
-  --username USERNAME, -u USERNAME
-                        username for authentication (default: Administrator).Example for a domain account: -u
-                        <DOMAIN>\\<username>
-  --password PASSWORD, -p PASSWORD
-                        password for authentication
-  --use-fqdn, -c        Use FQDN to connect to client.
-  --use-hostname        Use hostname to connect to client.
-  --use-ip-address      Use IP address to connect to client.
-  --ignore-failed-ping, -x
-                        try installation even if ping fails
-  --reboot, -r          reboot computer after installation
-  --shutdown, -s        shutdown computer after installation
-  --start-opsiclientd, -o
-                        Start opsiclientd service after installation without performing Events (default).
-  --no-start-opsiclientd
-                        Do not start opsiclientd service after installation (deprecated).
-  --hosts-from-file HOST_FILE, -f HOST_FILE
-                        File containing addresses of hosts (one per line). If there is a space followed by text after the
-                        address this will be used as client description for new clients.
-  --skip-existing-clients, -S
-                        skip known opsi clients
-  --threads MAX_THREADS, -t MAX_THREADS
-                        number of concurrent deployment threads
-  --install-timeout INSTALL_TIMEOUT
-                        timeout for single threads (default is unlimited)
-  --depot DEPOT         Assign new clients to the given depot.
-  --group GROUP         Assign fresh clients to an already existing group.
-  --smbclient           Mount the client's C$-share via smbclient.
-  --mount               Mount the client's C$-share via normal mount on the server for copying the files.This imitates the
-                        behaviour of the 'old' script.
-  --keep-client-on-failure
-                        If the client was created in opsi through this script it will not be removed in case of failure.
-                        (DEFAULT)
-  --remove-client-on-failure
-                        If the client was created in opsi through this script it will be removed in case of failure.
-  --failed-clients-file FAILED_CLIENTS_FILE
-                        filename to store list of failed clients in
+cd /var/lib/opsi/depot/opsi-linux-client-agent
 ----
+
+Invoke the program with the `--help` parameter to display the online help:
+
+.The Online Help of *opsi-deploy-client-agent*
+image::opsi-deploy-agent.png["The Online Help of *opsi-deploy-client-agent*", pdfwidth=80%, width=800]
+
+TIP: You can also use `opsi-deploy-client-agent` to process a list of clients. To do this, either pass the clients as the last parameter or use `-f` followed by the filename containing the list. In such a file, list each client on a separate line.
