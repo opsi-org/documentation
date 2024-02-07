@@ -1,0 +1,60 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      18.12.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[security-selinux]]
+= SELinux
+
+"Security-Enhanced Linux (SELinux) is a security architecture for Linux systems that allows administrators to have more control over who can access the system."
+-- RedHat, What is SELinux? https://www.redhat.com/en/topics/linux/what-is-selinux
+
+## Reids-Server
+
+If SELinux is activated, the start of Redis is prevented. 
+To run Redis properly, an exception for SELinux must be set up.
+For this purpose, the file redis-server.te is created with the required exceptions.
+
+[source,console]
+----
+module redis-server 1.0;
+
+require {
+    type init_t;
+    type redis_t;
+    class process2 nnp_transition;
+}
+
+#============= init_t ==============
+allow init_t redis_t:process2 nnp_transition;
+----
+
+Next, a policy moudle file and a policy package are created using the following commands:
+
+[source,console]
+----
+checkmodule -M -m -o redis-server.mod redis-server.te
+semodule_package -o redis-server.pp -m redis-server.mod
+----
+
+The policy package can then be activated with `semodule -i redis-server.pp`.
