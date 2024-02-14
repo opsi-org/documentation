@@ -1,0 +1,252 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      14.02.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[firststeps-osinstall]]
+= Using opsi to install Windows
+
+This chapter describes the process of installing Windows on a computer without an existing operating system using opsi. Suitable client computers, whether physical or virtual, should meet the following requirements:
+
+* At least 2{nbsp}GB of RAM.
+* A network card that supports network booting (PXE protocol capability for boot media loading via the network).
+
+NOTE: Ensure to review and adjust the BIOS settings. Netboot must be enabled and prioritized at the top of the boot options to facilitate Windows installation via opsi.
+
+While standard Windows drivers typically work well with virtual hardware, installing Windows on newer physical computers might necessitate the integration of additional drivers in advance (refer to section <<firststeps-osinstall-driverintegration>> for more details).
+
+To successfully execute the steps in this chapter, you should have previously incorporated a Windows client into the opsi environment (as detailed in chapter xref:clients:windows-client/adding-clients.adoc#add-new-clients[Adding new Clients]).
+
+[[firststeps-osinstall-fill-base-packages]]
+== Completing opsi Products
+
+The netboot products provided by opsi for installing Windows act as wrappers and are missing a critical component: the content of the installation media. You need to manually copy these contents into the `installfiles` directory on the opsi depot server, which is initially empty by default (for more details, refer to section <<firststeps-osinstall-structure-dirs>>).
+
+Additionally, the Windows product key is essential. You have the option to store this key prior to the installation process (as outlined in section <<firststeps-osinstall-productkey>>), or you can alternatively enter it post-installation during the Windows system activation.
+
+[[firststeps-osinstall-fill-base-packages-nt6]]
+== Preparations
+
+To install Windows, you require a Windows Preinstallation Environment (WinPE) to function as a live system. You have the option to download either the <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>> or the <<firststeps-osinstall-fill-base-packages-nt6-pe-manual>>.
+
+NOTE: Generally, the version of Windows used in WinPE does not have to match the version of Windows you intend to install. What's crucial at this stage is ensuring that all necessary drivers for hard disks, network cards, etc., are available. Use a 32 bit PE for 32 bit Windows installations and a 64 bit PE for 64 bit installations. You can find more information in this link:https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/winpe-intro?view=windows-11[article] on Microsoft Learn.
+
+You will also need the Windows Assessment and Deployment Kit (Windows ADK) along with the WinPE addon. These should be installed on a Windows machine (preferably 64 bit) in the suggested path under `Program Files (x86)`. During installation, select only the _Windows Preinstallation Environment (Windows PE)_ option; any dependencies will be automatically resolved.
+
+IMPORTANT: For Windows 11 installations, if you have set the property `win11_hardware_check` to `[true]`, it's essential that the WinPE includes the optional components WinPE-WMI and WinPE-SecureStartup (link:https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/winpe-intro?view=windows-11#notes-on-running-windows-setup-in-windows-pe[Notes on running Windows Setup in Windows PE:, For Windows 11:]) Please note that as of the ADK for Windows 11, the 32 bit versions of Windows PE are no longer included in the WinPE add-ons. The last version that supports 32 bit is the WinPE add-on for Windows 10 (version 2004). More information: link:https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install[Download and install the Windows ADK]
+
+[[firststeps-osinstall-fill-base-packages-nt6-pe]]
+=== Creating a WinPE
+
+In the simplest scenario, if you already have a Windows computer with the opsi client agent and the Windows ADK installed, you can opt for the <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>> method. Alternatively, if you prefer a hands-on approach, the section <<firststeps-osinstall-fill-base-packages-nt6-pe-manual>> provides instructions for manual creation.
+
+[[firststeps-osinstall-fill-base-packages-nt6-pe-opsi]]
+==== Creating WinPE automatically with opsi
+
+To create the WinPE automatically using opsi, follow these steps:
+
+. Install the `opsi-winpe` package on the opsi-server: +
+`opsi-package-updater -v install opsi-winpe`.
+. Set the localboot product `opsi-winpe` for the Windows client to `once`. If required, choose `x86` instead of `x64` in the product properties at the bottom right. Save the changes by right-clicking and selecting _Save_.
+. If you need to integrate drivers for mass storage devices such as hard disks, refer to the section <<firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi>>.
+. Trigger the installation event for the client. This can be done either by right-clicking and selecting _on-demand_ or by rebooting the client.
+. Next, move or copy the contents of the newly created directory `C:\winpe_<ARCH>\media\` on the client to the existing directory of the operating system to be installed, which is located at `\\opsiserver\opsi_depot_rw\<operating system>\winpe\`. Replace `<ARCH>` with either `x86` for 32 bit or `amd64` for 64 bit architecture.
+. To finalize the process, run the command xref:server:components/commandline.adoc#server-components-opsi-set-rights[*opsi-set-rights*] on the opsi server:
+
+[source,console]
+----
+opsi-set-rights
+----
+
+[[firststeps-osinstall-fill-base-packages-nt6-pe-manual]]
+==== Creating WinPE manually (Windows ADK)
+
+To manually create a WinPE for Windows 10 or 11, begin by launching _Start_ / _Programs_ / _Windows Kits_ / _Windows ADK_ / _Environment for Deployment and Image Creation Tools_. This will open a prompt with the necessary environment variables already set. In this prompt, you'll need to input several commands.
+
+NOTE: The commands for 32 bit and 64 bit systems are nearly identical. In the first command, replace `<ARCH>` with either `x86` or `amd64`, depending on the architecture you're working with.
+
+. Use the CopyPE tool to create a working directory that includes the standard files for WinPE: +
+`copype.cmd <ARCH> C:\winpe`
+
+. Mount the image: +
+`dism /Mount-Wim /WimFile:C:\winpe\media\sources\boot.wim /index:1 /MountDir:c:\winpe\mount`
+
+. Replace the `startnet.cmd` script. The file `c:\opsi\startnet.cmd` is generated by the opsi-Linux boot image, along with the `wpeinit` call in `setup.py`: +
+`echo c:\opsi\startnet.cmd > "C:\winpe\mount\Windows\System32\startnet.cmd"`
+
+. Unmount the image: +
+`dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit`
+
+. Copy the contents of `C:\winpe\ISO` to `/var/lib/opsi/depot/<productid>/winpe`. After that, adjust the permissions: +
+`opsi-setup --set-rights /var/lib/opsi/depot/<productid>/winpe`
+
+[[firststeps-osinstall-fill-base-packages-nt6-extendpe]]
+=== Extending the WinPE
+
+By default, WinPE includes a broad range of drivers. The more recent the Windows version used to create the WinPE, the higher the likelihood that WinPE contains all necessary drivers. However, there are instances where certain drivers might be missing, or a standard driver for a particular hardware component may not be compatible with WinPE due to significant differences from the standard Windows drivers. In such cases, you need to extend the WinPE before proceeding with the OS installation. There are two methods to do this:
+
+* <<firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi>>
+* <<firststeps-osinstall-fill-base-packages-nt6-extendpe-manual>>
+
+[[firststeps-osinstall-fill-base-packages-nt6-extendpe-opsi]]
+==== Extending the WinPE with opsi
+
+To integrate specific drivers during the automatic generation of WinPE, you can utilize the `opsi-winpe` product.
+
+NOTE: It's important to only integrate drivers that are absolutely essential for the Windows installation process. Typically, this includes network or mass storage drivers necessary for installation.
+
+To add the drivers, copy them to the directory `\\opsiserver\opsi_depot_rw\opsi-winpe\drivers\`. After copying, ensure you set the appropriate access rights:
+
+[source,console]
+----
+opsi-set-rights /var/lib/opsi/depot/opsi-winpe
+----
+
+After copying the drivers and setting the access rights, proceed as outlined in the section <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>.
+
+TIP: To verify that the process has been successful, you can check the logfile. For instance, if you have integrated a VirtIO mass storage driver, the corresponding entry in the logfile should appear as follows:
+
+[source,console]
+----
+comment: Driver           : oem0.inf
+comment: OriginalFileName : C:\winpe_amd64\mount\Windows\System32\DriverStore\FileRepository\viostor.inf_amd64_aa6c91b5db55ab62\
+comment:                    viostor.inf
+comment: Inbox            : False
+comment: ClassName        : SCSIAdapter
+comment: BootCritical     : True
+comment: ProviderName     : Red Hat, Inc.
+comment: Date             : 15-11-2022 00:00:00
+comment: Version          : 100.92.104.22900
+----
+
+[[firststeps-osinstall-fill-base-packages-nt6-extendpe-manual]]
+==== Extending the WinPE manually
+
+For Dell hardware, Dell provides specific link:https://www.dell.com/support/kbdoc/en-us/000108642/winpe-10-driver-pack[network and storage drivers] recommended for WinPE use. The following steps describe how to manually integrate such drivers into a WinPE. Ensure you have completed all the steps for creating the WinPE as per section <<firststeps-osinstall-fill-base-packages-nt6-pe-opsi>>.
+
+. Download the WinPE10 driver package from Dell and extract it, using tools like 7-Zip or the `expand` command. Create a new directory, for instance, `dell-drivers`, and extract the `.cab` file into this directory.
+
+. Inspect the image by opening the command prompt as an administrator and executing the command: +
+`dism /Get-WimInfo /WimFile:C:\winpe\ISO\sources\boot.wim`
+
+. For the next step, note the index number from the output of the previous command. Typically, as WinPE usually comprises a single image, index 1 is the correct choice. Mount the image using the command: +
+`dism /Mount-Wim /WimFile:C:\winpe\ISO\sources\boot.wim /index:1 /MountDir:c:\winpe\mount`
+
+. Incorporate the unpacked drivers into the WinPE: +
+`dism /Image:C:\winpe\mount /Add-Driver /Driver:c:\dell-driver\winpe\x64 /Recurse` +
+For 32 bit systems, replace `x64` with `x86`. The Dell driver package includes drivers for both architectures.
+
+. Unmount the image and save the changes: +
+`dism /Unmount-Wim /MountDir:c:\winpe\mount /Commit`
+
+. Copy the `C:\winpe\ISO` directory to `/var/lib/opsi/depot/<productid>/` as a directory named `winpe`, and then adjust the permissions: +
+`opsi-set-rights /var/lib/opsi/depot/<productid>/winpe`
+
+TIP: If you need to integrate only a specific driver, you can exclude the `/Recurse` option in step 4 and directly specify the driver's `.inf` file instead of the entire directory. Additionally, you can use the `/ForceUnsigned` parameter to integrate non-signed drivers into a WinPE.
+
+[[firststeps-osinstall-fill-base-packages-nt6-unattend]]
+=== The *unattend.xml* File
+
+For unattended installations, a control file named `unattend.xml` is used, which can typically be found in the `custom` directory, for example, at `/var/lib/opsi/depot/<productid>/custom` (as detailed in section <<firststeps-osinstall-structure>>). This file includes references to the properties of the Netboot products and contains placeholders for the administrator account name and password (the default being `nt123`).
+
+Additionally, a template file named `unattend.xml.template` is located in the `opsi` directory of the respective Netboot product. This template is regularly updated and has been thoroughly tested by us.
+
+NOTE: If you need to make modifications to the `unattend.xml` file, ensure to edit the version in the `custom` directory, as this version takes precedence (refer to section <<firststeps-osinstall-structure-opsicustom>> for more details).
+
+The `unattend.xml` file also includes a directive to execute a file named `postinst.cmd` located in the `opsi` directory after Windows installation. This `postinst.cmd` file, in turn, runs all the scripts found in the `opsi/postinst.d` directory. For additional information about this process, see section <<firststeps-osinstall-structure-opsicustom>>.
+
+[[firststeps-osinstall-fill-base-packages-nt6-drivers]]
+=== Integrating Drivers
+
+Ideally, a Windows installation should be seamless, with all devices on the computer functioning correctly. However, it's not uncommon to encounter situations where most components work fine, but specific ones, like the Bluetooth interface of a notebook, may not. Even in cases where everything operates as expected, there might be better or more recent hardware drivers available. Hardware manufacturers, including Lenovo and Dell, often recommend their proprietary drivers and make them available for download.
+
+TIP: For detailed guidance on how to integrate these manufacturer-specific drivers, refer to the section <<firststeps-osinstall-driverintegration>>.
+
+[[firststeps-osinstall-fill-base-packages-nt6-installfiles]]
+=== Providing Installation Media
+
+Copy the contents of the Windows installation DVD to `/var/lib/opsi/depot/<productid>/installfiles` and adjust the access rights or the owner:
+
+[source,console]
+----
+opsi-set-rights /var/lib/opsi/depot/<productid>/installfiles
+----
+
+[[firststeps-osinstall-fill-base-packages-nt6-logfiles]]
+=== Logfiles
+
+Here's an overview of the key logfiles generated during the OS installation process:
+
+* `c:\Windows\Panther\setupact.log`: +
+This log captures details up to the end of setup phase 4 and runs under WinPE.
+
+* `c:\Windows\Panther\setupact.err`: +
+This is the error log for events up to the end of setup phase 4, also running under WinPE.
+
+* `c:\Windows\Panther\UnattendGC\setupact.log`: +
+This log covers the Specialize phase of the installation.
+
+* `c:\Windows\Panther\UnattendGC\setupact.err`: +
+The error log for the Specialize phase is stored here.
+
+* `c:\Windows\System32\winevt\Logs\*`: +
+This directory contains several event logs.
+
+* `c:\Windows\ntbtlog.txt`: +
+This is a log file that Windows generates during the startup process, provided it's enabled.
+
+.Most of the logfiles created during the OS installation are located in the *c:\Windows\Panther\* directory.
+image::logdateien-os-install.png["Most of the logfiles created during the OS installation are located in the *c:\Windows\Panther\* directory.", pdfwidth=80%, width=800]
+
+[[firststeps-osinstall-productkey]]
+== Entering the Windows Product Key
+
+TIP: If you have acquired the xref:opsi-modules:licensemanagement.adoc[License Management] module, you can conveniently manage your Windows product keys through this extension. The Netboot product for OS installation automatically detects the presence of this module and inquires the opsi server for a suitable license pool. If available, it retrieves the Windows product key from there.
+
+In case you do not have the license management module or prefer not to use it for managing Windows product keys, you can manually enter the key via the xref:clients:windows-client/opsiconfiged.adoc[Management Interface *opsi-configed*]:
+
+. Select a client from the left sidebar.
+. Navigate to the _Netboot products_ tab.
+. Choose the desired Netboot product, such as _win10-x64_.
+. On the right-hand side, expand the _Property configuration_ and scroll down to the _productkey_ entry.
+. Click in the _Property value_ column.
+. In the dialog that opens, enter the product key and click the plus sign to add it.
+. The green checkmark will now appear in red; click on it to save the changes and close the dialog.
+. Finally, to save the changes in the backend, click on the red checkmark located in the top left-hand corner.
+
+.You can enter the Windows Product Key via the Product Properties.
+image::product-key.png["You can enter the Windows Product Key via the Product Properties.", pdfwidth=80%, width=800
+
+Alternatively, you can set a standard product key for all clients within your opsi depot. To do this in `opsi-configed`, follow these steps:
+
+. Click on the _Depot configuration_ tile located at the top right.
+. Navigate to the _Default properties_ tab.
+. Select the Netboot product you wish to set the key for, such as _win10-x64_.
+. On the right-hand side, expand _Edit properties on depot(s)_ and scroll down to the _productkey_ entry.
+. Click in the _Property value_ column.
+. In the dialog that appears, enter the product key and click the plus sign to add it.
+. The green checkmark will turn red; click on it to save the changes and close the dialog.
+. Finally, to ensure the changes are applied in the backend, click on the red checkmark located in the top left-hand corner.
+
+[[firststeps-osinstall-start]]
+== Starting the Windows Installation
