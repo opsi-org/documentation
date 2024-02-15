@@ -349,33 +349,259 @@ NOTE: If opsi locates such a directory, it is treated as if the drivers were man
 TIP: Drivers can be provided through the management interface `opsi-configed`, tab _Hardware information_. For more information on automated driver integration, please refer to the section xref:gui:configed/userguide-clients.adoc#opsi-manual-configed-automat-treiberintegration[].
 
 The opsi Linux boot image processes the drivers in the following order:
-//hier
+
+1. opsi initially searches in the directory `<vendor>/<model> (<sku>)`.
+2. If no relevant files are found there, opsi then checks the `<system vendor>/<system model>` directory.
+3. As a last resort, opsi searches within `<motherboard vendor>/<motherboard model>`.
+
+It’s worth noting that some vendors use model names that can be problematic for this automatic method via `hwaudit`, especially names containing special characters like `/` or `:` that are not allowed in file or directory names. For instance, a directory named `5000/6000/7000` might be required. To address this, opsi internally substitutes certain special characters with an underscore (`_`): `<`, `>`, `?`, `"`, `:`, `|`, `\`, `/`, and `*`. Therefore, in the example mentioned, opsi would create and automatically assign a directory named `5000_6000_7000`, even though the hardware inventory may have provided a different name.
 
 [[firststeps-osinstall-driverintegration-additional]]
-=== Treiber manuell zuordnen
+=== Assigning Drivers manually
+
+Drivers intended for installation regardless of their identification via PCI or USB IDs should be placed in separate directories under `<productid>/drivers/drivers/additional`; the naming and depth of this directory structure are flexible. The `additional_drivers` product property (explained in section <<firststeps-osinstall-driverintegration-additional>>) allows you to assign one or more paths from the `<productid>/drivers/drivers/additional` folder to a client.
+
+TIP: opsi recursively searches directories listed in the `additional_drivers` product property and includes all drivers found therein. It also follows symbolic links, which can be used to create separate directories for specific computer models, like `dell-optiplex-815`.
+
+If opsi locates a driver for an existing PCI device (or for HD audio, USB) in the directories specified via `additional_drivers`, it will not include a driver for this device from `drivers/preferred/` (see section <<firststeps-osinstall-driverintegration-preferred>>) or `drivers/`. Therefore, `additional_drivers` is particularly useful for incorporating drivers that cannot be identified through the standard driver recognition process (detailed in section <<firststeps-osinstall-driverintegration-processing>>).
 
 [[firststeps-osinstall-driverintegration-generaldrivers]]
-=== Allgemeine Treiber
+=== General Drivers 
+
+When dealing with highly diverse hardware configurations, employing general driver packages can be a practical approach. These packages are placed in the `<productid>/drivers/drivers` directory. opsi identifies these drivers as compatible with the specific hardware based on their PCI IDs (or USB or HD audio IDs) as detailed in the driver's description file, and subsequently incorporates them into the Windows setup process.
 
 [[firststeps-osinstall-driverintegration-preferred]]
-=== Spezielle Treiber
+=== Special Drivers
 
+For hardware-specific drivers that are not directly assigned, you can source them from the device manufacturers' websites. These additional or verified drivers should be placed in their distinct directories (where the name and structure depth are not critical) under `<productid>/drivers/drivers/preferred`. opsi identifies these drivers as suitable for the hardware by referencing their PCI IDs (or USB or HD audio IDs) in the driver's description file. It gives precedence to these drivers over those stored in `<productid>/drivers/drivers` and integrates them into the Windows setup.
 
+NOTE: If there are multiple drivers for a single PCI ID in the `preferred` directory, it may cause issues with driver allocation. In such scenarios, it's necessary to assign drivers directly to a specific client to ensure correct installation and functionality.
 
+[[firststeps-osinstall-driverintegration-structure]]
+=== Using the *drivers* Directory
 
+Within the `drivers` directory of the Netboot product, you can store both manually and automatically added drivers.
 
+.This is the Content of the *drivers* Folder.
+image::drivers-directory-tree.png["This is the Content of the *drivers* Folder.", pdfwidth=80%, width=800]
 
+opsi processes these drivers in a specific order, assigning varying levels of priority to each.
 
+[[firststeps-osinstall-driverintegration-processing]]
+=== Drivers' Priority
 
+Drivers integrated through the product property `additional_drivers` or via inventory data from `<productid>/drivers/driversadditional/byAudit` are given the highest priority by opsi. Initially, opsi uses PCI, USB, or HD audio identifiers to determine if there is a suitable driver for the hardware in these directories. If a matching driver isn't found there, opsi then proceeds to search the other directories (`<productid>/drivers/drivers/preferred` and `<productid>/drivers/drivers`).
 
+[[firststeps-osinstall-driverintegration-drivercheck]]
+=== Adding and testing Drivers
 
+Following the addition of a driver or any modification within the `<productid>/drivers/drivers` directory (or its subdirectories), execute this command in the root directory of the Netboot product. This ensures that the rights are correctly set:
 
+[source,sonsole]
+----
+opsi-set-rights ./drivers
+----
 
+When you have stored drivers in the `<productid>/drivers/drivers` or `<productid>/drivers/drivers/preferred` directories, it's essential to run the `./create_driver_links.py` script. This script scans the directories, creating a series of links that facilitate the assignment of drivers to the corresponding hardware. Drivers from the `preferred` directory are given precedence by this script.
 
+The `setup.py` script examines the hardware of the computer being installed and identifies the necessary drivers. Subsequently, it copies these drivers to the hard disk and modifies the `unattend.xml` file accordingly.
 
+If hardware inventory data is available for a client, you can use the `show_drivers.py` script. It provides an output showing which drivers the boot image would select for installation based on PCI IDs, USB IDs, HD audio IDs, and `additional_drivers` (or `byAudit`). It also indicates any hardware components for which a driver is not yet available:
 
+[source,console]
+----
+./show_drivers.py <clientname>
+----
 
+Check the output from `show_drivers.py` to confirm the inclusion of the necessary drivers.
 
+NOTE: Sometimes, driver directories from manufacturers might encompass drivers for various operating systems (like Windows 10, Windows 11, etc.) or configurations (SATA, SATA-Raid, etc.). opsi does not differentiate between these. If you think a recognized driver is not appropriate, relocate it to the `<productid>/drivers/exclude` directory. opsi does not consider drivers in this location for integration. After moving the driver, rerun `./create_driver_links.py` or `./show_drivers.py`.
 
+==== *show_drivers.py* Output (Examples)
 
+[source,console]
+----
+./show_drivers.py pcdummy
 
+PCI-Devices
+   [(Standardsystemgeräte), PCI Standard-PCI-zu-PCI-Brücke]
+      No driver - device directory  /var/lib/opsi/depot/<productid>/drivers/pciids/1022/9602 not found
+   [ATI Technologies Inc., Rage Fury Pro (Microsoft Corporation)]
+      Using build-in windows driver
+   [(Standard-IDE-ATA/ATAPI-Controller), Standard-Zweikanal-PCI-IDE-Controller]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/D/M/N/123
+   [Realtek Semiconductor Corp., Realtek RTL8168C(P)/8111C(P) PCI-E Gigabit Ethernet NIC]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/realtek_gigabit_net_8111_8168b
+   [IEEE 1394 OHCI-konformer Hostcontroller-Hersteller, OHCI-konformer IEEE 1394-Hostcontroller]
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/197B/2380' not found
+   [Advanced Micro Devices, Inc., AMD AHCI Compatible RAID Controller]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ati_raid_sb7xx
+   [(Standard-USB-Hostcontroller), Standard OpenHCD USB-Hostcontroller]
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/1002/4397' not found
+   [ATI Technologies Inc, ATI SMBus]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ati_smbus
+
+USB-Devices
+   [(Standard-USB-Hostcontroller), USB-Verbundgerät]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
+   [Microsoft, USB-Druckerunterstützung]
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/brother_844x_pGerb
+
+Additional drivers
+   [ati_hdaudio_azalia]
+     /var/lib/opsi/depot/<productid>/drivers/drivers/additional/ati_hdaudio_azalia
+----
+
+Example for a client with `additional_drivers`:
+
+[source,console]
+----
+ ./show_drivers.py e5800
+Manually selected drivers (additional)
+   [hp_e5800]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI3.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDX861A.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI1.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXCPC.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64/HDXHPAI2.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/autorun.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/ibxHDMI/IntcDAud.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/HDMI/IntcHdmi.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/Graphics/kit24890.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/IIPS/Impcd.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit/hp64win7.inf]
+
+PCI-Devices
+   [8086:27C8]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C8
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DA]  Intel : Intel(R) N10/ICH7 Family SMBus Controller - 27DA
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C9]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27C9
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27DF]  Intel : Intel(R) ICH7 Family Ultra ATA Storage Controllers - 27DF
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27CA]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CA
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E30]  Intel : Intel(R) 4 Series Chipset Processor to I/O Controller - 2E30
+      /var/lib/opsi/depot/<productid>/drivers/drivers/not_preferred/x64/C/Intel/1
+   [8086:27CB]  Intel : Intel(R) N10/ICH7 Family USB Universal Host Controller - 27CB
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:2E32]  Intel Corporation : Intel(R) G41 Express Chipset
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp50134/Graphics
+   [8086:27CC]  Intel : Intel(R) N10/ICH7 Family USB2 Enhanced Host Controller - 27CC
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:244E]  Intel : Intel(R) 82801 PCI-Brücke - 244E
+      Using build-in windows driver
+      This driver will not be integrated, because same device already integrated in: '/var/lib/opsi/depot/<productid>n/drivers/drivers/not_preferred/x64/C/Intel/1/dmi_pci.inf'
+   [8086:27D0]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D0
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27B8]  Intel : Intel(R) ICH7 Family LPC Interface Controller - 27B8
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D2]  Intel : Intel(R) N10/ICH7 Family PCI Express Root Port - 27D2
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27C0]  Intel : Intel(R) N10/ICH7 Family Serial ATA Storage Controller - 27C0
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/R293337/WIN7
+   [8086:27D8]  Microsoft : High Definition Audio-Controller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/8086/27D8' not found
+   [10EC:8136]  Realtek : Realtek RTL8102E/RTL8103E-Familie-PCI-E-Fast-Ethernet-NIC (NDIS 6.20)
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp54284/Realtek 64bit
+
+USB-Devices
+   [0461:0010]  (Standardsystemgeräte) : USB-Eingabegerät
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+   [0461:4D20]  (Standardsystemgeräte) : USB-Eingabegerät
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+   [058F:6366]  Kompatibles USB-Speichergerät : USB-Massenspeichergerät
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/058F' not found
+   [0461:0010]  (Standard-USB-Hostcontroller) : USB-Verbundgerät
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/0461' not found
+
+HD-Audio-Devices
+   [10EC:0662]  Realtek High Definition Audio
+      Manually selected [hp_e5800] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/hp_e5800/sp52852/Vista64
+----
+
+Example for a client with `byAudit`:
+
+[source,console]
+----
+ ./show_drivers.py pctry5detlef
+Manually selected drivers (additional)
+   [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)/atiilhag.inf]
+      [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio/oem21.inf]
+
+PCI-Devices
+   [1002:5B70]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0053]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0053' not found
+   [10DE:005D]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005D' not found
+   [1022:1100]  AMD : AMD HyperTransport(tm)-Konfiguration
+      Using build-in windows driver
+   [10DE:0054]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1101]  AMD : AMD-Adresszuordnungskonfiguration
+      Using build-in windows driver
+   [10DE:0055]  (Standard-IDE-ATA/ATAPI-Controller) : Standard-Zweikanal-PCI-IDE-Controller
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/fsc__esprimo_p625/FTS_NVIDIASATAAHCIDRIVERVISTA64V103042MCP78__1026963/NVIDIA_SATA_AHCI_DRIVER_Vista64_V10.3.0.42_MCP78 (textmode capable)
+   [1022:1102]  AMD : AMD DRAM und HyperTransport(tm)-Nachverfolgungsmoduskonfiguration
+      Using build-in windows driver
+   [10DE:0057]  NVIDIA : NVIDIA nForce-Netzwerkcontroller
+      Using build-in windows driver
+   [1022:1103]  AMD : Sonstige AMD-Konfiguration
+      Using build-in windows driver
+   [10DE:0059]  Realtek : Realtek AC'97 Audio
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/MEDIA/Realtek AC'97 Audio
+   [10DE:005E]  NVIDIA : NVIDIA nForce4 HyperTransport-Brücke
+      /var/lib/opsi/depot/<productid>/drivers/drivers/preferred/ga-ma78-pcbon4/chipset_win7-64/SMBUS
+   [104C:8025]  Texas Instruments : OHCI-konformer Texas Instruments 1394-Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/104C/8025' not found
+   [10DE:005A]  (Standard-USB-Hostcontroller) : Standard OpenHCD USB-Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005A' not found
+   [10DE:0050]  (StandardsystemgerÃ¤te) : PCI Standard-ISA-BrÃ¼cke
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/0050' not found
+   [10DE:005B]  (Standard-USB-Hostcontroller) : Standard PCI-zu-USB erweiterter Hostcontroller
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005B' not found
+   [1002:5B60]  ATI Technologies Inc. : Radeon X300/X550/X1050 Series (Microsoft Corporation - WDDM)
+      Manually selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series Secondary (Microsoft Corporation - WDDM)
+      Multiple selected [/var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi] /var/lib/opsi/depot/<productid>/drivers/drivers/additional/byAudit/nvidia/awrdacpi/pctry5detlef/Display/Radeon X300-X550-X1050 Series (Microsoft Corporation - WDDM)
+   [10DE:0052]  NVIDIA : NVIDIA nForce PCI-Systemverwaltung
+      Using build-in windows driver
+   [10DE:005C]  (Standardsystemgeräte) : PCI Standard-PCI-zu-PCI-Brücke
+      No driver - device directory '/var/lib/opsi/depot/<productid>/drivers/pciids/10DE/005C' not found
+
+USB-Devices
+   [1241:1111]  (StandardsystemgerÃ¤te) : USB-Eingabegerät
+      No driver - vendor directory '/var/lib/opsi/depot/<productid>/drivers/usbids/1241' not found
+
+HD-Audio-Devices
+   No devices installed
+----
+
+==== Additional Tips and Information
+
+The Network Driver Interface Specification (NDIS) is a protocol created jointly by Microsoft and 3Com for network card integration. The following link:https://en.wikipedia.org/wiki/Network_Driver_Interface_Specification[NDIS versions] have been implemented:
+
+* NDIS 6.0: Used in Windows Vista.
+* NDIS 6.1: For Windows Vista SP1, Server 2008, Windows Embedded Compact 7, Windows Embedded Compact 2013.
+* NDIS 6.20: Applicable to Windows 7, Microsoft Windows Server 2008 R2.
+* NDIS 6.30: Found in Windows 8, Windows Server 2012.
+* NDIS 6.40: Integrated in Windows 8.1, Windows Server 2012 R2.
+* NDIS 6.50: Used in Windows 10, Version 1507.
+* NDIS 6.51: For Windows 10, version 1511.
+* NDIS 6.60: Covers Windows 10 and Windows Server 2016, version 1607.
+* NDIS 6.70: Applicable to Windows 10, version 1703.
+* NDIS 6.80: Found in Windows 10, version 1709.
+* NDIS 6.81: Integrated in Windows 10, version 1803.
+* NDIS 6.82: Used in Windows 10 and Windows Server 2019, version 1809.
+* NDIS 6.83: For Windows 10, version 1903.
+
+Be aware that some chipset drivers include description files listing numerous hardware components but do not actually provide drivers for them. This scenario is evident with files like `cougar.inf` or `ibexahci.inf` from Intel. When such a directory with "pseudo drivers" is assigned via `additional_drivers` or `byAudit`, the hardware is recognized as "supported" by opsi, and it ceases to search for drivers in the `preferred` directory.
+
+SATA drivers and SATA RAID drivers are linked to the same PCI identifier. However, a SATA RAID driver is not compatible with systems that use a single disk setup.
+
+IMPORTANT: Check the output of `./show_drivers.py` very carefully before proceeding with the automatic OS installation! 
