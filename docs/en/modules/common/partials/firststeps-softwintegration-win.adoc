@@ -1,5 +1,5 @@
 ////
-; Copyright (c) uib gmbh (www.uib.de)
+; Copyright (c) uib GmbH (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
@@ -9,117 +9,88 @@
 ; https://creativecommons.org/licenses/by-sa/3.0/
 ; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
+; credits: http://www.opsi.org/credits/
 ////
 
-:Author:    uib gmbh
+:Author:    uib GmbH
 :Email:     info@uib.de
+:Date:      15.02.2024
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
 :icons:     font
 :xrefstyle: full
 
+include::common:partial$opsi_terms.adoc[]
+
 [[opsi-winclient-softwintegration]]
-= Integration of New Software Packages into the opsi System
+= Integrating custom Software
 
-The primary objective of software distribution is to accomplish automatic software installation without user interaction. Software installation and user activity should be strictly separated. In most cases, the installation process requires administrative privileges which the user usually doesn't have. So the installation process has to be done independently from the user. This way, the user can neither interfere nor be affected by the software installation process.
-
-In order to do this, you have to write a script for the script driven installer, which is called an 'opsi-script' script. This script in addition to the installfiles and some metadata can be packed as a opsi-product, which in turn can be installed on a {opsi-Server}.
+The installation of software using opsi is managed either by the xref:clients:windows-client/windows-client-agent.adoc[Client Agent] or the setup program xref:opsi-script-manual:opsi-script-manual.adoc[*opsi-script*]. When packaging your own software for deployment through opsi, it's necessary to create an `opsi-script` script for each product. This script, along with the installation files and metadata, should be packed. As a result, you'll get an opsi product which is then installed on the opsi server (see the chapter xref:clients:windows-client/minimal-products.adoc[Adding Products (opsi Server)]).
 
 [[opsi-winclient-softwintegration-tutorial]]
-== A Brief Tutorial: How to write a opsi-script Script
-
+== Tutorial: Creating an *opsi-script* Script
 
 include::common:partial$softwintegration-tutorial-introduction.adoc[]
 
 [[opsi-winclient-softwintegration-tutorial-general]]
-=== Methods of Non-Interactive Installation for Windows
+=== Non-interactive software installation (Windows)
 
-Regardless of whether or not you are using opsi or another management solution, there are three different ways to install software without user interaction:
+Basically, there are three different ways to integrate a software package into the automatic software distribution for Windows operating systems. Additionally, there's a variant that uses the link:https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal[Windows Installer] service:
 
-. *Unattended or Silent Installation* +
-The original setup binary from the software manufacturer can be executed with command line arguments which enable a 'silent' or 'unattended' mode. It depends on whether or not the program supports a silent installation mode. A special case of this method is the unattended installation of MSI packages.
-*"silent" Installation of a MSI-Package*:+
-A MSI-Package can be installed using the "quiet" Option.
+* *Unattended*/*Silent Setup*: +
+This approach involves using the original setup program and configuring it for non-interactive mode via command line parameters. A notable example is the silent installation of an MSI package using the `/quiet` option of the link:https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec[*msiexec*] tool.
 
-. *Interactive Setup with recorded Answers* +
-The actions executed by the administrator while running the manufacturer's setup program during a manual installation are automatically recorded using the free tools 'Autoit' or 'Autohotkey'. This generates an autoIt script which in turn can be used for an unattended installation.
+* *Interactive Setup with recorded Answers*: +
+Begin by running the original setup program once to observe the window titles and the sequence of questions and responses during the setup. Record these details in a script. During software distribution, an automation tool such as link:https://www.autoitscript.com/site/[AutoIt] or link:https://www.autohotkey.com/[AutoHotkey] interacts with the setup program as dictated by the script.
 
-. *Recreate the setup-routine with opsi-script*: +
-The actions executed by the setup-routine when installing manually are recorded and the opsi-script is used to reproduce them.
+* *Recreate Setup Routine with `opsi-script`*: +
+While the original setup program is active, use a tool like link:https://learn.microsoft.com/en-us/sysinternals/downloads/procmon[Process Monitor/Procmon] to log all system changes. You then craft the `opsi-script` script based on the logged data and the changes you’ve recorded.
 
-NOTE: opsi supports all of these variants. +
-Usually a combination of these methods in one script provides the best result. For example, performing the basic installation using the original setup if available, and then doing some customizing by patching the registry or the file based configuration.
-
+NOTE: opsi supports all three variants. In practice, a combination of several methods is often used.
 
 include::common:partial$softwintegration-tutorial-script-structure-opsi-script-basics.adoc[]
 
-
 [[opsi-winclient-softwintegration-tutorial-windows-special-commands]]
-===== Special commands for Windows
+===== Special Commands for Windows
 
-* `getOS : string` // liefert: Linux or Windows_NT or macOS [W/L/M] +
-ifeval::["{mode}" == "antora"]
-xref:opsi-script-manual:prim-section.adoc#GetOS[GetOS]
-endif::[]
-ifeval::["{mode}"!= "antora"]
-link:https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetOS[https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetOS]
-endif::[]
+* `GetOS`: This function retrieves the operating system type. It returns values such as `Linux`, `Windows_NT` (covering Windows NT through Windows 11), or `macOS`.
 
-* `getMsVersionInfo : string` // Windows Version Information [W] +
-ifeval::["{mode}" == "antora"]
-xref:opsi-script-manual:prim-section.adoc#GetMsVersionInfo[GetMsVersionInfo]
-endif::[]
-ifeval::["{mode}"!= "antora"]
-link:https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetMsVersionInfo[https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetMsVersionInfo]
-endif::[]
+* `GetMsVersionInfo`: This function provides detailed information about the internal Windows version. For instance, Windows 7 is identified as "6.1", while Windows 11 is recognized as "10.0", etc.
 
+* `GetMsVersionName`: This function returns the commercial version name of a Windows system. For example, Windows 7 returns "7.0", and Windows 11 returns "11.0", and so on.
 
-* `GetMsVersionName` //Windows _marketing_ Version //since 4.12.4.35 [W] +
-ifeval::["{mode}" == "antora"]
-xref:opsi-script-manual:prim-section.adoc#GetMsVersionName[GetMsVersionName]
-endif::[]
-ifeval::["{mode}"!= "antora"]
-link:https://docs.opsi.org/opsi-docs-en/4.2/opsi-script-manual/prim-section.html#GetMsVersionName%[https://docs.opsi.org/opsi-docs-en/4.2/opsi-script-manual/prim-section.html#GetMsVersionName]
-endif::[]
+* `getMSVersionMap`: This function locally queries the operating system information and records it into a string list.
 
-
-* `getMSVersionMap : stringlist` [W] +
-ifeval::["{mode}" == "antora"]
-xref:opsi-script-manual:prim-section.adoc#GetMSVersionMap[GetMSVersionMap]
-endif::[]
-ifeval::["{mode}"!= "antora"]
-link:https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetMSVersionMap[https://docs.opsi.org/opsi-docs-de/4.2/opsi-script-manual/prim-section.html#GetMSVersionMap]
-endif::[]
-
+TIP: For more comprehensive details about these string functions, refer to the section xref:opsi-script-manual:prim-section.adoc#opsi-script-string-functions-os[String Functions which return the OS Type].
 
 [[opsi-winclient-softwintegration-tutorial-template]]
-== Example: Windows-Template _opsi-template_
+== Example: Windows Template *opsi-template*
 
-This template can be created with `opsi-setup-detector`.
+You can create this template with the `opsi-setup-detector` tool (see the section <<opsi-winclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
 
 // include docu: actual template for windows
 include::common:partial$firststeps-opsi-template-win.adoc[]
 
-
 [[opsi-client-softwintegration-create-opsi-package]]
-== Creating an opsi product
+== Creating opsi Products
 
-////
-[[opsi-setup-detector-installation]]
-==== Installation of opsi-setup-detector, opsi PackageBuilder and opsi-logviewer
-////
+The following sections outline the steps for packaging software, specifically for creating opsi products. The fundamental process involves:
+
+1. Creating the basic framework of a package using the `opsi-setup-detector` (refer to section <<opsi-winclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
+2. Testing the `opsi-script` script (see section <<opsi-softwintegration-tutorial-create-and-test-script>>).
+3. Using the opsi PackageBuilder (oPB) to transform the initial form into a complete opsi package, which is then stored on the opsi server.
 
 // include docu: opsi-setup-detector installation
 include::common:partial$setup-detector-installation.adoc[]
 
-
 // include docu: opsi-logviewer installation
 include::common:partial$opsi-logviewer-installation.adoc[]
 
-
 [[opsi-winclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
-== The opsi-setup-detector program for creating a Windows script
+== *opsi-setup-detector*: Creating a Script
+
+The following sections explain in detail how to use the `opsi-setup-detector` to analyze a setup file and create an opsi product.
 
 // include docu: opsi-setup-detector
 include::common:partial$setup-detector-use-start.adoc[]
@@ -162,7 +133,11 @@ You may use the tools like: +
 [[opsi-winclient-softwintegration-tutorial-autoit]]
 == Integration with Automated Answers for the setup Program
 
-Another fast way of integration is to provide an automated answer file for the setup process. The answer file contains pre-defined answers.  To be more precise, the answer file is used by a control tool, which waits for the setup to come up with the interactive windows.  The control tool then passes input to these windows as defined in the answer file. As a control tool we recommend 'AutoIt'. The AutoIt program and the documentation can be found at: http://www.hiddensoft.com/autoit3.
+Another fast way of integration is to provide an automated answer file for the setup process. The answer file contains pre-defined answers.  To be more precise, the answer file is used by a control tool, which waits for the setup to come up with the interactive windows.  The control tool then passes input to these windows as defined in the answer file. As a control tool we recommend 'AutoIt'. The AutoIt program and the documentation can be found at: +
+
+* link:http://www.autoitscript.com[AutoIt]
+
+=== AutoIt: Control the setup process
 
 AutoIt provides a lot of commands to control the setup process. Also, several error states can be handled (if known in advance) with the '[ADLIB]' section in the script.
 
@@ -174,6 +149,8 @@ The user can interfere with the installation if the mouse and keyboard are not d
 
 A combination of both might do a good job: +
 The 'silent'-setup does the main installation and the AutoIt script handles special conditions that might occur.
+
+=== AutoIt: Known problems
 
 If you use the opsi option of running the installation on another desktop than the current desktop, or if the current desktop is locked, then you will find that some autoit functions do not work properly under these conditions.
 
@@ -187,7 +164,12 @@ Therefore you should avoid using the following autoit commands in 'opsi-script' 
 
 These are the most widly used commands.
 
-We recommend to use  the `opsi-autoit-lib.au3` library, that provides replacements for this commands. You lill find this file at  `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`. +
+We recommend to use  the `opsi-autoit-lib.au3` library, that provides replacements for this commands. You will find this file at  `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`. Copy this file to the scriptdirectory of your opsi product. Now you may include this file by using the following autoit code line:
+
+[source]
+----
+#include "%scriptpath%\opsi-autoit-lib.au3
+----
 
 
 This library provide substitutes:
@@ -204,9 +186,18 @@ respectively by +
 `opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
 
 
-It is always a good idea for the identification of controls to use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly.
+TIP: It is always a good idea for the identification of controls to use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly.
 
-Example you will find in: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\` in den Dateien `autoit_example_1.txt` and `autoit_example_1.txt`.
+=== AutoIT: Examples and additional Links
+
+Examples you will find in the directory: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\` in the files: + 
+
+  - `autoit_example_1.txt`
+
+  - `autoit_example_2.txt`
+  
+  - `autoit_example_3.txt`
+
 
 see also: +
 http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +

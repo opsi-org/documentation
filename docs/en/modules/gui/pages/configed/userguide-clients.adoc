@@ -1,0 +1,614 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      12.11.2023
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
+[[opsi-manual-configed-clients]]
+= Clients
+
+Dieses Kapitel stellt die Client-Verwaltung mit `opsi-configed` vor und die Funktionen, die verfügbar sind, nachdem Sie in der Übersicht rechts oben den Button _Client-Konfiguration_ angeklickt haben. Sie erfahren unter anderem, wie Sie nach bestimmten Clients suchen und zusätzliche Informationen wie Session-Daten abrufen können, wie Sie Clients und Client-Gruppen erstellen und verwalten können, wie Sie Remote-Control-Kommandos ausführen, Pop-up-Nachrichten verschicken und mehr.
+
+[[opsi-manual-configed-client-selection]]
+== Clients auswählen
+
+Nachdem Sie sich erfolgreich angemeldet haben, ist in der Mitte des Hauptfensters der Reiter _Clients_ aktiviert. Dort sehen Sie eine Liste der Clients, die zum aktuell ausgewählten Depot bzw. zur Auswahl in der linken Seitenleiste (siehe Abschnitt <<opsi-manual-configed-treeview>>) gehören. Ein Rechtsklick auf die ausgewählten Clients öffnet ein Kontextmenü, über das Sie verschiedene Aktionen ausführen, z.{nbsp}B. Events auslösen, Nachrichten senden, herunterfahren und neu starten usw.
+
+.*opsi-configed*: Kontextmenü der rechten Maustaste 
+image::opsi-configed-clientselection.png["*opsi-configed*: Kontextmenü der rechten Maustaste", width=800, pdfwidth=80%]
+
+Am oberen Rand gibt es ein Suchfeld, in das Sie eine Zeichenkette eingeben können. Direkt daneben bestimmen Sie über das Drop-down-Menü, wo `opsi-configed` suchen soll: in allen Spalten (bedeutet: in allen Spalten, die in der aktuellen Konfiguration eingeblendet sind), nach Client-Name, nach der Beschreibung, nach Status (ein-/ausgeschaltet), nach Datum (zuletzt gesehen) und nach der IP-Adresse. Das Drop-down-Menü _Modus_ definiert die Suche noch genauer: 
+
+* _Volltext_: Nutzen Sie die Suche genau so, wie Sie es von Suchmaschinen kennen und geben Sie ein oder mehrere Suchwörter ein, die durch Leerzeichen getrennt sind. Für ein erfolgreiches Suchergebnis muss mindestens eines Ihrer Schlüsselwörter in einer der Spalten auftauchen. 
+
+* _Volltext (vollständige Zeichenkette)_: Geben Sie Ihre Suchbegriffe ein, als würden Sie sie bei einer Suchmaschine in Anführungszeichen setzen. Das bedeutet, Sie müssen den exakten Text finden, der als Ganzes irgendwo in einer Spalte vorkommt.
+
+* _Anfangstext_: Beginnen Sie Ihre Suche mit der Zeichenfolge, die Sie als Anfang eines Eintrages in einer Spalte finden möchten.
+
+* _Regulärer Ausdruck_: Geben Sie den Suchbegriff als regulären Ausdruck ein, um Zeilen zu finden, in denen der Text einer Spalte den Mustern entspricht, wie sie in den Regeln der regulären Ausdrücke definiert sind. Für Details zu diesen Mustern schauen Sie bitte in die Java-Dokumentation für `java.util.regex.Pattern`.
+
+Wenn Sie nach Eingabe Ihres Suchausdruckes die Taste [Eingabe] drücken, springt `opsi-configed` jeweils zum nächsten Treffer (ohne Treffer zur nächsten Zeile). Klicken Sie mit der rechten Maustaste ins Suchfeld, um weitere Optionen einzublenden.
+
+.*opsi-configed*: Suchfunktion für Clientauswahl
+image::opsi-configed-clientselection-search.png["*opsi-configed*: Suchfunktion für Clientauswahl", width=800, pdfwidth=80%]
+
+=== Beispiele für Suchmuster
+
+TIP: Nachfolgend finden Sie ein paar Beispiele für einfache und komplexe Suchmuster.
+
+Wenn Sie in Namen oder Beschreibungen von PCs nach der Zeichenfolge "Meyer" suchen möchten, können Sie das Muster `.\*eyer.*` verwenden. Dabei steht der Punkt (`.`) für ein beliebiges Zeichen und das Sternchen (`\*`) für eine beliebige Anzahl von Vorkommen (des vorher bezeichneten Elements). `.*eyer.*` bedeutet also, das Suchmuster trifft zu, sofern vor `eyer` irgendetwas steht und dahinter wieder irgendetwas folgt. Da eine beliebige Anzahl von Vorkommen auch kein Vorkommen einschließt, passt beispielsweise auch der String "PC Meyer". 
+
+NOTE: Um sicherzustellen, dass nicht auch Strings wie "Beyer" gefunden werden, sollte das Suchmuster allerdings besser `.\*[Mm]eyer.*` heißen. Die eckigen Klammern bedeuten, dass genau eines der aufgelisteten Zeichen (also ein `M` oder ein `m`) vorhanden sein muss.
+
+Das zweite Beispiel zeigt Suchmuster für Produkte. `0.-opsi.*standard` sucht alle Produkte, deren Namen mit `0` beginnt, gefolgt von einem beliebigen Zeichen, gefolgt von `-opsi`, gefolgt von irgendwelchen Zeichen (in beliebiger Anzahl); am Schluss steht `standard`. Wenn Sie sicherstellen möchten, dass das zweite Zeichen eine Ziffer zwischen `0` und `9` ist, dann verwenden Sie diesen Ausdruck: `0[0123456789]-opsi.*standard`. Als Abkürzung für `[0123456789]` können Sie auch `[0-9]` schreiben, da es sich um eine ununterbrochene Teilfolge der Folge aller Ziffern handelt. Zu diesem Suchmuster passen beispielsweise die Produkte `03-opsi-abo-standard` und `05_opsi-linux_standard`. 
+
+[[opsi-manual-configed-client-selection-table]]
+== Clients auflisten
+
+Die tabellarische Auflistung der Clients zeigt in der Voreinstellung die folgenden Spalten:
+
+* _Client-Name_: Zeigt den FQDN, also den Hostnamen und den Domainnamen des Clients.
+
+* _Beschreibung_: Hier darf eine beliebige Erläuterung stehen.
+
+* _An_: Die Spalte zeigt an, welche Clients aktuell verbunden sind. Dazu klicken Sie links oben in der Icon-Gruppe auf das zweite von rechts. Dieses Feature können Sie bereits im Anmeldebildschirm oder über einen Aufrufparameter aktivieren. In der Voreinstellung ist das Testintervall auf 0 Minuten gesetzt, was bedeutet, dass diese Funktion deaktiviert ist.
+
+.*opsi-configed*: Client erreichbar
+image::opsi-configed-client-erreichbar.png["Client erreichbar", width=20]
+
+.*opsi-configed*: Client nicht erreichbar
+image::opsi-configed-client-nicht-erreichbar.png["Client nicht erreichbar", width=20]
+
+.*opsi-configed*: Über dieses Icon prüfen Sie, welche Clients verbunden sind.
+image::configed_toolbar_icons_connected.png["*opsi-configed*: Über dieses Icon prüfen Sie, welche Clients verbunden sind.", pdfwidth=80%]
+
+* _Zuletzt gesehen_: Hier sehen Sie das Datum und die Uhrzeit, zu denen der Client sich zuletzt bei der Softwareverteilung über den Dienst `opsiconfd` gemeldet hat.
+
+* _IP-Adresse_: Die Spalte zeigt die IP-Adresse des Clients.
+
+Klicken Sie auf einen Spaltentitel, um die Reihenfolge umzukehren. Optional können Sie weitere Spalten einblenden, wenn Sie mit der rechten Maustaste auf die Tabelle klicken und im Kontextmenü den Eintrag _Sichtbare Spalten_ öffnen. Wählen Sie jetzt die Spalten aus, die Sie zusätzlich einblenden möchten: _WAN-Konfiguration_, _System-UUID_, _MAC-Adresse_, _Session-Informationen_, _Inventarnummer_, _Erstellungsdatum_, _Install on Shutdown_ und _Depot_.
+
+TIP: Um diese zusätzlichen Spalten dauerhaft im `opsi-configed` einzublenden, wechseln Sie über das Icon oben rechts in die Server-Konfiguration (siehe Kapitel xref:gui:configed/userguide-server.adoc[Server-Konfiguration]) und dort zum Reiter _Host-Parameter_. Bearbeiten Sie die Option _configed_ / _configed.host_displayfields_.
+
+.*opsi-configed*: Konfigurieren Sie, welche Spalten die Clientliste anzeigt.
+image::opsi-configed-config-host-displayfields.png["*opsi-configed*: Konfigurieren Sie, welche Spalten die Clientliste anzeigt.", width=800, pdfwidth=80%]
+
+Wenn Sie die Spalte _Session-Informationen_ hinzufügen, wird der Button _Abfrage der Session-Informationen von allen Clients_ in der Icon-Gruppe links oben aktiviert.
+
+.*opsi-configed*: Über dieses Icon fragen Sie die Session-Informationen von allen Clients ab.
+image::configed_toolbar_icons_sessioninfo.png["*opsi-configed*: Über dieses Icon fragen Sie die Session-Informationen von allen Clients ab.", pdfwidth=80%]
+
+Wenn Sie den Button betätigen, versucht der `opsiconfd`, eine Verbindung zu allen Clients aufzubauen und Informationen über aktuell aktive Benutzersitzungen zu sammeln. In der Spalte _Session-Informationen_ sehen Sie dann den Accountnamen der jeweiligen aktiven Sitzung. Sie können diese Funktion auch gezielt für ausgewählte Clients über das Kontextmenü oder das Menü _Client_ aktivieren. So vermeiden Sie unnötiges Warten auf Netzwerk-Timeouts, falls versucht wird, eine Verbindung zu ausgeschalteten Rechnern herzustellen.
+
+TIP: Da die Suchfunktion für die Clientliste alle Spalten einschließt, können Sie auf diese Weise auch nach Clients suchen, auf denen ein bestimmter Benutzer angemeldet ist.
+
+[[opsi-manual-configed-client-selection-selecting]]
+== Clients markieren
+
+Sie können in der Clientliste einen oder mehrere Clients markieren, um sie gemeinsam zu bearbeiten. Verwenden Sie das Trichter-Icon oder gehen Sie über das Menü _Auswahl_ / _Nur ausgewählte Clients anzeigen_, um die Liste nur auf Ihre ausgewählten Clients zu beschränken.
+
+.*opsi-configed*: Über dieses Icon beschränken Sie die Anzeige auf ausgewählte Clients.
+image::configed_toolbar_icons_filter.png["*opsi-configed*: Über dieses Icon beschränken Sie die Anzeige auf ausgewählte Clients.", pdfwidth=80%]
+
+TIP: Die markierten Clients können Sie zu einer existierenden Gruppe hinzufügen, indem Sie sie per Drag{nbsp}&{nbsp}Drop auf einen Gruppennamen in der linken Leiste ziehen.
+
+Über das dritte Icon von links oder über das Menü _Auswahl_ starten Sie den Dialog zur freien Clientsuche, in dem Sie nach Client- und/oder Produkt-Eigenschaften suchen können.
+
+.*opsi-configed*: Über die freie Clientsuche stellen Sie eigene Suchkriterien zusammen.
+image::configed_clientselection.png["*opsi-configed*: Über die freie Clientsuche stellen Sie eigene Suchkriterien zusammen.", pdfwidth=80%]
+
+Sie können die Suche nach Clients nicht nur anhand allgemeiner Host-Eigenschaften durchführen, sondern auch Hardware- und Software-Komponenten als Suchkriterien nutzen, egal, ob diese über opsi oder auf anderem Weg installiert wurde. Benutzen Sie das Sternchen (`*`) als Platzhalter für beliebige Texteingaben. Ihre Suchkriterien verknüpfen Sie mit logischem `AND` (und) bzw. `OR` (oder). Sie schließen Sie bestimmte Ergebnisse aus, indem Sie `NOT` (nicht) vor ein Kriterium setzen.
+
+Um weitere Kriterien zu Ihrer Suche hinzuzufügen, nutzen Sie die Auswahlliste _Kriterium hinzufügen_. Ein ungewolltes Suchkriterium entfernen Sie mit einem Klick auf das Papierkorb-Icon am rechten Rand. Um die Suchmaske auf den Ausgangszustand zurückzusetzen, klicken Sie einfach auf _Neue Suche_.
+
+Sie haben die Möglichkeit, Ihre Anfragen unter einem beliebigen Namen zu speichern und sie später über _Auswahl_ / _Gespeicherte Suchanfragen_ wieder aufzurufen. Wenn Sie beim Speichern eine Beschreibung hinzufügen, erscheint diese als Tooltip in der Auswahlliste und hilft Ihnen, sich an den Inhalt der gespeicherten Suche zu erinnern.
+
+.*opsi-configed*: Gespeicherte Suchanfragen
+image::configed_clientselection2.png["*opsi-configed*: Gespeicherte Suchanfragen", pdfwidth=80%]
+
+NOTE: Falls zwischen den Anfragen neue Clients zur Umgebung hinzugekommen sind, die den gespeicherten Suchkriterien entsprechen, findet `opsi-configed` diese ebenfalls.
+
+TIP: Sie können dem `opsi-configed` beim Start über die Kommandozeilenoption `-qs` eine gespeicherte Suche übergeben (siehe Abschnitt xref:gui:configed/userguide.adoc#opsi-configed-start-parameter[Startparameter]). Lassen Sie den Namen weg, gibt der Befehl eine Liste der gespeicherten Abfragen aus.
+
+Über das Menü _Auswahl_ können Sie außerdem gezielt nach Clients mit fehlgeschlagenen Aktionen suchen -- entweder auf ein Produkt oder auf einen Zeitraum bezogen.
+
+.*opsi-configed*: Suchen Sie nach fehlgeschlagenen Aktionen.
+image::opsi-configed-failedactions-today.png["*opsi-configed*: Suchen Sie nach fehlgeschlagenen Aktionen.", width=800, pdfwidth=80%]
+
+[[opsi-manual-configed-treeview]]
+== Clients gruppieren
+
+Über die Baumansicht in der linken Leiste können Sie Ihre Clients in Gruppen verwalten. Die Ansicht gliedert sich in drei Kategorien: _GRUPPEN_, _DIRECTORY_ und _CLIENT-LISTE_. Letztere zeigt automatisch alle Clients der ausgewählten Depots an. Die ersten beiden Abteilungen unterscheiden sich darin, wie oft ein Client darin auftauchen kann. Eine Gruppe ist durch ihren Namen einzigartig definiert und kann nicht dupliziert werden, während ein Client mehreren Gruppen zugeordnet sein kann. Im Zweig _DIRECTORY_ hingegen hat jeder Client einen eindeutigen Ort: Solange keine explizite Zuordnung zu einer Untergruppe stattgefunden hat, wird der Client automatisch in der Gruppe _NICHT_ZUGEWIESEN_ geführt.
+
+NOTE: Ist ein Client ausgewählt, erscheinen alle Gruppen, zu denen er gehört, mit gefüllter Farbfläche.
+
+.*opsi-configed*: Baumansicht
+image::opsi-configed-treeview.png["*opsi-configed*: Baumansicht", pdfwidth=80%]
+
+In der Baumansicht stehen folgende Features zur Verfügung:
+
+* Klicken Sie auf einen Baumknoten, also eine Gruppe, um alle Clients, die sich unterhalb dieses Knotens befinden, in der Mitte auf dem Reiter _Clients_ anzuzeigen -- dabei ist kein Client zur Bearbeitung ausgewählt.
+
+* Möchten Sie jedoch einzelne Clients zur Bearbeitung markieren, klicken Sie sie direkt in der Baumansicht an oder markieren diese mit der Maus ([Strg]{plus}Klick bzw. [Umschalt]{plus}Klick).
+
+* Ein Doppelklick auf eine Gruppe zeigt nicht nur die dazugehörigen Clients in der Tabelle an, sondern wählt sie auch gleichzeitig zur Bearbeitung aus.
+
+TIP: Letzteres ist besonders dann praktisch, wenn Sie auf verschiedenen Reitern arbeiten und beispielsweise gerade den Reiter _Logdateien_ geöffnet haben und nur die Protokolle zu bestimmten Clients sehen möchten.
+
+=== Neue Gruppen erstellen
+
+Zusätzliche Gruppen können Sie leicht hinzufügen: Klicken Sie einfach mit der rechten Maustaste auf die übergeordnete Gruppe oder den übergeordneten Knoten, zum Beispiel _GRUPPEN_, und wählen Sie _Untergruppe erzeugen_.
+
+.*opsi-configed*: Gruppe anlegen
+image::opsi-configed-treeview-generate-group.png["*opsi-configed*: Gruppe anlegen", pdfwidth=80%]
+
+Anschließend öffnet sich ein Dialogfenster, in das Sie einen Namen und eine Beschreibung für die neue Gruppe eingeben können.
+
+.*opsi-configed*: Name und Beschreibung der Gruppe eintragen
+image::opsi-configed-treeview-groupname.png["*opsi-configed*: Name und Beschreibung der Gruppe eintragen", pdfwidth=80%]
+
+=== Clients zu Gruppen hinzufügen
+
+Es gibt verschiedene Wege, um Clients per Drag{nbsp}&{nbsp}Drop zu Gruppen hinzuzufügen oder zu verschieben (siehe Abschnitt <<opsi-manual-configed-client-selection-selecting>>):
+
+* Ziehen Sie Clients direkt aus der Clientliste (Reiter _Clients_) auf eine Gruppe, um sie dort hinzuzufügen.
+
+* Möchten Sie Clients kopieren, ziehen Sie diese aus einer "normalen" Gruppe, z.{nbsp}B. aus dem Knoten _CLIENT-LISTE_, in eine andere Gruppe.
+
+* Um einen Client zu verschieben, ziehen Sie diesen aus einer _DIRECTORY_-Gruppe in eine andere _DIRECTORY_-Gruppe.
+
+=== Gruppen bearbeiten
+
+Klicken Sie mit der rechten Maustaste auf eine Gruppe, um ein Kontextmenü zu öffnen. In diesem finden Sie Einträge, um Gruppen zu bearbeiten, zu löschen, alle enthaltenen Clients auszuwählen sowie um alle Clients aus der Gruppe und eventuell enthaltenen Untergruppen rekursiv zu entfernen.
+
+[[opsi-manual-configed-client-editing]]
+== Clients bearbeiten
+
+Klicken Sie mit der rechten Maustaste auf die Liste der Clients (Reiter _Clients_) oder öffnen Sie das Menü _Client_, um mögliche Operationen für opsi-Clients einzublenden. Im Hauptfenster sehen Sie im rechten Bereich ebenfalls einen Dialog, in dem Sie ein paar Eigenschaften und Erweiterungen für den Client konfigurieren. 
+
+.*opsi-configed*: Das Menü *Client*
+image::opsi-configed-client-contextmenu.png["*opsi-configed*: Das Menü *Client*", pdfwidth=80%]
+
+[[opsi-manual-configed-module-uefi-wan-installbyShutdown]]
+=== Install on Shutdown, UEFI und WAN
+
+Sie können einige Einstellungen im Feld rechts neben der Client-Liste vornehmen. Dazu gehören unter anderem die Optionen _Install on Shutdown (Windows)_, _UEFI-Boot_ und _WAN-Konfiguration_.
+
+NOTE: Beachten Sie, dass es sich bei der xref:opsi-modules:wan-support.adoc[WAN-Erweiterung] um eine kostenpflichtige Erweiterung handelt. Das heißt, dass Sie eine Freischaltdatei benötigen. Sie erhalten diese, nachdem Sie die Erweiterung gekauft haben. Zu Evaluierungszwecken stellen wir Ihnen kostenlos eine zeitlich befristete Freischaltung zur Verfügung. Bitte kontaktieren Sie uns dazu per mailto:info@uib.de[E-Mail].
+
+* _Install on Shutdown (Windows)_: Es gibt einen etablierten Prozess, um Installationen beim Herunterfahren eines Clients zu konfigurieren (siehe Kapitel xref:opsi-modules:on-shutdown.adoc[Installation bei Shutdown (frei)]).
+
+* _UEFI-Boot_: Konfiguriert einen Client für UEFI-Boot (siehe Kapitel xref:opsi-modules:uefi.adoc[opsi mit UEFI/GPT])
+
+* _WAN-Konfiguration_: Aktiviert die xref:opsi-modules:wan-support.adoc[WAN/VPN-Erweiterung]; wenn das Modul nicht verfügbar ist, erscheint die Checkbox ausgegraut. 
+
+Die WAN-Konfiguration wird aus den Server-Host-Parametern `configed.meta_config.wan_mode_off.*` ausgelesen. Wenn Sie die Standardeinstellung der Parameter übernommen haben, kommt die in Kapitel xref:opsi-modules:wan-support.adoc[WAN/VPN-Erweiterung] beschriebene empfohlene Konfiguration zum Zuge.
+
+TIP: Sie können Informationen zu den Optionen _Install on Shutdown (Windows)_ und _WAN Konfiguration_ als Spalte in der Client-Liste einblenden -- entweder per Kontextmenü der rechten Maustaste oder über das Menü _Client_ / _Sichtbare Spalten_. So sehen Sie direkt in der Übersicht, bei welchen Clients diese Eigenschaften gesetzt sind, und können danach filtern und sortieren.
+
+.*opsi-configed*: Erweiterte Spaltensicht für opsi-Clients
+image::opsi-configed-clientinfos.png["*opsi-configed*: Erweiterte Spaltensicht für opsi-Clients", width=800, pdfwidth=80%]
+
+[[opsi-manual-configed-host-actions-wakeonlan]]
+=== Wake on LAN (WoL)
+
+`opsi-configed` enthält einen Zeitplaner für Wake-On-LAN-Ereignisse (WOL), den Sie über das Menü _Client_ / _"Wecke" Client(s)_ / _Neuer Zeitplaner_ einrichten. Ab Version 4.0.7 bietet die WOL-Funktion folgende Konfigurationsmöglichkeiten:
+
+* Direkter Versand des Netzwerksignals an alle ausgewählten Clients.
+* Zeitversetzter Versand des Signals mit einstellbarem Abstand zwischen zwei Clients.
+* Festlegung eines Startzeitpunktes für den Prozess über einen Scheduler.
+
+Sollte ein Client einem anderen als dem opsi-Configserver zugeordneten Depotserver zugewiesen sein, erfolgt die Übermittlung des Wake-on-LAN-Signals nicht direkt. In diesem Fall wird eine HTTPS-Verbindung zum `opsiconfd` auf dem Depotserver aufgebaut. Der Depotserver ist dann dafür verantwortlich, das Netzwerkpaket innerhalb seines Netzwerkes zu versenden.
+
+.*opsi-configed*: Zeitplaner für Wake on LAN (WoL)
+image::opsi-configed-wake-on-lan-scheduler.png["opsi-configed: Zeitplaner für Wake on LAN (WoL)", pdfwidth=80%]
+
+NOTE: Bitte beachten Sie, dass `opsi-configed` die Wake-On-LAN-Aktionen auslöst. Daher ist es entscheidend, dass das Programm während des gesamten Prozesses aktiv bleibt und nicht beendet wird.
+
+[[opsi-manual-configed-host-actions-opsiclientd-event]]
+=== Events auslösen (Push-Installation)
+
+Über _Client_ / _opsiclientd-Event auslösen_ / _on_demand_ übermitteln Sie einen Aufruf an den jeweiligen Client-Agent aller ausgewählten Clients, um ein Event auszulösen. Sollte ein Client nicht erreichbar sein oder gerade ein anderes, nicht unterbrechbares Event verarbeiten, gibt `opsi-configed` eine Fehlermeldung aus.
+
+Das Standard-Event ist `on_demand`. Dieses sorgt dafür, dass Aktionsanforderungen für den Client unmittelbar ausgeführt werden.
+
+CAUTION: Wenn ein Produktskript eine Rebootanforderung enthält, wird der Client ohne Vorwarnung neu gestartet.
+
+Seit Version 4.0.4 ist es möglich, auch andere in der Datei `opsiclientd.conf` konfigurierte Events auszulösen. Die verfügbaren Optionen werden über den Server-Host-Parameter `configed.opsiclientd_events` bestimmt.
+
+[[opsi-configed-host-actions-delete-package-caches]]
+=== WAN-Clients: Paketcache löschen
+
+Bei Clients, die über ein Wide Area Network (WAN) verbunden sind, kann es gelegentlich zu Problemen mit dem Paketcache kommen. Um solche Schwierigkeiten zu beheben, steht für diese Clients eine spezielle Funktion zur Verfügung: Menü _Client_ / _Für WAN-Clients: Paketcache löschen_ setzt den Cache vollständig zurück.
+
+
+[[opsi-manual-configed-client-editing-send-message]]
+=== Nachrichten senden
+
+Sie können Nachrichten an einen oder mehrere Clients verschicken. Markieren Sie diese und öffnen Sie dann aus dem Menü _Client_ den Eintrag _Pop-up-Nachricht senden_. Ins sich öffnende Dialogfenster können Sie Ihre Nachricht eintippen. Ins Feld oben rechts können Sie die gewünschte Anzeigedauer eingeben; lassen Sie das Feld leer, um die Nachricht dauerhaft einzublenden.
+
+.*opsi-configed*: Nachricht an Client(s) verschicken
+image::opsi-configed-client-message-editing.png["*opsi-configed*: Nachricht an Client(s) verschicken", pdfwidth=80%]
+
+Klicken Sie auf das rote Häkchen, um die Nachricht abzusenden. 
+
+.*opsi-configed*: Nachrichtenfenster auf dem Client
+image::opsi-configed-client-message-reading.png["*opsi-configed*: Nachrichtenfenster auf dem Client", pdfwidth=80%]
+
+[[opsi-manual-configed-client-editing-sessioninfo]]
+=== Session-Information anfordern
+
+Über das Menü _Client_ können Sie ausgewählten Clients ein Signal senden und diese veranlassen, ihre Session-Informationen an `opsi-configed` zu übermitteln. Diese Informationen werden in der dafür vorgesehenen Spalte auf dem Reiter _Clients_ eingeblendet, sofern diese Spalte aktiviert und sichtbar ist.
+
+[[opsi-manual-configed-client-editing-shutdown]]
+=== Shutdown/Reboot
+
+Sie haben die Möglichkeit, den ausgewählten Clients ein Signal zu senden, welches sie anweist, herunterzufahren oder einen Neustart (Reboot) durchzuführen.
+
+CAUTION: Bitte beachten Sie, dass Clients möglicherweise ohne weitere Rückfrage herunterfahren. Dies kann zu Datenverlust führen, falls nicht gespeicherte Informationen oder laufende Prozesse auf dem Client vorhanden sind.
+
+[[opsi-manual-configed-client-remotecontrol]]
+=== Remote-Control-Software starten
+
+Über das Menü _Client_ / _Remote-Control-Software starten_ (Taste [F7]) oder das Kontextmenü der rechten Maustaste führen Sie beliebige Betriebssystem-Kommandos auf den ausgewählten Clients aus. In der Voreinstellung gibt es bereits vier Einträge, die als Vorlage für eigene Befehle dienen können: `ping`-Kommando an Linux- und Windows-Clients sowie Anzeige der Infoseite unter Windows und Linux (siehe Abschnitt xref:clients:windows-client/windows-client-agent.adoc#opsi-manual-clientagent-infopage[*opsiclientd*-Infoseite]).
+
+.*opsi-configed*: Remote-Control-Software starten
+image::opsi-configed-client-remotecontrol-choice.png["*opsi-configed*: Remote-Control-Software starten", pdfwidth=80%]
+
+NOTE: Beachten Sie, dass `opsi-configed` diese Kommandos aus seiner eigenen Systemumgebung heraus ausführt. Das heißt, dass die Art des benötigten Kommandos davon abhängt, ob Sie `opsi-configed` unter Windows oder Linux betreiben.
+
+Der Dialog ist in drei Bereiche gegliedert:
+
+1. Im oberen Bereich finden Sie eine Liste der Namen der verfügbaren Aufrufe.
+2. Darunter befindet sich eine Zeile, die das ausgewählte Kommando anzeigt. Hier können Sie das Kommando bearbeiten, sofern dies zulässig ist. Diese Zeile umfasst auch Buttons für den Start und den Abbruch der Aktion.
+3. Im dritten Textbereich des Fensters werden eventuelle Rückmeldungen des Betriebssystems beim Aufruf des Kommandos angezeigt.
+
+Die Anwendungsmöglichkeiten dieser Funktion sind äußerst vielfältig. Beispielsweise können Sie ein Kommando konfigurieren, das eine Remote-Desktop-Verbindung zum ausgewählten Client herstellt, vorausgesetzt, der Client unterstützt dies. Unter Windows können Sie dafür z.{nbsp}B. den folgenden Befehl verwenden:
+
+[source,console]
+----
+cmd.exe /c start mstsc /v:%host%
+----
+
+Ein entsprechendes Linux-Kommando lautet so:
+
+[source,console]
+----
+rdesktop  -a 16 %host%
+----
+
+Die Variable `%host%` ersetzt `opsi-configed` automatisch durch den entsprechenden Wert für den Hostnamen. Außer `%host%` stehen weitere Variablen zur Verfügung, die Sie in den Befehlen verwenden können:
+
+* `%ipaddress%`: IP-Adresse
+* `%hardwareaddress%`: MAC-Adresse
+* `%opsihostkey%`: opsi-Host-Key
+* `%inventorynumber%`: Inventarnummer
+* `%depotid%`: Depot-ID
+* `%configserverid%`: Configserver-ID
+
+Die Kommandos bearbeiten Sie im Bereich Server-Konfiguration auf dem Reiter _Host-Parameter_, Abteilung _configed_ / _remote_control_:
+
+.*opsi-configed*: Remote-Control-Aufrufe konfigurieren
+image::opsi-configed-properties-remotecontrol.png["*opsi-configed*: Remote-Control-Aufrufe konfigurieren", width=800, pdfwidth=80%]
+
+TIP: Sofern ein Kommando mit dem Zusatz `.editable` auf `true` gesetzt ist, können Sie in der angezeigten Kommandozeile Variationen des Befehls eingeben, darunter beispielsweise auch Optionen oder Passwörter.
+
+CAUTION: Damit hat der `opsi-configed`-Benutzer die Möglichkeit, einen Befehl beliebig zu erweitern und alle möglichen Kommandos auf dem Client abzusetzen. 
+
+==== Eigenes Remote-Control-Kommando definieren
+
+Um ein eigenes Kommando zu definieren, wechseln Sie in der Server-Konfiguration zum Reiter _Host-Parameter_, Abteilung _configed_ / _remote_control_. Im Beispiel richten wir ein Kommando namens `example` ein. Sie benötigen dazu mindestens den Eintrag `configed.remote_control.example` (oder alternativ `configed.remote_control.example.command`). In diesem Eintrag legen Sie den auszuführenden Befehl fest und verwenden dazu die im letzten Abschnitt gezeigten Variablen, z.{nbsp}B. `%host%`, `%ipaddress%` usw.
+
+Zusätzlich können Sie einen Eintrag `configed.remote_control.example.description` erstellen und das neue Kommando erläutern. Der Wert dieses Eintrags wird dann als Tooltip angezeigt, um den Benutzern weitere Informationen über das Kommando zu liefern.
+
+Darüber hinaus bestimmen Sie mit einem booleschen Eintrag `configed.remote_control.example.editable`, ob das Kommando editierbar sein soll oder nicht. Durch Setzen dieses Wertes auf `false` wird festgelegt, dass Benutzer das Kommando beim Aufruf nicht verändern dürfen.
+
+[[opsi-manual-configed-client-add]]
+=== Client(s) anlegen
+
+Über _Client_ / _Neuen opsi-Client erstellen_ öffnen Sie ein Dialogfenster, in das Sie alle Informationen zum Anlegen eines neuen Clients eingeben.
+
+.*opsi-configed*: Neuen Client anlegen
+image::opsi-configed-client-new.png["*opsi-configed*: Neuen Client anlegen", width=800, pdfwidth=80%]
+
+Der Dialog bietet auch Felder für die optionale Eingabe der IP-Nummer und der Hardware-Adresse (MAC-Adresse). Sofern das Backend zur Konfiguration eines lokalen DHCP-Servers aktiviert ist (was nicht die Standardeinstellung ist), werden diese Informationen verwendet, um den neuen Client auch für den DHCP-Server zu registrieren. Andernfalls wird die MAC-Adresse im Backend gespeichert und die IP-Nummer verworfen.
+
+Beim Anlegen neuer Clients können Sie ab `opsi-configed` 4.0.5.8.1 darüber hinaus diese Optionen direkt spezifizieren:
+
+* Zuweisung des neuen Clients zu einer bestimmten Gruppe
+* Festlegung eines Netboot-Produkts, das eventuell direkt auf `setup` gesetzt werden soll
+* Aktivierung von Install on Shutdown und der WAN-Konfiguration
+
+Diese Einstellungen lassen sich auch bequem in der Hosts-Liste vornehmen.
+
+==== Mehrere Clients erstellen
+
+Klicken Sie im Dialog zur Client-Erzeugung auf die Schaltfläche _Template_ ganz oben, um ein CSV-Template zu erzeugen. Wählen Sie per Klick in die Checkboxen die gewünschten Daten aus, die Sie einbeziehen möchten. Auch das Escape- und das Trennzeichen können Sie in diesem Dialogfenster definieren. Klicken Sie abschließend auf _OK_, um die CSV-Datei zu erzeugen.
+
+Diese können Sie anschließend mit einem Texteditor oder einer Tabellenkalkulation bearbeiten, um eine Liste von Clients mit ihren jeweiligen Eigenschaften zu erstellen. Sie können die Liste über den Button _Datei_ neben _CSV-Datei importieren_ im Dialog zur Client-Erstellung einlesen.
+
+.*opsi-configed*: Mehrere Clients anlegen
+image::opsi-configed-csv.png["*opsi-configed*: Mehrere Clients anlegen", pdfwidth=80%]
+
+==== Erstellen/Löschen deaktivieren
+
+Seit Version 4.0.4 besteht zudem die Möglichkeit, die Optionen zum Anlegen und Löschen von Clients zu deaktivieren. Das ist dann praktisch, wenn ein Dienst wie ein UCS-Service für das Anlegen von Clients zuständig ist. Um diese Funktion einzurichten, bearbeiten Sie in der Server-Konfiguration den Host-Parameter `configed.host_actions_disabled`. Klicken Sie in die Spalte; der nächste Dialog bietet diese drei Optionen:
+
+* `add client`
+* `free licenses for client`
+* `remove client`
+
+Eine Mehrfachauswahl ist möglich.
+
+TIP: Sie können die Einstellungen nicht nur im `opsi-configed` ändern, sondern auch auf der Kommandozeile. Geben Sie den folgenden Befehl ein, um das Erstellen und Löschen von Clients über den `opsi-configed` zu deaktivieren.
+
+[source,console]
+----
+opsi-admin -d method config_updateObjects '{"defaultValues": ["add client", "remove client"], "editable": false, "multiValue": true, "possibleValues": ["add client", "remove client"], "type": "UnicodeConfig", "id": "configed.host_actions_disabled"}'
+----
+
+=== Client(s) umbenennen und umziehen
+
+Über das Menü _Client_ erreichen Sie ebenfalls Einträge zum Umbenennen und zum Umziehen in ein anderes Depot. Letzteres erlaubt eine Mehrfachauswahl von Clients. Im folgenden Dialogfenster wählen Sie aus dem Drop-down-Menü das gewünschte Depot aus und bestätigen anschließend alles über _OK_.
+
+.*opsi-configed*: Client(s) in anderes Depot bewegen
+image::opsi-configed-client-change-depot.png["*opsi-configed*: Client(s) in anderes Depot bewegen", pdfwidth=80%]
+
+=== Client(s) löschen
+
+Wählen Sie einen oder mehrere Clients aus und öffnen dann aus dem Menü _Client_ / _Lösche Client(s)_. Ein Dialog mit einer Sicherheitsabfrage öffnet sich, und Sie müssen explizit bestätigen, dass Sie den Client aus der opsi-Datenbank entfernen möchten.
+
+[[opsi-manual-configed-client-editing-productreset]]
+=== Produkte zurücksetzen
+
+Sie können alle Informationen zu allen Produkten der ausgewählten Clients löschen. Das ist beispielsweie dann sinnvoll, wenn Sie einen Testclient in einen bestimmten Zustand zurücksetzen möchten.
+
+[[opsi-manual-configed-productconfiguration]]
+== Localboot-Produkte
+
+Wenn Sie auf den Reiter _Localboot-Produkte_ wechseln, erhalten Sie eine umfassende Liste der zur Softwareverteilung verfügbaren Produkte sowie Informationen zum Installations- und Aktionsstatus bezogen auf die ausgewählten Clients.
+
+In der rechten Seitenleiste finden Sie zusätzliche hilfreiche Informationen zum ausgewählten Produkt, wie den Produktnamen und die -version. Die Felder für Produktinformationen und -beschreibung unterstützen die Darstellung von Markdown. Das ist besonders dann nützlich ist, wenn Sie in der `control.toml`-Datei beim Erstellen des Produktes verwendet haben (siehe Abschnitt xref:clients:windows-client/softwareintegration.adoc#opsi-softwintegration-example-control[Beispiel: *control*-Datei]).
+
+Darüber hinaus führt eine Tabelle eventuelle Produktabhängigkeiten auf und zeigt dazu detaillierte Eigenschaften und eine Baumstruktur an, welche die Abhängigkeiten rekursiv visualisiert. So erkennen Sie nicht nur, welche anderen Produkte das ausgewählte Produkt benötigt, sondern auch, von welchen Produkten es benötigt wird. Diese Funktion ist besonders hilfreich, wenn Sie beispielsweise vor dem Entfernen eines Produkts überprüfen möchten, ob es noch von anderen Produkten benötigt wird.
+
+.*opsi-configed*: Liste der Localboot-Produkte mit Detailansicht rechts
+image::opsi-configed-localbootproducts.png["*opsi-configed*: Liste der Localboot-Produkte mit Detailansicht rechts", width=800, pdfwidth=80%]
+
+TIP: Genau wie in der Client-Liste können Sie das Suchfeld über der Tabelle dazu verwenden, nach Namen und nach anderen Werten in der Tabelle zu suchen. Rechts neben dem Suchfeld finden Sie Filter. Weitere Informationen dazu lesen Sie in Abschnitt <<opsi-manual-configed-client-selection>>.
+
+=== Liste sortieren
+
+Genau wie in der Client-Liste können Sie die Anzeige über einen Klick auf den Spaltentitel beeinflussen. Es sind die folgenden Spalten verfügbar:
+
+* _Produkt-ID_: Hier steht der Name des Produktes.
+* _Status_: Zeigt den letzten der Softwareverteilung gemeldeten Status zu diesem Produkt ( _installed_, _not_installed_ oder _undefined_) an. _not_installed_ wird aus Gründen der Übersichtlichkeit nicht angezeigt. _undefined_ ist üblicherweise der Status während einer (De-)Installation oder wenn das letzte Skript gescheitert ist.
+* _Bericht_: Hier sehen Sie eine Zusammenfassung der Werte der internen Statusinformationen `actionProgress` (Installationsfortschritt), `actionResult` (Ergebnis der letzten Aktion) und `lastAction` (letzte angeforderte Aktion). Während einer Installation steht hier z.{nbsp}B. `installing`. Nach Abschluss einer Aktion zeigt das Feld das Ergebnis, z.{nbsp}B. `success (setup)` oder `failed (setup)`.
+* _Angeforderte Aktion_: Hier steht die Aktion, die ausgeführt werden soll. Mögliche Werte sind `none` (visuell ist das Feld leer), `setup`, `uninstall`, `update`, `once`, `always` und `custom`.
+* _Version_: Die Versionsnummer ist eine Kombination aus Produktversion und Paketversion des auf dem Client installierten opsi-Softwareproduktes.
+
+Über das Kontextmenü der rechten Maustaste und _Sichtbare Spalten_ blenden Sie zusätzliche Spalten für die Localboot-Produkte ein:
+
+* _Produktname_: Hier steht der Name der Anwendung.
+* _Sollzustand_: Der Sollzustand, mögliche Werte: `undefined`, `installed`, `always` und `forbidden`.
+* _Priorität_: Gibt an, welche Priorität dem Produkt zugeordnet wurde; mögliche Werte `100` bis `-100`.
+* _Position_: Hier steht, in welcher Reihenfolge die Produkte installiert werden.
+* _Letzte Status-Aktualisierung_: Zeitpunkt der letzten Aktualisierung
+
+[[opsi-manual-configed-property-details]]
+=== Detaillierte Informationen anzeigen
+
+Wenn Sie ein Produkt auswählen, erscheinen auf der rechten Seite des Fensters weitere Informationen:
+
+* _Software/Paketversion_: Hier steht eine Kombination aus Produkt- und Paketversion, wie sie der Paketierer angegeben hat.
+
+* _Produktbeschreibung_: Freier Text zur im Paket enthaltenen Software.
+
+* _Hinweise_: Freier Text mit Angaben zum Umgang mit diesem Paket.
+
+* _Produktabhängigkeiten_: Eine Liste von Produkten, zu denen das ausgewählte Produkt Abhängigkeiten aufweist mit Angabe der Art der Abhängigkeit: `required` (das ausgewählte Produkt benötigt das hier angezeigte Produkt, Reihenfolge der Installation egal), `pre-required` (das hier angezeigte Produkt muss *vor* dem ausgewählten installiert werden) und `post-required` (das hier angezeigte Produkt muss *nach* dem ausgewählten installiert werden).
+
+* _Property-Konfiguration_: Zur clientspezifischen Anpassung der Installation können für ein Produkt zusätzliche Propertys definiert sein; der nächste Abschnitt beschreibt diese Property-Tabellen.
+
+[[opsi-manual-configed-property-editing]]
+=== Property-Konfiguration
+
+Eine Property-Tabelle besteht aus zwei Spalten. In der linken Spalte finden Sie die Namen der Propertys und in der rechten Spalte den jeweils zugeordneten Wert.
+
+NOTE: Die Zeilen, die von den Standardwerten (Server-Defaults) abweichen, sind in Fettschrift dargestellt. So sehen Sie auf einen Blick, wo Einstellungen angepasst wurden.
+
+Rechts oben über der Tabelle befinden sich zwei Buttons:
+
+* _Client-Werte auf Server-Defaults setzen_ (links): Dieser Button kopiert die Server-Defaults als clientspezifische Einstellungen. So bleiben diese Einstellungen auch dann beim Client erhalten, wenn später die Standardwerte geändert werden.
+
+* _Clientspezifische Werte entfernen_ (rechts): Dieser Button löscht alle Einstellungen auf dem Client; danach gelten wieder die Server-Defaults. Änderungen an diesen Standardwerten wirken sich somit direkt auf den Client aus.
+
+Wenn Sie mit dem Mauszeiger über eine Zeile fahren, wird (sofern konfiguriert) ein Tooltip eingeblendet. Dieser zeigt nützliche Informationen zur Bedeutung des Wertes sowie den Server-Default an.
+
+.*opsi-configed*: Property-Tabelle
+image::opsi-configed-editlist1.png["*opsi-configed*: Property-Tabelle", pdfwidth=80%]
+
+Klicken Sie einen Wert in der rechten Spalte an, um einen Dialog zur Bearbeitung zu öffnen. Hier können Sie z.{nbsp}B. aus einer Liste vorkonfigurierter Werte aussuchen.
+
+.*opsi-configed*: Listen-Editor, Auswahlliste
+image::opsi-configed-editlist2.png["*opsi-configed*: Listen-Editor, Auswahlliste", pdfwidth=80%]
+
+Klicken Sie einen (anderen) Wert im Dialog an, um die Einstellung zu verändern.
+
+Zusätzlich zu diesen Dialogen, gibt es auch Fenster, die ein Bearbeitungsfeld anzeigen. Hier können Sie neue Werte eingeben:
+
+.*opsi-configed*: Listen-Editor, Feld für eigene Werte
+image::opsi-configed-editlist3.png["*opsi-configed*: Listen-Editor, Feld für eigene Werte", pdfwidth=80%]
+
+Um einen vorhandenen Wert zu modifizieren, doppelklicken Sie ihn in der Liste. Neue Werte übernehmen Sie per Klick auf das Pluszeichen in die Liste. Bei einigen Propertys ist es möglich, mehrere Werte einzutragen. In dem Fall erlaubt der Listen-Editor auch eine Mehrfachauswahl. Mehrere Einträge können Sie bequem auswählen, wenn Sie beim Mausklick die [Strg]-Taste gedrückt halten.
+
+Sobald Sie die Werte in der Liste verändert haben, wechselt im Dialog der grüne Haken seine Farbe. Klicken Sie auf das nun rote Häkchen, um Ihre Änderjngen zu übernehmen. Andernfalls klicken Sie auf den blauen Abbrechen-Button, um die Änderungen zurückzusetzen.
+
+[[opsi-manual-configed-property-editing-secrects]]
+== Geheime Property-Werte
+
+Für den Fall, dass Passwörter oder andere "Geheimnisse" als Property-Werte vorkommen,
+ist folgende Vorkehrung getroffen (als "Hack" seit Version 4.0.7, bis ein spezifischer Datentyp eingerichtet ist):
+
+* Wenn im Namen des Properties irgendwo 'password' vorkommt
+* oder wenn der Property-Name mit 'secret' ("geheim" oder "Geheimnis") beginnt,
+
+wird der Property-Wert bei der Anzeige durch fünf  _*_  ersetzt. Er wird erst - nach Vorwarnung - sichtbar gemacht, wenn er wie zur Bearbeitung angeklickt wird.
+
+Die Bearbeitung findet ggfs. wie im Standardfall statt.
+
+[[opsi-manual-configed-netbootproducts]]
+== Netboot-Produkte
+
+Die Produkte unter dem Karteireiter _Netboot-Produkte_ werden analog zum Karteireiter _Localboot-Produkte_ angezeigt und konfiguriert.
+
+Die hier angeführten Produkte versuchen, werden sie auf _setup_ gestellt, zu den ausgewählten Clients den Start von Bootimages beim nächsten Reboot festzulegen.
+Dies dient üblicherweise der OS-Installation.
+
+.*opsi-configed*: Liste der Netboot-Produkte mit Detailansicht rechts
+image::opsi-configed-netbootproducts.png["*opsi-configed*: Liste der Netboot-Produkte mit Detailansicht rechts", width=800, pdfwidth=80%]
+
+[[opsi-manual-configed-hardwareinformation]]
+== Hardware-Informationen
+
+Unter diesem Karteireiter erhalten Sie die letzten - entweder durch das Bootimage oder durch das Localboot-Produkt hwaudit
+erhobenen - Hardware-Informationen zum ausgewählten Client.
+
+.*opsi-configed*: Reiter Hardware-Information
+image::opsi-configed-hardwareinformation.png["*opsi-configed*: Reiter Hardware-Information", width=800, pdfwidth=80%]
+
+
+[[opsi-manual-configed-automat-treiberintegration]]
+=== Integrating Drivers automatically
+
+Um vereinfacht und automatisiert Treiber von speziellen Clients auf den _opsi-Depotserver_ zu uploaden, gibt es seit
+der Version 4.0.5 die Möglichkeit aus den Hardwareinformationen mögliche Pfade auszuwählen, die vom opsi-configed über den Share
+übertragen werden.
+Die zwei angebotenen byAudit-Treiberpfade setzten sich zusammen aus dem Hersteller und dem Produkt bzw. dem Modell, welche jeweils aus dem Computer und der Hauptplatine ausgelesen werden. Betätigen Sie den Button _Treiberupload_, so erscheint ein neues Fenster um weitere Einstellungen zu tätigen.
+
+.*opsi-configed*: Hardware-Information, Treiberupload
+image::opsi-configed-hardwareinfo-treiberintegration.png["*opsi-configed*: Hardware-Information, Treiberupload", width=800, pdfwidth=80%]
+
+Haben Sie den _opsi-configed_ auf einem Linux-System geöffnet, so ist es nicht direkt möglich einen Treiberupload durchzuführen, da die Verbindung über einen Share durchgeführt wird. Dies muss dann manuell getätigt werden. Jedoch sind die Methoden bzw. Verzeichnisstrukturen ein wesentlicher Aspekt der Treiberintegration.
+
+Ohne weiteres funktioniert der Treiberupload von einem Windows-Rechner, wenn die Verbindung zum Share aktiviert ist.
+Unter anderem müssen im neues Fenster Angaben getätigt werden, für welches Windows-Produkt der Treiber bereit gestellt
+werden soll, welche Treiber geuploadet werden sollen und mit welcher Methode bzw. in welches Verzeichnis die Treiberintegration erfolgt. Das Zielverzeichnis wird mit Auswählen einer anderen Methode dem entsprechend geändert. Der zuvor ausgewählte byAudit-Treiberpfad findet sich in der per Default ausgewählten Methode 'byAudit' wieder, die den ausgewählten Treiber spezifisch für den Maschinentyp integriert.
+Folgende Methoden bzw. Verzeichnisse sind möglich:
+
+ * _Standard_: Treiber welche im Verzeichnis `./drivers/drivers` liegen, werden anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden. Der Nachteil dieser Pakete ist, das sich hier auch Treiber finden, welche zwar von der Beschreibung zu Ihrer Hardware passen, aber nicht unbedingt mit Ihrer Hardware funktionieren. Hier können Treiber hinterlegt werden, die einen Fallback für alle Clients darstellen.
+
+ * _Preferred_: Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses `./drivers/drivers/preferred`. Treiber welche im Verzeichnis `./drivers/drivers/preferred` liegen, werden gegenüber den Treibern in `./drivers/drivers` bevorzugt anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden. Finden sich z.B. zu ein und derselben PCI-ID unterschiedliche Treiber unter `preferred`, so kann dies zu Problemen bei der Treiber Zuordnung führen. In diesem Fall ist eine direkte Zuordnung der Treiber zu den Geräten notwendig.
+
+ * _Preferred_: Zusätzliche bzw. geprüfte Treiber gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses `./drivers/drivers/preferred`. Treiber welche im Verzeichnis `./drivers/drivers/preferred` liegen, werden gegenüber den Treibern in `./drivers/drivers` bevorzugt anhand der PCI-Kennungen (bzw. USB- oder HD_Audio-Kennung) in der Beschreibungsdatei des Treibers als zur Hardware passend erkannt und in das Windows Setup mit eingebunden. Finden sich z.B. zu ein und derselben PCI-ID unterschiedliche Treiber unter `preferred`, so kann dies zu Problemen bei der Treiber Zuordnung führen. In diesem Fall ist eine direkte Zuordnung der Treiber zu den Geräten notwendig.
+
+ * _Excluded_: Es kann vorkommen, das Treiberverzeichnisse von Herstellern Treiber für unterschiedliche Betriebssystemversionen (Vista / Win7) oder Konfigurationen (SATA / SATA-Raid) enthalten. Wenn Sie die Vermutung haben, das ein verlinkter Treiber falsch ist, so verschieben Sie diesen Treiber in das Verzeichnis `drivers/exclude` und führen `create_driver_links.py` erneut aus. Treiber die in `drivers/exclude` liegen werden bei der Treiberintegration nicht berücksichtigt.
+
+ * _Additional_: Zusätzliche Treiber, die unabhängig von ihrer Zuordnung bzw. Erkennung über die PCI- oder USB-IDs installiert werden sollen, gehören in jeweils eigene Verzeichnisse (Name und Tiefe der Verzeichnisstruktur egal) unterhalb des Verzeichnisses `./drivers/drivers/additional`. Über das Produkt-Property 'additional_drivers' können Sie einen oder mehrere Pfade von Treiberverzeichnissen innerhalb von `./drivers/drivers/additional` einem Client zu ordnen. Im Produkt-Property 'additional_drivers' angegebene Verzeichnisse werden rekursiv durchsucht und alle enthaltenen Treiber eingebunden. Dabei wird auch symbolischen Links gefolgt. Dies können Sie nutzen, um für bestimmte Rechner-Typen ein Verzeichnis zu erstellen (z.B. dell-optiplex-815).
+
+ * _byAudit_: In dem Verzeichnis `./drivers/drivers/additional/byAudit/<Vendor>/<Model>` hinterlegte Treiber, werden bei einer Windows-Installation nach einem Verzeichnisnamen durchsucht, der dem bei der Hardware-Inventarisierung gefundenen 'Vendor' entspricht. In diesem 'Vendor' Verzeichnis wird nun nach einem Verzeichnisnamen gesucht, das dem bei der Hardware-Inventarisierung gefundenen 'Model' entspricht. Wird ein solche Verzeichnis gefunden, so wird diese Verzeichnis genauso behandelt, als wären sie über das Produktproperty 'additional_drivers' manuell zugewiesen.
+
+
+
+Einige Hersteller verwenden Modellbezeichnungen, die für diese Methode sehr ungünstig sind, da man einige Sonderzeichen wie / nicht in Datei- oder Verzeichnisnamen verwenden darf. Ein Beispiel dafür wäre als Modelbezeichnung: "5000/6000/7000". Ein Verzeichnis mit dieser Bezeichnung ist wegen den Sonderzeichen nicht gestattet. Seit der dritten Service Release opsi 4.0.3 werden deshalb folgende Sonderzeichen: < > ? " : | \ / *  intern durch ein _ ersetzt. +
+ Mit dieser Änderung kann man oben genanntes schlechtes Beispiel als: "5000_6000_7000" anlegen und das Verzeichnis wird automatisch zu gewiesen, obwohl die Information in der Hardware-Inventarisierung nicht der Verzeichnisstruktur  enstprechen.
+
+IMPORTANT: Nach einem Treiberupload nach `./drivers/drivers` oder `./drivers/drivers/preferred` sollte die `create_driver_links.py` auf dem 'opsi-Depotserver' aufgerufen werden!
+
+
+[[opsi-manual-configed-softwareinventory]]
+== Software-Informationen
+
+Unter diesem Karteireiter erhalten Sie die letzten mit `swaudit` ausgelesenen Informationen über installierte Software beim Client.
+
+.*opsi-configed*: Software-Informationen
+image::opsi-configed-softwareinventory.png["*opsi-configed*: Software-Informationen", width=800, pdfwidth=80%]
+
+
+[[opsi-manual-configed-logfiles]]
+== Logdateien
+
+Auf dem Reiter _Logdateien_ sind die Logdateien der Clients über den opsi-configed einsehbar.
+
+Der Level, bis zu dem die Logeinträge sichtbar sind, kann mit einem Schieberegler variiert werden, so dass Fehler
+leichter gefunden werden können. Den Regler können Sie auch mit dem Mausrad bedienen.
+
+Dabei kann auch in den Logdateien gesucht werden (Fortsetzung der Suche mit [F3] oder [Strg]{plus}[L]).
+Die einzelnen Zeilen sind je nach Loglevel farbig hervorgehoben.
+
+.*opsi-configed*: Logdateien betrachten
+image::opsi-configed-logfiles.png["*opsi-configed*: Logdateien betrachten", Software-Informationen", width=800, pdfwidth=80%]
+
+[[opsi-manual-configed-hostproperties]]
+== Host-Parameter: Client- und Server-Konfiguration
+
+Eine ganze Reihe von Konfigurationsvorgaben können Sie über den Reiter _Host-Parameter_ vornehmen. Befinden Sie sich im Modus _Client-Konfiguration_, zeigt _Host-Parameter_ die clientspezifischen Einstellungen an. Ist hingegen die _Server-Konfiguration_ aktiv, sehen sie die jeweiligen Server-Defaults.
+
+Konfigurationseinträge (config-Objekte des opsi-Servers) sind grundsätzlich Wertelisten.
+Als Werkzeug zur Bearbeitung der Werte dient daher der Listeneditor
+(vgl. <<opsi-manual-configed-property-editing>> )
+
+Je nach Typ des jeweiligen Konfigurationsobjektes
+
+- können die Elemente der Liste entweder Unicode-Textwerte oder boolesche Werte (`true`/`false`) sein;
+
+- kann die Gesamtheit der zulässigen Listenelemente fest oder erweiterbar sein;
+
+- umfasst der DefaultValues-Eintrag des Objektes  im singleValue-Fall genau ein Listenelement,
+bei multiValue-Objekten eine beliebige Auswahl aus den zulässigen Listenelementen.
+
+Neue Konfigurationseinträge können über das Kontextmenü auf der Server-Host-Parameter-Seite erstellt werden.
+Ebenso können dort bestehende Objekte gelöscht werden.
+
+.*opsi-configed*: Host-Parameter (Kontextmenü eines Client-Eintrags)
+image::opsi-configed-hostparameter_setting.png["*opsi-configed*: Host-Parameter (Kontextmenü eines Client-Eintrags)", width=800, pdfwidth=80%]
+
+Das Verhältnis von Server- und Client-Host-Parametern ist verwickelt:
+
+- Server-Einträge liefern die Default-Werte für die Client-Einträge.
+
+- Konsequenterweise muss, um einen Client-Eintrag zu erhalten, zuerst ein Server-Konfigurationsobjekt angelegt werden.
+
+- Und, wenn ein Server-Eintrag (das Config-Objekt) gelöscht wird, verschwinden auch
+die zugehörigen Client-Einträge (die auf ConfigState-Objekten beruhen).
+
+- Es kann sowohl bei Abweichung des Client-Wertes vom Server-Default als auch, wenn die beiden derzeit identisch sind, einen
+eigenen Eintrag des Clients in der Datenbank geben. Sofern es diesen eigenen Eintrag gibt, bleibt er auch erhalten, wenn sich der
+Server-Default ändert.
+
+- Zum Umgang mit diesem Thema gibt es daher ab configed Version 4.0.7.6.5 für die Client-Properties ein Kontextmenü
+mit den beiden Optionen "Spezifischen Client-Wert entfernen" (d.h., der Clientwert ist immer der gerade aktuelle Default-Werte des Servers)
+und  "Setze den jetzigen Default-Wert als (dauerhaften) Wert für den Client.
+
+- Wenn der Client-Wert sich vom aktuellen Server-Default unterscheidet, so ist dieser fett dargestellt.
+
+- Es kann Konfigurationsobjekte geben, für die theoretisch Client-Werte erzeugt und bearbeitet
+werden können, die jedoch keinerlei Bedeutung haben, weil eigentlich nur serverbezogene Informationen gespeichert werden.
+Diese Properties sind in den aktuellen configed-Versionen in der Regel ausgeblendet.
+
+Zur besseren Übersicht sind die Host-Parameter gegliedert nach Funktionsgruppen aufgeführt.
+Die Gruppen werden auf der linken Seite in einer baumartigen Struktur aufgeführt. Jeweils die zugehörigen
+Parameter und ihre Werte erscheinen auf der rechten Seite.
+
+.*opsi-configed*: Host-Parameter in der Client-Konfiguration
+image::opsi-configed-hostparameters.png["*opsi-configed*: Host-Parameter in der Client-Konfiguration", width=800, pdfwidth=80%]
+
