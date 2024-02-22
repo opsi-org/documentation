@@ -20,16 +20,16 @@
 include::common:partial$opsi_terms.adoc[]
 
 [[opsi-manual-dyndepot]]
-= Dynamic Depot Assignment (free)
+= Dynamic Depot Assignment
 
 [[opsi-manual-dyndepot-introduction]]
 == Introduction
 
-With the standard multi-depot support in opsi, the clients are permanently assigned to the respective depots. This is now enhanced by a mechanism with which a client can detect from which depot it can obtain the software the fastest.
-
-For most cases an assignment according to the IP address might be the easiest and most suitable solution. For other network topologies, e.g. a star topology VPN network, this might not be sufficient.
-
-Therefore a mechanism is required for the client to dynamically detect, which depot to connect for the download of software packages. The algorithm and implementation depends on the network topology and other special customer requirements. So it is best to have this adaptable and configurable.
+With the standard multi-depot support in opsi, the clients are permanently assigned to the respective depots.
+This can be extended by a mechanism with which a client can recognize from which depot it can best obtain its software.
+The specific implementation of a sensible algorithm for this depends on the respective environment and is therefore configurable.
+Assignment according to IP addresses is the simplest and most suitable solution in many areas.
+In other network topologies, this is not sufficient.
 
 To offer the option, that the client can detect the suitable depot according to the current network conditions, it must be ensured, that the alternative depots are synchronized, which means they offer the same software packages. In practice the depots will not be synchronized at all times. So the list depots offered to a client is limited to those depots, which are synchronized with the master depot of the client. The master depot of a client is the depot, to which the client is assigned to. The master depot thus determines which software and which version can be installed on the client.
 
@@ -49,60 +49,32 @@ Resulting from this concept, the sequence of a client connection then looks as f
 . The installation status is reported back to the opsi config server.
 
 
-[[opsi-manual-dyndepot-preconditions]]
-== Requirements
-
-The co-financing process of this module was completed in March 2013. +
-Further details can be found in xref:opsi-modules:modules.adoc#opsi-manual-modules[opsi Extensions].
-
-The following package versions are required:
-
-.required packages
-[options="header"]
-|==========================
-|opsi package|version
-|opsi-client-agent|>=4.0-11
-|opsi-configed|>=4.0.1.5-1
-|python-opsi|>=4.0.0.18-1
-|==========================
-
-NOTE: The depot selection is realized via the opsi-client-agent. This means that this function is not available with netboot products.
-
-
 [[opsi-manual-dyndepot-configuration]]
 == Configuration
+To activate the dynamic depot selection, the host parameter `clientconfig.depot.dynamic` must be set to `true`.
+This can be client-specific, depot-specific or global.
 
-The script that the client uses to select the depot, is stored on the server as the following file: +
-`/etc/opsi/backendManager/extend.d/70_dynamic_depot.conf`
+In addition, the `clientconfig.depot.selection_mode` parameter can be used to select
+which algorithm is to be used to determine the best depot.
 
-To activate the dynamic depot selection for a client, the following host parameter has to be set: +
-'clientconfig.depot.dynamic = true'
+The following selection options are available:
 
-This can be done via opsi configed in the host parameters tab.
+latency::
+The depot with the lowest network latency (ping) is used.
 
-This can also be done on the command line with the command `opsi-admin` (<client-id> has to be replaced by the FQDN of the client, e.g. client1.uib.local):
-[source,shell]
-----
-opsi-admin -d method configState_create clientconfig.depot.dynamic <client-id> [True]
-----
+master_and_latency::
+Like `latency`, but only depots that are assigned to the master depot of the client via `masterDepotId` are considered.
 
-The result can be checked by executing:
-[source,shell]
-----
-opsi-admin -d method configState_getObjects [] '{"configId":"clientconfig.depot.dynamic","objectId":"<client-id>"}'
-----
+network_address::
+The depot whose configured network address (`networkAddress`) matches the current IP address of the client is used.
+
+random::
+The depot is selected at random.
 
 [[opsi-manual-dyndepot-edit-depot-settings]]
 == Editing depot properties
 
-The properties of a depot are partly determined when an opsi-Server is registered as a depot with the command `opsiconfd setup --register-depot` (see xref:opsi-modules:multidepot.adoc#opsi-manual-multidepot-installation[Creating an depot server]).
-
-You can edit the depot properties later. This can be done from the management interface as well as on the command line.
-
-.Showing the properties of a depot (2nd button from the left)
-image::configed-masterbuttons.png["Showing the properties of a depot",width=200]
-
-You can call up the depot properties using the button 'Properties of depots' in the top right of the management interface.
+The properties of a depot can be changed in the opsi Management Interface as well as on the command line.
 
 .Depot properties in 'opsi-configed'
 image::configed-depotsettings.png["Depot properties in opsi configed",pdfwidth=90%]
@@ -155,17 +127,17 @@ opsi-admin -d method host_createObjects < /tmp/depot_config.json
 
 The depot properties, which are relevant in the context of dynamic depot allocation are:
 
-* 'isMasterDepot' +
+* `isMasterDepot` +
 Must be `true` for assigning a client to this depot.
 If `false` is entered here, no clients can be assigned, but the depot is still used in the dynamic depot assignment.
 
-* 'networkAddress' +
+* `networkAddress` +
 Network addresses for which this depot is responsible. The network address can be specified in two notations:
 
 ** network/netmask, example:  192.168.101.0/255.255.255.0
 ** network/maskbits, example: 192.168.101.0/24
 
-Whether the 'networkAddress' is actually evaluated to determine the depot depends on the algorithm in the selection script. The default algorithm supplied by uib uses this.
+Whether the `networkAddress` is actually evaluated to determine the depot depends on the algorithm in the selection script.
 
 
 [[opsi-manual-dyndepot-depot-sync]]
@@ -214,10 +186,10 @@ The following parameters are transferred to the 'selectDepot' function defined i
 * clientConfig +
 Information of the current client configuration (hash). +
 The clientConfig hash keys are currently:
-** "clientId": opsi host ID of the client (FQDN)
-** "ipAddress": IP address of the network interface used to connect to the config server
-** "netmask": network mask of the network interface
-** "defaultGateway": default gateway
+** `clientId`: opsi host ID of the client (FQDN)
+** `ipAddress`: IP address of the network interface used to connect to the config server
+** `netmask`: network mask of the network interface
+** `defaultGateway`: default gateway
 
 * masterDepot +
 Information about the master depot ('opsi-Depotserver'-object). The master depot is the depot to which the client is assigned in the management interface. The attributes of the transferred 'opsi-Depotserver'-object correspond to the attributes as given by `host_getObjects` (see <<opsi-manual-dyndepot-edit-depot-settings>>).

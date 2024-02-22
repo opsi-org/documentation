@@ -24,13 +24,13 @@
 include::common:partial$opsi_terms.adoc[]
 
 [[opsi-manual-dyndepot]]
-= Dynamische Depotzuweisung (frei)
+= Dynamische Depotzuweisung
 
-Bei der Standard Multidepot Unterstützung in opsi, sind die Clients den jeweiligen Depots fest zu geordnet. Dies wird nun erweitert durch einen Mechanismus, mit dem ein Client erkennen kann, von welchem Depot er seine Software am schnellsten beziehen kann.
-
-Eine Zuordnung gemäß IP-Nummern ist in vielen Bereichen die einfachste und passende Lösung. In anderen Netzwerktopologien reicht dies nicht aus, z.B. bei einem sternförmigen VPN-Netzwerk.
-
-Notwendig ist also ein Mechanismus der Clientseitig dynamisch ermittelt, zu welchem Depot die beste Verbindung möglich ist. Die konkrete Implementation eines sinnvollen Algorithmus hierfür hängt wiederum sehr von der tatsächlichen Netzwerktopologie und den Wünschen des Kunden ab. Daher ist es sinnvoll diese konfigurierbar zu gestalten.
+Bei der Standard Multidepot Unterstützung in opsi, sind die Clients den jeweiligen Depots fest zu geordnet.
+Dies kann durch einen Mechanismus erweitert werden, mit dem ein Client erkennen kann von welchem Depot er seine Software am besten beziehen kann.
+Die konkrete Implementation eines sinnvollen Algorithmus hierfür hängt von der jeweiligen Umgebung ab und ist daher konfigurierbar.
+Eine Zuordnung gemäß IP-Adressen ist in vielen Bereichen die einfachste und passende Lösung.
+In anderen Netzwerktopologien reicht dies nicht aus.
 
 Ausgehend von der Überlegung, dass der Client sich nach den aktuellen Gegebenheiten des Netzwerks sein Depot sucht, ist sicherzustellen, dass die zur Auswahl stehenden Depots synchron, d.h. mit den selben Software-Paketen ausgestattet, sind. Da in der Praxis nicht alle Depots einer Multidepot-Umgebung immer synchron sein werden, wird die Liste der Depots, aus der sich ein Client das für ihn Geeignetste aussuchen kann, auf jene Depots beschränkt, die zum Masterdepots des Clients synchron sind. Das Masterdepot eines Clients ist das Depot, dem der Client zugewiesen ist. Damit bestimmt das Masterdepot, welche Software in welcher Version auf dem Client installiert werden kann.
 
@@ -50,55 +50,34 @@ Der aus diesem Konzept resultierende Ablauf eines Client-Connects sieht dann wie
 . Der Installationsstatus wird an den opsi-Configserver zurückgemeldet.
 
 
-[[opsi-manual-dyndepot-preconditions]]
-== Voraussetzungen
-
-Der kofinanzierungs Prozess zur Finanzierung dieser opsi Erweiterung wurde im März 2013 abgeschlossen. +
-Weitere Details hierzu finden Sie in xref:opsi-modules:modules.adoc#opsi-manual-modules[Freischaltung kostenpflichtiger Module].
-
-Diese Funktion benötigt mindestens folgende Paketstände:
-
-.Benötigte Pakete
-[options="header"]
-|==========================
-|opsi-Paket|Version
-|opsi-client-agent|>=4.0-11
-|opsi-configed|>=4.0.1.5-1
-|python-opsi|>=4.0.0.18-1
-|==========================
-
-NOTE: Die Depotselektion wird über den opsi-client-agent realisiert. Im Umkehrschluss bedeutet dies, dass diese Funktion keine Anwendung bei Netbootprodukten findet.
-
-
 [[opsi-manual-dyndepot-configuration]]
 == Konfiguration
 
-Das Script, welches der Client verwendet um die Depotauswahl durchzuführen, ist auf dem Server in der folgenden Datei abgelegt: +
-`/etc/opsi/backendManager/extend.d/70_dynamic_depot.conf`
+Um die dynamische Depotauswahl zu aktivieren, muss der Host-Parameter `clientconfig.depot.dynamic` auf `true` gesetzt werden.
+Das kann Client-spezifisch, Depot-spezifisch oder global geschehen.
 
-Um die dynamische Depotauswahl für einen Client zu aktivieren, muss für diesen Client folgender Host-Parameter gesetzt werden: +
-'clientconfig.depot.dynamic = true'
+Zusätzlich kann über den Parameter `clientconfig.depot.selection_mode` ausgewählt werden,
+welcher Algorithmus zur Ermittlung des besten Depots verwendet werden soll.
 
-Dies kann über den opsi-configed im Tab Host-Parameter geschehen.
+Folgende Auswahlmöglichkeiten stehen zur Verfügung:
 
-Natürlich kann dies auch auf der Kommandozeile mit dem Befehl `opsi-admin` erledigt werden (<client-id> ist hierbei durch den FQDN, z.B. client1.uib.local des Clients zu ersetzen):
-[source,shell]
-----
-opsi-admin -d method configState_create clientconfig.depot.dynamic <client-id> [True]
-----
+latency::
+Es wird das Depot verwendet, das die geringste Netzwerklatenz (ping) aufweist.
 
-Kontrolliert werden kann die Ausführung mittels:
-[source,shell]
-----
-opsi-admin -d method configState_getObjects [] '{"configId":"clientconfig.depot.dynamic","objectId":"<client-id>"}'
-----
+master_and_latency::
+Wie `latency`, es werden jedoch nur Depots in Betracht gezogen, die dem über `masterDepotId` dem Masterdepot des Clients zugeordnet sind.
+
+network_address::
+Es wird das Depot verwendet, in dessen konfigurierte Netzwerkadresse (`networkAddress`) die aktuelle IP-Adresse des Clients passt.
+
+random::
+Das Depot wird zufällig ausgewählt.
+
 
 [[opsi-manual-dyndepot-edit-depot-settings]]
 == Editieren der Depoteigenschaften
 
-Die Eigenschaften eines Depots werden zum Teil abgefragt, wenn ein opsi-server über den Befehl `opsiconfd setup --register-depot` als Depot registriert wird (siehe xref:multidepot#opsi-manual-multidepot-installation[Erstellung und Konfiguration eines Depot-Servers]).
-
-Die Depoteigenschaften können Sie nachträglich editieren. Dies geht sowohl im opsi Management Interface als auch auf der Kommandozeile.
+Die Eigenschaften eines Depots können im opsi Management Interface als auch auf der Kommandozeile verändert werden.
 
 .Aufruf der Depoteigenschaften (2. Button von links)
 image::configed-masterbuttons.png["Aufruf der Depoteigenschaften", pdfwidth=20%]
@@ -156,17 +135,17 @@ opsi-admin -d method host_createObjects < /tmp/depot_config.json
 
 Die im Rahmen der dynamischen Depotzuweisung wichtigen Depoteigenschaften sind:
 
-* 'isMasterDepot' +
+* `isMasterDepot` +
 Muss `true` sein, damit diesem Depot ein Client zugewiesen werden kann.
 Wird hier `false` eingetragen, so können keine Clients zugewiesen werden, aber die Depots werden trotzdem bei der dynamischen Depotzuweisung verwendet.
 
-* 'networkAddress' +
+* `networkAddress` +
 Adresse des Netzwerks für den dieses Depot zuständig ist. Die Netzwerkadresse kann nach zwei Notationen angegeben werden:
 
 ** Netzwerk/Maske Beispiel:  192.168.101.0/255.255.255.0
 ** Netzwerk/Maskenbits Beispiel: 192.168.101.0/24
 
-Ob die 'networkAddress' tatsächlich zur Ermittlung des Depots ausgewertet wird, hängt natürlich von dem im Script übergebenen Algorithmus ab. Der von uib ausgelieferte Default-Algorithmus richtet sich nach diesem Kriterium.
+Ob die `networkAddress` tatsächlich zur Ermittlung des Depots ausgewertet wird, hängt natürlich von dem im Script übergebenen Algorithmus ab.
 
 
 [[opsi-manual-dyndepot-depot-sync]]
@@ -215,10 +194,10 @@ Der in diesem Script definierten Funktion 'selectDepot' werden die folgenden Par
 * clientConfig +
 Informationen zur aktuelle Client-Konfiguration (Hash). +
 Die Keys des clientConfig-Hashes sind momentan:
-** "clientId": opsi-Host-ID des Clients (FQDN)
-** "ipAddress": IP-Adresse des Netzwerk-Schnittstelle zum configserver
-** "netmask" : Netzwerk-Maske der Netzwerk-Schnittstelle
-** "defaultGateway": Standard-Gateway
+** `clientId`: opsi-Host-ID des Clients (FQDN)
+** `ipAddress`: IP-Adresse des Netzwerk-Schnittstelle zum configserver
+** `netmask` : Netzwerk-Maske der Netzwerk-Schnittstelle
+** `defaultGateway`: Standard-Gateway
 
 * masterDepot +
 Informationen zum Masterdepot ('opsi-Depotserver'-Objekt). Das Masterdepot ist das Depot, dem der Client im Managementinterface zugewiesen ist. Die Attribute des übergebenen 'opsi-Depotserver'-Objekts entsprechen den Attributen, wie sie von `host_getObjects` (siehe <<opsi-manual-dyndepot-edit-depot-settings>>) ausgegeben werden.
