@@ -30,7 +30,95 @@
 * Version:  1.0
 * Copyright:  AGPLv3
 
+anchor:replaceDriverPathChars[]
+[Doc_func_replaceDriverPathChars]
+== replaceDriverPathChars
 
+Definition::
+`replaceDriverPathChars($path$ : string) : string`
+
+Description::
+Replaces in a given path to a driver the not allowed chars for netboot driver repository
+
+* Parameter: `$path$`
+** Type: `String`  -  Calltype: `CallByValue`
+** Description: path to a driver
+
+* Returns: Returns string with given $path$ with replaced chars
+* OnError: Returns string $path$
+* Author:     detlef oertel
+* Date:     10.05.2023
+
+
+Example:
+[source,winst]
+----
+set $computerVendor$ = replaceDriverPathChars($computerVendor$)
+set $computerModel$ = replaceDriverPathChars($computerModel$)
+set $testpath$ = "%scriptdrive%\..\"+$myNetbootPtoduct$+"\drivers\drivers\additional\byAudit\"+$computerVendor$+"\"+$computerModel$
+----
+
+
+anchor:isPnputilSyntaxLegacy[]
+[Doc_func_isPnputilSyntaxLegacy]
+== isPnputilSyntaxLegacy
+
+Definition::
+`isPnputilSyntaxLegacy() : string`
+
+Description::
+checks if pnputil.exe on this system uses legacy syntax only
+
+* Returns: Returns string 'true' / 'false'
+* OnError: Returns string 'true'
+* Links: https://learn.microsoft.com/de-de/windows-hardware/drivers/devtest/pnputil-command-syntax
+* Author:     detlef oertel
+* Date:     10.05.2023
+
+Example:
+[source,winst]
+----
+set $legacy_pnp_syntax$ = isPnputilSyntaxLegacy()
+if $legacy_pnp_syntax$ = "false"
+	set $exitcode$ = processCall('"%System%\pnputil.exe"  /add-driver "'+$inffile$+'" /install' ) /TimeOutSeconds 20 /SysNative
+else
+	set $exitcode$ = processCall('"%System%\pnputil.exe" -i -a "'+$inffile$+'"' ) /TimeOutSeconds 20 /SysNative
+endif
+----
+
+
+
+anchor:install_driver_certificates_recursive_from_dir[]
+[Doc_func_install_driver_certificates_recursive_from_dir]
+== install_driver_certificates_recursive_from_dir
+
+Definition::
+`install_driver_certificates_recursive_from_dir($driverbasedir$ : string, ref $errorstrings$ : stringlist) : string`
+
+Description::
+collect recursiv all certificates (*.cer) and import the to certificare store as TrustedPublisher
+
+* Parameter: `$driverbasedir$`
+** Type: `String`  -  Calltype: `CallByValue`
+** Description: path to a driver repository
+
+* Parameter: `$errorstrings$`
+** Type: `Stringlist`  -  Calltype: `CallByReference`
+** Description: list of error messages
+
+* Returns: Returns string 'true' / 'false'
+* OnError: Returns string 'false' ; Error messages in $errorstrings$
+* Author:     detlef oertel
+* Date:     10.05.2023
+
+Example:
+[source,winst]
+----
+set $boolresult$ = install_driver_certificates_recursive_from_dir($driverdir$, $errorstrings$)
+if boolresult = "false"
+	for %errmsg% in $errorstrings$ do logerror '%errmsg%'
+endif
+----
 
 
 
@@ -44,34 +132,31 @@ Definition::
 `install_driver_recursive_from_dir($driverdir$ : string, ref $errorstrings$ : stringlist) : string`
 
 Description::
-Sets for the given list of opsi productIds the action request
-to 'setup' (also resolving the dependencies)
+collect recursiv all certificates (*.cer) and import the to certificare store as TrustedPublisher
+(call install_driver_certificates_recursive_from_dir)
+collect recursiv all drivers (*.inf) and try to install via pnputil
+if failed retry with dpinst
 
 * Parameter: `$driverdir$`
 ** Type: `String`  -  Calltype: `CallByValue`
+** Description: path to a driver repository
 
 * Parameter: `$errorstrings$`
 ** Type: `Stringlist`  -  Calltype: `CallByReference`
+** Description: list of error messages
 
 * Returns:     Returns string "true" if all is ok
 * OnError:     Returns string "false"
-* SpecialCase:     Works only in opsi service mode (not in interactive or batch mode)
 * Author:     detlef oertel
-* Date:     17.5.2018
-* Email:     d.oertel@uib.de
-* Version:     1.0
-* Copyright:     AGPLv3
+* Date:     10.05.2023
 
 
 Example:
 [source,winst]
 ----
-[actions]
-DefStringlist $productlist$
-
-set $productlist$ = CreateStringList("opsi-logviewer","opsi-configed")
-if not(stringtobool(setProductsToSetup($productlist$)))
-  comment "call of setProductsToSetup failed"
+set $boolresult$ = install_driver_recursive_from_dir($driverdir$, $errorstrings$)
+if boolresult = "false"
+	for %errmsg% in $errorstrings$ do logerror '%errmsg%'
 endif
 ----
 
@@ -82,26 +167,63 @@ anchor:setFirewallExceptionsTcpUdp4product4profile[]
 [[Doc_func_setFirewallExceptionsTcpUdp4product4profile]]
 == Documentation of local function `setFirewallExceptionsTcpUdp4product4profile`
 
-
 Definition::
 `setFirewallExceptionsTcpUdp4product4profile($rulename$ : string, $fwprofile$ : string, $path2product$ : string) : void`
 
 Description::
-
+Adds a new firewall rule: $rulename$ for the program: $path2product$
+Allows for this program incoming connections via TCP and UDP
 
 * Parameter: `$rulename$`
 ** Type: `String`  -  Calltype: `CallByValue`
+** Description: Name of the rule to create
 
 * Parameter: `$fwprofile$`
 ** Type: `String`  -  Calltype: `CallByValue`
+** Description: Name of the firewall profile to create rule in
 
 * Parameter: `$path2product$`
 ** Type: `String`  -  Calltype: `CallByValue`
+** Description: Path to the program that is subject of the rule
 
+* Returns: Returns nothing
+* OnError: Returns nothing
 * Author:     detlef oertel
-* Date:     27.08.2013
-* Email:     d.oertel@uib.de
-* Version:     1.0
-* Copyright:     AGPLv3
+* Date:     10.05.2023
+
+anchor:install_driver_via_pnputil[]
+[Doc_func_install_driver_via_pnputil]
+== install_driver_via_pnputil
+
+Definition::
+`install_driver_via_pnputil($soucedriverPath$ : string, ref $outstring$ : string) : string`
+
+Description::
+try to install the driver given by $soucedriverPath$ via pnputil
+$outstring$ returns messages of success or errors
+
+* Parameter: `$soucedriverpath$`
+** Type: `String`  -  Calltype: `CallByValue`
+** Description: path to a driver (*.inf)
+
+* Parameter: `$outstring$`
+** Type: `String`  -  Calltype: `CallByReference`
+** Description: list of messages
+
+* Returns: Returns string 'true' / 'false'
+* OnError: Returns string 'false'
+* Author:     detlef oertel
+* Date:     10.05.2023
 
 
+Example:
+[source,winst]
+----
+comment "install driver: %infpath%"
+set $boolresult$ = install_driver_via_pnputil('%infpath%', $messagestr$)
+if  $boolresult$ = "false"
+	set $errorstrings$ = addToList($errorstrings$, $messagestr$)
+else
+	set $messagestrings$ = addToList($messagestrings$, $messagestr$)
+endif
+----
