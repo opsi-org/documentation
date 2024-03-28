@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      04.10.2023
+:Date:      28.03.2024
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -26,40 +26,36 @@ include::common:partial$opsi_terms.adoc[]
 [[opsi-setup-detector-support_custom_directory]]
 === *opsi-setup-detector*: Custom Directory
 
-The opsi-setup-detector has a checkbox in the tab "Product Configuration 1": +
-*Support custom directory* : The product gets an additional directory 'custom' which can contain customer-specific files. When installing a new version of the package on the server, the existing custom directory is preserved. The code contains templates to add files from this directory to the installation. +
+When you activate the _Support custom directory_ checkbox on the _Product Configuration 1_ tab, the product gets supplemented with an extra directory named `custom`. This directory is ideal for storing client-specific customizations. Importantly, when you upgrade to a new version of the package, the `custom` directory remains untouched. The script includes templates for integrating files from this directory into the installation process.
 
-In setup.opsiscript is inserted: +
-A files section to copy files from the 'custom' directory to the client:
+Here's what gets added to the `setup.opsiscript` file:
 
-[source,winst]
+[source,ini]
 ----
 ; copy custom files to install dir
 Files_copy_from_custom_dir
 ----
 
-and the related section. In this example the contents of the 'custom' directory is copied to the installation directory:
+This calls a `Files` section to copy files from a `custom` directory to the client. The corresponding section looks like this:
 
-[source,winst]
+[source,ini]
 ----
 [Files_copy_from_custom_dir]
 copy -s "%scriptPath%\custom\*" "$installdir$"
 ----
 
-Furthermore, the 'custom' directory is created and a OPSI\preinst and a OPSI\postinst file, which ensure that the contents of the 'custom' directory is retained on the depot when product updates are installed.
+In this example, the contents of the `custom` directory are transferred to the installation directory, and the `custom` directory itself is created. It contains the two files `OPSI\preinst` and `OPSI\postinst`. These files ensure that the contents of the `custom` directory remain intact on the depot, even when updates occur.
 
 [[opsi-setup-detector-install_from_local_temp_dir]]
 === *opsi-setup-detector*: Local, temporary Directory
 
-The opsi-setup-detector has a checkbox in the tab "Product Configuration 1": +
-*Install from local temp dir* : The installation files are first copied to a local, temporary directory and then installed from this directory. Particularly useful for everything that could affect the network connection during installation (e.g. drivers).
+When you activate the _Install from local temp dir_ checkbox on the _Product Configuration 1_ tab in `opsi-setup-detector`, it adjusts the installation process such that the installation files are initially copied to a local, temporary directory, and the installation is carried out from there. This method is particularly beneficial in scenarios where the installation might disrupt the network connection, a common situation with driver installations.
 
-An additional boolean property is created: _install_from_local_tmpdir_ with a default of 'False' and the description: 'Determines whether the installation files are copied to a local directory'.
+As a result, `opsi-setup-detector` creates a new boolean property named `install_from_local_tmpdir`, which defaults to `false` and has this description: _Determines whether the installation files are copied to a local directory_.
 
-In setup.opsiscript is inserted: +
-A files section to copy the installer files from the $installerSourceDir$ directory to the client. And the command to delete the temporary files after installation:
+To accommodate this feature, modifications are made to the `setup.opsiscript` file as follows:
 
-[source,winst]
+[source,ini]
 ----
 set $Install_from_local_tmpdir$ = GetProductProperty("Install_from_local_tmpdir","False")
 
@@ -80,9 +76,11 @@ if $Install_from_local_tmpdir$ = "true"
 endif
 ----
 
-and the related sections.
+Now the installation files are temporarily moved to a temporary directory and deleted after the installation if the condition `Install_from_local_tmpdir` is set to `true`.
 
-[source,winst]
+The corresponding sections look like this:
+
+[source,ini]
 ----
 ; copy installer files to tempdirectory
 [Files_copy_installer_to_temp]
@@ -96,17 +94,13 @@ del -sf "%opsiTmpDir%\$ProductId$\"
 [[opsi-setup-detector-handle_license_key]]
 === *opsi-setup-detector*: License Key
 
-The opsi-setup-detector has a checkbox in the tab "Product Configuration 1": +
-*Handle License Key* : Adds property and code to handle license keys.
+Activating the _Handle License Key_ checkbox on the _Product Configuration 1_ tab within the `opsi-setup-detector` adds the necessary property and code for managing license keys.
 
-An additional property is created: _secretlicense_or_pool_ with the a default of '' and the description: 'license key or opsi licensepool'. The keyword 'secret' in the property name means that the value of the property is shown masked in opsi-configed.
+This action creates an additional property named `secretlicense_or_pool`. By default, this property is left blank and carries the description _license key or opsi licensepool_. The inclusion of `secret` in the property name signifies that the value of this property will be masked in `opsi-configed`, meaning it won't be displayed in plain text.
 
-In setup.opsiscript is inserted: +
-The call of get_licensekey_byPoolOrKey checks whether the property value is possibly the name of a licensepool from the opsi extension license management. +
-If so, a license key is supplied from this pool. +
-If not, the contents of the property is supplied as a license key.
+This code is inserted into the `setup.opsiscript` file:
 
-[source,winst]
+[source,ini]
 ----
 DefVar $LicenseHandledByScript$ = "true"
 
@@ -125,9 +119,11 @@ if $LicenseHandledByScript$ = "true"
 endif
 ----
 
-In uninstall.opsiscript is inserted: +
+`get_licensekey_byPoolOrKey` checks if the value entered in the `secretlicense_or_pool` property corresponds to the name of a license pool as defined in the opsi extension xref:opsi-modules:licensemanagement.adoc[License Management]. If it matches, a license key is retrieved from this specified pool. Otherwise, the content of the property is treated and used directly as the license key.
 
-[source,winst]
+This code is inserted into the `uninstall.opsiscript`:
+
+[source,ini]
 ----
 DefVar $LicenseHandledByScript$ = "true"
 
@@ -147,18 +143,15 @@ endif
 [[opsi-setup-detector-desktopicon]]
 ==== *opsi-setup-detector*: Desktop Icon
 
-The opsi-setup-detector has a checkbox in the tab "Product Configuration 1": +
-*DesktopIcon* : Adds property and code to handle desktop icons.
+Activate the checkbox _DesktopIcon_ on the _Product Configuration 1_ tab to add a property and corresponding code for managing desktop icons.
 
-An additional Boolean property is created: _desktopicon_ with a default of 'False' and the description: 'Should there be a desktop icon?'.
+A new boolean property named `desktopicon` is then created, set to `false` by default, and described as `Should there be a desktop icon?`
 
-In setup.opsiscript is inserted: +
-A Linkfolder section to create or remove the desktop icon:
+The corresponding code snippet is then integrated into the `setup.opsiscript` file:
 
-[source,winst]
+[source,ini]
 ----
 set $desktopicon$ = GetProductProperty("desktopicon", "False")
-
 
 ; after the installation
 ; handle desktop icon
@@ -171,9 +164,9 @@ else
 endif
 ----
 
-as well as the associated sections, which are also inserted into uninstall.opsiscript:
+If `desktopicon` is set to `true`, a section `Linkfolder` is called. The corresponding code (which is also inserted in the `uninstall.opsiscript` file) looks like this:
 
-[source,winst]
+[source,ini]
 ----
 [Linkfolder_remove_desktop_icon]
 ; check delete_element
@@ -195,9 +188,9 @@ set_link
 end_link
 ----
 
-In delinc.opsiinc is inserted: +
+Additionally, these two lines are added to the `delinc.opsiinc` file:
 
-[source,winst]
+[source,ini]
 ----
 comment "Start Remove Desktop Icon Handling :"
 Linkfolder_remove_desktop_icon
@@ -206,25 +199,23 @@ Linkfolder_remove_desktop_icon
 [[opsi-setup-detector-customize_profile]]
 === *opsi-setup-detector*: Customize local User Profiles
 
-The opsi-setup-detector has a checkbox in the tab "Product Configuration 1": +
+The _Product Configuration 1_ tab includes a checkbox named _Customize Profile_. When selected, a section `Profileactions` is added to the code which facilitates modifications to local user profiles. This feature also extends to _Roaming Profiles_ through a login script.
 
-*Customize Profile* : Adds a 'Profileactions' section to the code to make adjustments to the local user profiles. This functionality is also provided via a loginscript for 'Roaming Profiles'. +
+In the `OPSI/control` file, the `setup.opsiscript` is designated not only as a `setupScript` but also as a `userLoginScript`.
 
-In the OPSI/control file setup.opsiscript is not only provided as a 'setupScript', but also as a 'userLoginScript'.
+The following segment is added to the `setup.opsiscript` file:
 
-In setup.opsiscript is inserted: +
-A ProfileActions section. Depending on the type of execution, this is carried out for all local profiles or for the user who is currently logged in:
-For details see: https://docs.opsi.org/opsi-docs-en/4.2/manual/modules/user-profile.html
-
-[source,winst]
+[source,ini]
 ----
 ; Run the customization for user profiles
 ProfileActions
 ----
 
-and the associated sections, which are templates to manipulate user profiles:
+The code triggers the execution of a section named `ProfileActions`. Depending on the context in which it's invoked, this section is executed for all local profiles or specifically for the profile of the currently logged-in user (see the chapter xref:opsi-modules:user-profile.adoc[User Profile Management]).
 
-[source,winst]
+The sections relevant to this process, which serve as templates for modifying user profiles, are structured as follows:
+
+[source,ini]
 ----
 [ProfileActions]
 ; all section that called from [ProfileActions]
@@ -263,4 +254,3 @@ Patches_in_user_profiles  "%UserProfileDir%\Appdata\Roaming\osd_profile_example\
 ; example:
 ;set [example_section] example_key=example_value
 ----
-
