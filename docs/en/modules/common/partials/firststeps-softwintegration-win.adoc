@@ -113,152 +113,137 @@ In the upcoming sections, we'll explore additional configuration features of the
 include::common:partial$osd-checkboxes-subtasks.adoc[]
 
 [[opsi-winclient-softwintegration-tutorial-opsiadmin]]
-== Installation When the User is Logged on
+== Installation with Logged-in User
 
-Before we begin, we assume that you have tried an unattended installation using an opsi-script script, and the installation worked OK when the user had administrative privileges.
-However with some software products, you will see that the installation fails when started from within the opsi deployment software (opsi-client-agent). A possible reason for that difference might be that the installation process requires knowledge about the user environment or profile.
+There are times when software installations require a logged-in user. An indication of this is when a manual execution of an `opsi-script` script with commands for unattended or silent installation works, but the same installation fails when executed automatically through opsi.
 
+This could be because the installation program requires a logged-in user or needs access to a user profile.
+In such scenarios, you can integrate your installation into an opsi package that establishes these necessary conditions. You can create such a package using the `opsi-setup-detector` by selecting the Windows task _Analyze File and Create Package 'with user'_.
 
 [[opsi-winclient-softwintegration-tutorial-customizing]]
-== Customization after a silent/unattended Installation
+== Customizing the Unattended/Silent Setup
 
-After a successful silent installation, some customizing might be useful. The opsi-script is a powerful tool to do that job. First, find out what patches have to be applied. For example, that could mean analyzing which registry settings are affected by the GUI customizing tools.
+Following a successful silent installation, there's often a need for additional customizations. Using `opsi-script` makes these adjustments manageable, but first, it's essential to understand which changes in the graphical user interface correspond to specific alterations in files and the Windows registry.
 
+For this task, consider using tools such as:
 
-You may use the tools like: +
-
-* link:http://www.sysinternals.com/[sysinternals]
-* link:https://sourceforge.net/projects/regshot/[regshot]
-
+* link:https://learn.microsoft.com/en-us/sysinternals/[Sysinternals]
+* link:https://sourceforge.net/projects/regshot/[Regshot]
 
 [[opsi-winclient-softwintegration-tutorial-autoit]]
-== Integration with Automated Answers for the setup Program
+== Setup with Automated Responses
 
-Another fast way of integration is to provide an automated answer file for the setup process. The answer file contains pre-defined answers.  To be more precise, the answer file is used by a control tool, which waits for the setup to come up with the interactive windows.  The control tool then passes input to these windows as defined in the answer file. As a control tool we recommend 'AutoIt'. The AutoIt program and the documentation can be found at: +
+An alternative and swift method for integration into automatic software distribution is the setup with automated responses. This approach uses a control program to automate user interactions with dialog windows that appear during setup.
+
+For this, we recommend this tool:
 
 * link:http://www.autoitscript.com[AutoIt]
 
-=== AutoIt: Control the setup process
+=== AutoIt: Managing the Setup Process
 
-AutoIt provides a lot of commands to control the setup process. Also, several error states can be handled (if known in advance) with the '[ADLIB]' section in the script.
+AutoIt provides various functionalities for managing the setup process, including the capability to address potential error conditions with `[ADLIB]` script sections.
 
-There is, however, a fundamental challenge in using AutoIt: +
-The AutoIt script must provide input for every window that might pop up during installation. So if any unexpected window pops up, which isn't handled in the [ADLIB] section, AutoIt provides no input for this window and the installation stops at that point while waiting for input. This input could be done interactively by a user, and then the script can take over again and handle the next windows.
+One critical issue, however, remains unaddressed: unexpected windows, not previously incorporated into the script, can halt the script's execution. Additionally, user interventions through mouse and keyboard (unless disabled) can unpredictably alter the scripted sequence of events.
 
-Another situation that may cause failure of an AutoIt installation: +
-The user can interfere with the installation if the mouse and keyboard are not disabled. Therefore we regard 'unattended' or 'silent' setup as a more stable solution.
+TIP: For these reasons, an unattended or silent setup is typically the better solution! A hybrid method can also be effective: use a silent setup for the main installation, with an AutoIt script intercepting and managing known exceptions or special conditions.
 
-A combination of both might do a good job: +
-The 'silent'-setup does the main installation and the AutoIt script handles special conditions that might occur.
+=== AutoIt: Known Issues
 
-=== AutoIt: Known problems
+When installations are transferred to a different desktop in the client agent configuration, or if the desktop is locked, certain AutoIt functions have problems.
 
-If you use the opsi option of running the installation on another desktop than the current desktop, or if the current desktop is locked, then you will find that some autoit functions do not work properly under these conditions.
+NOTE: It is advisable to steer clear of these functions in `opsi-script` scripts, if possible:
 
-Therefore you should avoid using the following autoit commands in 'opsi-script' scripts:
+* `winwait()`
 
-* winwait()
+* `winactivate()`
 
-* winactivate()
+* `Send()`
 
-* Send()
-
-These are the most widly used commands.
-
-We recommend to use  the `opsi-autoit-lib.au3` library, that provides replacements for this commands. You will find this file at  `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`. Copy this file to the scriptdirectory of your opsi product. Now you may include this file by using the following autoit code line:
+Unfortunately, these are the three most frequently used functions. We recommend replacing the commands with those included in the `opsi-script` library `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\opsi-autoit-lib.au3`. This library not only includes the extended functions outlined here but also encompasses a logging function. Simply copy the `opsi-autoit-lib.au3` file into the product directory and then include it in the AutoIt code like this:
 
 [source]
 ----
 #include "%scriptpath%\opsi-autoit-lib.au3
 ----
 
+After that, you can replace the following items:
 
-This library provide substitutes:
+* You can replace `winwait()` with the function `opsiwinwait($title, $text, $maxseconds, $logname)`.
+* `Send()` can be replaced by the function `opsiControlClick($title, $text, $id, $maxseconds, $logname)` or by `opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)`.
 
-*winwait()* +
-should be replaced by the function +
-`opsiwinwait($title, $text, $maxseconds, $logname)` +
-
-
-*Send()* +
-should be replaced by the function +
-`opsiControlClick($title, $text, $id, $maxseconds, $logname)` +
-respectively by +
-`opsiControlSetText($title, $text, $id,$sendtext, $maxseconds, $logname)` +
-
-
-TIP: It is always a good idea for the identification of controls to use the program `Au3info.exe` to get the 'ControlId' needed by these commands. Please use the numerical 'ControlId', because the other variants do not seem to work properly.
+TIP: It is recommended to determine the ControlID with `Au3info.exe`. Be sure to use the numeric ControlID, as other variants seem to cause problems.
 
 === AutoIT: Examples and additional Links
 
-Examples you will find in the directory: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\` in the files: + 
+* You can find examples in the directory `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsi-script\lib\` in the files: +
 
   - `autoit_example_1.txt`
-
   - `autoit_example_2.txt`
-  
   - `autoit_example_3.txt`
 
-
-see also: +
+See also: +
 http://www.autoitscript.com/wiki/FAQ#Why_doesn.27t_my_script_work_on_a_locked_workstation.3F +
 http://www.autoitscript.com/autoit3/docs/ +
 http://www.autoitscript.com/autoit3/docs/intro/controls.htm +
 http://www.autoitscript.com/autoit3/docs/functions.htm
 
-
 [[opsi-winclient-softwintegration-tutorial-analyse-and-repackage]]
-== Analyze and Repackage
+== == Analyzing and Repackaging
 
-When a software developer builds a setup for deployment, the developer usually knows about the required components of the software that have to be installed. But if somebody has a black box as a setup, then they need first to analyze what the setup does. This can be done by monitoring the setup activities with the appropriate tools (e.g. monitoring files and registry access) or by comparing the system states before and after installation.
+When developers build an application package, they are aware of the essential components needed for its functionality. In cases where an installation package already exists, running the setup program can reveal which parts must be installed on a workstation to achieve the desired functionality. 
 
-To analyze the before or after states, there are several tools. For Example:
+Several tools are available for analyzing setup programs, including:
 
-
-* link:https://sourceforge.net/projects/regshot/files/regshot/[regshot]
-
-* link:http://www.itninja.com/media/downloads/appdeploy-repackager.msi[appdeploy-repackager]
-
+* link:https://sourceforge.net/projects/regshot/files/regshot/[Regshot]
+* link:https://www.itninja.com/community/appdeploy-repackager[AppDeploy Repackager]
 
 [[opsi-winclient-softwintegration-tutorial-deinstall]]
-== How to uninstall Products
+== Uninstalling Products
 
-To uninstall a software product from a computer, you need an 'uninstall' script to perform the deletion. The fundamental difficulty in software deletion is deciding what exactly has to be removed. Not all of the files that came with a software package can be deleted afterwards. Sometimes a package comes with standard modules that are also referred to by other programs. Often only the software manufacturer himself knows what parts have to be removed. The manufacturer's setup might offer an unattended uninstall option which can be embedded in the opsi uninstall script. Otherwise opsi-script provides several commands for software deletion:
+Removing software from a computer typically involves creating an uninstall script. However, the challenge lies in determining the specifics of the installation process and ensuring that only the necessary components are removed to avoid system damage. Ideally, the software manufacturer is best equipped to know the exact uninstallation process.
 
-=== Using an uninstall routine
-If the product manufacturer provides an option for software deletion, you must checked whether or not it can be run unattended (or in silent mode). If it requires some user interaction, an AutoIt script combined with the uninstall routine might do the job. The uninstall statement can be embedded in a [WinBatch] section of the opsi-script script:
-[source,winst]
+Products often come with automated uninstall routines. When these can operate without user intervention, they are the preferred choice. In scenarios where an automated routine isn’t available or needs augmentation, `opsi-script` can be used. This section provides an overview of the available options.
+
+=== Using the Uninstallation Routine
+
+If the product’s manufacturer supplies a program (or an MSI package) for uninstallation, first check whether it operates silently, without user interaction. If this is not the case, an AutoIt script can be used in combination with the uninstallation routine.
+
+The call to the executable file can be placed in a `[WinBatch]` section within the `opsi-script` script:
+
+[source,ini]
 ----
 [WinBatch_start_ThunderbirdUninstall]
 "%SystemRoot%\UninstallThunderbird.exe" /ma
 ----
 
-When using an uninstall program, always run a test to see if all of the files have been deleted and the computer is still in a stable state.
-
-If none of these methods are available or sufficient, the uninstall can be done using a opsi-script script as described below:
-
+NOTE: Even when a manufacturer provides a dedicated program for uninstalling their product, don’t assume it completely removes all components. Always verify on a test system to ensure the computer remains stable post-uninstallation and to check if any files or registry entries persist.
 
 [[opsi-winclient-softwintegration-tutorial-deinstall-msi]]
-==== How to uninstall MSI Products
+=== Uninstalling MSI Products
 
-Products that are installed by MSI normally come with an uninstall option, which is usually the program `msiexec.exe` combined with the parameter `/x`. The parameter `/qb-!` is for the unattended mode (or without user interaction). +
-In order to identify the software ro uninstall, you have to use the GUID (Global Unique ID) with `msiexec.exe`. This GUID identifies the product in the system. It comes from the msi file and will used for the 'uninstall entry' in the registry:
-'HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+When a product is distributed as an MSI package and installed via `msiexec`, it can typically be uninstalled using the same tool. Use `msiexec.exe` with the `/x` parameter, followed by the name of the MSI package or its GUID.
 
-A request using the GUID looks like this:
-[source,winst]
+NOTE: Each MSI package has a unique, product-specific GUID that remains consistent across all installations. This ID can be found in the registry at `HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall`.
+
+For silent uninstallation without user interaction, include the `/qb-!` parameter in your command:
+
+[source,ini]
+----
+msiexec.exe /x some.msi /qb-! REBOOT=ReallySuppress
+----
+
+This is what the uninstallation looks like with a GUID:
+
+[source,ini]
 ----
 msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
 ----
 
-The GUID may change from release to release. So the problem is to get the correct GUID of the software you want to uninstall. +
-One way to solve this problem is to use the `MsiName` which the opsi-setup-detector can read from the msi file. This `MsiName` is used as `DisplayName` entry in the uninstall registry entry mentioned above.
-The uninstall scripts produced by the opsi-setup-detector use this `MsiName` to get the GUIDs of the installed software we want to uninstall. +
-Therefore you may have to cut trailing information about architecture or version from the `MsiName` before we use it for a regular expression search in the uninstall entries in the registry.
+Each version of a product might have a unique GUID. To remove older versions, it’s important to pinpoint their respective GUIDs. A practical method involves using the `MsiName`, extracted by `opsi-setup-detector` from the MSI file.
 
-This is what the opsi-setup-detector produces as msi uninstall code for you:
+This `MsiName` is listed as `DisplayName` in the registry's `Uninstall` section. Use the `MsiName` to search for the right GUID. Start by removing any details about the architecture and version at the end of `MsiName`. Then, encapsulate it with regular expressions:
 
-[source,winst]
+[source,ini]
 ----
 ; Finding the MsiId by the Displayname from Registry:
 ; Be sure that the Displayname is set correctly:
@@ -298,31 +283,29 @@ else
 endif
 ----
 
-Short description about this script part:
+In this script segment, the following actions are performed:
 
-* `Set $DisplayName$ = 'short msi name'` +
-Set the displayname with cut trailing information.
+* `Set $DisplayName$ = 'short msi name'`: The variable `$DisplayName$` is assigned the truncated `MsiName`, omitting any additional details like version or architecture.
 
-* prepare the displayname as regular expression search string: +
-Mask all regular expression relevant chars: +
-`set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)` +
-Tell that we search for search string at the start of the line with 0 or more of any chars behind the search string. +
-`set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`
+* `set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`: This line prepares `$DisplayName$` for a regex search, effectively escaping any special characters in the string.
 
-* search in the registry: +
-`Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)` +
-The function getGuidListByDisplaynameRegex comes from the osd-lib.opsiscript and creates a list of matching entries in the format: +
-<MsiVersion> = <msi GUID> 
+* `set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`: This regex pattern is set to be case-insensitive (`?i`) and designed to match the beginning of a string, followed by any sequence of characters, essentially accommodating any additional details following the base name.
 
-* do the uninstall:
-Now we can iterate throug the list and use the found GUIDs to uninstall the software. This is done in the section `[Sub_Uninstallation_msi]`
+* `Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)`: The script then uses the `getGuidListByDisplaynameRegex` function, part of the `osd-lib.opsiscript` library, to scour the registry. It compiles a list matching the criteria, formatted as `<MsiVersion> = <msi GUID>`.
 
-=== Useful opsi-script commands for uninstall
+* `[Sub_Uninstallation_msi]`: Finally, this section utilizes the retrieved GUID for the uninstallation process.
 
-If a product has been installed by opsi-script functions, or if there is no uninstall routine for the product, the complete uninstall has to be done by a opsi-script script. opsi-script comes with some powerful uninstall functions. This chapter provides a brief overview of the uninstall functions, and more detailed information can be found in the opsi-script handbook.
+If these techniques fall short or are partially successful, the next section discusses an alternative approach using an `opsi-script` script.
 
-Basic uninstall means deleting one or more files from the file system. This command can be executed from a opsi-script files section:
-[source,winst]
+=== *opsi-script* Useful Commands for Uninstalling
+
+When uninstalling a product that was installed using `opsi-script` functions or if a manufacturer's uninstall routine isn't available, creating a custom uninstall script is a viable solution. 
+
+`opsi-script` provides a variety of functions to aid in creating an effective uninstallation process. A comprehensive explanation of these functions and their parameters can be found in the xref:opsi-script-manual:opsi-script-manual.adoc[opsi-script Reference].
+
+For basic scenarios, you can use a `Files` section to remove specific files with the following command:
+
+[source,ini]
 ----
 delete -f <file name>
 ----
