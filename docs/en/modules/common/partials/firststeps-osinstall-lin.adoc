@@ -1,118 +1,98 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      03.04.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+include::common:partial$opsi_terms.adoc[]
+
 [[firststeps-osinstall]]
-= Installation of a new Linux PC via opsi (OS-Installation)
+= Using opsi to install Linux
 
+This chapter describes how to install various Linux distributions on a computer without an existing operating system using opsi. Suitable client computers, whether physical or virtual, should meet the following requirements:
 
+* 2{nbsp}GB of RAM; Ubuntu 22.04: at least 4{nbsp}GB of RAM
+* Network card that supports network booting (PXE protocol capability for boot media loading via the network).
+
+NOTE: Check the settings in the BIOS. Netboot must be activated and be at the top of the boot options so that you can install Linux via opsi.
+
+There are basically two different ways:
+
+* <<firststeps-osinstall-netboot-distro>>
+* <<firststeps-osinstall-netboot-gen>>
 
 [[firststeps-osinstall-netboot-distro]]
-== opsi Linux netboot products based on the distibution installer
+== Netboot Products (Distribution Installer)
 
-* Like with the unattended Windows installation, the Linux installer is equipped with an answer file to configure the unattended installation.
+Let's start with the installer provided by the distribution. Like with the unattended Windows installation, the Linux installer is equipped with an answer file, enabling a non-interactive installation process. 
 
-* The installer of a distribution is not like with Windows an executable program, but is a combination of the distribution kernel and initrd implementation.
+NOTE: The distribution's installer is not a standalone program that opsi directly executes. Rather, it comprises the distribution's kernel and `initrd`.
 
-* The system installation including partitioning, LVM, and all the basic software, are performed by the installers and not by the boot image anymore.
+The basic OS installation, including tasks like partitioning, LVM setup, and basic software installation, is managed by the installer after initiating the opsi Linux boot image. The method of supplying installation sources varies depending on the Linux distribution or the specific opsi netboot package:
 
-* For the Suse and RedHat like distributions, the installation sources have to be provided by you by introducing the DVD as an ISO-file on the depot share. This is comparable to the Windows installation, with the difference that the Windows installation files are stored in a different place and stored as the content of the DVD and not as an ISO file.
+* Debian-based distributions (Debian, Ubuntu): These distributions acquire their installation sources over the network. The depot share only contains the netboot versions of the kernels and the related `initrd` files. These files, being relatively small, are included in the opsi package. There are, however, some exceptions:
 
-* The installation of Linux Mint uses the content of the official installation media provided via an NFS share.
+  - Ubuntu 22.04: The `ubuntu22-04` package expects an ISO image in the product's `iso` subdirectory.
+  - Linux Mint: Starting from version 4.2.0.2-1, the netboot packages expect an ISO image in the product's `iso` subdirectory.
 
-* For the Debian like distributions, the installation sources are taken from the internet. Just the netboot versions of the distribution kernel with the associated initrd are placed on the depot share. These files are small, so they are included in the opsi package. +
-Since opsi 4.0.7 it is also possible to provide for some netboot products a local http repository.
+* Distributions based on SUSE and Red Hat: Users provide the installation sources and store an ISO image on the depot share.
 
-* For further maintenance of the installation the opsi-linux-client-agent can be installed with the basic installation.
+TIP: TIP: It's advisable to install not just the operating system, but also the xref:clients:linux-client/linux-client-agent.adoc[Linux Client Agent] for effective management of the new client with opsi.
 
-Description of the automated installation process:
+=== Installation Process
 
-. The `opsi-linux-bootimage` boots, deletes the partition table and creates a small temporary partition.
+This is what the individual steps look like during installation with the distribution's own installer and the opsi-Netboot product:
 
-. The `opsi-linux-bootimage` fetches the initrd for the distribution and unpacks it on the temporary partition.
+. Boot the opsi Linux boot image, which clears any existing partition tables and creates a small, temporary auxiliary partition.
 
-. The `opsi-linux-bootimage` fetches the generic answer file, patches it (personalisation) and moves it to the initrd directory.
+. The opsi Linux boot image retrieves the distribution's `initrd` and unpacks it on the temporary partition.
 
-. The `opsi-linux-bootimage` creates some helper scripts and configuration files (e.g. for installing the opsi-linux-client-agent) and moves them to the initrd directory.
+. The opsi Linux boot image fetches the generic answer file, patches it (personalizes it,) and moves it to the `initrd` directory.
 
-. The `opsi-linux-bootimage` packs the patched initrd directory
+. The opsi Linux boot image creates some helper scripts and configuration files (e.g. for installing the client agent) and moves them to the `initrd` directory.
 
-. The `opsi-linux-bootimage` boots the distribution kernel with the patched initrd per kexec.
+. The modified `initrd` directory is repackaged.
 
-. The distribution kernel with the patched initrd performs the unattended installation of the target system and finally installs the opsi-linux-client-agent.
+. The opsi Linux boot image boots the distribution kernel with the patched `initrd` via `kexec`.
 
-Advantages:
+. The system now performs an unattended installation of the target system and, upon completion, installs the `opsi-linux-client-agent`.
 
-* The installation is done as specified by the distributor, which is of special importance for providing support in the business context.
+This method has the following advantages:
 
-* The opsi integration of new releases is easier and faster available.
+* The installation aligns precisely with the requirements of the distribution, which can be important for organizations with support contracts.
 
-* For Suse, RedHat, Linux Mint like distributions and Ubuntu 22-04, the installation is done from the sources on the opsi-server, and therefore is faster and more stable than installing from the internet repositories.
+* Integrating new releases into opsi is simpler and therefore faster.
+
+* Distributions based on SUSE and Red Hat, as well as Linux Mint and Ubuntu 22.04, are installed from sources located on the opsi server, offering a quicker and more reliable installation compared to using internet repositories.
 
 [[firststeps-osinstall-netboot-distro-prepare]]
-=== Providing the installation media on the server via NFS
+=== Installation Media via WebDAV
 
-This affects SUSE like product prior to version 4.2.0.2-1, Redhat like distributions prior to version 4.2.0.3-1 and Linux Mint packages prior to version 4.2.0.2-1.
-Later on the new variant is explained.
+For distributions based on SUSE and Red Hat, as well as for Linux Mint and Ubuntu 22.04, the official installation media need to be stored on the opsi depot server. Store this data in the `iso` or `isocontent` subdirectory of the respective netboot product located in `/var/lib/opsi/depot`:
 
-For Suse. RedHat and Linux Mint like distributions, the installation media is provided by an additional nfs-share: `opsi_nfs_share`.
+* `iso`: This directory is for an ISO image.
+* `isocontent`: This directory holds the contents of an ISO image (similar to the `installfiles` directory of a Windows netboot package).
 
-To configure this share, there must be a NFS server installed and configured on the opsi-server:
+To make the contents of an ISO image available, mount the image temporarily, copy the data and the two hidden files `.treeinfo` and `.discinfo` recursively, and then unmount the ISO. For instance, for the product `sles15-3`, the process would go as follows:
 
-Since opsi v4.0.6 stable this is done by the special package `opsi-linux-support`. This package is not installed by default and must be installed manually once, e.g.
-
-[source,shell]
-----
-apt install opsi-linux-support
-----
-
-If a firewall is running on your system you need to configure it to accept
-TCP connections at port 80.
-Please consult the appropriate manual on how to do this.
-
-The `opsi-linux-support` package performs the following tasks:
-
-* Installation of the applicable nfs-server package on the opsi-server. For Debian, Ubuntu, Suse this is the package: nfs-kernel-server. For Centos, Redhat it is the package nfs-utils.
-
-* The share `opsi_nfs_share` is created and exported:
-
-** Create directory: +
-`mkdir -p /var/lib/opsi/depot/opsi_nfs_share`
-
-** Add the share entry to /etc/exports: +
-`/var/lib/opsi/depot/opsi_nfs_share *(ro,no_root_squash,insecure,async,subtree_check)` +
-
-** Activate the export: +
-`exportfs -r`
-
-** Check the successful export: +
-`showmount -e localhost` +
-The output should be: +
-`Export list for localhost: +
-/var/lib/opsi/depot/opsi_nfs_share *`
-
-* The share `opsi_nfs_share` has the following directory structure: +
-`opsi_nfs_share/<productId>/<arch>/<dvd>.iso` +
-example: +
-`opsi_nfs_share/opensuse15-2/64/openSUSE-15.2-DVD-x86_64.iso` +
-The installation file must have an extension `.iso`, the name of the file does not matter. If there are several `.iso` files in the same directory, it is not specified which one to use. +
-However the Linux Mint installation requires the installation media content, including hodden directories, to be copied into the specific `opsi_nfs_share` subdirectory.
-
-* Copy the installation DVD to the `opsi_nfs_share` and execute: +
-`opsi-set-rights /var/lib/opsi/depot/opsi_nfs_share` +
-IMPORTANT: use the standard installation DVDs of the distribution. Modified installation DVDs might have a different structure and therefore cannot be used in this context.
-
-* If for any reasons the directory `/var/lib/opsi/depot/opsi_nfs_share` cannot be exported by the opsi-Server per NFS (for instance because the depot share is already a NAS NFS share), so the NFS share to be used can be specified by a server config. Like `clientconfig.opsi_nfs_share=172.16.166.1:/var/lib/opsi/depot/opsi_nfs_share`
-
-* The product `ubuntu22-04` a .iso file has to be placed in the `iso` directory within the package directory in the depot.
-
-=== Providing the installation media on the server via opsiconfd WebDAV
-
-This affects SUSE like product after to version 4.2.0.2-1, Redhat like distributions after to version 4.2.0.3-1 and Linux Mint packages after to version 4.2.0.2-1.
-
-RedHat and SUSE like distributions along with Linux Mint and Ubunut 22-04 in the above mentioned versions do not use the NFS method anymore. Instead the opsiconfd WebDAV server is used to distribute the installation media. For this case each of those netboot packages contains a `iso` or `isocontent` subdirectory.
-
-The `iso` subdirectory shall contain an ISO image of the specific distribution. On the other hand the `isocontent` directory shall contain the contents of an ISO image, including files starting with a dot.
-
-Here is an example how to fill the `isocontent` directory.
-
-[source,shell]
+[source,console]
 ----
 mount SLE-15-SP3-Full-x86_64-GM-Media1.iso /mnt
 cp -r /mnt/* /var/lib/opsi/depot/sles15-3/isocontent/
@@ -121,7 +101,7 @@ cp /mnt/.discinfo /var/lib/opsi/depot/sles15-3/isocontent/
 umount /mnt
 ----
 
-Please note: the file `.discinfo` is not present on all distribution installation media and might be missing.
+NOTE: The file `.discinfo` is not present on all distribution installation media and might be missing.
 
 [[firststeps-osinstall-netboot-distro-generalproperties]]
 === Common properties of the Linux netboot products based on the distibution installer
