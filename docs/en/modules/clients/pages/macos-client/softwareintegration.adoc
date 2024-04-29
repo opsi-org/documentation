@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      28.02.2024
+:Date:      29.04.2024
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -24,9 +24,9 @@
 include::common:partial$opsi_terms.adoc[]
 
 [[opsi-macclient-softwintegration]]
-= Integration of own software into the software distribution of opsi.
+= Integrating custom Software
 
-The installation of software in opsi is performed by the opsi-client-agent and specially by the script controlled setup program opsi-script. Therefore an opsi-script script must be created for each opsi product. Afterwards this script, as well as the installation files and metadata are packed into an opsi product, which can finally be installed on the opsi-Server.
+The installation of software using opsi is managed either by the xref:clients:macos-client/mac-client-agent.adoc[Client Agent] or the setup program xref:opsi-script-manual:opsi-script-manual.adoc[*opsi-script*]. When packaging your own software for deployment through opsi, it’s necessary to create an `opsi-script` script for each product. This script, along with the installation files and metadata, should be packed. As a result, you’ll get an opsi product which is then installed on the opsi server (see the chapter xref:clients:macos-client/minimal-products.adoc[Adding Products (opsi Server)]).
 
 [[opsi-macclient-softwintegration-tutorial]]
 == Tutorial: Creating an *opsi-script* Script
@@ -34,39 +34,34 @@ The installation of software in opsi is performed by the opsi-client-agent and s
 include::common:partial$softwintegration-tutorial-introduction.adoc[]
 
 [[opsi-macclient-softwintegration-tutorial-general]]
-=== Methods of non-interactive software installation on macOS.
+=== Non-interactive software installation (macOS)
 
 Apple (unlike Microsoft) standardized its software installation methods very early on. In essence, there are two methods:
 
-* *application Directory*: +
-This is a directory according to the pattern:
-`<application name>.app` However, such a directory is not displayed in the _Finder_ as a directory, but as an 'application'. Inside this directory, according to a pattern, the files of the application must be located. A typical structure would be:
+* *Application Directory*: +
+The `/Applications` folder on macOS holds directories for programs, known as `<program>.app`. In Finder, these directories don’t appear as typical folders but are presented as program launchers. Each `<program>.app` directory contains the necessary data—files and subdirectories—for that particular application. To install, simply copy this directory into `/Applications`. You might also need to set the execution permissions for files within the `MacOS` subdirectory. Typically, these `.app` directories are compressed into packages for download, reflecting this common structure:
 
+[source]
 ----
-opsi-script.app
+opsi-script-gui.app
   |--Contents
        |-Info.plist
        |-PkgInfo
        |-MacOS
-       |  |-opsi-script
        |  |-opsi-script-gui
+       |  |-opsi-script
+       |  |- […]
        |
        |-Resources
-          |- (....)
+          |- […]
 ----
 
-Such a directory must only be copied into the path `/Applications` for installation. Possible files in the directory `MacOS` must be made executable. +
-Such *.app directories are usually offered packed for download.
+* *PKG File*: +
+Apple's package format includes the software itself, the folder structure described earlier, installation scripts, and other resources.
 
-* *PKG file*: +
-These files contain software which need to be installed by a special command.
+Unattended installations can be conducted without user interaction for both types of packages.
 
-In both cases an _unattended_ (i.e. non-interactive) installation is not an issue.
-
-Often macOS software is offered in packed formats like *.zip, *.dmg
-or also *.tgz.
-
-All variants mentioned so far can be installed directly by opsi-script, except *.tgz which must be unpacked before.
+NOTE: macOS software is frequently distributed in compressed formats like `.zip`, `.dmg`, or `.tgz`. `opsi-script` is capable of installing these applications as well. However, you must first unpack `.tgz` files.
 
 include::common:partial$softwintegration-tutorial-script-structure-opsi-script-basics.adoc[]
 
@@ -79,13 +74,13 @@ include::common:partial$softwintegration-tutorial-script-structure-opsi-script-b
 
 * `getMacosVersionMap`: Returns a list of information, including the build version, kernel name, processor type, etc.
 
-TIP: For more information on these string functions, see xref:opsi-script-manual:prim-section.adoc#opsi-script-string-functions-os[Determine string functions (operating system)].
+TIP: For more information on these string functions, see the section xref:opsi-script-manual:prim-section.adoc#opsi-script-string-functions-os[String Functions which Return the OS Type].
 
 // cspell: ignore uib_macosinstalllib
 
 === macOS Commands for Installation
 
-NOTE: The following sections present special macOS commands for installing software. They are taken from the `opsi-script` library `uib_macosinstalllib`. This part of the documentation is in English because it was automatically generated from the source code.
+NOTE: The following sections present special macOS commands for installing software. They are taken from the `opsi-script` library `uib_macosinstalllib`. This part of the documentation was automatically generated from the source code.
 
 :leveloffset: +2
 
@@ -94,9 +89,9 @@ include::{version}@opsi-docs-en:common:partial$os-lib-uib-macosinstalllib.adoc[]
 :leveloffset: -2
 
 [[opsi-macclient-softwintegration-tutorial-template]]
-== Example: macOS template *m-opsi-template*
+== Example: macOS Template *m-opsi-template*
 
-You can create this template with the `opsi-setup-detector` (see section <<opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
+You can create this template with the `opsi-setup-detector` (see the section <<opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
 
 // include docu: actual template for macOS
 include::{version}@opsi-docs-en:common:partial$firststeps-opsi-template-mac.adoc[]
@@ -104,11 +99,11 @@ include::{version}@opsi-docs-en:common:partial$firststeps-opsi-template-mac.adoc
 [[opsi-client-softwintegration-create-opsi-package]]
 == Creating opsi Products
 
-The following sections explain how to package software, i.e. create opsi products. The basic process looks like this:
+The following sections explain how to package software, i.e., create opsi products. The basic process is outlined as follows:
 
-1. you create the "shell" of a package with the `opsi-setup-detector` (see section <<opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
-2. then test the `opsi-script` script (see section <<opsi-softwintegration-tutorial-create-and-test-script>>).
-3. use the opsi PackageBuilder (oPB) to create an opsi package from the raw form and store it on the opsi server.
+1. Create the "shell" of a package using the `opsi-setup-detector` (see section <<opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector>>).
+2. Test the `opsi-script` script (see section <<opsi-softwintegration-tutorial-create-and-test-script>>).
+3. Use the opsi PackageBuilder (oPB) to create an opsi package from the initial framework and store it on the opsi server.
 
 // include docu: opsi-setup-detector installation
 include::common:partial$setup-detector-installation.adoc[]
@@ -121,14 +116,14 @@ include::common:partial$opsi-logviewer-installation.adoc[]
 [[opsi-macclient-softwintegration-tutorial-create-with-opsi-setup-detector]]
 == *opsi-setup-detector*: Creating a Script
 
-The following sections explain in detail how to use the `opsi-setup-detector` to analyze an opsi product setup file and create an opsi product.
+The following sections provide a detailed walkthrough on how to use the `opsi-setup-detector` for analyzing an opsi product setup file and creating an opsi product.
 
 // include docu: opsi-setup-detector
 include::common:partial$setup-detector-use-start.adoc[]
 
 include::common:partial$osd-tasks-macos.adoc[]
 
-NOTE: The following screenshots show the procedures for Windows installer files, but they look similar on macOS if you use installer files like `.app`, `.dmg` or `.zip`.
+NOTE: The screenshots included demonstrate the process for Windows installer files; however, the steps are similar on macOS when dealing with installer files such as `.app`, `.dmg`, or `.zip`.
 
 // include docu: how to use the opsi-setup-detector
 include::common:partial$osd-task-use-single-analyze-and-create.adoc[]
@@ -137,9 +132,9 @@ include::common:partial$osd-task-use-single-analyze-and-create.adoc[]
 include::common:partial$softwintegration-tutorial-modify-test-cycle.adoc[]
 
 [[opsi-winclient-softwintegration-tutorial-template-details]]
-== Packaging: Notes on subtasks
+== Advanced Configuration with *opsi-setup-detector*
 
-The following sections show further configuration options of the `opsi-setup-detector`. They cover the use of a user-defined directory, the installation from a local temporary directory, the management of license keys and the customization of user profiles and desktop icons.
+The following sections detail additional configuration options available in the `opsi-setup-detector`. They cover the use a user-defined directory, the installation from a local temporary directory, the management of license keys, and the customization of  user profiles and desktop icons.
 
 include::common:partial$osd-checkboxes-subtasks.adoc[]
 

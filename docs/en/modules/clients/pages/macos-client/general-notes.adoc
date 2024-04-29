@@ -1,5 +1,5 @@
 ////
-; Copyright (c) uib gmbh (www.uib.de)
+; Copyright (c) uib GmbH (www.uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
@@ -9,55 +9,57 @@
 ; https://creativecommons.org/licenses/by-sa/3.0/
 ; https://creativecommons.org/licenses/by-sa/3.0/legalcode
 ;
+; credits: https://www.opsi.org/credits/
 ////
 
-:Author:    uib gmbh
+:Author:    uib GmbH
 :Email:     info@uib.de
-:Revision:  4.2
-:doctype: book
-:macosclientmanual: opsi-macos-client-manual
+:Date:      29.04.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
 
 include::common:partial$opsi_terms.adoc[]
 
-
-
-
-
 [[opsi-macclient-hints]]
-= General notes about MacOS
+= General Information about macOS
 
 [[opsi-macclient-hints-keyboard]]
-== The Keyboard under MacOS
+== Apple Keyboard
 
 include::mac-keyboard-hint.adoc[]
 
 [[opsi-macclient-hints-homebrew]]
 == The opsi Product *m-homebrew*
 
-There are a number of package management programs for MacOS, which allow to provide common Unix programs under MacOS. Typical examples of this package management programs are:
+There are a number of package management programs for macOS that you can use to install common open source applications on macOS:
 
-* 'homebrew' (https://brew.sh/)
+* link:https://brew.sh/[Homebrew]
 
-* 'macport' (https://www.macports.org/)
+* link:https://www.macports.org/[MacPorts]
 
-* 'fink' (https://finkproject.org/)
+* link:https://finkproject.org/[Fink]
 
-The opsi product `m-homebrew` installs the `homebrew` system on a MacOS system.
+We offer our own localboot product, `m-homebrew`, which installs Homebrew on macOS clients. After installation, the `brew` command becomes available, allowing you to download and install programs from the Internet. Homebrew can install fully compiled binaries or download source code and build the program locally.
 
-`homebrew` installs the command `brew` on the system, which allows then programs to be downloaded from the Internet. Either a binary is installed directly or the sources are downloaded and the program is compiled on the machine. Therefore `homebrew` also needs the development command line tools to compile programs (`xcode-select --install`).
+NOTE: Homebrew requires command line tools for developers. Consequently, the `m-homebrew` package depends on the opsi package `m-xcode-tools`, which is automatically installed.
 
-For security reasons `homebrew` is conceived to *not be executed as root*, but only with user rights. To ensure this in the opsi context a hidden user named `opsisetupadmin` is created during the installation of the `opsi-client-agent` (see also <<opsi-macclient-hints-opsisetupadmin, The MacOS pseudo user opsisetupadmin>>). +
-This user owns the whole `homebrew` system on the machine and therefore, only this user should be used to perform the installation of software on the machine via the `brew` command. +
-I.e. The `brew` command should be executed as root as follows:
+For security reasons, Homebrew is designed so that the `brew` command *cannot be executed as the user `root`*. To accommodate this, a hidden user account named `opsisetupadmin` is created during the installation of the client agent (see the section <<opsi-macclient-hints-opsisetupadmin>>). The `opsisetupadmin` account "owns" the entire Homebrew system, and you should use this account to install software on the computer with `brew`.
 
-[source,winst]
+To execute the `brew` command as the `opsisetupadmin` user with `root` privileges:
+
+[source,console]
 ----
 sudo -H -u opsisetupadmin /usr/local/bin/brew
 ----
 
-For example, the installation of Java in the product `m-javavm` is implemented as follows:
+// cspell: ignore javavm, winst, sapmachine, cask
 
-[source,winst]
+This procedure is also used by the product `m-javavm` to install the Java runtime environment:
+
+[source,ini]
 ----
 [ShellScript_brew_install_java]
 ; https://github.com/SAP/SapMachine/wiki/Installation
@@ -68,89 +70,69 @@ sudo -H -u opsisetupadmin /usr/local/bin/brew install --cask sapmachine-jdk
 EC=$?; if [ $EC -ne 0 ]; then EXITCODE=$EC; fi
 exit $EXITCODE
 ----
-To find out if the installation of a desired product is supported via `homebrew`, it is best to use the following website: +
-https://formulae.brew.sh/
 
-Helpful links for `homebrew`: +
-https://formulae.brew.sh/
+=== Homebrew: Tips and Tricks
 
-Additional helpful Links for `homebrew`: +
-https://docs.brew.sh/ +
-https://devhints.io/homebrew
+We have compiled a few links on the subject here:
 
+* https://formulae.brew.sh/: Find out if the installation of a desired product is supported via Homebrew.
 
-[[opsi-macclient-hints-opsisetupadmin]]
-== The MacOS pseudo user opsisetupadmin
+* https://docs.brew.sh/: Homebrew manual (in English)
 
-When installing the `opsi-client-agent` a 'hidden user' named `opsisetupadmin` is created. This user has no password and cannot be used for login.
+* https://devhints.io/homebrew: Homebrew Cheatsheet
 
-The home directory of this user is `/var/lib/opsisetupadmin`.
+[opsi-macclient-hints-opsisetupadmin]]
+== The macOS Account *opsisetupadmin*
 
-This user is employed for the following purposes:
+// cspell: ignore depot, mounted, notifier, library, daemons, systray
 
-* Operating the `homebrew` system (see <<opsi-macclient-hints-homebrew, The opsi product m-homebrew>>).
+As noted, a hidden user account named `opsisetupadmin` is created when the client agent is installed. This account has no password and is not intended for login purposes. The home directory of `opsisetupadmin` is `/var/opsisetupadmin`. This user has permissions to use the `brew` command. The directory `/var/opsisetupadmin/opsi_depot` serves as the mount point where the `opsiclientd` mounts the depot share.
 
-* The directory `/var/lib/opsisetupadmin/opsi_depot` is the mount point on which the opsiclientd mounts the depotshare. +
-This is done since access to network shares not mounted in a user directory are very limited.
+NOTE: The share is mounted under the home directory of `opsisetupadmin` as access to shares that are not mounted in a user directory is severely restricted.
 
 [[opsi-macclient-hints-fulldiskaccess]]
 == Granting Full Disk Access
 
-With the updates for macOS officially released by Apple in December 2023, it is necessary to grant full disk access to the `opsiclientd` process for the normal operation of the `opsi-mac-client-agent`. This setting can be adjusted in the macOS System Preferences under _Privacy & Security_ or through an Apple MDM message of the type `PrivacyPreferencesPolicyControl`. This step is not necessary for operation in WAN mode.
+Following the macOS updates officially released by Apple in December 2023, it has become necessary to grant full disk access to the opsiclientd process to facilitate normal functioning of the `opsi-mac-client-agent`. This adjustment can be made in the macOS system settings under _Privacy & Security_ or through an Apple MDM message using the type `PrivacyPreferencesPolicyControl`. Note that this step is not necessary for operation in WAN mode.
 
 [[opsi-macclient-hints-opsi-files-dirs]]
-== The opsi directories on MacOS
+== opsi Directories under macOS
 
-Essential opsi directories and files on the MacOS client
+On a macOS client there are the following important opsi directories:
 
-* /var/log/opsi-script (logfiles opsi-script)
+* `/var/log/opsi-script`: `opsi-script` logfiles
 
-* /var/log/opsi-client-agent (other opsi logfiles)
+* `/var/log/opsi-client-agent`: other opsi logfiles
 
-* /usr/local/bin/opsi*  (Command line programs)
+* `/usr/local/bin/opsi*`: executable opsi programs
 
-* /Applications/opsi-script-gui.app
+* `/Applications/opsi-script.app`: program directory of `opsi-script`
 
-* /Applications/opsi-notifier.app
+* `/etc/opsi-client-agent`: Configuration files of the macOS client agent
 
-* /etc/opsi-client-agent (Configuration opsi-client-agent)
+* `/etc/opsi-script`: `opsi-script` configuration files
 
-* /etc/opsi-script (Configuration opsi-script)
+* `/usr/local/lib`: auxiliary libraries, e.g. for SSL, Ncursesi, etc.
 
-* /usr/local/lib (Help libraries e.g. ssl)
+* `/usr/local/share/opsi-client-agent`: client agent
 
-* /usr/local/lib/opsiclientd
+* `/usr/local/share/opsi-script`: `opsi-script`
 
-* /usr/local/bin/locale (local opsi-script)
+* `/var/opsisetupadmin`: home directory of the `opsisetupadmin` account
 
-* /usr/local/share/opsi-client-agent
+* `/var/lib/opsi-client-agent/opsiclientd`: SQLite database for the timeline on the `opsiclientd` info page (see the section xref:clients:macos-client/mac-client-agent.adoc#opsi-manual-clientagent-infopage[*opsiclientd* Info Page])
 
-* /usr/local/share/opsi-script
+* `/Library/LaunchDaemons`: configuration for opsi services
 
-* /usr/local/share/notifier.d
+* `/Library/LaunchAgents`: configuration of the systray program
 
-* /var/opsisetupadmin (Home directory opsisetupadmin)
-
-* /var/lib/opsi-client-agent
-
-* /Library/LaunchDaemons/ (Start configuration for opsi deamons)
-
-* /Library/LaunchAgents/ (Start configuration for opsi-systray)
-
-
-
-
-
+// cspell: ignore Paketierer, apple
 
 [[opsi-macclient-hints-directories]]
-== MacOS directory structure with 'go' and 'nogo'.
+== Special Considerations for Packagers
 
-MacOS is based on BSD-Unix and has a typical Unix file system structure.
-However, due to security reasons, there are several areas that are exclusively reserved for Apple and a few other specifics that are important for the person doing the packaging work:
+macOS is based on BSD Unix, so it has a typical Unix file system structure. For security reasons, there are areas reserved exclusively for Apple. The following tips are essential for creating macOS opsi products:
 
-* `/Applications` +
-This is the directory where the graphical applications are located. An application consists of a directory <Application name>.app. Such a directory is not shown in the `Finder` as a directory, but as an 'Application'. Inside this directory the files of the application must be located according to a certain specific pattern.
+* `/Applications`: This is where the graphical applications reside. Each program has its own folder in `/Applications`; these directories are named `<program>.app`. However, Finder does not display these directories as folders but as program launchers for the respective applications. The `<program>.app` directories follow a specific structure.
 
-* `/sbin`, `/bin`, `/usr/bin`, `/usr/share`, `/usr/lib` +
-These are `apple only` directories into which nobody else is allowed to copy anything. Use instead the `local` variants: +
-`/usr/local/bin`, `/usr/local/share`, `/usr/local/lib`
+* The directories `/sbin`, `/bin`, `/usr/bin`, `/usr/share`, and `/usr/lib` are reserved for Apple. Use the directories `/usr/local/bin`, `/usr/local/share`, and `/usr/local/lib` for your customizations.
