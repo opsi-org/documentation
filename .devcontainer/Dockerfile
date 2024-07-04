@@ -8,6 +8,7 @@ ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 ARG USERNAME=opsidoc
 
+COPY files /
 
 RUN groupadd --gid $USER_GID $USERNAME \
 	&& useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
@@ -15,7 +16,8 @@ RUN groupadd --gid $USER_GID $USERNAME \
 	&& apt-get install -y sudo \
 	&& echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
 	&& chmod 0440 /etc/sudoers.d/$USERNAME \
-	&& usermod --shell /bin/bash $USERNAME
+	&& usermod --shell /bin/bash $USERNAME \
+	&& chown -R $USERNAME:$USERNAME /home/$USERNAME
 
 
 # WORKDIR /home
