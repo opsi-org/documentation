@@ -636,65 +636,70 @@ This means that logfiles that are sent as an archive can be viewed directly. (If
 Package for customizing the basic settings of the user interface, Explorer, etc.
 ////
 
+[opsi-manual-localboot-product-order]]
+== Dependencies and order
 
-[[opsi-manual-localboot-product-order]]
-== Dependencies and Order
-
-For product action requests you may define product dependencies and product priorities.
+You can define the priority and dependencies for product actions.
 
 === Product priorities
-Priorities are used to push certain packages forward or backward in the order of installation. It makes sense to install service packs and patches first and a software inventory at the end of an installation sequence. +
-Product priorities are numbers between 100 and -100 (0 is the default)
-
+Product priorities are used to move certain packages forwards or backwards in the order.
+For example, it makes sense to place service packs and patches at the beginning of an installation and a software inventory at the end. +
+Product priorities are numbers between 100 (highest) and -100 (lowest).
+No priority (0) is the default value.
 === Product dependencies
-Defines dependencies and the necessary installation order between opsi-packages. A typical example is the dependency of Java programs on the Java Runtime Environment (javavm).
+Dependencies can be defined between product packages.
+These dependencies always apply to a specific action (e.g. `setup`).
+Different dependencies can be defined for different actions.
 
-////
-There are different possibilities how these two factors are used to determine the installation order. Therefore, opsi provides two algorithms.
+Product dependencies have the following attributes:
 
-Switch between these algorithms can be done either:
+productId:: The product for which the dependency applies.
+productAction:: The action for which the dependency applies (e.g.: `setup`, `uninstall`)
+requiredProductId:: The product to which the dependency applies.
+requiredProductVersion:: An exact product version of the dependent product (optional).
+requiredPackageVersion:: An exact package version of the dependent product (optional).
+requiredInstallationStatus:: The installation status that the dependent product must fulfill.
+requiredAction:: An action to be set for the dependent product.
+requirementType:: Type of dependency (`before`, `after` or undefined).
 
-using 'opsi-configed', in the server configuration
 
-.'opsi-configed': server configuration
-image::configed_serverconfiguration_en.png["opsi-configed: server configuration", pdfwidth=90%]
+With product dependencies it is possible to set an installation status of another product (`requiredInstallationStatus`) as a condition.
+When setting an action that defines such a dependency, an action is then also set for the dependent product if this is necessary to fulfill the condition.
 
-or on the command line with the following command:
-[source, shell]
-----
-opsi-setup --edit-config-defaults
-----
+*Here is an example*: +
+The software *LibreOffice* (product: `libreoffice`) requires an installed *Java Runtime Enviroment* (product: `jre`) for certain features. +
+This can be mapped with the following product dependency: +
+`productId`: `libreoffice` +
+`requiredProductId`: `jre` +
+`requiredInstallationStatus`: `installed` +
 
-.Choose the sort algorithm: Part 1
-image::opsi-setup-product_sort_algorithm.png["Choose the sort algorithm: Part 1", pdfwidth=80%]
+If the condition must be fulfilled before (`before`) or after (`after`) the action, the dependency type can be set accordingly.
 
-.Choose the sort algorithm: Part 2
-image::opsi-setup-product_sort_algorithm2.png["Choose the sort algorithm: Part 2", pdfwidth=80%]
+*Here is an example*: +
+The Firefox add-on *Kee Password Manager* (product: firefox-addon-kee) requires an installed *Firefox Browser* (product: firefox) during installation. +
+This can be mapped with the following product dependency: +
+`productId`: `firefox-addon-kee` +
+`requiredProductId`: `firefox` +
+`requiredInstallationStatus`: `installed` +
+`requirementType`: `before` +
 
-[[opsi-manual-localboot-product-order-algorithm1]]
-=== Algorithm1: product dependency before priority (default)
+IMPORTANT: The dependency types `before` and `after` should only be used if a sequence is actually absolutely necessary. Otherwise, a dependency without specifying a `requirementType` is sufficient. A less strict control of sequences can also be achieved via the product priorities.
 
-With this algorithm, the products are first sorted based on their priorities and then re-sorted based on the product dependencies. This of course allows a product with a very low priority to be pushed far forward because it is required by a product other than 'required before'. On the other hand, it prevents installation problems due to unresolved product dependencies. +
-Algorithm 1 ensures that the installation order is constant, regardless of how many products are set to setup. This order corresponds to the order which is shown in configed when the products are sorted according to the position column. +
-This ensures that if a setup script is only interrupted with "ExitWindows /immediateReboot", the processing of the interrupted script is continued immediately after the reboot.
+=== Sequence of product actions
+The sequence of product actions is calculated taking into account product dependencies and product priorities.
 
-[[opsi-manual-localboot-product-order-algorithm2]]
-=== Algorithm2: product priority before dependency
+The product actions to be executed are grouped first.
+All product actions that have dependencies of type `after` or `before` are grouped together.
 
-This algorithm is based on the idea that in practice, there are essentially three priority classes:
+Within these groups, the actions are sorted according to the product priorities (highest first) and then re-sorted based on the dependencies defined via `before` and `after`.
+If the `uninstall` action is set for a product, the priority for this product is negated.
+The group takes on the priority of the contained product priorities.
+The lowest priority is used if all contained product priorities are negative.
+In any other case, the group adopts the highest priority contained.
 
-* Products to be installed first such as OS patches and drivers that bring the PC to a standard state. Is realized by assigning a high priority (maximum +100).
+The actions are then executed according to the priority of the group (highest first) and then according to the sorting within the group.
 
-* "Normal" products that install applications (default priority 0).
-
-* Products that should be installed last, e.g. software inventory control. Realized by assigning a low priority (lowest possible -100).
-
-Product dependencies are only resolved within a priority class. This ensures that products with a high priority are actually installed at the beginning. Cross-priority product dependencies are not taken into account or give a warning. It is therefore important to note when packaging that product dependencies are only defined within one priority class.
-
-The product dependencies are interpreted here in such a way that with "normal" products they automatically lead to a consistent order that takes all dependencies into account. If contradictory (circular) dependencies have been defined, an error is displayed.
-
-In the case of products with high priorities that are essential for setup of the computer, however, the administrator should set the exact order by hand - similar to, for example, Unix start-up scripts - by assigning a specific priority between +100 and +1 for each product according to the desired order. The same applies to the final products with low priorities.
-////
+NOTE: A product with a low priority can be pushed forward in the sequence if it is required by another product with a high priority as a dependency with the type `before`.
 
 
 [[opsi-manual-localboot-product-order-create]]
