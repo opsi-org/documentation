@@ -1,34 +1,81 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      23.09.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
 
 [[rename-clients]]
 = Clients umbenennen
 
-Beim Umbenennen von Clients ist immer zu Berücksichtigen an welchen Stellen sich diese Auswirken soll. Betrifft die Änderung nur den Namen im opsi-Backend oder auch den Namen im AD/LDAP oder auf dem Client selber. Grundsätzlich gibt es zwei Wege das umzusetzen:
+Beim Umbenennen von Clients stellt sich die Frage, wo die Änderung überall greifen soll. Möchten Sie nur den Namen im opsi-Backend anpassen, oder betrifft die Änderung auch den Verzeichnisdienst (wie Active Directory oder LDAP) sowie den Namen auf dem Client selbst? Sie haben grundsätzlich zwei Möglichkeiten, diese Anpassung vorzunehmen: vollautomatisch mit dem Localboot-Produkt `opsi-rename-client` oder Schritt für Schritt.
 
-== 1. Das Produkt opsi-rename-client
-Mit diesem Produkt können Clients auf unterschiedlichen Ebenen (windows / opsi / Domain)
-und nach unterschiedlichen Regeln umbenannt werden. 
-Eine genaue Anleitung der verschiedenen Optionen befindet sich *hier* im Handbuch. Mit diesem Produkt lassen sich auch größere Gruppen von Clients nach bestimmten Namensmustern umbenennen.
+== Das Localboot-Produkt `opsi-rename-client`
 
-== 2. Grafische Management-Oberfläche `opsi-configed`
-Soll der Name im opsi-Backend angepasst werden, kann dies über den opsi-Configed im Menü Client "Client umbenennen" erfolgen. Hierbei ist jedoch zu beachten, dass der Client sich nach der Umbenennung nicht mehr am opsi-Server melden kann, weil der Client sich noch unter seinem alten Namen melden wird, den es im opsi Backend nicht mehr gibt. Das heißt es ist zudem auch noch eine der hier aufgeführten Anpassungen notwendig:
+//Link nachtragen, wenn Kapitel geschrieben ist
+Mit diesem Produkt benennen Sie Clients auf verschiedenen Ebenen (Betriebssystem, opsi, Domain) und nach individuellen Regeln um. Eine detaillierte Anleitung zu den verschiedenen Möglichkeiten finden Sie *hier* im Handbuch. Auch größere Gruppen von Clients können Sie schnell und unkompliziert nach bestimmten Namensmustern umbenennen.
 
-* Durch Setzen des Configs `allow-host-key-only-auth = true` in der `/etc/opsi/opsiconfd.conf` akzeptiert der opsi-Server auch Client-Anfragen mit einer unbekannten `host-id`. Wenn dann ein Client nur über seinen host-key identifiziert wurde, wird sein Name automatisch in der clientd.conf angepasst. Das heißt zukünftig würde er sich unter seinem geänderten Namen melden.
+== Schritt für Schritt
 
-Nach einer Änderung in der opsiconfd.conf muss der Dienst opsiconfd neu gestartet werden.
+Die nächsten Abschnitte beschreiben, wie Sie Clients umbenennen und die Konfiguration anpassen – egal ob über `opsi-configed`, das WebGUI oder direkt über die Konfigurationsdatei des Client-Agent.
 
-Diese Änderung ist auch für eine größere Anzahl von Umbenennungen praktikabel. Aus Sicherheitsgründen sollte die Einstellung nach einer Zeit wieder zurück genommen  werden. 
+=== Client-ID in Datenbank ändern
 
+Sie können eine der grafischen Oberflächen (`opsi-configed` oder WebGUI) verwenden, um einen Client umzubenennen:
 
-* Wenn es sich nur um einige Clients handelt können Sie den Namen auch local auf dem Client in der opsiclientd.conf anpassen.
+* Im `opsi-configed` wählen Sie den gewünschten Client aus und öffnen aus dem Menü _Client_ den Eintrag _Client umbenennen_.
+* Im WebGUI finden Sie die Funktion über die Abteilung _Clients_: Wählen Sie einen Client in der Tabelle aus und öffnen Sie aus dem Menü _Aktionen_ den Eintrag _Umbenennen_. (Alternativ finden Sie die Funktion auch im Kontextmenü der rechten Maustaste.)
 
-Unter Windows: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf`
+WARNING: Clients authentifizieren sich beim Server mit ihrem FQDN und dem opsi Host Key; der FQDN ist der Primärschlüssel im Datenbank-Backend. Der FQDN stimmt nach der Umbenennung aber nicht mehr mit dem in der Datenbank überein, und der Client wird sich noch mit seinem alten Namen melden, daher sind weitere Anpassungen notwendig.
+
+=== `opsiconfd`-Konfiguration anpassen
+
+Der `opsiconfd` (siehe Kapitel xref:server:components/opsiconfd.adoc[Der Dienst *opsiconfd*]) bietet eine Option, welche die Überprüfung der Client-ID deaktiviert. Danach authentifizieren sich Clients ausschließlich mit ihrem Host Key. Sie können die Option in der Konfigurationsdatei, über eine Umgebungsvariable oder per Kommandozeilen-Parameter setzen:
+
+* `/etc/opsi/opsiconfd.conf`: Setzen Sie `allow-host-key-only-auth = true`.
+* Umgebungsvariable: `export ALLOW_HOST_KEY_ONLY_AUTH=true`
+* Kommandozeilen-Parameter: `--allow-host-key-only-auth=true`
+
+Laden Sie nach der Änderung die Konfiguration neu ein:
 
 [source,console]
+----
+opsiconfd reload
+----
+
+Anschließend akzeptiert der opsi-Server auch Client-Anfragen mit einer unbekannten Host-ID. Wird ein Client nur über seinen Host Key identifiziert, passt das System seinen Namen automatisch in der Datei `opsiclientd.conf` an. Künftig meldet sich der Client dann unter seinem neuen Namen.
+
+NOTE: Sobald sich alle Clients einmal gemeldet haben und der Client-Agent die Informationen aktualisiert hat, können Sie die `opsiconfd`-Option wieder deaktivieren.
+
+TIP: Wenn Sie nur einen oder ein paar wenige Clients umbenennen möchten, können Sie die Anpassung direkt in der jeweiligen `opsiclientd.conf`-Datei vornehmen. 
+
+[source,toml]
 ----
 [global]
 # Client id.
 host_id = neuer_clientname.xyz.local
 ----
 
+//sollte hier noch ein Hinweis hin wie: Da der opsi-Configserver die Datei opsiclientd.conf automatisch überschreibt, sollten Sie diese nur zu Testzwecken bearbeiten. Um den Client-Agent zu konfigurieren, verwenden Sie besser die in den nächsten Abschnitten gezeigten Möglichkeiten. und: Falls Sie die Datei opsiclientd.conf im Texteditor bearbeiten, achten Sie darauf, dass der Editor die UTF-8-Kodierung unterstützt. Einige Editoren (z. B. notepad.exe) bieten keine UTF-8-Unterstützung, was zu kaputten Umlauten führt.
 
+Die Einrichtungsdatei finden Sie jeweils hier:
 
+* Windows: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf`
+* Linux: `/etc/opsi-client-agent/opsiclientd.conf`
+* macOS: `/private/etc/opsi-client-agent/opsiclientd.conf`
