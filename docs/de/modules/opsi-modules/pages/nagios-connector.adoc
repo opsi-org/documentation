@@ -59,13 +59,12 @@ Technische Voraussetzungen sind opsi 4.0.2 mit den Paketständen:
 === Voraussetzungen beim Nagios-Server
 
 
-Vorrausgesetzt wird eine Nagios Installation in einer aktuellen 3.x Version oder eine Icinga Installation mindestens in der Version 1.6. Der opsi-Nagios-Connector sollte auch mit allen Nagios-Kompatiblen Monitoring-Lösungen benutzbar sein, getestet wird diese opsi Erweiterung allerdings nur gegen Nagios und Icinga. Sollte eine grafische Darstellung der opsiconfd-Performance Werte gewünscht werden, wird zusätzlich noch eine Installation des Addons pnp4nagios benötigt.
+Vorrausgesetzt wird eine Nagios Installation in einer aktuellen 3.x Version oder eine Icinga Installation mindestens in der Version 1.6. Der opsi-Nagios-Connector sollte auch mit allen Nagios-Kompatiblen Monitoring-Lösungen benutzbar sein, getestet wird diese opsi Erweiterung allerdings nur gegen Nagios und Icinga.
 
 Für weitere Informationen siehe auch:
 
 * link:https://www.nagios.org[nagios.org]
 * link:https://icinga.com[icinga.com]
-* link:https://github.com/pnp4nagios/pnp4nagios[pnp4nagios]
 
 
 [[opsi-Nagios-Connector-concept]]
@@ -187,44 +186,6 @@ Dieser Check liefert in der Regel OK zurück. In folgenden Situationen kann dies
 * Unknown: Wenn der Webservice gar nicht erreichbar ist.
 
 Info: Die CPU-Werte beziehen sich immer nur auf eine CPU, da ein Prozess auch nur einen Prozessor benutzen kann. Eine Ausnahme bildet hier das Multiprocessing von opsi.
-
-[[opsi-Nagios-Connector-checks-opsiWebservice-pnp4nagios-template]]
-=== Check: opsi-Webservice pnp4nagios-Template
-
-Für die Perfomance-Auswertung gibt es ein Template für das pnp4nagios, welches die Werte kombiniert darstellt. Wie man das pnp4nagios installiert, wird hier nicht explizit beschrieben, sondern es wird davon ausgegangen, dass pnp4nagios richtig installiert und konfiguriert wurde. Die notwendige Vorgehensweise kann sich von der hier beschriebenen Lösung unterscheiden, wenn das pnp4nagios mit anderen Pfaden installiert wurde (kann bei selbst kompilierten Installationen vorkommen).
-
-Es werden Standard-Templates verwendet, welche für jeden einzelnen Performancewert ein eigenes Diagramm erstellen. Um das oben genannte Template mit der kombinierten Ansicht zu verwenden, muss man folgendermaßen vorgehen:
-
-Schritt 1: Erstellen Sie unterhalb von: `/etc/pnp4nagios/check_commands` eine Datei mit der Bezeichnung: `check_opsiwebservice.cfg` und folgendem Inhalt:
-
-[source,cmd]
-----
-CUSTOM_TEMPLATE = 0
-DATATYPE = ABSOLUTE,ABSOLUTE,ABSOLUTE,ABSOLUTE,DERIVE,GAUGE,GAUGE,GAUGE
-----
-
-
-Schritt 2: Legen Sie die Datei `check_opsiwebservice.php` unterhalb von `/usr/share/pnp4nagios/html/templates` ab. Diese Datei können Sie über svn.opsi.org auschecken.
-
-[source,cmd]
-----
-cd /usr/share/pnp4nagios/html/templates
-svn co https://svn.opsi.org/opsi-pnp4nagios-template/trunk/check_opsiwebservice.php
-----
-
-Wichtig bei diesen Templates ist, dass die Namen der PHP-Dateien genauso heißen wie der 'command_name', welcher in der Datei `/etc/nagios3/conf.d/opsi/opsicommands.cfg` definiert ist. Stimmen die Bezeichnungen nicht überein, wird ein Standardtemplate von pnp4nagios verwendet.
-
-Sollte diese Anpassung vorgenommen werden, wenn die ersten Checks für den opsi-webservice schon stattgefunden haben, müssen die schon erstellten RRD-Datenbanken erst mal gelöscht werden, da mit diesen Templates auch die Struktur der RRD-Datenbanken neu konfiguriert werden.
-
-In der Regel sind die RRD-Datenbanken unter folgendem Pfad zu finden: `/var/pnp4nagios/perfdata/<host>/` .
-
-Dabei reicht es aus, alle Dateien, die entweder mit opsi-webservice.rrd oder mit opsi-webservice.xml beginnen, zu löschen. (Vorsicht: Hier werden auch andere RRD-Datenbanken von anderen Checks für diesen Host angelegt, die nicht unbedingt gelöscht werden sollten.).
-
-Damit das Ganze automatisch funktioniert, müssen diese Dateien genauso heißen, wie das check_command vom opsi-Webservice. Der Grund dafür liegt in der Arbeitsweise von pnp4nagios. Sollte also die Konfiguration des opsi-Webservice von dieser Dokumentation abweichen, so müssen auch diese Template-Dateien umbenannt werden, da ansonsten pnp4nagios keine richtige Zuordnung treffen kann.
-
-Wurde bis hierhin alles richtig konfiguriert und die Konfigurations-Schritte im Konfigurationskapitel richtig befolgt, sollten die Diagramme wie im folgenden Screenshot automatisch generiert werden:
-
-image::pnp4nagios.png["uib-Template für pnp4nagios",width=400]
 
 [[opsi-Nagios-Connector-checks-opsidiskusage]]
 === Check: opsi-check-diskusage
@@ -495,36 +456,6 @@ Das folgende Beispiel schränkt den vorherigen Check auf weiter ein und prüft n
 check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 --task checkProductLocks --depotIds configserver.domain.local,depotserver.domain.local --productIds opsi-client-agent,opsi-winst
 ----
 
-
-[[opsi-Nagios-Connector-checks-pluginOnClient]]
-=== Check: Plugin über OpsiClientd checken
-
-Dieser Check führt ein Check-Plugin auf dem Client direkt aus und fängt die Ausgabe ein.
-
-Diese Erweiterung soll keinen Ersatz für einen richtigen Nagios-Agent bieten, sondern eine Alternative. Man kann diese Erweiterung einsetzen, wenn man Plugins auf dem opsi-Client checken will. Die eingesetzten Plugins müssen den sogenannten *Nagios plug-in development guidelines* entsprechen.
-
-Um ein Plugin ausführen zu können, muss man das Plugin erst einmal auf den Clients verteilen. Dies sollte man über ein opsi-Paket lösen. Der Ablageort für die Plugins auf dem Client ist im ersten momentan egal, da man den Pfad beim Checken mit angeben muss. Allerdings sollte man die Plugins nicht einzeln verteilen, sondern in einem Verzeichnis zusammenführen, damit das Aktualisieren und Pflegen der Plugins einfacher wird. Weiterhin sollte man auch Sicherheitstechnisch im Hinterkopf behalten, dass die Plugins im Systemkontext des opsiclientd-Services aufgerufen werden. Normale Anwender sollten auf dieses Verzeichnis keinen Zugang haben.
-
-Es gibt diverse Plugins, die es schon vorgefertigt im Internet herunterzuladen gibt. Eine mögliche Anlaufstelle ist link:http://exchange.nagios.org/[Nagios Exchange].
-
-Im Folgenden wird davon ausgegangen, dass unter `C:\opsi.org\nagiosplugins\` das Plugin `check_win_disk.exe` vom Paket link:http://sourceforge.net/projects/nagiosplugincol/[nagioscol] abgelegt wurde.
-
-[source,shell]
-----
-check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkPluginOnClient --plugin "C:\\opsi.org\\nagiosplugincol\\check_win_disk.exe C:" -c client.domain.local
-----
-
-Dieser Aufruf checkt auf dem Client `client.domain.local` das Plugin check_win_disk.exe und übergibt diesem den Parameter `C:`. Dies bedeutet, dass das Laufwerk 'C' auf dem Client gecheckt wird. Die Ausgabe und der Rückgabewert dieses Plugins wird direkt vollständig ausgewertet und diese Werte können in Nagios unmittelbar weiter verarbeitet werden.
-
-Ein besonderes Feature ist das Beibehalten von Zuständen. Diese Implementation ist aus der Problemstellung entstanden, dass Clients nicht wie Server durchlaufen, sondern in der Regel nur einen bestimmten Zeitraum eingeschaltet sind. Man kann den Check auf Nagios-Seite zwar mit sogenannten `Timeperiods` eingrenzen, aber so ein Vorgehen ist nicht praktikabel, da man zum Beispiel auch bei Urlaub von Anwendern flexibel reagieren muss. Dies würde eine ständige Konfigurationsarbeit nach sich ziehen. Wenn man darauf verzichtet, wird der Status ständig geändert, auch wenn ein aufgetretenes Problem noch gar nicht gelöst ist. Deshalb kann man den letzten bekannten Status an opsi übergeben. Sollte der Client nicht erreichbar sein, wird dieser letzte bekannte Status zurückgegeben. Ein 'Critical'-Zustand bleibt beispielsweise in diesem Falle auch auf 'Critical' stehen und wechselt nicht auf 'Unknown', was rein logisch aber richtig wäre.
-
-Um dieses Feature später mit Nagios zu verwenden, kann man die Nagios-Makros: '$SERVICESTATEID$' und '$SERVICEOUTPUT$' nutzen.
-
-[source,shell]
-----
-check_opsi -H configserver.domain.local -P 4447 -u monitoring -p monitoring123 -t checkPluginOnClient --plugin "C:\\opsi.org\\nagiosplugincol\\check_win_disk.exe C:" -c client.domain.local -s $SERVICESTATEID$ -o  $SERVICEOUTPUT$
-----
-
 [[opsi-Nagios-Connector-configuration]]
 == opsi Monitoring Konfiguration
 
@@ -638,7 +569,6 @@ Wir empfehlen Templates für folgende Objekte anzulegen:
 * opsi server
 * opsi client
 * opsi service
-* sowie 2 templates für pnp4nagios (host-pnp / srv-pnp)
 
 Zunächst das Beispiel des opsi-Server-Templates:
 [source,opsifiles]
@@ -714,31 +644,14 @@ define service{
                 notification_interval           0
                 is_volatile                     0
                 check_period                    24x7
-                normal_check_interval           5
-                retry_check_interval            1
+                check_interval                  5
+                retry_interval                  1
                 max_check_attempts              4
                 notification_period             24x7
                 notification_options            w,u,c,r
                 contact_groups                  admins,opsiadmins
         register                        0
         }
-----
-
-Wenn pnp4nagios für die grafische Darstellung der Performancedaten für den opsi-Webservice eingesetzt werden, sollten noch die folgenden zwei Objekte als Template in der Datei `opsitemplates.cfg` angelegt werden:
-
-[source,opsifiles]
-----
-define host {
-   name       host-pnp
-   action_url /pnp4nagios/index.php/graph?host=$HOSTNAME$&srv=_HOST_
-   register   0
-}
-
-define service {
-   name       srv-pnp
-   action_url /pnp4nagios/index.php/graph?host=$HOSTNAME$&srv=$SERVICEDESC$
-   register   0
-}
 ----
 
 [[opsi-Nagios-Connector-configuration-hostobjects-groups]]
@@ -955,7 +868,7 @@ Hierbei wird beim Check auf den Depotsync gegen alle bekannten Services ('all') 
 ----
 #OPSI-Services
 define service{
-        use                             opsi-service-tmpl,srv-pnp
+        use                             opsi-service-tmpl
         hostgroup_name                  opsi-server
         service_description             opsi-webservice
         check_command                   check_opsiwebservice
@@ -1017,40 +930,3 @@ define service{
         check_interval                  10
         }
 ----
-
-Im dritten und letzten Teil werden die direkten Checks für die Clients definiert.
-Diese Checks richten sich in diesem Beispiel nicht an hostgroups, sondern einzelne hosts ('client.domain.local','depotclient.domain.local').
-
-* 'opsi-direct-checkpluginonclient' +
-Liefert einen normalen direkten Check vom Client und ein unknown, wenn der Client ausgeschaltet ist.
-Dabei wird versucht, den Client direkt vom Configserver aus zu erreichen.
-* 'opsi-direct-checkpluginonclient-with-servicestate' +
-verhält sich analog zu 'opsi-direct-checkpluginonclient', doch wenn der Client ausgeschaltet ist, liefert er das letzte erfolgreiche Checkergebnis.
-* 'opsi-direct-checkpluginonclient-from-depot' +
-verhält sich analog zu 'opsi-direct-checkpluginonclient', nur wird versucht, den Client von der, in der Client Konfiguration angegeben, '_depotid' zu erreichen.
-[source,opsifiles]
-----
-define service{
-        use                             opsi-service-tmpl
-        host_name                       client.domain.local,depotclient.domain.local
-        service_description             opsi-direct-checkpluginonclient
-        check_command                   check_opsipluginon_client!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
-        check_interval                  10
-        }
-define service{
-        use                             opsi-service-tmpl
-        host_name                       client.domain.local
-        service_description             opsi-direct-checkpluginonclient-with-servicestate
-        check_command                   check_opsipluginon_client_with_states!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
-        check_interval                  10
-        }
-define service{
-        use                             opsi-service-tmpl
-        host_name                       depotclient.domain.local
-        service_description             opsi-direct-checkpluginonclient-from-depot
-        check_command                   check_opsipluginon_client_from_depot!"C:\\opsi.org\\nagiosplugins\\check_memory.exe"
-        check_interval                  10
-        }
-----
-
-
