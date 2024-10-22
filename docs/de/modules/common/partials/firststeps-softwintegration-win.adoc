@@ -214,7 +214,7 @@ Der Aufruf der ausführbaren Datei kann im `opsi-script`-Skript in einer `[WinBa
 NOTE: Auch wenn der Hersteller ein eigenes Programm zur Deinstallation ausliefert, sollten Sie sich nicht darauf verlassen, dass das Produkt danach korrekt beseitigt ist. Prüfen Sie zusätzlich auf einem Testsystem, ob es der Rechner nach der Deinstallation weiter stabil läuft und ob Dateien oder Registry-Einträge zurückgeblieben sind.
 
 [[opsi-winclient-softwintegration-tutorial-deinstall-msi]]
-=== Deinstallation von MSI Producten
+=== Deinstallation von MSI Produkten
 
 Falls das Produkt als MSI-Paket bereitgestellt und mittels `msiexec` installiert wurde, ist in der Regel auch eine Deinstallation mittels `msiexec` möglich. Dazu rufen Sie `msiexec.exe` mit dem Parameter `/x` auf und übergeben dahinter den Namen des MSI-Paketes oder dessen GUID.
 
@@ -234,23 +234,67 @@ So sieht die Deinstallation unter Angabe einer GUID aus:
 msiexec.exe /x {003C5074-EB37-4A75-AC4B-F5394E08B4DD} /qb-!
 ----
 
-Die GUID kann sich bei demselben Produkt von Version zu Version ändern. Um vorhandene und eventuell ältere Installationen zu löschen, müssen Sie also ermitteln, welche GUID diese Installationen haben. Eine Möglichkeit ist über den `MsiName` des Paketes, den der `opsi-setup-detector` aus der MSI-Datei ermittelt.
+Die GUID kann sich bei demselben Produkt von Version zu Version ändern. Um vorhandene und eventuell ältere Installationen zu löschen, müssen Sie also ermitteln, welche GUID diese Installationen haben. 
 
-Der `MsiName` taucht im `Uninstall`-Eintrag der Registry als `DisplayName` auf. So können Sie also den `MsiName` verwenden, um die passenden `GUID` zu finden. Schneiden Sie dazu Informationen zur Architektur und Version vom Ende des `MsiName` ab und verpacken das Ganze in reguläre Ausdrücke:
+Hierzu gibt es verschiedene Möglichkeiten. +
+Die seit `opsi-setup-detector` Version 4.3.3 päferierte Version ist der Weg über den MsiUpgradeCode:
+
+==== MsiUpgradeCode
+
+Der `MsiUpgradeCode` Code wird vom `opsi-setup-detector` aus der MSI-Datei ermittelt. +
+Dieser ist spezifisch für das Produkt, ändert sich aber nicht mit der Version. Die Bibliothek osd-lib.opsiscript enthält die Funktion `getGuidListByMsiUpgradecode` welche anhand des `MsiUpgradeCodes` eine Liste aller `MsiProductCodes` erstellt welche installierter Software identifiziert welche zu diesem `MsiUpgradeCodes` passt. Diese Liste (`$UninstallList$`) kann dan zur Deinstallation der installierten Versionen verwendet werden.
 
 [source,ini]
 ----
+; Variant 3:
+;-----------------------------------------------------
+; Finding the MsiId by the Upgrade Code from the MSI file:
+; The MsiUpgradecode should be product specific and version independent.
+; It should be - it is not always. 
+Set $MsiUpgradecode$ = '{C73ED533-953E-47E5-9A42-A48292BB7C6C}'
+; get Installed MsiIds by the UpgradeCode
+Set $UninstallList$ = getGuidListByMsiUpgradecode($MsiUpgradecode$)
+;-----------------------------------------------------
+----
+
+==== MsiDisplayName
+
+Eine alternative Möglichkeit ist die Verwendung des `MsiName` des Paketes, den der `opsi-setup-detector` aus der MSI-Datei ermittelt.
+
+Der `MsiName` taucht im `Uninstall`-Eintrag der Registry als `DisplayName` auf. So können Sie also den `MsiName` verwenden, um die passenden `GUID` zu finden. Schneiden Sie dazu Informationen zur Architektur und Version vom Ende des `MsiName` ab und verpacken das Ganze in reguläre Ausdrücke.
+Die Bibliothek osd-lib.opsiscript enthält die Funktion `getGuidListByDisplaynameRegex` welche anhand der reguläre Ausdrücke eine Liste aller MsiProductCodes erstellt welche installierte Software identifiziert welche zu diesem Displayname passt. Diese Liste (`$UninstallList$`) kann dan zur Deinstallation der installierten Versionen verwendet werden.
+
+[source,ini]
+----
+; Variant 2:
+;-----------------------------------------------------
 ; Finding the MsiId by the Displayname from Registry:
 ; Be sure that the Displayname is set correctly:
-Set $DisplayName$ = 'short msi name'
+Set $DisplayName$ = 'grepWin x64'
 ; escape all regex relevant chars with '\' : '\^$.|?*+()[{'
 set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)
-; '(?i)' = case insensitive ; '.*' = 0 or more of any thing
+; '(?i)' = case insesitive ; '.*' = 0 or more of any thing
 set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'
 Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)
 ;-----------------------------------------------------
+----
 
-; ---------------------------------------------------------------
+In diesem Skript-Teil passiert Folgendes:
+
+* `Set $DisplayName$ = 'short msi name'`: Setzt die Variable `$DisplayName$` auf den `MsiName`, kürzt nicht benötigte anhängende Informationen.
+
+* `set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`: Präpariert den `$DisplayName$` als Suche mit regulären Ausdrücken, versteckt (maskiert) alle Sonderzeichen.
+
+* `set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`: Dieses Regex-Muster unterscheidet nicht zwischen Groß- und Kleinschreibung (`?i`) und ist so konzipiert, dass es mit dem Anfang einer Zeichenkette übereinstimmt, gefolgt von einer beliebigen Folge von Zeichen, die im Wesentlichen alle zusätzlichen Details nach dem Basisnamen berücksichtigt.
+
+* `Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)`: Sucht in der Registry; die Funktion `getGuidListByDisplaynameRegex` ist Bestandteil der Bibliothek `osd-lib.opsiscript` und erzeugt eine Liste von als passend gefundenen Einträgen in der Form `<MsiVersion> = <msi GUID>`.
+
+==== Abarbeitung der `$UninstallList$`
+
+Die weiter Deinstallation wird dann von den Einträgen in der `$UninstallList$` gesteuert:
+
+[source,ini]
+----
 comment "run the uninstallation "
 ; ----------------------------------------------------------------
 
@@ -280,13 +324,9 @@ endif
 
 In diesem Skript-Teil passiert Folgendes:
 
-* `Set $DisplayName$ = 'short msi name'`: Setzt die Variable `$DisplayName$` auf den `MsiName`, kürzt nicht benötigte anhängende Informationen.
+* Wenn die `$UninstallList$` mehr wie 0 Element hat
 
-* `set $DisplayNameRegex$ = escapeRegexMetaChars($DisplayName$)`: Präpariert den `$DisplayName$` als Suche mit regulären Ausdrücken, versteckt (maskiert) alle Sonderzeichen.
-
-* `set $DisplayNameRegex$ = '(?i)'+$DisplayNameRegex$+'.*'`: Dieses Regex-Muster unterscheidet nicht zwischen Groß- und Kleinschreibung (`?i`) und ist so konzipiert, dass es mit dem Anfang einer Zeichenkette übereinstimmt, gefolgt von einer beliebigen Folge von Zeichen, die im Wesentlichen alle zusätzlichen Details nach dem Basisnamen berücksichtigt.
-
-* `Set $UninstallList$ = getGuidListByDisplaynameRegex($DisplayNameRegex$)`: Sucht in der Registry; die Funktion `getGuidListByDisplaynameRegex` ist Bestandteil der Bibliothek `osd-lib.opsiscript` und erzeugt eine Liste von als passend gefundenen Einträgen in der Form `<MsiVersion> = <msi GUID>`.
+* Für jedes Element von `$UninstallList$` wird die Sektion `[Sub_Uninstallation_msi]` aufgerufen.
 
 * `[Sub_Uninstallation_msi]`: Die Sektion verwendet die gefundenen GUID zur Deinstallation.
 
