@@ -304,39 +304,45 @@ To release the clients manually you can use the admin page https://<opsi-server>
 [[opsi-manual-security-pcpatch]]
 == The user pcpatch
 
-With opsi 4 the user 'pcpatch' is used just by the 'opsi-client-agent' to mount the 'depot share' (`opsi_depot`).
+The user 'pcpatch' is required for the opsi clients to access the CIFS depot shares (`opsi_depot`).
 
-Exceptions are the products:
+Exceptions to this are the products:
 
-* `opsi-wim-capture` and `opsi-local-image-capture` which use 'pcpatch' to mount the share `opsi_depot_rw`
-* `opsi-clonezilla` wich use 'pcpatch' to mount the share `opsi_images`
+* `opsi-wim-capture` and `opsi-local-image-capture` which also mount the share `opsi_depot_rw` as user 'pcpatch` with write access.
+* `opsi-clonezilla` which mounts the share `opsi_images` with write permissions.
 
-The password of the user 'pcpatch' is usually stored and transmitted encrypted. Under special circumstances it might be possible to catch the clear password. To reduce risks arising from that, you should do the following:
+The password of the user 'pcpatch' is stored in encrypted form and is also only transmitted in encrypted form.
+However, under certain circumstances it is possible to find out the password.
+To minimize the damage this can cause, we recommend the following measures:
 
-Deny for the user pcpatch the access to all other shares than the 'opsi_depot' share. You should do this by adding the following entry to all share definitions (besides the 'opsi_depot') at the `/etc/samba/smb.conf`:
+In `/etc/samba/smb.conf` in all share definitions except 'opsi_depot', prohibit the user pcpatch access via the entry:
+
 [source,configfile]
 ----
 invalid users = root pcpatch
 ----
 
 Alternative +
-At the `/etc/samba/smb.conf` restrict privileges for the user 'pcpatch' to global read only by setting in the [global] section:
+In `/etc/samba/smb.conf`, restrict the user 'pcpatch' to read rights by making an entry in the `[global]` section:
+
 [source,configfile]
 ----
 read list = pcpatch
 ----
 
-WARNING: For the products `opsi-wim-capture` and `opsi-local-image-capture` the share `opsi_depot_rw` must have write permission for 'pcpatch'. For the product `opsi-clonezilla` the share `opsi_images` must have write permission for 'pcpatch'
+WARNING: For the products `opsi-wim-capture` and `opsi-local-image-capture` the share `opsi_depot_rw` must be writable for 'pcpatch'. For the product `opsi-clonezilla` the share `opsi_images` must be writable.
 
-As an additional task you should frequently change the password of the user 'pcpatch'. You may set the password to a random string which no one knows (besides opsi). You may do this by calling the following command e.g by a cronjob:
+As a further measure, the password of the user 'pcpatch' should be changed regularly.
+Since the plain text password does not have to be known to anyone, it can be set to a random password by regularly calling (e.g. via cronjob) the following script:
 [source,shell]
 ----
 opsiconfd setup --set-depot-user-password $(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
 ----
 
-If you are not using netboot products that require the possibility to login as user 'pcpatch' you can disable the login for that user.
-To do so please change the shell of the user 'pcpatch' to +/bin/false+ in the file `/etc/passwd`.
-Since opsi 4.1 the default shell for the user 'pcpatch' is +/bin/false+. You only need to take action if the system was set up using an earlier version.
+WARNING: The user 'pcpatch' should not be assigned a shell so that it cannot log on to the server directly.
+
+NOTE: If the opsi clients access the depots exclusively via WebDAV (see host parameter `clientconfig.depot.protocol`), both the user 'pcpatch' and the Samba server can be completely deactivated.
+
 
 [[opsi-manual-security-acl-configuration]]
 == Webservice access limitations
