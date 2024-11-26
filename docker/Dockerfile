@@ -26,7 +26,7 @@ RUN apt update \
 		vim \
 	&& apt clean
 
-RUN curl -fsSL https://deb.nodesource.com/setup_19.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 	&& sudo apt install -y nodejs \
 	&& npm install --global npm \
 	&& npm install --global gulp gulp-cli
