@@ -1,0 +1,180 @@
+////
+; Copyright (c) uib gmbh (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: http://www.opsi.org/credits/
+////
+
+:Author:    uib gmbh
+:Email:     info@uib.de
+:Date:      25.11.2024
+:doctype: book
+
+[[server-components-tls]]
+= SSL/TLS & Zertifikate
+
+Auf dem opsi-Configserver ist eine Liste von CA-Zertifikaten hinterlegt, die in einer opsi-Umgebung als vertrauenswürdig gelten.
+Diese Zertifikate werden von allen opsi-Komponenten verwendet, um die Identität von Servern und Clients zu verifizieren.
+Die opsi-Komponenten halten diese CA-Zertifikate automatisch aktuell.
+
+Die CA-Zertifikate werden auf dem opsi-Configserver in der Datei `/etc/opsi/ssl/opsi-ca-cert.pem` im PEM-Format abgelegt.
+Detaillierte Informationen zu den aktuell hinterlegten CA-Zertifikaten sind auf der Admin-Seite des opsi-Configservers einsehbar (https://<server-address>:4447/admin).
+
+Die Zertifikate können unter der URL https://<server-address>:4447/ssl/ca-certs.pem abgerufen werden.
+
+
+[[server-components-tls-opsi-ca]]
+== opsi CA
+Jeder 'opsi-Configserver' verwaltet eine Certificate Authority (CA), die 'opsi CA'.
+Diese CA wird vom 'opsi-Configserver' automatisch verwaltet.
+Jeder 'opsi-Server', auch die 'opsi-Depotserver' erhalten vom 'opsi-Configserver' ein TLS-Zertifikat, das von dieser CA signiert ist.
+Auch diese Zertifikate werden automatisch erstellt, verteilt und bei Bedarf aktualisiert.
+Jeder Client, der der 'opsi CA' vertraut, vertraut auch diesen Server-Zertifikaten.
+
+NOTE: Um das Schadenspotential einer kompromittierten 'opsi CA' zu begrenzen,
+gibt es die Möglichkeit, diese über sogenannte 'X.509 name constraints' einzuschränken.
+Zu diesem Zweck kann der opsiconfd-Konfigurationsparameter `ssl-ca-permitted-domains` verwendet werden, um eine Liste von
+Domains angegeben werden, für die die 'opsi CA' Zertifikate ausstellen darf.
+
+Das Zertifikat der 'opsi CA' kann von jedem 'opsi-Configserver' unter der URL https://<server-address>:4447/ssl/opsi-ca-cert.pem abgerufen werden.
+
+NOTE: Weiter unten werden auch Möglichkeiten beschrieben Server-Zertifikate von anderen Zertifizierungsstellen zu verwenden.
+Standardmäßig verwendet der 'opsi-Configserver' jedoch ein Zertifikat, das von der 'opsi CA' signiert ist.
+Die zugehörige Standard-Konfiguration ist `ssl-server-cert-type = opsi-ca`.
+
+
+[[server-components-tls-opsi-ca-intermediate]]
+=== Betrieb der opsi CA als Intermediate-CA
+Es wird empfohlen, die opsi CA als eigene Root-CA zu betreiben.
+Dies ist auch der vorkonfigurierte Standard.
+
+Alternativ besteht jedoch auch die Möglichkeit die opsi-CA als Intermediate-CA zu betreiben.
+Hierfür sind folgende Schritte notwendig:
+
+* Erstellen Sie ein Backup des opsi-Servers, insbesondere der Konfiguration unterhalb von `/etc/opsi`.
+* Erstellen Sie eine Intermediate-CA. Hierbei sollte die folgende Konfiguration verwendet werden: +
+	`authorityKeyIdentifier = keyid:always,issuer` +
+	`basicConstraints = critical,CA:true,pathlen:0` +
+	`keyUsage = critical,digitalSignature,cRLSign,keyCertSign` +
+* Legen Sie den Private Key der Intermediate-CA im verschlüsselten PEM-Format unter `/etc/opsi/ssl/opsi-ca-key.pem` auf dem opsi-Server ab.
+* Die Passphrase zum Private Key der Intermediate-CA muss über `--ssl-ca-key-passphrase` in der `/etc/opsi/opsiconfd.conf` oder als Environment-Variable hinterlegt werden.
+* Legen Sie das Zertifikat der Intermediate-CA zusammen mit dem Zertifikat der Root-CA im PEM-Format unter `/etc/opsi/ssl/opsi-ca-cert.pem` auf dem opsi-Server ab.
+* Installieren Sie das Zertifikat der Root-CA auf dem opsi-Server.
+* Stellen Sie sicher, dass der opsiconfd die Zertifikats-Datenbank des Betriebssystems verwendet (`--ssl-trusted-certs`).
+* Fügen Sie `opsi_ca` zu `--skip-setup` hinzu, um die Verwaltung der opsi CA durch den opsiconfd zu deaktivieren.
+* Starten Sie den opsiconfd neu.
+* Stellen Sie sicher, dass die Intermediate-CA rechtzeitig vor Ablauf erneuert und ausgetauscht wird.
+
+WARNING: Bitte beachten Sie die Hinweise zum xref:server-components-tls-change-of-ca[Wechsel der Zertifizierungsstelle].
+
+[[server-components-tls-server-verification]]
+== Verifizierung der Server-Identität durch den opsi-client-agent
+Verbindet sich ein 'opsi-client-agent' mit einem 'opsi-Configserver', ruft er die aktuell hinterlegten CA-Zertifikate automatisch ab und legt sie unter 'c:\opsi.org\tls\opsi-ca-cert.pem' bzw. '/etc/opsi-client-agent/tls/opsi-ca-cert.pem' ab.
+Dies geschieht jedoch nur unter der Voraussetzung, dass dort entweder noch keine 'opsi CA' abgelegt ist oder eine sichere, verifizierte Verbindung mit dem 'opsi-Configserver' besteht.
+
+Die Verifizierung der Server-Verbindungen ist seit opsi 4.3 standardmäßig aktiv.
+In opsi-Umgebungen, die von älteren Versionen migriert wurden, muss diese Option manuell aktiviert werden.
+Die Aktivierung erfolgt über den boolesche Host-Parameter 'opsiclientd.global.verify_server_cert'.
+Dieser Parameter kann dann Client-spezifisch auf +true+ gesetzt werden oder auch global aktiviert werden.
+Damit ist die Verifizierung aktiviert.
+Wird +webdav+ als +clientconfig.depot.protocol+ verwendet, so wird auch der 'opsi-Depotserver' entsprechend geprüft.
+
+WARNING: Sobald die Verifizierung aktiviert ist, wird der Client Verbindungen zu Servern ohne gültiges Zertifikat verweigern.
+Es sollte also im Vorfeld sichergestellt werden, dass der Mechanismus wie gewünscht funktioniert.
+
+Zusätzlich besteht die Möglichkeit die 'opsi CA' auch im Zertifikatsspeicher des Betriebssystems abzulegen.
+Dann vertraut sowohl das Betriebssystem als auch alle Applikationen, die diesen Zertifikatsspeicher verwenden,
+der 'opsi CA' und den Zertifikaten der 'opsi-Server'.
+Dies ist auch Voraussetzung um ein opsi-Depot per +WevDAV+ mounten zu können.
+
+Die Zugehörige boolesche Konfiguration ist `opsiclientd.global.install_opsi_ca_into_os_store`.
+Ist diese aktiviert, spielt der 'opsi-client-agent' die 'opsi CA' automatisch in den Zertifikatsspeicher des Betriebssystems ein.
+
+[[server-components-tls-server-verification-problem-solving]]
+=== Problemlösung
+Sollte es zu der Situation kommen, dass ein Client das Server-Zertifikat des 'opsi-Configservers' wegen Problemen mit den CA-Zertifikaten nicht mehr akzeptiert,
+ist der Client nicht mehr über die normalen opsi-Mechanismen verwaltbar.
+
+In diesem Fall gibt es mehrere Möglichkeiten das Problem zu lösen:
+
+==== Löschen der CA-Zertifikate auf dem Client
+Die Datei 'opsi-ca-cert.pem' wird auf dem Client gelöscht.
+Bei der nächsten Verbindung zum 'opsi-Configserver' ruft der 'opsi-client-agent' die CA-Zertifikate dann neu ab.
+
+==== Ersetzen der CA-Zertifikate über den Control-Server des opsi-client-agent
+Die CA-Zertifikate können über die Control-Server-API des opsi-client-agent aktualisiert werden.
+Hierfür wird der RPC 'updateOpsiCaCert' verwendet. Über den Parameter 'ca_cert_pem' werden die neuen Zertifikate im PEM-Format als String übergeben.
+
+==== Über ein temporäres Server-Zertifikat der uib GmbH
+Zusätzlich zu den CA-Zertifikaten der jeweiligen Umgebung vertraut ein 'opsi-client-agent' auch der 'uib opsi CA', wenn die entsprechende Konfiguration 'opsiclientd.global.trust_uib_opsi_ca' auf 'true' steht.
+Die 'uib opsi CA' wird von der 'https://www.uib.de[uib GmbH]' verwaltet.
+Die https://www.uib.de[uib GmbH] ist daher in der Lage ein temporär gültiges Server-Zertifikat für den 'opsi-Configserver' zu erzeugen.
+Dieses Zertifikat kann dann auf dem 'opsi-Configserver' der Umgebung eingespielt werden.
+Der 'opsi-client-agent' nimmt dann wieder eine Verbindung auf und ruft dann automatisch die CA-Zertifikate der jeweiligen Umgebung ab.
+Wenn dieser Prozess auf allen betroffenen Clients stattgefunden hat, kann das temporäre Zertifikat wieder entfernt werden.
+
+
+[[server-components-tls-letsencrypt]]
+== Verwendung von Let's Encrypt
+Die xref:opsi-modules:letsencrypt.adoc[Erweiterung Let's Encrypt] ermöglicht es, SSL/TLS-Zertifikate für den opsi-Configserver über die Let's Encrypt-Zertifizierungsstelle automatisch zu beziehen und zu erneuern.
+
+Folgende Voraussetzungen müssen erfüllt sein, um Let's Encrypt verwenden zu können:
+
+* Da eine HTTP-01-Challenge verwendet wird, muss der opsi-Configserver über eine öffentliche IP-Adresse auf Port 80 erreichbar sein.
+* Für die in der `opsi.conf` hinterlegte `host.id` muss ein öffentlicher DNS-Eintrag existieren, der auf die öffentliche IP-Adresse des opsi-Configservers zeigt.
+
+Die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration] erfolgt im opsiconfd-Service.
+Hierbei wird der Parameter `ssl-server-cert-type` auf `letsencrypt` gesetzt.
+Weiterhin sollte im Parameter `letsencrypt-contact-email` eine Kontakt-E-Mail-Adresse für Benachrichtigungen von Let's Encrypt hinterlegt werden.
+
+Bei einem `opsiconfd setup`, bzw. bei einem Neustart des opsiconfd-Services, wird das Zertifikat automatisch von Let's Encrypt bezogen und im Dateisystem des opsi-Servers abgelegt.
+Das Zertifikat wird dann automatisch von Let's Encrypt erneuert, bevor es abläuft.
+Auch die Let's Encrypt CA-Zertifikate werden automatisch aktualisiert.
+Es sind also keine weiteren manuellen Schritte notwendig.
+
+WARNING: Bitte beachten Sie die Hinweise zum xref:server-components-tls-change-of-ca[Wechsel der Zertifizierungsstelle].
+
+
+[[server-components-tls-custom-ca]]
+== Verwendung einer eigenen Zertifizierungsstelle
+Die xref:opsi-modules:custom_ca.adoc[Erweiterung Custom-CA] ermöglicht es Ihnen, Ihre eigene Zertifizierungsstelle (CA) zu verwenden, um Zertifikate für den opsi-Configserver auszustellen.
+
+Die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration] erfolgt im opsiconfd-Service.
+Hierbei wird der Parameter `ssl-server-cert-type` auf `custom-ca` gesetzt.
+
+Das Zertifikat der verwendeten CA und gegenfalls weitere Zertifikate bis hin zur Root-CA (fullchain) müssen im PEM-Format an die Datei `/etc/opsi/ssl/opsi-ca-cert.pem` auf dem opsi-Server angehängt werden. Das Zertifikat der opsi CA muss in der Datei erhalten bleiben.
+
+Im nächsten Schritt kann ein Zertifikat von der eigenen CA für den opsi-Configserver erstellt werden.
+Der Private Key des Zertifikats muss im (verschlüsselten) PEM-Format unter `/etc/opsi/ssl/opsi-server-key.pem`
+und das Zertifikat selbst im PEM-Format unter `/etc/opsi/ssl/opsi-server-cert.pem` auf dem opsi-Server abgelegt werden.
+
+WARNING: Bitte beachten Sie die Hinweise zum xref:server-components-tls-change-of-ca[Wechsel der Zertifizierungsstelle].
+
+
+[[server-components-tls-change-of-ca]]
+== Wechsel der Zertifizierungsstelle
+Existieren bereits aktive opsi-Clients, sind bei einem Wechsel der Zertifizierungsstelle, z.B. von der opsi CA zu einer eigenen CA oder zu Let's Encrypt, einige Dinge zu beachten.
+
+Die Clients haben in ihrem lokalen Zertifikatsspeicher das Zertifikat der bisherigen Zertifizierungsstelle hinterlegt.
+Sie vertrauen also nur Server-Zertifikaten, die von dieser Zertifizierungsstelle signiert wurden.
+Bevor nun für den opsi-Configserver ein Server-Zertifikat verwendet werden kann, das von einer anderen Zertifizierungsstelle signiert wurde, müssen die Clients auch die neue Zertifizierungsstelle kennen und vertrauen.
+
+Das die Clients die CA-Zertifikate bei jedem Verbindungsaufbau neu abrufen, ist es ausreichend, wenn die CA-Zertifikate der neuen Zertifizierungsstelle auf dem opsi-Configserver hinterlegt sind. Es erfordert dann nur etwas Zeit, bis alle Clients die neuen CA-Zertifikate abgerufen haben.
+
+Vor einer Änderung an `ssl-server-cert-type` müssen daher die neuen CA-Zertifikate bereits zusätzlich in der Datei `/etc/opsi/ssl/opsi-ca-cert.pem` hinterlegt werden.
+
+Im Falle von Let's Encrypt sind das die folgenden CA-Zertifikate:
+
+* link:https://letsencrypt.org/certs/isrgrootx1.pem[ISRG Root X1]
+* link:https://letsencrypt.org/certs/2024/r10.pem[Let’s Encrypt R10]
+* link:https://letsencrypt.org/certs/2024/r11.pem[Let’s Encrypt R11]
+
+Sollte es nach dem Wechsel des Server-Zertifikats auf eine andere Zertifizierungsstelle zu Verbindungsproblemen kommen, kann die alte Konfiguration wiederhergestellt werden.
+Dafür muss nur der `ssl-server-cert-type` wieder auf den ursprünglichen Wert gesetzt werden.
