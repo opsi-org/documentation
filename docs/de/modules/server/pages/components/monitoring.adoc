@@ -1,0 +1,104 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      19.06.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+[[server-components-opsiconfd-check-monitoring]]
+= Health-Check & Monitoring
+
+Opsi bietet einen Health-Check an der den Betriebszustand des opsi-Server überprüft. Dieser Health-Check kann zum Beispiel über die Weboberfläche des opsi-Servers aufgerufen werden. Der Health-Check prüft die Funktionalität und gibt eine Übersicht über den Status der verschiedenen Komponenten des opsi-Servers.
+
+Der Health-Check kann in ein Monitoring-System integriert werden, um dort den Status des opsi-Servers zu überwachen.
+
+[[server-components-opsiconfd-health-check]]
+== Health-Check
+
+Der `opsiconfd` stellt einen Health-Check bereit, der verschiedene Einstellungen und Versionen von opsi-Komponenten überprüfen und damit Hinweise auf eventuelle Probleme geben kann. Der Health-Check kann auf unterschiedlichen Weise gestartet werden. Alle Varianten beziehen ihre Daten vom API-Call `service_healthCheck`. Die opsi-API liefert die Daten im JSON-Format zurück. Eine solche JSON-Datei ist besonders bei Support-Anfragen nützlich.
+
+Eine Möglichkeit einen Health-Check zu starten, ist über die Admin-Seite, Reiter _RPC-Interface_ (siehe Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-rpc-interface[RPC Interface]). Auch das WebGUI bietet schnellen Zugriff auf den xref:gui:webgui/userguide-system.adoc#opsi-manual-opsiwebgui-system-healthcheck[Health-Check]. Auf der Kommandozeile erfolgt der Aufruf über den Befehl `opsiconfd health-check`. Über den Parameter `--help` blenden Sie eine Onlinehilfe ein; `opsiconfd health-check --documentation` gibt eine Beschreibung aller Checks aus. Ohne weitere Optionen läuft der Check einmal durch und schreibt seine Ergebnisse nach stdout. 
+
+`opsiconfd health-check --list` gibt alle verfügbaren Checks mit Namen und ID aus. Ein bestimmter Check kann mit `opsiconfd health-check --checks <ID>` ausgeführt werden. Checks die nicht ausgeführt werden sollen können mit `--skip-checks <ID>` übersprungen werden. 
+Die `checks` und `skip-checks` können auch in der `/etc/opsi/opsiconfd.conf` oder über Umgebungsvariablen (OPSICONFD_CHECKS bzw. OPSICONFD_SKIP_CHECKS) konfiguriert werden. 
+
+.Den Health-Check können Sie im Terminal starten.
+image::opsi-health-check.png["Den Health-Check können Sie im Terminal starten.", width=800, pdfwidth=80%]
+
+TIP: Der Health-Check kann auch mit dem Kommandozeilentool `opsi-cli` aufgerufen werden (siehe Abschnitt xref:server:components/commandline.adoc#server-components-opsi-cli-commands-support[*opsi-cli support*]). Einen schnellen Zugriff auf ein Terminal auf dem opsi-Server bietet die Admin-Seite über den Reiter _Terminal_ (siehe Abschnitt xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-terminal[Opsiconfd Terminal]).
+
+
+=== Ausgabeformate  
+
+Der Health-Check kann folgende Ausgaben produzieren:
+
+- cli (default) Für die Kommandozeile angepasste Ausgabe.
+- json: Ausgabe im JSON-Format.
+- checkmk: Ausgabe, sodass sie von Check_MK verarbeitet werden kann.
+
+Die Ausgabeformate können über den Parameter `--format` gesteuert werden.
+
+[source,console]
+----
+opsiconfd health-check --format json
+----
+
+=== Caching
+
+Die Ergebnisse der einzelnen Checks werden in Redis gespeichert und bleiben 24 Stunden gültig. Verschiedene Funktionen wie zum Beispiel das erstellen eines Backups sorgt dafür, dass der Cache für den Backup Check geleert wird. 
+
+Wird der Health Check mit dem Parameter `--clear-cache` aufgerufen, wird der Cache geleert und alle Checks werden erneut ausgeführt.
+Auch der API Methode `service_healthCheck` kann der Parameter `clear_cache` übergeben werden, um den Cache zu leeren.
+
+[source,json]
+----
+{
+  "method": "service_healthCheck",
+  "params": {
+	"clear_cache": true
+  }
+}
+----
+
+
+[[server-components-opsiconfd-monitoring]]
+== Monitoring
+
+Der Health-Check kann in ein Monitoring-System integriert werden. Dazu lässt sich der Health-Check über das Monitoring-System aufrufen und die Resultate können ausgewertet werden.
+
+[[server-components-opsiconfd-checkmk]]
+=== CheckMK
+
+Um die Ergebnisse des Health-Checks in CheckMK zu nutzen, wird einer oder mehrere "local checks" eingerichtet. 
+Hierfür bringt der opsiconfd ein Template Shell-Skript mit, welches die Ausgabe des Health-Checks in das CheckMK-Format umwandelt.
+Unter `/usr/lib/opsiconfd` liegt die Datei `opsi_checkmk`. Diese Datei kann als "local check" in CheckMK eingebunden werden.
+Dazu wird eine Kopie nach `/usr/lib/check_mk_agent/local/<cache-time>` kopiert und ausführbar gemacht.
+
+Hier ein Beispiel:
+
+[source,console]
+----
+cp /usr/lib/opsiconfd/opsi_checkmk /usr/lib/check_mk_agent/local/7200/opsi_check
+chmod +x /usr/lib/check_mk_agent/local/7200/opsi_check
+----
+
+In dem Fall werden die Check-Ergebnisse alle 7200 Sekunden (2 Stunden) aktualisiert.
+Die Dokumentation zu den CheckMK local checks findet sich hier: https://docs.checkmk.com/latest/de/localchecks.html
+
+Mit den Parametern `--checks` oder `--skip-checks` können die Checks im opsi-check Script angepasst werden ( siehe Abschnitt xref:server:components/monitoring.adoc#server-components-opsiconfd-health-check[Health-Check]). 
