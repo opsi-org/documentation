@@ -2,22 +2,36 @@ image: docker.uib.gmbh/opsi/opsidoc-antora:bookworm
 
 stages:
   # - lint
+  - setup
   - test
   - build-and-publish
 
-.install_toolchain: &install_toolchain |            
-  npm config set fetch-retry-maxtimeout 120000 -g
-  npm config set fetch-timeout 60000 -g
-  npm config set fetch-retry-factor 10 -g
-  npm config set fetch-retries 15 -g
-  npm  cache clear --force
-  # Antora
-  npm install
-  # Antora-UI
-  cd antora-ui
-  npm  cache clear --force
-  npm install
-  cd ..
+install:
+  stage: setup
+  cache:
+    paths:
+    - .cache/npm
+  script:
+  - &npm_install |
+      # Antora
+      npm install --no-audit --quiet --no-progress --cache=.cache/npm
+      # Antora-UI
+      cd antora-ui
+      npm install --no-audit --quiet --no-progress --cache=.cache/npm
+      cd ..
+
+
+# .install_toolchain: &install_toolchain |         
+#   npm config set fetch-retry-maxtimeout 360000 -g
+#   npm config set fetch-timeout 120000 -g
+#   npm config set fetch-retry-factor 10 -g
+#   npm config set fetch-retries 15 -g
+#   # Antora
+#   npm install --no-audit --quiet --no-progress --cache=.cache/npm
+#   # Antora-UI
+#   cd antora-ui
+#   npm install --no-audit --quiet --no-progress --cache=.cache/npm
+#   cd ..
 
 .install_cspell: &install_cspell |
   echo "Install cspell"
@@ -36,7 +50,7 @@ test-antora-build:
   stage: test
   script:
     - git show --summary
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
@@ -53,7 +67,7 @@ test-antora-build:
 build-and-publish-docs-opsi-org:
   stage: build-and-publish
   script:
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
@@ -75,7 +89,7 @@ build-and-publish-docs-opsi-org:
 build-and-publish-bonifax:
   stage: build-and-publish
   script:
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
