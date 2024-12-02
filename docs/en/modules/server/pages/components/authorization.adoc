@@ -235,7 +235,12 @@ The following parameters must be set:
 saml-idp-entity-id:: The entity ID of the identity provider (IdP).
 saml-idp-x509-cert:: The certificate of the identity provider (IdP) in Base64 format.
 saml-idp-sso-url:: The URL of the single sign-on (SSO) of the identity provider (IdP).
-saml-idp-slo-url:: (optional) The URL of the Single Logout (SLO) of the identity provider (IdP).
+
+The following parameters are optional:
+saml-sp-client-signature:: Activate the signature of the service provider (SP) (client signing)?
+saml-sp-x509-cert:: The certificate of the service provider (SP) in Base64 format.
+saml-sp-private-key:: The private key of the service provider (SP) in Base64 format.
+saml-role-group-mappings:: Mapping of SAML roles to opsi groups in the format `<role> = <group>`.
 
 
 ==== Microsoft Entra ID
@@ -312,7 +317,20 @@ The following steps must be carried out in the Keycloak Admin Console:
 * Enter the same URL under _Home URL_.
 * Under _Valid redirect URIs_ add the URL `https://<address-configserver>:4447/*.
 * Enter the same value under _Valid post logout redirect URIs_.
-* Deactivate _Client signature required_ under _Keys_ => _Signing keys config_.
+
+**Client signing**
+The client can optionally sign its SAML communication, which increases security.
+If you do not wish to use client signing, deactivate _Client signature required_ under _Keys_ => _Signing keys config_.
+
+If you want to activate client signing, proceed as follows:
+* Set the configuration `saml-sp-client-signature` in the opsiconfd service to `true`.
+* Restart the opsiconfd service.
+* The parameters `saml-sp-x509-cert` and `saml-sp-private-key` are then automatically filled in the opsiconfd service configuration.
+* Copy the value of `saml-sp-x509-cert` into a text file and save this file.
+* Switch to the _Keys_ tab in the Keycloak admin console.
+* Activate _Client signature required_ under _Signing keys config_.
+* Click on Import key_ and select the previously saved file.
+* The certificate is now imported and displayed.
 
 ===== Create role
 The app role `opsiadmin` is required to administratively log users into the opsi service.
@@ -322,3 +340,15 @@ The app role `opsiadmin` is required to administratively log users into the opsi
 
 ===== Apply changes
 After you have made all changes to the configuration, restart the xref:server:components/opsiconfd.adoc[*opsiconfd*] service.
+
+==== Assignment of SAML roles to opsi groups
+By default, the roles transmitted by the IdP are assigned one-to-one to the opsi groups.
+However, you can also make an individual assignment of SAML roles to opsi groups.
+The assignments are made via the `saml-role-group-mappings` parameter in the configuration.
+The mapping is in the format `<role> = <group>`, where `<role>` is the role of the IdP and `<group>` is the opsi group.
+Example:
+
+[source,toml]
+----
+saml-role-group-mappings = ["CN=it-1271,OU=groups,O=acme,C=corp = opsiadmin", "CN=it-1341,OU=groups,O=acme,C=corp = opsiadmin"]
+----

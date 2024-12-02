@@ -236,7 +236,12 @@ Hierbei sind die folgenden Parameter zu setzen:
 saml-idp-entity-id:: Die Entity-ID des Identitätsanbieters (IdP).
 saml-idp-x509-cert:: Das Zertifikat des Identitätsanbieters (IdP) im Base64-Format.
 saml-idp-sso-url:: Die URL des Single Sign-on (SSO) des Identitätsanbieters (IdP).
-saml-idp-slo-url:: (optional) Die URL des Single Logout (SLO) des Identitätsanbieters (IdP).
+
+Folgende Parameter sind optional:
+saml-sp-client-signature:: Signatur des Serviceproviders (SP) aktivieren (client signing)?
+saml-sp-x509-cert:: Das Zertifikat des Serviceproviders (SP) im Base64-Format.
+saml-sp-private-key:: Der private Schlüssel des Serviceproviders (SP) im Base64-Format.
+saml-role-group-mappings:: Zuordnung von SAML-Rollen zu opsi-Gruppen im Format `<role> = <group>`.
 
 
 ==== Microsoft Entra ID
@@ -313,7 +318,20 @@ In der Keycloak Admin Console sind folgende Schritte durchzuführen:
 * Die gleiche URL tragen Sie unter _Home URL_ ein.
 * Unter _Valid redirect URIs_ fügen Sie die URL `https://<adresse-configserver>:4447/* hinzu.
 * Den gleichen Wert tragen Sie auch unter _Valid post logout redirect URIs_ ein.
-* Deaktivieren Sie _Client signature required_ unter _Keys_ => _Signing keys config_.
+
+**Client signing**
+Der Client kann seine SAML-Kommunikation optional signieren, das erhöht die Sicherheit.
+Wenn Sie auf das Client-Signing verzichten möchten, deaktivieren Sie _Client signature required_ unter _Keys_ => _Signing keys config_.
+
+Wollen Sie das Client-Signing aktivieren, gehen Sie folgendermaßen vor:
+* Setzen Sie im opsiconfd-Service die Konfiguration `saml-sp-client-signature` auf `true`.
+* Starten Sie den opsiconfd-Service neu.
+* In der opsiconfd-Service-Konfiguration werden dann die Parameter `saml-sp-x509-cert` und `saml-sp-private-key` automatisch befüllt.
+* Kopieren Sie den Wert von `saml-sp-x509-cert` in eine Text-Datei und speichern Sie diese Datei ab.
+* Wechseln Sie in der Keycloak-Admin-Konsole in den Tab _Keys_.
+* Aktivieren Sie _Client signature required_ unter _Signing keys config_.
+* Klicken Sie auf Import key_ und wählen Sie zuvor gespeicherte Datei aus.
+* Das Zertifikat wird nun importiert und angezeigt.
 
 ===== Rolle erstellen
 Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Service anzumelden.
@@ -323,3 +341,16 @@ Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Serv
 
 ===== Änderungen übernehmen
 Nachdem Sie alle Änderungen an der Konfigurationsdatei vorgenommen haben, starten Sie den Dienst xref:server:components/opsiconfd.adoc[*opsiconfd*] neu.
+
+
+==== Zuordnung von SAML-Rollen zu opsi-Gruppen
+Im Standardfall werden die vom IdP übermittelten Rollen eins zu eins den opsi-Gruppen zugeordnet.
+Sie können jedoch auch eine individuelle Zuordnung von SAML-Rollen zu opsi-Gruppen vornehmen.
+Die Zuordnung erfolgt über den Parameter `saml-role-group-mappings` in der Konfiguration.
+Die Zuordnung erfolgt im Format `<role> = <group>`, wobei `<role>` die Rolle des IdP und `<group>` die opsi-Gruppe ist.
+Ein Beispiel:
+
+[source,toml]
+----
+saml-role-group-mappings = ["CN=it-1271,OU=groups,O=acme,C=corp = opsiadmin", "CN=it-1341,OU=groups,O=acme,C=corp = opsiadmin"]
+----
