@@ -2,19 +2,36 @@ image: docker.uib.gmbh/opsi/opsidoc-antora:bookworm
 
 stages:
   # - lint
+  - setup
   - test
-  - build
-  - publish
-  - publish_ext
+  - build-and-publish
 
-.install_toolchain: &install_toolchain |
-  npm config set fetch-retry-maxtimeout 60000 -g
-  # Antora
-  npm install
-  # Antora-UI
-  cd antora-ui
-  npm install
-  cd ..
+install:
+  stage: setup
+  cache:
+    paths:
+    - .cache/npm
+  script:
+  - &npm_install |
+      # Antora
+      npm install --no-audit --quiet --no-progress --cache=.cache/npm
+      # Antora-UI
+      cd antora-ui
+      npm install --no-audit --quiet --no-progress --cache=.cache/npm
+      cd ..
+
+
+# .install_toolchain: &install_toolchain |         
+#   npm config set fetch-retry-maxtimeout 360000 -g
+#   npm config set fetch-timeout 120000 -g
+#   npm config set fetch-retry-factor 10 -g
+#   npm config set fetch-retries 15 -g
+#   # Antora
+#   npm install --no-audit --quiet --no-progress --cache=.cache/npm
+#   # Antora-UI
+#   cd antora-ui
+#   npm install --no-audit --quiet --no-progress --cache=.cache/npm
+#   cd ..
 
 .install_cspell: &install_cspell |
   echo "Install cspell"
@@ -33,10 +50,7 @@ test-antora-build:
   stage: test
   script:
     - git show --summary
-    - git checkout ${CI_COMMIT_BRANCH}
-    - git show --summary
-    - sed -i "s#CURRENT_BRANCH#$CI_COMMIT_BRANCH#g" head-playbook.yml
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
@@ -44,15 +58,16 @@ test-antora-build:
     - npx antora --log-level=debug --log-failure-level warn head-playbook.yml
   except:
     - v4.2
-  artifacts:
-    paths:
-      - build/test/site
-    expire_in: 4 hours
 
-build-antora:
-  stage: build
+  #artifacts:
+  #  paths:
+  #    - build/test/site
+  #  expire_in: 4 hours
+
+build-and-publish-docs-opsi-org:
+  stage: build-and-publish
   script:
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
@@ -60,18 +75,21 @@ build-antora:
     - npx antora -v
     - npx antora --log-level=debug antora-playbook.yml
     - touch build/docs-opsi-org/site/index.html
+    - du -hs build/*
+    - 'which ssh-agent || (apt update && apt -y install openssh-client)'
+    - 'which rsync || (apt update && apt -y install rsync)'
+    - mkdir -p ~/.ssh
+    - eval $(ssh-agent -s)
+    - ssh-add <(echo "$BLOG_PUBLISH_PRIVATE_KEY")
+    # rsync with delete to get rid of old artifacts. Exclude python-opsi[-common] to not remove them
+    - rsync -e "ssh -o StrictHostKeyChecking=no" --delete -azv build/docs-opsi-org/site/ root@docker1.ext.uib.gmbh:/var/lib/docker/volumes/docs_nginx_data/_data/ --exclude=python-opsi --exclude=python-opsi-common
   only:
-    - v4.3
-    - v4.2
-  artifacts:
-    paths:
-      - build/docs-opsi-org/site
-    expire_in: 2 days
+    - tags
 
-build-antora-bonifax:
-  stage: build
+build-and-publish-bonifax:
+  stage: build-and-publish
   script:
-    - *install_toolchain
+    - *npm_install
     - cd antora-ui
     - gulp bundle
     - gulp bundle:pack
@@ -79,38 +97,14 @@ build-antora-bonifax:
     - npx antora -v
     - npx antora --log-level=debug bonifax-playbook.yml
     - touch build/bonifax/site/index.html
-  except:
-    - v4.2
-  artifacts:
-    paths:
-      - build/bonifax/site
-    expire_in: 2 days
-
-publish_antora_docs:
-  stage: publish
-  before_script:
+    - du -hs build/*
     - 'which ssh-agent || (apt update && apt install -y openssh-client)'
     - 'which rsync || (apt update && apt install -y rsync)'
     - mkdir -p ~/.ssh
     - eval $(ssh-agent -s)
     - ssh-add <(echo "$DOCUSER_PRIVATE_KEY")
-  script:
-    - rsync -e "ssh -o StrictHostKeyChecking=no" --delete -azv build/bonifax/site/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/antora/"
+    - rsync -e "ssh -o StrictHostKeyChecking=no" --delete -azv build/bonifax/site/* "$DOCUSER@$DOCSERVER:/home/opsi/doc/opsidoc/antora/" --exclude=python-opsi --exclude=python-opsi-common
   only:
+    - v4.4
     - v4.3
-
-publish_to_docs_opsi_org:
-  stage: publish_ext
-  when: manual
-  before_script:
-    - 'which ssh-agent || (apt update && apt -y install openssh-client)'
-    - 'which rsync || (apt update && apt -y install rsync)'
-    - mkdir -p ~/.ssh
-    - eval $(ssh-agent -s)
-    - ssh-add <(echo "$BLOG_PUBLISH_PRIVATE_KEY")
-  script:  # rsync with delete to get rid of old artifacts. Exclude python-opsi[-common] to not remove them
-    - rsync -e "ssh -o StrictHostKeyChecking=no" --delete -azv build/docs-opsi-org/site/ root@docker1.ext.uib.gmbh:/var/lib/docker/volumes/docs_nginx_data/_data/ --exclude=python-opsi --exclude=python-opsi-common
-  only:
-    - v4.3
-    - v4.2
-
+    - tags
