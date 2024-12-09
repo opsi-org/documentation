@@ -229,21 +229,21 @@ Hierbei werden als Identitätsanbieter (IdP) link:https://www.microsoft.com/de-d
 
 NOTE: Dieses Modul ist momentan eine xref:opsi-modules:sso.adoc#opsi-module-sso[kostenpflichtige Erweiterung].
 
+
 === Konfiguration
 Die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration] erfolgt im opsiconfd-Service.
-Hierbei sind die folgenden Parameter zu setzen:
+Hierfür werden die folgenden Parameter verwendet:
 
 saml-idp-entity-id:: Die Entity-ID des Identitätsanbieters (IdP).
 saml-idp-x509-cert:: Das Zertifikat des Identitätsanbieters (IdP) im Base64-Format.
 saml-idp-sso-url:: Die URL des Single Sign-on (SSO) des Identitätsanbieters (IdP).
-
-Folgende Parameter sind optional:
-
-saml-sp-client-signature:: Signatur des Serviceproviders (SP) aktivieren (client signing)?
+saml-sp-client-signature:: Signatur des Serviceproviders (SP) aktivieren (client signing / encrypted assertions)?
 saml-sp-x509-cert:: Das Zertifikat des Serviceproviders (SP) im Base64-Format.
 saml-sp-private-key:: Der private Schlüssel des Serviceproviders (SP) im Base64-Format.
 saml-role-group-mappings:: Zuordnung von SAML-Rollen zu opsi-Gruppen im Format `<role> = <group>`.
 
+Am einfachsten funktioniert die Konfiguration über das Kommando `opsiconfd setup --configure-saml`.
+Das Kommando führt Sie durch die Konfiguration und speichert die Einstellungen in der Datei `/etc/opsi/opsiconfd.conf`.
 
 ==== Microsoft Entra ID
 
@@ -263,14 +263,24 @@ Im Microsoft Entra Admin Center sind folgende Schritte durchzuführen:
 * Klicken Sie auf die neu angelegte App _opsi SAML_ um sie zu bearbeiten.
 * Wählen Sie dem Menü-Punkt _Einmaliges Anmelden_ (SSO) aus.
 * Wählen Sie _SAML_ aus.
-* Bearbeiten Sie die _Grundlegende SAML-Konfiguration_
-* Tragen Sie als _Entitäts-ID_ die ID Ihres opsi-Configservers (z.B. `opsi.company.com`) ein.
-* Unter _Antwort-URL_ tragen Sie die folgende URL Ihres opsi-Servers ein: `https://<adresse-configserver>:4447/auth/saml/callback/login`.
+* Kopieren Sie die URL, die bei `App Federation Metadata Url` angezeigt wird.
+* Öffnen Sie eine Konsole auf dem opsi-Configserver.
+* Führen Sie das Kommando `opsiconfd setup --configure-saml` aus.
+* Bei der Aufforderung _Enter SAML IdP XML metadata URL of filename:_ geben Sie die zuvor kopierte URL.
+* Es folgt die Ausgabe der opsiconfd Service-Provider-Metadaten.
+* Speichern Sie diese XML-Daten in einer Datei ab.
+* Klicken Sie auf _Upload metadata file_.
+* Laden Sie die zuvor gespeicherte Datei hoch.
+* Im folgenden Dialog muss die _Sign on URL_ noch manuell ausgefüllt werden. Kopieren Sie dazu den Wert aus _Reply URL_ und entfernen Sie das Suffix `/callback/login`.
+* Speichern Sie die SAML-Konfiguration.
+
+**Verification certificates**
+
+* Bearbeiten Sie nun die _Verification certificates_.
+* Setzen Sie das Häkchen bei _Require verification certificates_.
+* Speichern Sie den Wert zwischen den Tags _<ds:X509Certificate>_ und _</ds:X509Certificate>_ aus den XML-Daten von weiter oben in einer Datei mit der Endung `.crt`.
+* Importieren Sie diese Datei über den Button _Upload certificate_.
 * Speichern Sie die Konfiguration.
-* Laden Sie das SAML-Zertifikate im Base64-Format herunter und hinterlegen Sie es als `saml-idp-x509-cert` in der Konfiguration.
-* Tragen Sie den unter _Microsoft Entra-Bezeichner_ angezeigten Wert als `saml-idp-entity-id` in der Konfiguration ein.
-* Übernehmen Sie die _URL für Anmeldung_ als `saml-idp-sso-url` in die Konfiguration.
-* Optional: Tragen Sie die _Abmelde-URL_ als `saml-idp-slo-url` in die Konfiguration ein.
 
 ===== App-Rolle erstellen
 Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Service anzumelden.
@@ -297,44 +307,22 @@ Nachdem Sie alle Änderungen an der Konfigurationsdatei vorgenommen haben, start
 
 ==== Keycloak
 
-In der Keycloak Admin Console sind folgende Schritte durchzuführen:
+Melden Sie sich administrativ an der Keycloak Admin Console an.
+Navigieren Sie zu _Configure_ => _Realm Settings_.
+Unter _Endpoints_ finden Sie einen Link zu _SAML 2.0 Identity Provider Metadata_.
+Kopieren Sie diese URL.
 
-===== Realm Einstellungen übernehmen
-* Navigieren Sie zu _Einstellungen_ => Realm settings.
-* Klicken Sie auf den Link _SAML 2.0 Identity Provider Metadata_
-* Tragen Sie den unter _<EntityDescriptor entityID="_">_ angezeigten Wert als `saml-idp-entity-id` in der Konfiguration ein.
-* Kopieren Sie den unter _<X509Certificate>_ angezeigten Wert und hinterlegen Sie ihn als `saml-idp-x509-cert` in der Konfiguration.
-* Tragen Sie die unter _<SingleSignOnService Binding="HTTP-POST">_ angezeigte URL als `saml-idp-sso-url` in der Konfiguration ein.
-* Optional: Tragen Sie die unter _<SingleLogoutService Binding="HTTP-POST">_ angezeigte URL als `saml-idp-slo-url` in der Konfiguration ein.
+Öffnen Sie ein Terminal auf dem opsi-Configserver.
+Führen Sie das Kommando `opsiconfd setup --configure-saml` aus.
 
-===== Client anlegen
-* Navigieren Sie zu _Manage_ => _Clients_ und klicken Sie auf _Create Client_
-* Wählen Sie `SAML` als _Client type_ aus.
-* Tragen Sie unter _Client ID_ die ID Ihres opsi-Configservers (z.B. `opsi.company.com`) ein.
-* Speichern Sie den Client.
+Bei der Aufforderung _Enter SAML IdP XML metadata URL of filename:_ geben Sie die URL aus der Keycloak-Admin-Konsole ein.
 
-===== Client konfigurieren
-* Bearbeiten Sie den Client erneut indem Sie ihn unter _Client list_ anklicken.
-* Tragen Sie unter _Access settings_ => _Root URL_ die URL Ihres opsi-Servers ein: `https://<adresse-configserver>:4447.
-* Die gleiche URL tragen Sie unter _Home URL_ ein.
-* Unter _Valid redirect URIs_ fügen Sie die URL `https://<adresse-configserver>:4447/* hinzu.
-* Den gleichen Wert tragen Sie auch unter _Valid post logout redirect URIs_ ein.
+Es folgt die Ausgabe der opsiconfd Service-Provider-Metadaten.
+Speichern Sie diese XML-Daten in einer Datei ab.
 
-**Client signing**
-
-Der Client kann seine SAML-Kommunikation optional signieren, das erhöht die Sicherheit.
-Wenn Sie auf das Client-Signing verzichten möchten, deaktivieren Sie _Client signature required_ unter _Keys_ => _Signing keys config_.
-
-Wollen Sie das Client-Signing aktivieren, gehen Sie folgendermaßen vor:
-
-* Setzen Sie im opsiconfd-Service die Konfiguration `saml-sp-client-signature` auf `true`.
-* Starten Sie den opsiconfd-Service neu.
-* In der opsiconfd-Service-Konfiguration werden dann die Parameter `saml-sp-x509-cert` und `saml-sp-private-key` automatisch befüllt.
-* Kopieren Sie den Wert von `saml-sp-x509-cert` in eine Text-Datei und speichern Sie diese Datei ab.
-* Wechseln Sie in der Keycloak-Admin-Konsole in den Tab _Keys_.
-* Aktivieren Sie _Client signature required_ unter _Signing keys config_.
-* Klicken Sie auf Import key_ und wählen Sie zuvor gespeicherte Datei aus.
-* Das Zertifikat wird nun importiert und angezeigt.
+Navigieren Sie in der Keycloak-Admin-Konsole zu _Manage_ => _Clients_ und klicken Sie auf _Import Client_.
+Im folgenden Dialog importieren Sie als _Resource file_ die zuvor gespeicherte Datei.
+Klicken Sie auf _Save_ um die Client-Konfiguration zu speichern.
 
 ===== Rolle erstellen
 Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Service anzumelden.
