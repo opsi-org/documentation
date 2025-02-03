@@ -213,8 +213,135 @@ Die Einrichtung erfolgt über den Reiter _Users_ der xref:server:components/opsi
 Den angezeigten QR-Code können Sie dann mit einer App wie etwa *2FA Authenticator (2FAS)* (Android und iOS) scannen. Die App generiert daraufhin alle 30 Sekunden ein neues Einmalpasswort, das der Benutzer dann bei der Authentifizierung an das normale Kennwort anhängen muss.
 
 .Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.
-image::opsiconfd/opsiconfd-admin-users.png["Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.", width=800, pdfwidth=80%]
+image::server:opsiconfd/opsiconfd-admin-users.png["Auf dem Reiter _Users_ können Sie die Zwei-Faktor-Authentifizierung einrichten.", width=800, pdfwidth=80%]
 
 NOTE: Wenn Sie erneut auf den Button _Generate new secret and activate TOTP_ klicken, erzeugen Sie ein neues Secret. Der bisherige QR-Code des Benutzers verliert damit seine Gültigkeit.
 
 Um die Zwei-Faktor-Authentifizierung für einen Account zu deaktivieren, klicken Sie auf _Deactivate MFA_.
+
+
+[[server-components-authorization-saml]]
+== Autorisierung über SAML
+SAML 2.0 (Security Assertion Markup Language) ist ein offener Standard, der Domain-übergreifendes Single Sign-on (SSO) ermöglicht.
+Benutzer werden über einen Identitätsanbieter (IdP) authentifiziert und erhalten dadurch Zugriff auf Dienste von Serviceprovidern (SP).
+Der opsi-Service kann als Serviceprovider (SP) konfiguriert werden, um Benutzer über SAML zu authentifizieren.
+Hierbei werden als Identitätsanbieter (IdP) link:https://www.microsoft.com/de-de/security/business/identity-access/microsoft-entra-id[Microsoft Entra ID] und link:https://www.keycloak.org/[Keycloak] unterstützt.
+
+NOTE: Dieses Modul ist momentan eine xref:opsi-modules:sso.adoc#opsi-module-sso[kostenpflichtige Erweiterung].
+
+
+=== Konfiguration
+Die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration] erfolgt im opsiconfd-Service.
+Hierfür werden die folgenden Parameter verwendet:
+
+saml-idp-entity-id:: Die Entity-ID des Identitätsanbieters (IdP).
+saml-idp-x509-cert:: Das Zertifikat des Identitätsanbieters (IdP) im Base64-Format.
+saml-idp-sso-url:: Die URL des Single Sign-on (SSO) des Identitätsanbieters (IdP).
+saml-sp-client-signature:: Signatur des Serviceproviders (SP) aktivieren (client signing / encrypted assertions)?
+saml-sp-x509-cert:: Das Zertifikat des Serviceproviders (SP) im Base64-Format.
+saml-sp-private-key:: Der private Schlüssel des Serviceproviders (SP) im Base64-Format.
+saml-role-group-mappings:: Zuordnung von SAML-Rollen zu opsi-Gruppen im Format `<role> = <group>`.
+
+Am einfachsten funktioniert die Konfiguration über das Kommando `opsiconfd setup --configure-saml`.
+Das Kommando führt Sie durch die Konfiguration und speichert die Einstellungen in der Datei `/etc/opsi/opsiconfd.conf`.
+
+==== Microsoft Entra ID
+
+Im Microsoft Entra Admin Center sind folgende Schritte durchzuführen:
+
+===== Microsoft Entra SAML Toolkit App anlegen
+
+* Navigieren Sie zu _Identität_ => _Anwendungen_ => _Unternehmensanwendungen_ => _Alle Anwendungen_
+* Klicken Sie auf _Neue Anwendung_
+* Suchen Sie im Katalog nach `Microsoft Entra SAML Toolkit` und klicken Sie auf die angezeigte App.
+* Geben Sie einen Namen für die App ein, z.B. `opsi SAML`.
+* Klicken Sie auf _Anlegen_.
+* Die neu angelegte App wird nun unter _Alle Anwendungen_ angezeigt.
+
+===== Konfiguration der SAML-App
+
+* Klicken Sie auf die neu angelegte App _opsi SAML_ um sie zu bearbeiten.
+* Wählen Sie dem Menü-Punkt _Einmaliges Anmelden_ (SSO) aus.
+* Wählen Sie _SAML_ aus.
+* Kopieren Sie die URL, die bei `App Federation Metadata Url` angezeigt wird.
+* Öffnen Sie eine Konsole auf dem opsi-Configserver.
+* Führen Sie das Kommando `opsiconfd setup --configure-saml` aus.
+* Bei der Aufforderung _Enter SAML IdP XML metadata URL of filename:_ geben Sie die zuvor kopierte URL.
+* Es folgt die Ausgabe der opsiconfd Service-Provider-Metadaten.
+* Speichern Sie diese XML-Daten in einer Datei ab.
+* Klicken Sie auf _Upload metadata file_.
+* Laden Sie die zuvor gespeicherte Datei hoch.
+* Im folgenden Dialog muss die _Sign on URL_ noch manuell ausgefüllt werden. Kopieren Sie dazu den Wert aus _Reply URL_ und entfernen Sie das Suffix `/callback/login`.
+* Speichern Sie die SAML-Konfiguration.
+
+**Verification certificates**
+
+* Bearbeiten Sie nun die _Verification certificates_.
+* Setzen Sie das Häkchen bei _Require verification certificates_.
+* Speichern Sie den Wert zwischen den Tags _<ds:X509Certificate>_ und _</ds:X509Certificate>_ aus den XML-Daten von weiter oben in einer Datei mit der Endung `.crt`.
+* Importieren Sie diese Datei über den Button _Upload certificate_.
+* Speichern Sie die Konfiguration.
+
+===== App-Rolle erstellen
+Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Service anzumelden.
+
+* Navigieren Sie nun zu _Identität_ => _Anwendungen_ => _App-Registrierungen_ => _Alle Anwendungen_ => _opsi SAML_
+* Fügen Sie sich als Eigentümer unter _Verwaltung_ => _Eigentümer_ ein.
+* Wählen Sie _App-Rollen_ aus
+* Klicken Sie auf _App-Rolle erstellen_
+* Geben Sie `opsiadmin` als _Wert_ ein
+* Den _Anzeigenamen_ können Sie frei wählen (z.B. `opsiadmin`)
+* Setzen Sie das Häkchen bei _App-Rolle aktivieren_
+* Speichern Sie die App-Rolle mit einem Klick auf _Anwenden_
+
+===== Benutzer zuweisen
+Benutzer, die sich administrativ am opsi-Service anmelden sollen, müssen nun der App-Rolle `opsiadmin` zugewiesen werden.
+
+* Navigieren Sie dafür wieder zu _Identität_ => _Anwendungen_ => _Unternehmensanwendungen_ => _Alle Anwendungen_
+* Wählen Sie wieder die App _opsi SAML_ aus.
+* Klicken Sie auf _Benutzer und Gruppen_ => _Benutzer/Gruppe hinzufügen_
+* Wählen Sie nun einen Benutzer oder eine Gruppe aus und weisen Sie ihm/ihr die Rolle `opsiadmin` zu.
+
+===== Änderungen übernehmen
+Nachdem Sie alle Änderungen an der Konfigurationsdatei vorgenommen haben, starten Sie den Dienst xref:server:components/opsiconfd.adoc[*opsiconfd*] neu.
+
+==== Keycloak
+
+Melden Sie sich administrativ an der Keycloak Admin Console an.
+Navigieren Sie zu _Configure_ => _Realm Settings_.
+Unter _Endpoints_ finden Sie einen Link zu _SAML 2.0 Identity Provider Metadata_.
+Kopieren Sie diese URL.
+
+Öffnen Sie ein Terminal auf dem opsi-Configserver.
+Führen Sie das Kommando `opsiconfd setup --configure-saml` aus.
+
+Bei der Aufforderung _Enter SAML IdP XML metadata URL of filename:_ geben Sie die URL aus der Keycloak-Admin-Konsole ein.
+
+Es folgt die Ausgabe der opsiconfd Service-Provider-Metadaten.
+Speichern Sie diese XML-Daten in einer Datei ab.
+
+Navigieren Sie in der Keycloak-Admin-Konsole zu _Manage_ => _Clients_ und klicken Sie auf _Import Client_.
+Im folgenden Dialog importieren Sie als _Resource file_ die zuvor gespeicherte Datei.
+Klicken Sie auf _Save_ um die Client-Konfiguration zu speichern.
+
+===== Rolle erstellen
+Die App-Rolle `opsiadmin` wird benötigt, um Benutzer administrativ am opsi-Service anzumelden.
+
+* Legen Sie eine neue Rolle `opsiadmin` an. Sie können diese Rolle global im Realm _Manage_ => _Realm roles_ anlegen oder spezifisch für den Client unter _Roles_.
+* Sie können die Rolle jetzt einzelnen Benutzern oder Gruppen zuweisen.
+
+===== Änderungen übernehmen
+Nachdem Sie alle Änderungen an der Konfigurationsdatei vorgenommen haben, starten Sie den Dienst xref:server:components/opsiconfd.adoc[*opsiconfd*] neu.
+
+
+==== Zuordnung von SAML-Rollen zu opsi-Gruppen
+Im Standardfall werden die vom IdP übermittelten Rollen eins zu eins den opsi-Gruppen zugeordnet.
+Sie können jedoch auch eine individuelle Zuordnung von SAML-Rollen zu opsi-Gruppen vornehmen.
+Die Zuordnung erfolgt über den Parameter `saml-role-group-mappings` in der Konfiguration.
+Die Zuordnung erfolgt im Format `<role> = <group>`, wobei `<role>` die Rolle des IdP und `<group>` die opsi-Gruppe ist.
+Ein Beispiel:
+
+[source,toml]
+----
+saml-role-group-mappings = ["CN=it-1271,OU=groups,O=acme,C=corp = opsiadmin", "CN=it-1341,OU=groups,O=acme,C=corp = opsiadmin"]
+----

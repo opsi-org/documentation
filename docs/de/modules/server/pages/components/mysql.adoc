@@ -46,4 +46,30 @@ Danach erstellt das Werkzeug die opsi-Datenbank auf dem MySQL-Server und einen B
 Alternativ bearbeiten Sie die MySQL-Konfiguration in der Datei `/etc/opsi/backends/mysql.conf` mit einem Texteditor. Nach dem Speichern Ihrer Änderungen führen Sie das Kommando `sudo opsiconfd setup` aus, um die opsi-Datenbank auf dem MySQL-Server zu erstellen bzw. zu aktualisieren.
 
 .Die MySQL-Konfiguration können Sie auch mit einem Texteditor bearbeiten.
-image::opsi-backends-mysql.png["Die MySQL-Konfiguration können Sie auch mit einem Texteditor bearbeiten.", pdfwidth=80%, width=800]
+image::server:opsi-backends-mysql.png["Die MySQL-Konfiguration können Sie auch mit einem Texteditor bearbeiten.", pdfwidth=80%, width=800]
+
+In den meisten opsi-Umgebungen werden keine weiteren Anpassungen an der MySQL-Konfiguration benötigt.
+In großen Umgebungen, mit einer hohen Last auf dem opsi-Server, kann es jedoch sinnvoll sein, die MySQL-Konfiguration zu optimieren.
+Hierbei sind insbesondere die Einstellungen für die Verbindungspool wichtig.
+Folgende Parameter können in der MySQL-Konfiguration angepasst werden:
+
+`connectionPoolSize`:: Anzahl der Verbindungen zur MySQL-Datenbank, die permanent offen gehalten werden.
+`connectionPoolMaxOverflow`:: Anzahl der zusätzlichen Verbindungen, die bei Bedarf geöffnet werden. Diese zusätzlichen Verbindungen werden wieder geschlossen wenn sie nicht mehr benötigt werden.
+
+Die Verbindungspool-Einstellungen gelten pro opsiconfd-Worker-Prozess.
+Die maximale Gesamtzahl der Verbindungen zur MySQL-Datenbank ergibt sich hiermit aus:
+(`connectionPoolSize` + `connectionPoolMaxOverflow`) * `workers`.
+
+Die Anzahl der möglichen Verbindungen limitiert die Anzahl der gleichzeitigen Anfragen an die MySQL-Datenbank.
+
+Ist dieser Wert zu niedrig eingestellt, kann es zu langen Wartezeiten für die Clients kommen, was zu Timeouts und Fehlern auf der Client-Seite führen kann.
+
+Ist der Wert zu hoch eingestellt, kann es zu einer hohen Last auf dem MySQL-Server kommen.
+Ist diese Last zu hoch, brauchen die einzelnen Abfragen sehr lange, was wiederum dazu führen kann, dass auf Client-Seite Fehler auftreten und zusätzlich auch keine neuen Verbindungen zum opsiconfd-Server aufgebaut werden können.
+
+Die optimale Einstellung hängt von der Anzahl der Clients, der Anzahl der gleichzeitigen Client-Verbindungen und der Leistungsfähigkeit des MySQL-Servers ab.
+Eine Übersicht über die aktuellen Verbindungen zur MySQL-Datenbank erhalten Sie mit dem Befehl:
+[source,console]
+----
+mysql -u root -p -e "show processlist;"
+----
