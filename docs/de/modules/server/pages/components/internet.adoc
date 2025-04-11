@@ -1,0 +1,183 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      27.03.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+= Anbindung von opsi-Clients über das Internet
+
+Ein opsi-Server stellt zwei Hauptfunktionalitäten bereit:
+
+* Einen Service, der zur Steuerung der opsi-Umgebung dient (API / opsi-Config-Service)
+* Bereitstellung von Produkt- bzw. Installations-Dateien für die Clients (opsi-Depot)
+
+Wird der opsi-Server in einem LAN betrieben und alle Clients greifen über das LAN auf den opsi-Server zu,
+können die Clients in der Regel direkt auf den Config-Service und das opsi-Depot zugreifen.
+Als Protokoll für den Zugriff auf die Dateien im opsi-Depot kommt hierbei in der Regel CIFS zum Einsatz.
+Die Clients können die Depot-Freigabe als Netzlaufwerk einbinden und die Dateien über das Netzwerk lesen.
+
+Werden Clients über andere Netzwerkverbindungen angebunden (WLAN / WAN / VPN), sind einige Dinge zu beachten.
+Diese Themen werden im Folgenden behandelt.
+
+== Zugriff auf das opsi-Depot
+Beim Zugriff auf ein opsi-Depot über andere Verbindungen als LAN-Verbindungen, sollten folgende Punkte betrachtet werden:
+
+Weist die Verbindung eine niedrige Bandbreite oder eine hohe Latenz auf, ist ein direkter Zugriff auf die Dateien im Depot nicht ratsam.
+Die Dauer der Software-Installationen erhöht sich in diesem Fall oft sehr stark.
+Außerdem sind die Verbindungen weniger zuverlässig als LAN-Verbindungen.
+Es kommt eher zu Paketverlusten und kurzzeitigen oder längerfristigen Störungen.
+
+Um diesen Problemen entgegenzuwirken kann das SmartCache WAN-Modul (ehemals WAN/VPN-Modul) verwendet werden.
+Das SmartCache WAN-Modul sorgt dafür, dass die Installationsdateien lokal auf dem Client im Hintergrund zwischengespeichert werden.
+Das Zwischenspeichern der Produktdateien auf dem Client bietet zahlreiche Vorteile:
+
+* Schnellere Softwareinstallationen: Die Installationsdateien werden im Hintergrund übertragen. Die Installationen starten erst nach Abschluss der Übertragung. Da die Installationsdateien dann lokal vorliegen, erfolgt der Zugriff wesentlich schneller. Dies ist insbesondere für Clients mit geringer Bandbreite von Vorteil, z. B. im Homeoffice oder in Außenstellen.
+* Steuerbare Netzwerklast und Flexibilität: Die Dateiübertragung zum Client kann mit begrenzter Bandbreite erfolgen, um Netzüberlastungen zu vermeiden. Dabei können verschiedene Protokolle genutzt werden, unabhängig von der nativen Betriebssystemunterstützung.
+* Effiziente Updates: Bereits vorhandene Dateien aus früheren Versionen können wiederverwendet werden, wodurch erneute Downloads vermieden werden.
+* Robuste Installationen: Die Softwareinstallation erfolgt ausschließlich über lokal gespeicherte Installationsdateien. Dies gewährleistet, dass begonnene Installation auch bei Netzwerkstörungen oder Ausfällen der Dateidienste beendet werden können.
+* Bessere Vertrauenswürdigkeit:  Betriebssysteme und Sicherheitssoftware, wie Virenscanner, vertrauen lokalen Dateien eher als Dateien von Netzwerkfreigaben. Dadurch werden Zugriffsprobleme vermieden.
+
+Bei einem Zugriff über ein öffentliches Netz kommen weitere Sicherheits-bezogene Themen hinzu.
+Das Protokoll, das für die Übertragung der Depot-Dateien verwendet wird, sollte eine starke Verschlüsselung bieten.
+Zusätzlich muss unbedingt eine Verifizierung des Servers erfolgen.
+Auch hinsichtlich der Authentifizierung sollten hier hohe Standards eingehalten werden.
+
+Folgende Maßnahmen sollten umgesetzt werden:
+
+* Verwendung von WebDAV: Durch die Verwendung von WebDAV über HTTPS wird eine starke Verschlüsselung und die Verifizierung der Server-Identität sichergestellt.
+* Durch Aktivierung der Zertifikats-basierten Client-Verifizierung lässt sich die Sicherheit deutlich erhöhen.
+Da der Windows-WebDAV-Client Client-Zertifikate nicht unterstützt, muss hierfür SmartCache WAN verwendet werden.
+
+TIP: Nach dem Prinzip der Zero-Trust-Sicherheit, sollten Sicherheits-Maßnahmen auch in privaten Netzen umgesetzt werden.
+
+== Zugriff auf den opsi-Service
+Da bei der Kommunikation mit dem opsi-Service in der Regel nur wenig Daten übertragen werden, sind die Themen Bandbreite und Latenz hier nicht so entscheidend.
+Beim Zugriff über ein öffentliches Netz, sollten jedoch hohe Sicherheits-Standards umgesetzt werden.
+
+Am wichtigsten hierbei ist eine durchgängige Multi-Faktor-Authentifizierung bzw. Single Sign On.
+Im xref:security:selinux.adoc[Security-Kapitel] finden Sie weitere Informationen und Empfehlungen.
+
+TIP: Auch in privaten Netzwerken sollten diese Maßnahmen, dem Prinzip der Zero-Trust-Sicherheit folgend, umgesetzt werden.
+
+=== opsi-Service öffentlich verfügbar machen
+Im folgenden werden unterschiedliche Methoden vorgestellt, wie der opsi-Service über das Internet verfügbar gemacht werden kann.
+Dabei wird davon ausgegangen, dass für den opsi-Service der Standard-Port 4447 verwendet wird.
+Prinzipiell kann jedoch jeder Port verwendet werden.
+
+Es ist sinnvoll einen öffentlichen DNS-Eintrag zu verwenden, um flexibler auf den opsi-Service zugreifen zu können.
+Im folgenden wird davon ausgegangen, dass ein entsprechender DNS-Eintrag `opsi.example.com`, der auf eine öffentliche IP-Adresse Ihres Routers/Firewall zeigt. Es kann sinnvoll sein den gleichen Namen wie im internen Netz zu verwenden, der lediglich auf eine andere IP-Adresse zeigt.
+
+Wird die opsi CA zur Erstellung des Server-Zertifikats verwendet muss der DNS-Name in den Subject Alternative Names (SAN) des Zertifikats eingetragen werden. Handelt es sich dabei um einen zusätzlichen Namen handelt, tragen Sie diesen in die opsiconfd-Konfiguration ein.
+Zum Beispiel:
+
+[source,ini]
+----
+ssl-server-cert-sans = [opsi.example.com]
+----
+
+
+==== Port-Forwarding
+Port-Forwarding leitet eingehenden Datenverkehr von einem externen Port an einen bestimmten internen Port weiter.
+Der Vorteil von Port-Forwarding ist der geringe Overhead und die einfache Konfiguration, jedoch bietet es nur eingeschränkte Kontrolle über die Anfragen.
+
+* Konfigurieren Sie Ihren Router/Firewall, um eingehenden Datenverkehr von Port 4447 an den internen opsi-Server mit Port 4447 weiterzuleiten.
+
+
+==== Reverse-Proxy
+Ein Reverse-Proxy nimmt die Anfragen aus dem Internet entgegen und leitet sie an den internen opsi-Service weiter.
+Der Vorteil eines Reverse-Proxys ist die erweiterte Kontrolle über Anfragen und Antworten, die Konfiguration ist jedoch komplexer.
+
+* Richten Sie den Reverse-Proxy so ein, dass er eingehenden Datenverkehr auf der Domain `opsi.example.com` an den opsi-Server weiterleitet.
+* Hierbei muss auch Websocket-Verkehr berücksichtigt werden.
+* Stellen Sie sicher, dass der Reverse-Proxy den HTTP-Header `X-Forwarded-For` korrekt setzt, um die IP-Adresse des Clients an den opsi-Server zu übermitteln.
+* Hinterlegen Sie die IP-Adresse des Reverse-Proxys in der opsiconfd-Konfiguration unter `trusted-proxies`. Nur dann wertet der opsi-Service den `X-Forwarded-For`-Header aus.
+* Verwenden Sie auf dem Reverse Proxy ein gültiges SSL-Zertifikat. In der Regel kann hier das gleiche Zertifikat wie für den opsi-Service verwendet werden.
+* Sorgen Sie dafür, dass das Zertifikat regelmäßig erneuert wird.
+
+===== NGINX
+Beispiel-Konfiguration für NGINX:
+
+[source]
+----
+server {
+	listen 4447;
+	server_name opsi.example.com;
+
+	ssl on;
+	ssl_certificate /path/to/opsiconfd-cert.pem;
+	ssl_certificate_key /path/to/opsiconfd-key.pem;
+
+	location / {
+		proxy_pass https://<interne-adresse-opsi-server>:4447;
+		proxy_http_version 1.1;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+	}
+}
+----
+
+===== Apache
+Beispiel-Konfiguration für Apache:
+
+[source]
+----
+<VirtualHost *:4447>
+	ServerName opsi.example.com
+
+	SSLEngine On
+	SSLCertificateFile /path/to/opsiconfd-cert.pem
+	SSLCertificateKeyFile /path/to/opsiconfd-key.pem
+
+	SSLProxyEngine on
+
+	ProxyPass /messagebus wss://<interne-adresse-opsi-server>:4447/messagebus
+	ProxyPassReverse /messagebus wss://<interne-adresse-opsi-server>:4447/messagebus
+
+	ProxyPass / https://<interne-adresse-opsi-server>:4447/
+	ProxyPassReverse / https://<interne-adresse-opsi-server>:4447/
+</VirtualHost>
+----
+
+==== IPv6-basierte Lösung
+Mit IPv6 können Sie den opsi-Service direkt über das Internet verfügbar machen.
+
+* Weisen Sie dem opsi-Server eine öffentliche IPv6-Adresse.
+* Konfigurieren Sie die Firewall so, dass eingehender Verkehr auf Port 4447 für diese Adresse zugelassen wird.
+* Stellen Sie sicher, dass der öffentliche DNS-Server einen AAAA-Eintrag für den opsi-Service hat.
+
+
+=== Verwendung von VPN-Verbindungen
+Der Zugriff auf den opsi-Server kann auch über VPN-Verbindungen erfolgen.
+Softwareinstallationen finden bei opsi in der Regel vor einer Benutzeranmeldung statt, um Konflikte zwischen Update und Verwendung einer Software zu vermeiden.
+Daher ist es wichtig, dass die VPN-Verbindung bereits vor der Benutzeranmeldung aufgebaut wird.
+
+Das wird von vielen VPN-Software-Lösungen unterstützt.
+Auch die Open Source Lösungen Wireguard und OpenVPN bieten diese Funktionalität.
+
+==== Wireguard
+link:https://www.wireguard.com/[Wireguard] ist ein modernes VPN-Protokoll, das eine hohe Sicherheit und eine gute Performance bietet.
+Wireguard ist Open Source Software und steht für alle gängigen Betriebssysteme zur Verfügung.
+Wireguard ermöglicht link:https://www.windowspro.de/thomas-joos/wireguard-vpn-beim-start-windows-automatisch-verbinden[einen Aufbau der VPN-Verbindung bereits vor der Benutzeranmeldung].
+
+==== OpenVPN
+link:https://openvpn.net/[OpenVPN] ist ein weiteres VPN-Protokoll, das für den Einsatz mit opsi geeignet ist.
+OpenVPN ist ebenfalls Open Source Software und steht für alle gängigen Betriebssysteme zur Verfügung.
+Auch OpenVPN ermöglicht den link:https://support.openvpn.com/hc/en-us/articles/25415580917019-Access-Server-Configure-Start-Before-Logon-SBL-Pre-Logon-Access-Provider-PLAP-using-OpenVPN-GUI[Aufbau der VPN-Verbindung bereits vor der Benutzeranmeldung].
