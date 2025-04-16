@@ -1,0 +1,79 @@
+////
+; Copyright (c) uib GmbH (www.uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      23.09.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+[[rename-clients]]
+= Rename Clients
+
+When renaming clients, the question arises as to where the change should apply. Do you only want to change the name in the opsi backend, or does the change also affect the directory service (such as Active Directory or LDAP) and the name on the client itself? You basically have two options for making this adjustment: fully automatically with the localboot product `opsi-rename-client` or step by step.
+
+== The localboot product `opsi-rename-client`
+
+//Add link when chapter is written
+With this product, you can rename clients at different levels (operating system, opsi, domain) and according to individual rules. Detailed instructions on the various options can be found *here* in the manual. You can also rename larger groups of clients quickly and easily according to specific naming patterns.
+
+== Step by step 
+
+The next sections describe how to rename clients and customize the configuration - whether via `opsi-configed`, the WebGUI or directly via the API and configuration file of the client agent.
+
+=== Change client ID in database
+
+You can use one of the graphical interfaces (`opsi-configed` or WebGUI) to rename a client:
+
+* In `opsi-configed`, select the desired client and open the _Rename client_ entry from the _Client_ menu.
+* In the WebGUI, you can find the function via the _Clients_ section: Select a client in the table and open the _Rename_ entry from the _Actions_ menu. (Alternatively, you can also find the function in the context menu of the right mouse button).
+
+WARNING: Clients authenticate to the server with their FQDN and the opsi host key; the FQDN is the primary key in the database backend. However, the FQDN no longer matches the one in the database after the renaming, and the client will still log in with its old name, so further adjustments are necessary.
+
+=== `opsiconfd`-Customize configuration
+
+The `opsiconfd` (see chapter xref:server:components/opsiconfd.adoc[The *opsiconfd* service]) offers an option that deactivates the client ID check. Clients then only authenticate themselves with their host key. You can set the option in the configuration file, via an environment variable or via command line parameters:
+
+* `/etc/opsi/opsiconfd.conf`: Set `allow-host-key-only-auth = true`.
+* Environment variable: `export ALLOW_HOST_KEY_ONLY_AUTH=true`.
+* Command line parameter: `--allow-host-key-only-auth=true`.
+
+Reload the configuration after the change:
+
+[source,console]
+----
+opsiconfd reload
+----
+
+The opsi server then also accepts client requests with an unknown host ID. If a client is only identified by its host key, the system automatically adjusts its name in the `opsiclientd.conf` file. In future, the client then logs in under its new name.
+
+NOTE: As soon as all clients have registered once and the client agent has updated the information, you can deactivate the `opsiconfd` option again.
+
+TIP: If you only want to rename one or a few clients, you can make the adjustment directly in the respective `opsiclientd.conf` file. Make sure that your text editor supports UTF-8 encoding.
+
+[source,toml]
+----
+[global]
+# Client id.
+host_id = new_clientname.xyz.local
+----
+
+You can find the setup file here:
+
+* Windows: `C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf`
+* Linux: `/etc/opsi-client-agent/opsiclientd.conf`
+* macOS: `/private/etc/opsi-client-agent/opsiclientd.conf`
