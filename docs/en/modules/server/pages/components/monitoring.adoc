@@ -27,7 +27,9 @@ The health check can produce the following outputs:
 
 - cli (default) Output customized for the command line.
 - json: Output in JSON format.
-- checkmk: Output so that it can be processed by Check_MK.
+- checkmk: Output so that it can be processed by Checkmk.
+- zabbix: Output so that it can be processed by Zabbix.
+- nagios: Output so that it can be processed by Nagios.
 
 The output formats can be controlled via the `--format` parameter.
 
@@ -59,15 +61,15 @@ The parameter `clear_cache` can also be passed to the API method `service_health
 The health check can be integrated into a monitoring system to enable continuous monitoring of system health and performance. The health check can be called up regularly via the monitoring system. The results can be evaluated for various purposes, such as alarms, logs or for the automation of maintenance processes.
 
 [server-components-opsiconfd-checkmk]]
-=== CheckMK
+=== Checkmk
 
-To use the results of the health check in CheckMK, one or more “local checks” are set up.
-CheckMK is a flexible and expandable monitoring tool that has been specially developed for monitoring IT infrastructures.
+To use the results of the health check in Checkmk, one or more “local checks” are set up.
+Checkmk is a flexible and expandable monitoring tool that has been specially developed for monitoring IT infrastructures.
 By integrating health check data, administrators can ensure that systems are always in optimum condition and that any problems are detected at an early stage.
 
-The opsiconfd comes with a template shell script that converts the output of the health check into the CheckMK format.
+The opsiconfd comes with a template shell script that converts the output of the health check into the Checkmk format.
 This script is contained in the opsi_checkmk file, which can be found under /usr/share/opsiconfd.
-The file can be integrated into CheckMK as a "local check" in order to regularly collect and evaluate the health check data.
+The file can be integrated into Checkmk as a "local check" in order to regularly collect and evaluate the health check data.
 
 For integration, copy the script to /usr/lib/check_mk_agent/local/<cache-time>, where <cache-time> stands for the cache interval at which the results are updated.
 After copying, the script must be made executable in order to work correctly.
@@ -82,10 +84,34 @@ chmod +x /usr/lib/check_mk_agent/local/7200/opsi_check
 ----
 
 In this case, the check results are updated every 7200 seconds (2 hours).
-The documentation for the CheckMK local checks can be found here: https://docs.checkmk.com/latest/de/localchecks.html
+The documentation for the Checkmk local checks can be found here: https://docs.checkmk.com/latest/de/localchecks.html
 
 With the parameters `--checks` or `--skip-checks` the checks can be customized in the opsi-check script (see section xref:server:components/monitoring.adoc#server-components-opsiconfd-health-check[Health-Check]).
 
+
+[[server-components-opsiconfd-zabbix]]
+=== Zabbix
+
+To integrate the results of the health check into Zabbix, so-called "UserParameters" can be used.
+The opsiconfd provides the shell script `/usr/share/opsiconfd/opsi_zabbix` for this purpose, which simplifies the integration.
+
+Here is an example of a UserParameter that executes the Redis check:
+
+[source,ini]
+----
+UserParameter=opsi.redis,/usr/share/opsiconfd/opsi_zabbix redis
+----
+
+To find out which checks are available, use the command `opsiconfd health-check --list --detailed`.
+Detailed information about a specific check can be obtained with `opsiconfd health-check --docs --checks <check-id>`.
+
+In the Zabbix configuration, you then create an item of type `Text` that uses this UserParameter.
+Select `Zabbix Agent` as the type and use the name of the UserParameter as the key, in this case `opsi.redis`.
+The update interval can be chosen flexibly, for example 60 seconds, since the results of the health check are cached by **opsiconfd** in Redis and thus do not cause high system load.
+Set the timeout for the item to 10 seconds.
+
+For alerting, set up triggers that evaluate the text of the item.
+You should check whether the result starts with `OK`, `WARNING`, or `CRITICAL` to correctly recognize the status.
 
 == Downtime
 

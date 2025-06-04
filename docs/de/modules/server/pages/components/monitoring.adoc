@@ -50,7 +50,9 @@ Der Health-Check kann folgende Ausgaben produzieren:
 
 - cli (default) Für die Kommandozeile angepasste Ausgabe.
 - json: Ausgabe im JSON-Format.
-- checkmk: Ausgabe, sodass sie von Check_MK verarbeitet werden kann.
+- checkmk: Ausgabe, sodass sie von Checkmk verarbeitet werden kann.
+- zabbix: Ausgabe, sodass sie von Zabbix verarbeitet werden kann.
+- nagios: Ausgabe, sodass sie von Nagios verarbeitet werden kann.
 
 Die Ausgabeformate können über den Parameter `--format` gesteuert werden.
 
@@ -83,15 +85,15 @@ Auch der API Methode `service_healthCheck` kann der Parameter `clear_cache` übe
 Der Health-Check kann in ein Monitoring-System integriert werden, um eine kontinuierliche Überwachung der Systemgesundheit und -leistung zu ermöglichen. Dabei lässt sich der Health-Check über das Monitoring-System regelmäßig aufrufen. Die Resultate können für verschiedene Zwecke ausgewertet werden, etwa für Alarme, Protokolle oder für die Automatisierung von Wartungsprozessen.
 
 [[server-components-opsiconfd-checkmk]]
-=== CheckMK
+=== Checkmk
 
-Um die Ergebnisse des Health-Checks in CheckMK zu nutzen, wird einer oder mehrere "local checks" eingerichtet.
-CheckMK ist ein flexibles und erweiterbares Monitoring-Tool, das speziell für die Überwachung von IT-Infrastrukturen entwickelt wurde.
+Um die Ergebnisse des Health-Checks in Checkmk zu nutzen, werden ein oder mehrere "local checks" eingerichtet.
+Checkmk ist ein flexibles und erweiterbares Monitoring-Tool, das speziell für die Überwachung von IT-Infrastrukturen entwickelt wurde.
 Durch die Integration von Health-Check-Daten können Administratoren sicherstellen, dass die Systeme stets im optimalen Zustand sind und eventuelle Probleme frühzeitig erkannt werden.
 
-Der opsiconfd bringt ein Template Shell-Skript mit, das die Ausgabe des Health-Checks in das CheckMK-Format umwandelt.
+Der opsiconfd bringt ein Template Shell-Skript mit, das die Ausgabe des Health-Checks in das Checkmk-Format umwandelt.
 Dieses Skript ist in der Datei opsi_checkmk enthalten, die unter /usr/share/opsiconfd zu finden ist.
-Die Datei kann als "local check" in CheckMK eingebunden werden, um die Health-Check-Daten regelmäßig zu erheben und auszuwerten.
+Die Datei kann als "local check" in Checkmk eingebunden werden, um die Health-Check-Daten regelmäßig zu erheben und auszuwerten.
 
 Für die Integration kopiert man das Skript nach /usr/lib/check_mk_agent/local/<cache-time>, wobei <cache-time> für das Cache-Intervall steht, in dem die Ergebnisse aktualisiert werden.
 Nach dem Kopieren muss das Skript ausführbar gemacht werden, um korrekt zu arbeiten.
@@ -104,11 +106,36 @@ cp /usr/share/opsiconfd/opsi_checkmk /usr/lib/check_mk_agent/local/7200/opsi_che
 chmod +x /usr/lib/check_mk_agent/local/7200/opsi_check
 ----
 
-In diesem Beispiel wird der Health-Check alle 7200 Sekunden (2 Stunden) durch den CheckMK-Dienst aufgerufen. Die Zeitspanne kann je nach Bedarf angepasst werden, um eine feinere oder gröbere Granularität bei der Datensammlung zu erreichen.
+In diesem Beispiel wird der Health-Check alle 7200 Sekunden (2 Stunden) durch den Checkmk-Dienst aufgerufen. Die Zeitspanne kann je nach Bedarf angepasst werden, um eine feinere oder gröbere Granularität bei der Datensammlung zu erreichen.
 
-Für eine detaillierte Beschreibung der CheckMK local checks und ihrer Konfiguration können Sie die offizielle CheckMK-Dokumentation hier einsehen: https://docs.checkmk.com/latest/de/localchecks.html.
+Für eine detaillierte Beschreibung der Checkmk local checks und ihrer Konfiguration können Sie die offizielle Checkmk-Dokumentation hier einsehen: https://docs.checkmk.com/latest/de/localchecks.html.
 
 Mit den Parametern --checks oder --skip-checks kann das Verhalten des Health-Checks weiter angepasst werden. Beispielsweise können bestimmte Checks aktiviert oder deaktiviert werden, um maßgeschneiderte Überwachungsstrategien zu realisieren (siehe Abschnitt xref:server:components/monitoring.adoc#server-components-opsiconfd-health-check[Health-Check]).
+
+
+[[server-components-opsiconfd-zabbix]]
+=== Zabbix
+
+Um die Ergebnisse des Health-Checks in Zabbix zu integrieren, können sogenannte "UserParameter" verwendet werden.
+Der opsiconfd stellt dafür das Shell-Skript `/usr/share/opsiconfd/opsi_zabbix` bereit, das die Einbindung vereinfacht.
+
+Ein Beispiel für einen UserParameter, der den Redis-Check ausführt:
+
+[source,ini]
+----
+UserParameter=opsi.redis,/usr/share/opsiconfd/opsi_zabbix redis
+----
+
+Um herauszufinden, welche Checks verfügbar sind, verwenden Sie den Befehl `opsiconfd health-check --list --detailed`.
+Detaillierte Informationen zu einem bestimmten Check erhalten Sie mit `opsiconfd health-check --docs --checks <check-id>`.
+
+In der Zabbix-Konfiguration legen Sie anschließend ein Item vom Typ `Text` an, das diesen UserParameter verwendet.
+Wählen Sie als Typ `Zabbix Agent` und als Schlüssel den Namen des UserParameters, hier also `opsi.redis`.
+Der Aktualisierungsintervall kann flexibel gewählt werden, zum Beispiel 60 Sekunden, da die Ergebnisse des Health-Checks von **opsiconfd** in Redis zwischengespeichert werden und somit keine hohe Systemlast entsteht.
+Setzen Sie den Timeout für das Item auf 10 Sekunden.
+
+Für die Alarmierung richten Sie Trigger ein, die den Text des Items auswerten.
+Dabei sollte geprüft werden, ob das Ergebnis mit `OK`, `WARNING` oder `CRITICAL` beginnt, um den Status korrekt zu erkennen.
 
 == Downtime
 
