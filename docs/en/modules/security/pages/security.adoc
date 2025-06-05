@@ -14,9 +14,9 @@
 
 :Author:    uib gmbh
 :Email:     info@uib.de
-:Date:      11.01.2021
-:doctype: book
-
+:Date:      05.06.2025
+:Revision:  4.2
+:toclevels: 6
 
 
 [[opsi-manual-security]]
@@ -25,100 +25,73 @@
 [[opsi-manual-security-introduction]]
 == Introduction
 
-opsi is a powerful tool for the administration of many clients.
+opsi is a powerful tool for managing many clients.
+As such, the security of the 'opsi-Server' is critical.
+If you control the 'opsi-Server', you control all connected clients.
 
-According to that fact, the 'opsi-Server' has to be in the focus of security considerations.
+The level of security hardening required depends on your environment and needs.
+For example, an 'opsi-Server' in the cloud is exposed to more risks than one in a secured internal network.
 
-If you control the 'opsi-Server', you are in control of all the clients, that are connecting to that 'opsi-Server'.
+This chapter summarizes key security considerations and recommendations.
 
-How much time and money you should spend for hardening your 'opsi-Server', depends on your needs regarding security and the operational environment for using opsi. So for example an 'opsi-Server' in the 'cloud' is more endangered than an 'opsi-Server' in a secured network.
-
-In the following chapter we have collected the most important issues and problems.
-
-At this point we say 'thank you' to all customers and users which informed us about security problems and helped us to improve the security of the opsi system. If you find any security problem, please inform us (info@uib.de) before disclosing the security vulnerability in public.
+We thank all customers and users who have reported security issues and helped improve opsi security.
+If you discover a security problem, please contact us at info@uib.de before making it public.
 
 [[opsi-manual-security-staytuned]]
-== Stay tuned
+== Stay informed
 
-Information about security relevant updates and tasks are published at +
-the news area at the opsi forum: +
-https://forum.opsi.org/viewforum.php?f=10
+Security-related updates and information can be found in the https://forum.opsi.org/viewforum.php?f=10[news section of the opsi forum] as well as on the https://opsi.org/en/product/releases[opsi website].
 
+For automated processing, a JSON format is available at https://changelog.opsi.org/Releases/releases.json.
+
+Subscribe to the https://opsi.org/en/community/newsletter[opsi-Announce newsletter] to receive current security update notifications directly.
 
 [[opsi-manual-security-server]]
 == General server security
 
-The opsi software cannot be more secure than the underlying operating system. So please make sure to update your server with the security updates of your Linux distribution. This has to be done not only for the opsi config server, but also for all the opsi depot server.
+The security of opsi largely depends on securing the underlying operating system.
+Ensure that your server regularly receives all security-relevant updates from your Linux distribution—this applies to both the opsi config server and all depot servers.
 
-It may help you to install programs which inform you by email if there are new updates available.
+You can also keep these systems up to date automatically, for example using opsi.
 
-Debian, Ubuntu:: apticron
-
-RHEL, CentOS::  yum-updatesd
-
-There are a lot of possibilities to enhance the security of your Linux server. But this is not the task of this manual.
-
-We would be happy to help you with this task as part of a support contract.
+Further measures for hardening your Linux server are beyond the scope of this manual.
+If needed, we are happy to support you as part of a support contract.
 
 [[opsi-manual-security-client2server]]
 == Client authentication at the server
-The client authenticates itself using the FQDN as username and the 'opsi-host-key' as password.
 
-The 'opsi-host-key' is stored at the client in the file: +
-`%programfiles%\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf` +
-which is readable with administrative privileges only. +
-The 'opsi-host-key' is stored at the server in the backend.
+Clients authenticate to the server using their **opsi-host-key**.
+This key is a 32-character secret hexadecimal value that is uniquely assigned to each client.
+It is stored on the client in the `opsiclientd.conf` file and is only readable with administrative privileges.
 
-In addition to this authentication, you may tell the 'opsiconfd' to check if the client ip address matches the given FQDN. To activate this check, set in `/etc/opsi/opsiconfd.conf`:
-
-[source,configfile]
-----
-verify ip = true
-----
-
-and restart 'opsiconfd':
-
-[source,shell]
-----
-systemctl restart opsiconfd.service
-----
-
-WARNING: Do not use this feature if you are not really sure, that your name resolution works properly in both directions for all clients.
-
-
-[[opsi-manual-security-server2client]]
+[[opsi-manual-security-tls]]
 == Verification of the server identity
 
-Make sure that all opsi components check the server identity.
-You can find details on this under xref:server:components/tls.adoc[SSL/TLS & certificates].
-
+To ensure secure communication, all opsi components should verify the server's identity using SSL/TLS certificates.
+You can further enhance security by restricting the opsi CA to issue certificates only for specific domains using X.509 Name Constraints.
+Refer to xref:server:components/tls.adoc[SSL/TLS & certificates] for configuration instructions.
 
 [[opsi-manual-security-clientcontrolserver]]
-== Authentication at the control server of the client
+== Authentication at the client control server
 
-The 'opsiclientd' provides a web service interface, which allows remote control of the 'opsiclientd' and thus remote control of the client.
+The **opsiclientd** provides a web service interface for remote control of the client (see xref:clients:windows-client/windows-client-agent.adoc#opsi-manual-clientagent-control[opsi-client-agent remote control]).
 
-(xref:clients:windows-client/windows-client-agent.adoc#opsi-manual-clientagent-control[opsi-client-agent remote control]).
+Authentication is required to access this interface. You can authenticate as a local administrator with a non-empty password, or with an empty username and the 'opsi-host-key' as password.
 
+You can restrict the control server to accept only localhost connections by setting `opsiclientd.control_server.interface` to `[::1, 127.0.0.1]`. Set this using opsi-cli:
 
-In order to access this interface authentication is required.
-You may authenticate as a local administrator with a not empty password, or with an empty username and the 'opsi-host-key' as password.
-
-This control server can be configured so that only connections from localhost are accepted.
-To do this, the configuration parameter `opsiclientd.control_server.interface` must be set to `[::1, 127.0.0.1]`.
-This can be set as follows using opsi-cli:
 [source,shell]
 ----
 opsi-cli jsonrpc execute config_createUnicode opsiclientd.control_server.interface "opsiclientd control server interface" "[]" "[\"::1\", \"127.0.0.1\"]"
 ----
+
 Commands can then only be sent to the client via the opsi messagebus.
 
-
 [[opsi-manual-security-clientcontrolserver-kiosk-api]]
-=== The opsi-client-agent kiosk api
-The opsiclientd kiosk API allows access from localhost without any authentication. If the software-on-demand function (+opsi-client-kiosk+) is not in use, this API can be disabled completely.
-To do this, the configuration parameter `opsiclientd.control_server.kiosk_api_active` must be set to `false`.
-This can be set as follows using opsi-cli:
+=== The opsi-client-agent kiosk API
+
+The opsiclientd kiosk API allows unauthenticated access from localhost. If you do not use the software-on-demand feature (**opsi-client-kiosk**), you can disable this API by setting `opsiclientd.control_server.kiosk_api_active` to `false`:
+
 [source,shell]
 ----
 opsi-cli jsonrpc execute config_createBool opsiclientd.control_server.kiosk_api_active "opsiclientd control server kiosk API active" false
@@ -126,178 +99,140 @@ opsi-cli jsonrpc execute config_createBool opsiclientd.control_server.kiosk_api_
 
 [[opsi-manual-security-multi-factor]]
 == Multi-factor authentication
-Enforce xref:server:components/authorization.adoc#server-components-authorization-multi-factor[multi-factor authentication] to enhance security.
 
+Enable xref:server:components/authorization.adoc#server-components-authorization-multi-factor[multi-factor authentication] to enhance security.
 
 [[opsi-manual-security-saml-sso]]
 == SAML - Single Sign On (SSO)
-Use the xref:opsi-modules:sso.adoc#opsi-module-sso[Single Sign-On (SSO)] to increase security and convenience at the same time.
 
+Use xref:opsi-modules:sso.adoc#opsi-module-sso[Single Sign-On (SSO)] for improved security and convenience.
 
-[opsi-manual-security-disabled-auth-methods]]
+[[opsi-manual-security-disabled-auth-methods]]
 == Disable authentication methods
-The configuration parameter `disabled-auth-methods` in `/etc/opsi/opsiconfd.conf` can be used to disable certain authentication methods.
-For example, if you use SSO and only use WebDAV as the depot protocol, you can disable all other authentication methods:
+
+The `disabled-auth-methods` parameter in `/etc/opsi/opsiconfd.conf` can disable specific authentication methods. For example, if you use SSO and only WebDAV as the depot protocol, you can disable other methods:
+
 [source,configfile]
 ----
 disabled-auth-methods = [pam, ldap, opsi_passwd]
 ----
 
-
 [[opsi-manual-security-network]]
 == Configuration of allowed networks
-By default, the opsi service accepts connection from any ip addresses.
-To improve security, you may configure a list of ip networks which are allowed to connect.
-For this purpose there is the opsiconfd option +networks+.
 
-A configuration like e.g.
+By default, opsi accepts connections from any IP address. To improve security, restrict access to specific networks using the +networks+ option:
+
 [source,configfile]
 ----
 networks = [192.168.1.0/24, 10.1.0.0/16]
 ----
-would limit access to the networks '192.168.1.0/24' and '10.1.0.0/16'.
 
+This limits access to the specified networks.
 
 [[opsi-manual-security-adminnetwork]]
 == Configuration of allowed admin networks
 
-The idea of an 'admin network' is to ban any administrative access from the standard production network and allow these accesses only from a special 'admin network'.
-
-With opsi all 'opsi-clients' need restricted access to the 'opsi web service', which allows them to read and change their own data. Administrative access with further privileges is granted to members of the unix group 'opsiadmin' only.
-
-If you configure an 'admin-networks' parameter, all administrative accesses are restricted to these network(s).
-
-Setting the option +admin-networks+ at the `/etc/opsi/opsiconfd.conf` will restrict the administrative access to the 'opsiconfd' to connections coming from the specified network address(es). +
-You may define multiple addresses. +
-Non administrative access may also come from other networks.
-
-The default is:
-[source,configfile]
-----
-admin-networks = [0.0.0.0/0, ::/0]
-----
-and allows administrative access from all networks.
-
-A configuration like e.g.
-[source,configfile]
-----
-admin-networks = [127.0.0.1/32, 10.1.1.0/24]
-----
-restricts administrative access to the server itself and to the network '10.1.1.0/24'.
-
-[[opsi-manual-security-blockclients]]
-== Configuration Lock out clients and unlock them again.
-
-If a client tries to log in to the server too often without success, it will be locked out for a certain time.
-There are three configuration options for this:
-
-+max-auth-failures+ specifies after how many failed attempts a client will be locked out.
-The default is:
-[source,configfile]
-----
-max-auth-failures = 10
-----
-
-The option +auth-failures-interval+ determines in which time period the failures specified with `max-auth-failures` must occur,
-that a cleint is blocked. The specification is in seconds.
+To restrict administrative access, configure the `admin-networks` parameter in `/etc/opsi/opsiconfd.conf`. Only connections from these networks can perform administrative actions. Multiple addresses can be specified.
 
 Default:
 [source,configfile]
 ----
-auth-failures-interval = 120
+admin-networks = [0.0.0.0/0, ::/0]
 ----
 
-The third option +client-block-time+ specifies how long a client will be blocked if it gets above the number of attempts (auth-failures-interval) in the time period (max-auth-failures). This specification is also in seconds.
+This allows admin access from all networks. For example, to restrict access:
 
-Here is the default:
 [source,configfile]
 ----
+admin-networks = [127.0.0.1/32, 10.1.1.0/24]
+----
+
+[[opsi-manual-security-blockclients]]
+== Locking out clients after failed authentication
+
+Clients are locked out for a period after too many failed login attempts. Three options control this:
+
+- `max-auth-failures`: Number of failed attempts before lockout (default: 10)
+- `auth-failures-interval`: Time window in seconds for counting failures (default: 120)
+- `client-block-time`: Lockout duration in seconds (default: 120)
+
+Example:
+[source,configfile]
+----
+max-auth-failures = 10
+auth-failures-interval = 120
 client-block-time = 120
 ----
 
-The information about the error attempts and which clients are blocked is stored in Redis. There are two Redis keys for this:
+Failed attempts and blocked clients are tracked in Redis:
 
-- opsiconfd:stats:client:failed_auth:<client ip> Number of failed attempts of the client (Redis Time Series)
-- opsiconfd:stats:client:blocked:<client ip>: Will be created when the client is blocked and contains the value "True" (Type: stirng)
+- `opsiconfd:stats:client:failed_auth:<client ip>`: Number of failed attempts
+- `opsiconfd:stats:client:blocked:<client ip>`: Indicates if the client is blocked
 
-To release the clients manually you can use the admin page https://<opsi-server>:4447/admin (see xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-clients[Admininterface]).
+You can manually unblock clients via the admin page: https://<opsi-server>:4447/admin (see xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-clients[Admininterface]).
 
 [[opsi-manual-security-pcpatch]]
 == The user pcpatch
 
-The user 'pcpatch' is required for the opsi clients to access the CIFS depot share (`opsi_depot`).
+The 'pcpatch' user is needed for opsi clients to access the CIFS depot share (`opsi_depot`).
 
-Exceptions to this are the products:
+Exceptions:
 
-* `opsi-wim-capture` and `opsi-local-image-capture` which also mount the share `opsi_depot_rw` as user 'pcpatch` with write access.
-* `opsi-clonezilla` which mounts the share `opsi_images` with write permissions.
+* `opsi-wim-capture` and `opsi-local-image-capture` also mount `opsi_depot_rw` as 'pcpatch' with write access.
+* `opsi-clonezilla` mounts `opsi_images` with write permissions.
 
-The password of the user 'pcpatch' is stored in encrypted form and is also only transmitted in encrypted form.
-However, under certain circumstances it is possible to find out the password.
-To minimize the damage this can cause, we recommend the following measures:
+The 'pcpatch' password is stored and transmitted in encrypted form, but may be discoverable under certain circumstances. To minimize risk:
 
-In `/etc/samba/smb.conf` in all share definitions except 'opsi_depot', prohibit the user pcpatch access via the entry:
+- In `/etc/samba/smb.conf`, deny 'pcpatch' access to all shares except 'opsi_depot':
 
 [source,configfile]
 ----
 invalid users = root pcpatch
 ----
 
-Alternative: +
-In `/etc/samba/smb.conf`, restrict the user 'pcpatch' to read rights by making an entry in the `[global]` section:
+- Alternatively, restrict 'pcpatch' to read-only in the `[global]` section:
 
 [source,configfile]
 ----
 read list = pcpatch
 ----
 
-WARNING: For the products `opsi-wim-capture` and `opsi-local-image-capture` the share `opsi_depot_rw` must be writable for 'pcpatch'. For the product `opsi-clonezilla` the share `opsi_images` must be writable.
+WARNING: For `opsi-wim-capture`, `opsi-local-image-capture`, and `opsi-clonezilla`, 'pcpatch' needs write access to the respective shares.
 
-As a further measure, the password of the user 'pcpatch' should be changed regularly.
-Since the plain text password does not have to be known to anyone, it can be set to a random password by regularly calling (e.g. via cronjob) the following script:
+Change the 'pcpatch' password regularly. Since no one needs to know the plain text password, set it to a random value, for example via cronjob:
+
 [source,shell]
 ----
 opsiconfd setup --set-depot-user-password $(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
 ----
 
-WARNING: The user 'pcpatch' should not be assigned a shell so that it cannot log on to the server directly.
+WARNING: Do not assign a shell to 'pcpatch' to prevent direct logins.
 
-NOTE: If the opsi clients access the depots exclusively via WebDAV (see host parameter `clientconfig.depot.protocol`), both the user 'pcpatch' and the Samba server can be completely deactivated.
-
+NOTE: If clients use only WebDAV for depot access (`clientconfig.depot.protocol`), you can disable both 'pcpatch' and the Samba server.
 
 [[opsi-manual-security-acl-configuration]]
 == Webservice access limitations
 
-The file `/etc/opsi/backendManager/acl.conf` can be used to limit the access
-to specified methods and attributes of the returned values.
+Limit access to webservice methods and attributes using `/etc/opsi/backendManager/acl.conf`. Restrictions can be set for users or groups and for allowed attributes.
 
-The limitation affects the base methods of the webservice.
-For those a restriction of users or groups and allowed attributes can be established.
+Restrict access to only the necessary methods. To identify used methods, check the opsiconfd log at `/var/log/opsi/opsiconfd/opsiconfd.log` after a stop or restart.
 
-The access should be limited to the used methods.
-If it is not clear what methods are being used one can refer to the output of
-opsiconfd about the accessed methods. This is logged to `/var/log/opsi/opsiconfd/opsiconfd.log` in case of a stop or restart.
-
-More information about the webservice can be found at xref:server:interfaces/jsonrpc-api.adoc[JSON-RPC-API].
+See xref:server:interfaces/jsonrpc-api.adoc[JSON-RPC-API] for more information.
 
 [[opsi-manual-security-opsiconfd-disabled-features]]
-== Deactivate features that are not required
-It is possible to deactivate certain security-relevant features of the opsi service if they are not required.
-The deactivated features can be set via `disabled-features` in `/etc/opsi/opsiconfd.conf` or the environment variable `OPSICONFD_DISABLED_FEATURES`.
-See xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[opsiconfd configuration] for details.
+== Deactivate unnecessary features
 
-Security-relevant features that can be deactivated are:
+You can disable certain features in opsi for security reasons using `disabled-features` in `/etc/opsi/opsiconfd.conf` or the `OPSICONFD_DISABLED_FEATURES` environment variable. See xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[opsiconfd configuration] for details.
 
-status-page:: Disables the opsiconfd status page (`/status`), which is available without authentication.
-public-folder:: Disables the public folder `/var/lib/opsi/public`, which is available under the path `/public` without authentication.
-rpc-interface:: Disables the JSONRPC interface on the opsiconfd admin page (`/admin/#rpc-interface`).
-messagebus_terminal:: Deactivates the possibility to use terminals via the opsi-messagebus.
-messagebus_execute_process:: Deactivates process execution via the opsi-messagebus.
+Features that can be disabled:
 
+status-page:: Disables the unauthenticated status page (`/status`).
+public-folder:: Disables the public folder `/var/lib/opsi/public` (`/public`).
+rpc-interface:: Disables the JSONRPC interface on the admin page (`/admin/#rpc-interface`).
+messagebus_terminal:: Disables terminal usage via opsi-messagebus.
+messagebus_execute_process:: Disables process execution via opsi-messagebus.
 
 [[opsi-manual-security-bootimagerootpw]]
 == Change the Boot Image root password
 
-The root password of the opsi linux boot image is 'linux123' by default.
-You may like to change this for security reasons.
-How to do this is desribed here: xref:opsi-products:netboot-products.adoc#opsi-manual-netboot-bootimage-parametrization[Parameters for the opsi linux boot image]
+The default root password for the opsi Linux boot image is 'linux123'. Change this for security reasons as described in xref:opsi-products:netboot-products.adoc#opsi-manual-netboot-bootimage-parametrization[Parameters for the opsi linux boot image].
