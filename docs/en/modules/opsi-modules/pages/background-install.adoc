@@ -256,6 +256,20 @@ opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_
 opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_defer_action "bg-max_defer_action" '["defer", "recheck", "kill"]' "kill" "false" "false"
 ----
 
+NOTE: If these configs do not yet exist, 
+(e.g. in the pilot phase) +
+can be created with the following command line commands: +
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createBool opsi-script.backgroundinstall.active "bg-active" false
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.default_action "bg-default_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.dialog_timeout "bg-dialog_timeout" "60" "60"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxrecheck "bg-maxrecheck" "3" "3"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxrecheck_action "bg-maxrecheck_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxdefer "bg-maxdefer" "5" "5"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxdefer_action "bg-maxdefer_action" '["defer", "recheck", "kill"]' "kill" "false" "false"
+----
+
 [[opsi-manual-background-install-meta-data]]
 == The metadata file: `opsi-meta-data.toml`.
 
@@ -430,3 +444,148 @@ In this case, the package number of the product is also increased by one
 and an entry is made in the `changelog.md`. +
 The product must then be rebuilt (`opsi-make-package`) and installed. +
 The metadata of the opsi product is now available.
+
+[[opsi-manual-background-bestpractice]]
+== Best Practice: Tips for handling / configuration with Background_install
+
+[[opsi-manual-background-bestpractice_configuration]]
+=== Configuration tips for the clients
+
+*Event configuration for the clients* +
+If Background_install is switched on for a client, this basically applies to *all* events if users are logged in. +
+Two options are presented here for which events can be used for Backgound_install
+:
+
+*Use of the existing event `opsiclientd.event_gui_startup`* +
+To do this, the following changes must be made to the standard configuration of the event:
+
+* Disable login blocker: +
+`opsiclientd.event_gui_startup.block_login=false`
+
+* Processing of actions only 30 minutes after the start of the event: +
+`opsiclientd.event_gui_startup.activation_delay = 1200` +
+
+*Advantage*: Products are installed after each start. +
+*Disadvantage*: Not suitable for `Roaming Profiles` as the login event 
+is blocked by the `event_gui_startup`.
+
+The alternative: +
+*Creation of the new timer-controlled event `opsiclientd.event_background_install`* +
+This event starts controlled by a timer. In the configuration proposed here, 30 minutes (1200 seconds) after the computer is started.
+
+This new event is created via the following entries in opsiclientd.conf.
+
+[source,ini]
+----
+[event_background_install]
+super = default
+type = custom
+
+[event_timer_backgroundinstall]
+super = background_install
+type = timer
+active = false
+interval = 604800
+start_interval = 1200
+
+[event_timer_backgroundinstall{user_logged_in}]
+shutdown_user_cancelable = 5
+shutdown_user_selectable_time = true
+shutdown_warning_time = 3600
+----
+
+To create these entries, you must execute the following command line commands on the server:
+
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.super "bg_install_super" "default" "default"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.type "bg_install_type" "custom" "custom"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_cancelable "bg_install_shutdown_user_cancelable" "5" "5"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_selectable_time "bg_install_shutdown_user_cancelable" true
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_warning_time "bg_install_shutdown_warning_time" "3600" "3600"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.super "bg_install_timer_super" "background_install" "background_install"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.type "bg_install_timer_type" "timer" "timer"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall.active "bg_install_active" false
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.interval "bg_install_timer_interval" "604800" "604800"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.start_interval "bg_install_timer_start_interval" "1200" "1200"
+----
+
+To activate the new event, the following must be set in the host parameters of the affected clients: `opsiclientd.event_timer_backgroundinstall.active=true`.
+
+*Advantage*: Suitable for `Roaming Profiles`. +
+*Disadvantage*: New event must be configured.
+
+*Configure shutdown notifier sensibly* +
+Especially for events that are active when the user is logged in,
+it is very important to configure the shutdown notifier well. +
+For the event which is used for the background installation, we recommend:
+
+* `shutdown_user_cancelable = 5` 
+
+* `shutdown_user_selectable_time = true` 
+
+* `shutdown_warning_time = 3600` 
+
+*Events for installation without user* +
+Since Background_install does not execute products without metadata or with a corresponding configuration, it makes sense to have events that are also executed without a logged-in user: +
+This can be, for example, in the installation on shutdown: +
+`opsiclientd.event_on_shutdown.active=true`
+
+[[opsi-manual-background-bestpractice_std_prod]]
+=== Configuration of opsi standard products
+
+The standard products and Abo / Abo+ products provided by uib will be successively adapted for use with the background installation at the start of the pilot phase.
+
+*Approved but configurable standard products*
+
+The following products are approved for the background installation, but should be adapted in the properties:
+
+* opsi-client-agent +
+Property: `allow_reboot=false` set
+
+* mshotfix +
+Property: set `noreboot=on`.
+
+*Approved standard products
+
+The following products are permitted for background installation:
+
+* All opsi standard products (with a few exceptions see below)
+
+* All products from the "Update Subscription Standard Products" which have been updated since 1.7.2025.
+
+* From the "Update Subscription MS-Hotfixes" the product mshotfix.
+
+* All products from the "Abo+" offer that have been updated since 1.8.2025.
+
+*(Not yet) approved standard products*
+
+The following products are *not* approved for background installation as of 15.7.2025:
+
+* jedit
+
+* microsoft-windows-policies
+
+* opsi-cli
+
+* opsi-client-kiosk
+
+* opsi-winpe
+
+* opsipackagebuilder_wlm
+
+* windows1*-enablement
+
+* windows1*-upgrade
+
+[[opsi-manual-background-bestpractice_prod_authorized_config]]
+=== Tips for deciding how a product should be authorized / configured
+
+*Avoid reboots* +
+It is essential that reboots are avoided as far as possible during the background installation.
+I.e. specifically:
+
+* Products that always and inevitably require one or more reboots should not be approved for background installation. In concrete terms, this means that `install_in_background=false` should be set in the metadata file. 
+
+* Products that do not necessarily require an immediate reboot should make this controllable via a property (e.g. `allow_reboot`),
+so that the reboots for clients that are to perform a background installation can be switched off.
