@@ -254,6 +254,21 @@ opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_
 ----
 
 
+NOTE: Für den Fall das diese Configs noch nicht vorhanden sind, 
+(wie z.B. in der Pilotphase) +
+können diese mit folgenden Kommandozeilen-Befehlen angelegt werden: +
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createBool opsi-script.backgroundinstall.active "bg-active" false
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.default_action "bg-default_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.dialog_timeout "bg-dialog_timeout" "60" "60"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxrecheck "bg-maxrecheck" "3" "3"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxrecheck_action "bg-maxrecheck_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxdefer "bg-maxdefer" "5" "5"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.maxdefer_action "bg-maxdefer_action" '["defer", "recheck", "kill"]' "kill" "false" "false"
+----
+
+
 [[opsi-manual-background-install-meta-data]]
 == Die Metadaten Datei: `opsi-meta-data.toml`
 
@@ -425,3 +440,150 @@ In diesem Fall wird auch die Packagenummer des Produktes um eins erhöht
 und ein Eintrag in die `changelog.md` gemacht. +
 Danach muß das Produkt neu gebaut werden (`opsi-make-pakackage`) und installiert werden. +
 Nun stehen die Metadaten des Produktes opsi zur Verfügung.
+
+[[opsi-manual-background-bestpractice]]
+== Best Practice: Tips zum Umgang / Konfiguration mit Background_install
+
+[[opsi-manual-background-bestpractice_configuration]]
+=== Konfigurations Tips für die Clients
+
+*Eventkonfiguration für die Clients* +
+Wenn für einen Client Background_install angeschaltet ist, so gilt das Grundsätzlich für *alle* Events wenn dabei Benutzer eingeloggt sind. +
+Hier werden zwei Möglichkeiten vorgestellt mit welchen Events bei beim Backgound_install
+gearbeitet werden kann:
+
+*Verwendung des vorhandenen Events `opsiclientd.event_gui_startup`* +
+Hierzu müssen die folgenden Änderungen an der Standarkonfiguration des Events vorgenommen werden:
+
+* Loginblocker ausschalten: +
+`opsiclientd.event_gui_startup.block_login=false` 
+
+* Abarbeitung der Aktionen erst 30 Minuten nach Start des Events: +
+`opsiclientd.event_gui_startup.activation_delay = 1200` +
+
+*Vorteil*: Produkte werden nach jedem Start installiert. +
+*Nachteil*: Nicht geeignet für `Roaming Profiles` da hier das Loginevent 
+durch das `event_gui_startup` blockiert wird.
+
+Die Alternative: +
+*Erstellung des neuen Timer gesteuerten Events `opsiclientd.event_background_install`* +
+Dieses Event startet gesteuert durch einen Timer. In der hier vorgeschlagenen Konfiguration 30 Minuten (1200 Sekunden) nach dem Start des Rechners.
+
+Dieses neue Event wird über folgende Eintragungen in der opsiclientd.conf erzeugt.
+
+[source,ini]
+----
+[event_background_install]
+super = default
+type = custom
+
+[event_timer_backgroundinstall]
+super = background_install
+type = timer
+active = false
+interval = 604800
+start_interval = 1200
+
+[event_timer_backgroundinstall{user_logged_in}]
+shutdown_user_cancelable = 5
+shutdown_user_selectable_time = true
+shutdown_warning_time = 3600
+----
+
+Zur Erstellung dieser Einträge müssen Sie folgende Kommandozeilenbefehle auf dem Server ausführen:
+
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.super "bg_install_super" "default" "default"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.type "bg_install_type" "custom" "custom"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_cancelable "bg_install_shutdown_user_cancelable" "5" "5"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_selectable_time "bg_install_shutdown_user_cancelable" true
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_warning_time "bg_install_shutdown_warning_time" "3600" "3600"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.super "bg_install_timer_super" "background_install" "background_install"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.type "bg_install_timer_type" "timer" "timer"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall.active "bg_install_active" false
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.interval "bg_install_timer_interval" "604800" "604800"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.start_interval "bg_install_timer_start_interval" "1200" "1200"
+----
+
+Zur Aktivierung des neuen Events muss in den Hostparametern der betroffenen Clients gesetzt werden: `opsiclientd.event_timer_backgroundinstall.active=true`
+
+*Vorteil*: Geignet für `Roaming Profiles`. +
+*Nachteil*: Neues Event muß konfiguriert werden.
+
+*Shutdown Notifier sinnvoll konfigurieren* +
+Gerade bei Events welche bei eingeloggtem Benutzer aktiv sind,
+ist es von großer Wichtigkeit die `shutdown notifier` gut zu konfigurieren. +
+Für das Event welches für die Backgroundinstallation verwendet wird, empfehlen wir:
+
+* `shutdown_user_cancelable = 5` 
+
+* `shutdown_user_selectable_time = true` 
+
+* `shutdown_warning_time = 3600` 
+
+*Events für die Installation ohne User* +
+Da beim Background_install Produkte ohne Metadaten oder mit entsprechender Konfiguration nicht ausgeführt werden, ist es auf jeden Fall sinnvoll auch Events zu haben welche auch ohne eingeloggten Benutzer ausgeführt werden: +
+Die kann zum Beispiel in die Installation bei shutdown sein: +
+`opsiclientd.event_on_shutdown.active=true`
+
+
+[[opsi-manual-background-bestpractice_std_prod]]
+=== Konfiguration von opsi Standard Produkten
+
+Die von uib bereitgestellten Standardprodukte und Abo / Abo+ Produkte werden mit Beginn der Pilotphase 
+sukzessive auf die Nutzung mit der Backgroundinstallation angepasst.
+
+*Zugelassene aber zu konfigurierende Standardprodukte*
+
+Die folgenden Produkte sind für die Backgroundinstallation zugelassen, sollten aber in den Properties angepasst werden:
+
+* opsi-client-agent +
+Property: `allow_reboot=false` setzen
+
+* mshotfix +
+Property: `noreboot=on` setzen
+
+*Zugelassene Standardprodukte*
+
+Die folgenden Produkte sind für die Backgroundinstallation zugelassen:
+
+* Alle opsi Standardprodukte (mit wenigen Ausnahmen siehe unten)
+
+* Alle Produkte aus dem "Update Abo Standardprodukte" welche seit dem 1.7.2025 aktualisiert wurden.
+
+* Aus dem "Update Abo MS-Hotfixes" das Produkt mshotfix.
+
+* Alle Produkte aus dem "Abo+" Angebot welche seit dem 1.8.2025 aktualisiert wurden.
+
+*(Noch) nicht zugelassene Standardprodukte*
+
+Die folgenden Produkte sind mit Stand 15.7.2025 noch *nicht* für die Backgroundinstallation zugelassen:
+
+* jedit
+
+* microsoft-windows-policies
+
+* opsi-cli
+
+* opsi-client-kiosk
+
+* opsi-winpe
+
+* opsipackagebuilder_wlm
+
+* windows1*-enablement
+
+* windows1*-upgrade
+
+[[opsi-manual-background-bestpractice_prod_authorized_config]]
+=== Tips zur Entscheidung wie ein Produkt zugelassen / konfiguriert werden sollte
+
+*Reboots vermeiden* +
+Wesentlich ist, dass im Rahmen der Backgroundinstallation Reboots möglichst vermieden werden sollten.
+D.h. konkret:
+
+* Produkte welche immer und unabweisbar ein oder mehr Reboots benötigen, sollten nicht für die Backgroundinstallation zugelassen werden. Das bedeutet konkret: Hier sollte in der Metadaten Datei `install_in_background=false` gesetzt werden. 
+
+* Produkte welche nicht unbedingt einen sofortigen Reboot brauchen, sollten dies per Property (z.B. `allow_reboot`) steuerbar machen,
+so das die Reboots für Clients welche Backgrounsinstall machen sollen, dies ausgeschaltet werden kann.
