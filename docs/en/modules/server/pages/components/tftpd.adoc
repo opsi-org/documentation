@@ -14,44 +14,74 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      10.01.2024
-:Revision:  4.3
-:toclevels: 6
-:doctype:   book
-:icons:     font
-:xrefstyle: full
-
-
+:Date:      17.09.2025
 
 [[server-components-tftpd]]
 = TFTP Server
 
-The Trivial File Transfer Protocol (TFTP) is a simplified protocol used for transferring files over a network. It provides basic functionalities, unlike more complex protocols like FTP or SFTP. TFTP is commonly used for transferring firmware updates, configuration files, or boot files from a TFTP server to a TFTP client.
+The Trivial File Transfer Protocol (TFTP) is a particularly simple protocol for file transfer over a network.
 
-NOTE: TFTP does not support authentication, encryption, or data compression, which is why it's typically used only in secure and trusted network environments.
+In the opsi environment, the TFTP server provides the boot images for opsi clients.
+By default, *opsi-tftpd-hpa* is used for this purpose.
+This package is automatically installed as a dependency of *opsi-server-full*.
 
-In the opsi context, the TFTP server supplies boot images to opsi clients. The default TFTP server for opsi is `opsi-tftpd-hpa`, and this package is automatically installed as part of the `opsi-server-full` package.
+The *opsi-tftpd-hpa* service starts automatically at system startup.
+You can stop it with `sudo systemctl stop opsi-tftpd-hpa.service` and start it with `sudo systemctl start opsi-tftpd-hpa.service`.
 
-`opsi-tftpd-hpa` is configured to start automatically upon system boot by default. To stop the service, use the command `sudo systemctl stop opsi-tftpd-hpa.service`; to start it again, use `sudo systemctl start opsi-tftpd-hpa.service`.
+NOTE: TFTP does not provide authentication, encryption, or compression.
+Therefore, it should only be used in protected and trusted networks.
 
-The TFTP service typically runs with a verbose parameter for detailed logging. You can modify the log level for troubleshooting or analysis purposes. To adjust the log level, use the following command:
+[[server-components-tftpd-config]]
+== Configuration
+
+Usually, the TFTP service starts with a verbose parameter, which provides basic logging in the systemd journal.
+For troubleshooting and analysis, you can adjust the log level individually:
 
 [source,console]
 ----
 sudo systemctl edit --full opsi-tftpd-hpa.service
 ----
 
-In your text editor, look for the line that starts with `ExecStart`. In this line, replace `-v` with `--verbosity <log-level>`. For example, use `--verbosity 7` to get a very detailed log output. After making this change, restart the service with the following command:
+In the editor, look for the line with `ExecStart` and replace `-v` with `--verbosity <log-level>`, e.g., `--verbosity 7` for maximum details.
+Then restart the service:
 
 [source,console]
 ----
-sudo systemctl restart  opsi-tftpd-hpa.service
+sudo systemctl restart opsi-tftpd-hpa.service
 ----
+
+Another important parameter is `--blocksize <size>`, which allows you to set the block size for file transfer.
+The block size can be between 512 and 65464 bytes.
+TFTP uses the UDP protocol, with each packet individually acknowledged.
+The protocol is susceptible to fragmentation, MTU issues, and packet loss.
+The choice of block size therefore affects both transfer speed and reliability:
+
+* Larger block sizes speed up the transfer but increase the risk of network issues.
+* Smaller block sizes are more robust but slower.
+
+To change the block size, add `--blocksize <size>` to the `ExecStart` entry as described above, e.g., `--blocksize 8192`.
+
 
 [[server-components-tftpd-ports-firewall]]
 == TFTP Ports and Firewall Configuration
 
-The client initially establishes a connection to port 69 on the server for TFTP communication. However, the server doesn't use port 69 to send any packets back. Instead, the client and server both select unique Transaction Identifiers (TIDs) for their subsequent communications. A TID is an identifier used to uniquely identify transactions. These TIDs correspond to UDP ports, ranging from 1024 to 65535. All further packets are then exchanged between the server's TID port and the client's TID port.
+The TFTP client first connects to port *69/udp* on the server.
+For actual data transfer, dynamic transaction IDs (TIDs) are assigned, which serve as UDP ports in the range 1024 to 65535. Communication then takes place between the respective TID ports of client and server.
 
-Therefore, the server's firewall needs to be configured to allow incoming connections on port 69/udp for the initial contact. Additionally, UDP communication between the TID ports must also be allowed. The simplest method to achieve this is through the use of the kernel modules `ip_conntrack_tftp` or `nf_conntrack_tftp`, which help in managing and tracking the state of TFTP connections.
+The server's firewall must therefore be configured to allow incoming connections on port *69/udp* for initial contact and to enable UDP communication between the TID ports.
+The easiest way to achieve this is with the kernel modules *ip_conntrack_tftp* or *nf_conntrack_tftp*, which monitor and manage the status of TFTP connections.
 
+
+[[server-components-tftpd-troubleshooting]]
+== Troubleshooting TFTP
+
+Check whether the TFTP server configuration is correct and whether the service is running.
+Test different block sizes to find the optimal setting for your network.
+The value `512` is particularly robust but slower.
+
+With the following command, you can display the last 100 lines of the TFTP server log and continuously update the output:
+[source,console]
+----
+journalctl -u opsi-tftpd-hpa -n 100 -f
+----
+In the log, you can see which clients are retrieving which files and whether any errors occur.
