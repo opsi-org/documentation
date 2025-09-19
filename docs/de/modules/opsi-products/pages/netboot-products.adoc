@@ -165,15 +165,73 @@ Sollte der Bootvorgang an dieser Stelle fehlschlagen, prüfen Sie folgende Punkt
 * Schalten Sie den Grafikmodus von *GRUB2* aus (Host-Parameter `netboot.grub.graphicsmode` auf false setzen).
 * Testen Sie das Booten des opsi-linux-bootimage über USB-Stick oder CD.
 
-
 [[opsi-manual-netboot-bootimage-debugging-linux-bootimage]]
 === opsi-linux-bootimage
-Scheitert der Bootvorgang beim Start des opsi-linux-bootimage, prüfen Sie folgende Punkte:
+Scheitert der Bootvorgang beim Start des *opsi-linux-bootimage*, prüfen Sie folgende Punkte:
 
 * Deaktivieren Sie den quiet-Mode und den Splash-Screen (Host-Parameter `netboot.opsi-linux-bootimage.cmdline.quiet` und `netboot.opsi-linux-bootimage.cmdline.splash` auf false setzen).
 * Erhöhen Sie das Log-Level des Linux-Kernels (Host-Parameter `netboot.opsi-linux-bootimage.cmdline.loglevel` auf 7 setzen).
 * Testen Sie das Booten mit verschiedenen Kernel-Parametern (z.B. `acpi=off`, `noapic`, `irqpoll`, `pci=nomsi`, `mem=2G`).
 
+[[opsi-manual-netboot-bootimage-pxeConfigTemplate]]
+== Spezielle PXE-Boot-Konfigurationen
+Standardmäßig werden Netboot-Produkte über das opsi-linux-bootimage ausgeführt.
+Es besteht jedoch auch die Möglichkeit, eigene Boot-Images einzubinden, indem eine individuelle PXE-Boot-Konfiguration erstellt wird.
+
+Dazu kann das Attribut `pxeConfigTemplate` in den Metadaten des Netboot-Produkts verwendet werden.
+In diesem Attribut lässt sich ein GRUB2-Konfigurations-Template hinterlegen, das beim Start des Netboot-Produkts automatisch in die GRUB2-Konfiguration eingebunden wird.
+
+Die Templates basieren auf Jinja2 und können auf verschiedene Variablen zugreifen, unter anderem:
+
+`host`:: Das *Host*-Objekt des Clients.
+Alle Attribute sind verfügbar, z. B. `host.id`, `host.description`, `host.hardwareAddress`, `host.systemUUID`.
+
+`product`:: Das *Product*-Objekt des Netboot-Produkts.
+Verfügbare Attribute sind u. a. `product.id`, `product.name`, `product.description`.
+
+`product_on_depot`:: Das zugehörige *ProductOnDepot*-Objekt.
+
+`product_on_client`:: Das zugehörige *ProduktOnClient*-Objekt.
+
+`product_property_states`:: Die *ProductPropertyState*-Objekte des Produkts für den Client als Dictionary.
+Der Zugriff erfolgt über `product_property_states["<property_id>"]`.
+Sollte das Property nicht existieren, wird ein Platzhalter-Objekt zurückgegeben.
+Es stehen folgende Attribute zur Verfügung:
+
+* `id`: ID des *ProductProperty*.
+* `exists`: Gibt an, ob das *ProductProperty* existiert.
+* `values`: Die gesetzten Werte als Liste von Booleans oder Strings.
+* `str_value`: Die gesetzten Werte als kommaseparierter String.
+* `bool_value`: Der gesetzte Wert als Boolean.
+* `password_hash(method, format)`: Gibt den Wert als Passwort-Hash zurück.
+** `method`: `md5`, `sha512` oder `pbkdf2-sha512`.
+** `format`: `shadow`, `grub`
+* `cmdline(pattern, remove_prefix)`: Generiert Linux-Kernel-Parameter als String.
+** `pattern`: Ein einzelnes oder eine Liste von Unix-Wildcards zum Filtern der Property-Namen.
+** `remove_prefix`: Ein einzelnes oder eine Liste von Präfixen, die vom Property-Namen entfernt werden sollen.
+
+`config_states`:: Alle *ConfigStates* des Clients, die mit `netboot.` beginnen, als Dictionary.
+Die gleichen Attribute wie bei `ProductPropertyState`-Objekten sind verfügbar.
+
+`opsi-linux-bootimage`:: Ein spezielles Objekt, das die Methode `cmdline()` bereitstellt, mit der alle erforderlichen Linux-Kernel-Parameter als String erzeugt werden.
+
+Alternativ kann in `pxeConfigTemplate` auch ein Verzeichnisname angegeben werden.
+Dann wird die Datei `grub.cfg` aus dem Verzeichnis `<boot>/opsi/<verzeichnisname>` geladen.
+
+Beispiel für ein `pxeConfigTemplate`-Attribut:
+[source,shell]
+----
+if [ "$grub_platform" = "efi" ]; then
+	menuentry 'Start {{ product.name }}' {
+		echo "Loading {{ product.name }} {{ product.productVersion }}..."
+		linux (${bootsrc})/opsi/my-product/loader.efi {{ product_property_states.cmdline("cmdline.*", "cmdline.") }}
+	}
+else
+	echo "{{ product.id }} does not support Legacy BIOS booting."
+	sleep 5
+	exit
+fi
+----
 
 [[opsi-manual-netboot-bootimage-parameters-opsi-cli]]
 == Bootimage-Parameter mit opsi-cli setzen
@@ -185,7 +243,6 @@ Passwörter lassen sich dabei direkt in sichere Hashes umwandeln.
 opsi-cli bootimage set-boot-password <PASSWORD>
 ----
 Der Passwort-Hash wird automatisch im Host-Parameter `netboot.opsi-linux-bootimage.cmdline.pwh` gespeichert und zusätzlich auf der Konsole ausgegeben.
-
 
 [[opsi-manual-netboot-unattended]]
 == Automatische Betriebssysteminstallation
@@ -324,8 +381,8 @@ winpe_uilanguage:: Die unter Winows PE verwendete Anzeigesprache.
 winpe_uilanguage_fallback:: Fallback-Anzeigesprache unter Windows PE, falls die primäre Sprache nicht verfügbar ist.
 
 
-[[opsi-manual-netboot-memtest]]
-== memtest
+[[opsi-manual-netboot-memtest86]]
+== memtest86
 
 Das Produkt *memtest* dient dazu, einen Speichertest (Memory-Test) auf dem Client durchzuführen.
 
