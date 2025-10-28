@@ -33,31 +33,23 @@ include::partial$paid-extension-note.adoc[]
 
 === General Requirements
 
-To install the extension, you need opsi 4.0.6 or newer. Additionally, the following packages should be installed:
 
-.Required Packages
-[options="header"]
-|==========================
-|opsi-package|version
-|`opsi-linux-bootimage`|>= 20160111
-|`opsi-client-agent`|>= 4.0.6.3-8
-|Windows Netboot >=7|>= 4.0.6.1-3
-|`opsi-clonezilla`|
-|`win10-sysprep-app-update-blocker`|
-|==========================
+To install the extension, you need packages `opsi-clonezilla` und `win10-sysprep-app-update-blocker`.
 
 WARNING: To use `opsi-wim-capture`, the share `opsi_depot_rw` must have read/write permission for `pcpatch`. Please check your Samba configuration.
 
-* As of `opsi-wim-capture` 4.1.x, the extension supports UEFI.
+[[opsi-manual-wimcap-introduction]]
+== Introduction
 
-* As of `opsi-wim-capture` 4.1.x, the extension supports `install.esd` (instead of `install.wim`) as target format.
+A WIM (*Windows Imaging Format*) image is not a disk or partition image, but rather an archive of files and metadata. A WIM file can contain multiple images. The normal installation of an NT6 computer is based on setup.exe unpacking an image from the install.wim file, then configuring it and adding additional drivers.
 
+From an existing computer, Windows including installed software, hotfixes, and configurations can be read out and saved as a WIM. Such a WIM can then serve as the basis for new installations.
 
-== Quick Info
+This is the purpose of the product `opsi-wim-capture`. As part of this product, the system boots from the PE partition, and the PE reads the system partition and writes it into a WIM.
 
-For those in a hurry, here is a quick guide. You will find more detailed information below.
+TIP: `opsi-wim-capture` also supports the `install.esd` extension (instead of `install.wim`) as a format in the target.
 
-=== Preparations
+== Preparations
 
 * Set PXE boot/LAN boot as the first boot option in the BIOS.
 
@@ -71,6 +63,14 @@ For those in a hurry, here is a quick guide. You will find more detailed informa
 'windows_partition_size=100%'
 'setup_after_install=win10-sysprep-app-update-blocker'
 ----
+
+.Schema: Deployment of Windows OS
+image::opsi-modules:opsi-wim-cap-pre1.png["Schema: Deployment of Windows OS", width=332]
+
+After the Windows OS installation you can install additional Software and Hotfixes, configure the system manually or via opsi.
+
+.Schema: Installation of opsi products
+image::opsi-modules:opsi-wim-cap-pre2.png["Schema: Installation of opsi products", width=332]
 
 * Complete the Target Product: +
 As a target product you usually use one of the provided capture products, e.g. `win10-x64-capture`.
@@ -88,7 +88,7 @@ If necessary, copy or link files like `unattend.xml` from the `custom` directory
 
 * All software which is to be integrated into the image must be installed on the computer.
 
-=== Starting the product `opsi-wim-capture`
+== Starting the product `opsi-wim-capture`
 
 * Adjust the following properties:
 +
@@ -101,39 +101,6 @@ If necessary, copy or link files like `unattend.xml` from the `custom` directory
 
 * Set `opsi-wim-capture` to `setup`.
 
-=== Install the Computer with the new Image
-
-* Set the target product (e.g. `win10-x64-captured`) to `setup` with the following adjustment: +.
-`'imagename ='` (apply the name from the property `opsi-wim-capture`)
-
-[[opsi-manual-wimcap-introduction]]
-== Introduction
-
-With NT6 (i.e. from Vista), Microsoft has introduced a new Image Format/ Container for OS Installation. Its called *Windows Imaging Format (WIM)*.
-A WIM Image is not exactly an image of a disk or partition, but rather an archive of files and Metadata. A WIM file can contain several images. The default installation of an NT6 operating system works like this:
-setup.exe unzips an image from an install.wim file, configures it, and adds some additional drivers.
-
-This way, an installation is quicker than with NT5. But then installation of Hotfixes with NT6 takes significantly longer, so that the basic install of Windows 7 will take 30 minutes, but adding all required Hotfixes may take several hours.
-
-With this opsi extension, it is possible to read an installed Windows OS, including installed software, Hotfixes and configurations, and save it as a WIM image. This WIM file can then be used as a source for a fresh Windows Installation.
-
-Our product opsi-wim-capture is made exactly for this purpose. Roughly, we boot off a PE partition, so that the PE can read the system partition and save it into a WIM file.
-
-[[opsi-manual-wimcap-overview]]
-== Overview of the Sequence
-
-Capturing an installed Windows image works like this:
-
-Preparation:
-
-* opsi - installation of a Windows OS with set property: +
-'preserve_winpe_partition=true' +
-'boot_partition_size=0' +
-'windows_partition_size=100%' +
-'setup_after_install=win10-sysprep-app-update-blocker
-
-
-run the product `opsi-wim-capture`. +
 All the following steps will be controlled by the product `opsi-wim-capture`:
 
 . via opsi-clonezilla, makes a backup of the disk (OS and winpe partition)
@@ -143,55 +110,27 @@ All the following steps will be controlled by the product `opsi-wim-capture`:
 . boot winpe, capture of OS disk, write to destination product
 . restore of the original disk (OS and winpe partition) via opsi-clonezilla
 
-
-[[opsi-manual-wimcap-sequence]]
-== Sequence Details
-
-*Preparation*
-
-
-Installation of a Windows OS must have the property set to 'true' like this 'preserve_winpe_partition=true', because the winpe partition will be needed later.
-
-.Schema: Deployment of Windows OS
-image::opsi-modules:opsi-wim-cap-pre1.png["Schema: Deployment of Windows OS", width=332]
-
-After the Windows OS installation you can install additional Software and Hotfixes, configure the system manually or via opsi.
-
-
-.Schema: Installation of opsi products
-image::opsi-modules:opsi-wim-cap-pre2.png["Schema: Installation of opsi products", width=332]
-
-*opsi-wim-capture*
-
 The whole sequence will need time, at least an hour. It will work unattended, though.
 
-In case the property `disabled` is set to 'true' (default=false), the process will be canceled immediately. This switch is for development only.
+== Installing a computer with a new image
+
+* Set the target product (e.g. `win10-x64-captured`) to `setup` with the following adjustment: +
+`'imagename ='` (here, use the name from the property of the same name in the `opsi-wim-capture` product)
 
 The setting of the property 'always_backup_before_sysprep' will be checked.
 If yes, it'll make a backup of the system via opsi-clonezilla.
-
-[NOTE]
-===============================
-In opsi-clonezilla, the runcommand is `ocs-sr -q2 --batch -j2 -rm-win-swap-hib -i 2000 -p true savedisk imagefile sda` . Within this command, `imagefile` will be set according to the value of the property 'clonezilla_imagefile' . In case its set to 'auto' (default), we'll configure the value for 'imagefile' automatically. This will be done with the help of property values and the client name according to the following pattern: +
-`<FQDN of client>_<target_product>_<imagename>` +
-If the value is not 'auto', the value contained will be used as 'imagefile'. Furthermore, we'll set the product opsi-clonezilla to setup. In order to initiate opsi-clonezilla, reboot.
-
-In order to avoid a never ending loop, we write a reboot flag, so that after writing the backup, we can see that this step has already been done.
-
-Technical note: We do not want to reboot again after restoring the backup, though (but the reboot flag is contained in the backup). Thats why the reboot flag is being set as a time stamp. In case the time stamp is older than 0.1 days (i.e. 2.4 hrs), it will be ignored.
-===============================
 
 The system will reboot now, leaving the product 'opsi-wim-capture' set to 'setup'. opsi-clonezilla will start up and do the backup.
 
 .Schema: Backing up the disk via opsi-clonezilla
 image::opsi-modules:opsi-wim-cap-backup.png["Schema: Backing up the disk via opsi-clonezilla", width=332]
 
-TIP: Why backup via opsi-clonezilla ? +
+TIP: Why backup via `opsi-clonezilla` ? +
 The sysprep action to follow will leave the OS partition unusable. +
 An OS, that is set up from a captured WIM Image, will contain information about the sysprep run. Thus, it cannot be used for further capturing via opsi-wim-capture. +
-Only perform repeat capturing using a previously restored opsi-clonezilla image.
+Only perform repeat capturing using a previously restored `opsi-clonezilla` image.
 
-The product opsi-clonezilla is now being configured in a way that it will perform a restore on next run.
+The product `opsi-clonezilla` is now being configured in a way that it will perform a restore on next run.
 
 .Schema: Saving opsi-meta-data to c:\opsi.org\tmp
 image::opsi-modules:opsi-wim-cap-backup2.png["Schema: Saving opsi-meta-data to c:\opsi.org\tmp", width=332]
@@ -271,17 +210,13 @@ WARNING: Keep in mind the name of the Image! The name of the image created can't
 
 * Merging the resulting logfiles.
 
-////
-* Verification ...
-* Überprüfung der Liste der Images im modifizierten install.wim and setzten dieser Namensliste in das Produktproperty `Imagenames` des Zielproduktes, so das das neu erstellte Image auch zur Installation ausgewählt werden kann.
-////
 
 * Request action 'setup' for products contained in the property `setup_after_capture`. +
 At this time, also product dependencies will be resolved. +
 The property is a list and can contain several product IDs.
 
-TIP: leave settings so that opsi-clonezilla will be set to setup! +
-The machine will be depersonalized after the capture run, and thus remain unusable. Our product opsi-clonezilla is prepared, so that the backup taken earlier will be restored automatically.
+TIP: leave settings so that `opsi-clonezilla` will be set to setup! +
+The machine will be depersonalized after the capture run, and thus remain unusable. Our product `opsi-clonezilla` is prepared, so that the backup taken earlier will be restored automatically.
 
 * Deactivation of the WinPE partition, and re-activation of the OS partition (Windows).
 
@@ -353,7 +288,7 @@ This property is only for situations where the `opsi_depot_rw` share is *not* re
 Should we make a file system check on the system partition before we capture. +
 Default = false.
 
-* `verify_clonezilla_images`: +
+* `clonezilla_verify_images`: +
 Should Clonezilla check the images `after_save`, `before_restore`, `never`, `always` +
 A verify check takes nearly the same time as the save or restore process. +
 Default = `never`
@@ -372,11 +307,10 @@ This decision is for you to make.
 
 We provide the following target products:
 
-* `win7-x64-captured`
-* `win81-x64-captured`
 * `win10-x64-captured`
+* `win11-x64-captured`
 
-These products have to be equipped with required files from the OS DVDs like any other Windows netboot product (see our opsi-getting-started document).
+These products have to be equipped with required files from the OS DVDs like any other Windows netboot product.
 
 Still, folders like `winpe` or `drivers/drivers/additional/byAudit` can be symbolic links to a directory in a suitable non-target product. Watch out: the Subfolder `installfiles` needs to be physically there (copy from Windows DVD).
 
@@ -394,34 +328,24 @@ In the image is the backup from the opsi data that was stored during the capture
 Should now all the products that are mark as `installed` set to` setup`, this would imply that all products installed already in the image will be re-installed. This is not desirable.
 
 
-By the restoring from the opsi metadata of installed products there are two alternatives available now with opsi 4.0.7: +
+By the restoring from the opsi metadata of installed products there are two alternatives: +
 
-* Alternative 1: +
-Restoring the metadata and retention of 'setup' -Action Requests. +
-Products that are mark as 'installed' will *not* be set to 'setup'. +
-This is the default, and the behavior before opsi 4.0.7
+=== Variant 1
+When deploying a 'captured' image, after the installation of the image, only those products that were already set to `setup` before the start of the operating system installation are automatically installed. This can be due to your intervention or the `setup_after_install` property.
+Therefore, in this case, only the products that were set to `setup` before the installation of the operating system will be installed. Products that are set to 'installed' will *not* be set to 'setup'.+
+This is the default.
 
+=== Variant 2
+Restoring the metadata. Products that are set to 'installed' will be set to 'setup', except for those that were included in the restored metadata. +
+Variant 2 behaves similarly to installations from non-captured images
 
-* Alternative 2: +
-Restoring the metadata. Products that are mark as 'installed' will be set to 'setup' except those which were contained in the restore metadata. +
-
-*Alternative 1* +
-By the deploy from a 'captured' image, after the install, only the products which were already from the beginning of the OS-install set to 'setup' will be automatically installed. These can be done through your intervention, or through the property 'setup_after_install'.
-Therefore only the products which stood at `setup` before installing the operating system will be installed in this case. +
-This is the default, and the behavior before opsi 4.0.7 +
-
-*Alternative 2* +
-Variant 2 behaves similar to what would be the case of an installation without a captured Image: +
-* Restore of the metadata. +
-* Products that are mark as 'installed' are then set to 'setup' except those which were contained in the restore metadata. +
-This behavior is only available since opsi 4.0.7 and is not the default. Option 2 is made possible by enhancements to the opsi script and is part of the opsi-client-agent of 4.0.7. +
 In order to be able to apply this behavior a 'config' must be set on ('Host parameters') : +
 The Boolean configuration entry: `clientconfig.capture.switch_installed_products_to_setup`. If the entry for this client has the value 'true' then variant 2 is applied, otherwise variant 1 +
 
 'Hostparameter' can have specific client events activated or deactivated.
-The 'Hostparameter' can be applied using the 'opsi-configed' or the 'opsi-admin'.
+The 'Hostparameter' can be applied using the 'opsi-configed' or the 'opsi-cli'.
 
-To create the 'Hostparameter' over the 'opsi-admin' the following commands are to be executed on the opsi config server:
+To create the 'Hostparameter' over the 'opsi-cli' the following commands are to be executed on the opsi config server:
 
 [source,shell]
 ----
@@ -432,8 +356,6 @@ With that you set for *all* computers 'Alternative 2'.
 To create the 'Hostparameter' over the 'opsi-Server' select there 'Server Configuration' / 'ClientConfig' / And on the right side with the right mouse button: `Add Boolean configuration entry`.
 
 
-
-
 [[opsi-manual-wimcap-wim-info]]
 == Helper product opsi-wim-info
 
@@ -442,11 +364,3 @@ Properties:
 
 * `target_produkt` +
 ProductId of the product where the install.wim file is searched.
-
-
-[[opsi-manual-wimcap-knownproblems]]
-== Known Restrictions and Problems
-
-The following restrictions are known as of today (13.7.2018):
-
-* none
