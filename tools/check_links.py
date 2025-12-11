@@ -4,7 +4,7 @@
 # desktop management solution opsi (open pc server integration)
 # http://www.opsi.org
 
-# Copyright (C) 2017 uib GmbH - http://www.uib.de/
+# Copyright (C) 2017 uib GmbH - https://uib.de/
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
