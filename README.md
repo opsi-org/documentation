@@ -55,6 +55,11 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 To build the documentation files you can use the Visual Studio Code Dev Container.
 In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
 
+
+
+### Check, if the ui/bundle exists
+If there is a directory in antora-ui
+
 ### Create Antora site
 
 To create the Antora site with your local changes use the VS Code task or execute:
