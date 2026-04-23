@@ -55,6 +55,18 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 To build the documentation files you can use the Visual Studio Code Dev Container.
 In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
 
+
+
+### Check, if the ui/bundle exists
+If there is a directory antora-ui/build and it contains a file named ui-bundle.zip proceed to the next section of this README.
+Otherwise, create the bundle with
+
+```console
+cd antora-ui
+gulp bundle
+cd ..
+```
+
 ### Create Antora site
 
 To create the Antora site with your local changes use the VS Code task or execute:
@@ -62,6 +74,19 @@ To create the Antora site with your local changes use the VS Code task or execut
 ```console
 npx antora --log-level=debug local-playbook.yml
 ```
+
+### Access Antora site
+When using devcontainers, start an http-server in the container (which is in the terminal within vscode) with
+
+```console
+cd antora-ui/build/site
+python3 -m http.server 5252
+```
+
+Then, you can access the created site via `http://localhost:5252`. This port is forwarded by devcontainers.
+
+Stop the server with Ctrl-C.
+To use other commands in this README, go back to the parent directory `/workspaces/opsidoc`.
 
 ### Create PDF/HTML documentation
 
