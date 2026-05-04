@@ -1,5 +1,5 @@
 ////
-; Copyright (c) uib GmbH (www.uib.de)
+; Copyright (c) uib GmbH (uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      10.01.2024
+:Date:      17.09.2025
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -26,39 +26,43 @@
 [[server-components-dhcp-pxe]]
 = DHCP Server/PXE Boot
 
-A DHCP server (Dynamic Host Configuration Protocol) automatically configures devices in a network, including the assignment of IP address, netmask, gateway, domain name server (DNS), and also the setup for network boot (PXE). Preboot Execution Environment (PXE) enables computers to boot through the network and load an operating system. Devices with PXE-capable network adapters can retrieve a boot image over the network containing the operating system or other necessary boot files.
+A DHCP server (Dynamic Host Configuration Protocol) automatically configures devices on a network.
+This includes assigning IP addresses, subnet masks, gateways, and domain name servers (DNS).
+Additionally, the DHCP server can provide the necessary information for network booting (PXE).
 
-NOTE: PXE is compatible with both BIOS (Basic Input/Output System) and UEFI (Unified Extensible Firmware Interface). PXE itself is independent of the computer's firmware, although the boot loaders used for BIOS and UEFI are different.
+The Preboot Execution Environment (PXE) allows computers to boot directly from the network and load an operating system or special tools.
 
-In this context, the opsi depot server functions as a boot server, allowing opsi to execute automated processes independent of an operating system installed on the client.
+NOTE: PXE works with both BIOS (Basic Input/Output System) and UEFI (Unified Extensible Firmware Interface).
+The PXE specification is independent of the firmware, but the bootloaders used differ.
 
-To enable PXE boot, a DHCP server must provide additional information to the network device. When using the Trivial File Transfer Protocol (TFTP) for this purpose, the necessary configurations are:
+In the opsi environment, the *opsi depot server* acts as the boot server.
 
-* **Boot server (DHCP option 66)**: The IP address of the TFTP server (also known as the next server).
-* **Boot filename (DHCP option 67)**: The path to the bootloader on the TFTP server. This option requires different configurations for UEFI and BIOS devices.
+For PXE boot to work smoothly, the DHCP server must provide additional information to the network device:
 
-TIP: You can find more detailed information about TFTP in the chapter xref:server:components/tftpd.adoc[TFTP Server].
+* *Boot Server (DHCP Option 66)*: IP address of the boot server (also called next-server)
+* *Boot Filename (DHCP Option 67)*: Path to the bootloader on the boot server. This option must be configured differently for UEFI and BIOS devices.
+
+TIP: For detailed information about TFTP (Trivial File Transfer Protocol), see xref:server:components/tftpd.adoc[TFTP Server].
 
 [[server-components-dhcp-on-opsi-server]]
 == DHCP on the opsi Depot Server
 
-An opsi depot server can also function as a DHCP server, and it's possible to manage the DHCP server configuration automatically with opsi.
+An *opsi depot server* can also be used as a DHCP server. The automatic management of DHCP configuration by opsi is particularly convenient.
 
-To set this up, you need to install the ISC DHCP server on the opsi server. The specific name of the package varies depending on the Linux distribution you are using; it is typically labeled as `isc-dhcp-server` or `dhcp-server`. If you're unsure, consult the documentation or the repositories of your Linux system for clarity.
+To do this, install the ISC DHCP server on the *opsi depot server*. The package name varies depending on the Linux distribution and is either *isc-dhcp-server* or *dhcp-server*. If in doubt, check your system's package sources or manual.
 
-NOTE: The preconfigured virtual machine (as detailed in the chapter xref:server:installation/preconfigured-vm.adoc[Preconfigured Virtual Machine]) already includes a DHCP server. This server is configured to assign IP addresses exclusively to known clients, meaning it does not offer free leases.
+NOTE: The preconfigured virtual machine (see xref:server:installation/preconfigured-vm.adoc[Preconfigured Virtual Machine]) already includes a DHCP server. It is configured to assign IP addresses only to known clients. This increases security and prevents conflicts with other DHCP servers.
 
 [[server-components-dhcp-on-opsi-server-autoconf]]
+
 === Automatic DHCP Configuration
 
-If the DHCP server is installed on the opsi server, opsi can automatically configure it. In this scenario, opsi also takes care of creating and updating client entries. The only requirement from your end is to input the MAC address and, if necessary, the IP address of the client. This can be done through the management interface *opsi-configed* (for more details, refer to the chapter xref:gui:configed.adoc[Management Interface *opsi-configed*]).
+If opsi is installed on an *opsi depot server*, DHCP configuration can be performed automatically. The settings are taken directly from the opsi database. You only need to provide the MAC address and, if necessary, the IP address—for example, when creating a client via the management interface *opsi-configed* (see xref:gui:configed.adoc[Management Interface *opsi-configed*]).
 
-The configuration for the automatic DHCP setup via opsi is managed in the file `/etc/opsi/backends/dhcpd.conf` on the opsi config server. An example configuration might look like this:
+You control automatic DHCP configuration via the file `/etc/opsi/backends/dhcpd.conf` on the *opsi config server*. Example:
 
 [source,toml]
 ----
-# -*- coding: utf-8 -*-
-
 module = 'DHCPD'
 
 config = {
@@ -71,39 +75,60 @@ config = {
 }
 ----
 
-The configuration parameters have the following meaning:
+
+The individual configuration parameters mean:
 
 * `enabled`:
-  ** `True`: The automatic configuration is enabled.
-  ** `False`: The automatic configuration is deactivated.
+  ** `True`: Automatic configuration is enabled.
+  ** `False`: Automatic configuration is disabled.
 * `dhcpdOnDepot`:
-  ** `False`: The DHCP server on the opsi config server manages all clients.
-  ** `True`: The clients are managed in the DHCP configuration of the assigned depot.
+  ** `False`: The DHCP server on the *opsi config server* manages all clients.
+  ** `True`: Clients are managed in the DHCP configuration of the assigned *opsi depot server*.
 * `fixedAddressFormat`:
-  ** `FQDN`: The FQDN is used as the address for the client entries.
-  ** `IP`: The IP address is used for the client entries.
-* `dhcpdConfigFile`: The path to the ISC DHCP configuration file; if this entry is missing, the path is determined automatically (recommended and default).
-* `reloadConfigCommand`: The command that is executed after changes to the configuration file in order to activate it. If this entry is missing, the command is determined automatically (recommended and default).
-* `defaultClientParameters`: Client configuration parameters to be set for each client; if this entry is missing, they are determined automatically (recommended and default).
+  ** `FQDN`: The FQDN is used as the address for client entries.
+  ** `IP`: The IP address is used for client entries.
+* `dhcpdConfigFile`: Path to the ISC DHCP configuration file. If this entry is missing, the path is determined automatically (recommended and default).
+* `reloadConfigCommand`: The command executed after changes to the configuration file to activate them. If this entry is missing, the command is determined automatically (recommended and default).
+* `defaultClientParameters`: Client configuration parameters to be set for every client. If this entry is missing, they are determined automatically (recommended and default).
 
 [[server-components-external-dhcp-server]]
+
 == External DHCP Server
+If you already use your own DHCP server in the network and want to use the PXE boot function of opsi, you must adjust your DHCP server configuration accordingly:
 
-If you want to use the PXE boot functionality of the opsi server and there's already an existing DHCP server in your network that is intended to manage the opsi clients, you will need to modify the configuration of this existing DHCP server as follows:
+* *Boot Server (DHCP Option 66)*: Enter the IP address of your opsi depot server as the boot server.
+* *Boot Filename (DHCP Option 67)*: Configure your DHCP server so that UEFI devices receive `opsi/loader/opsi-netboot.x64.efi` as the boot filename and legacy BIOS devices receive `opsi/loader/opsi-netboot.x86.bios`. For *ARM64*, use `opsi/loader/opsi-netboot.arm64.efi` accordingly.
 
-* **Boot server (DHCP option 66)**: Specify the IP address of your opsi depot server as the boot server.
-* **Boot filename (DHCP option 67)**: Adjust your DHCP server's settings to assign `opsi/opsi-linux-bootimage/loader/shimx64.efi.signed` as the boot filename for UEFI devices, and `opsi/opsi-linux-bootimage/loader/opsi-netboot.bios` for legacy BIOS devices.
+The following example shows the configuration of an ISC DHCP server for different bootloaders:
 
-Here's an example showing the configuration for an ISC DHCP server:
-
-[source,toml]
+[source,console]
 ----
 next-server 10.10.1.2;
-filename "opsi/opsi-linux-bootimage/loader/shimx64.efi.signed";
+filename "opsi/loader/opsi-netboot.x64.efi";
 if substring (option vendor-class-identifier, 19, 1) = "0" {
-	filename "opsi/opsi-linux-bootimage/loader/opsi-netboot.bios";
+  filename "opsi/loader/opsi-netboot.x86.bios";
 }
 else if substring (option vendor-class-identifier, 19, 1) = "7" {
-	filename "opsi/opsi-linux-bootimage/loader/shimx64.efi.signed";
+  filename "opsi/loader/opsi-netboot.x64.efi";
+}
+else if substring (option vendor-class-identifier, 15, 5) = "00011" {
+  filename "opsi/loader/opsi-netboot.arm64.efi";
 }
 ----
+
+[[server-components-dhcp-troubleshooting]]
+
+== Troubleshooting DHCP
+If PXE boot does not work as expected, first check your DHCP server configuration and make sure the service is running.
+
+To analyze DHCP traffic in the network, use tools such as *tcpdump* or *Wireshark*. These programs allow you to capture and analyze transmitted packets in detail.
+
+The following command shows all DHCP packets transmitted in the network:
+
+[source,console]
+----
+tcpdump -s0 -vv port bootpc or port bootps
+----
+
+The output shows you what information the DHCP server transmits to the client — in particular, the configured boot server and boot filename.
+This allows you to quickly identify sources of error.

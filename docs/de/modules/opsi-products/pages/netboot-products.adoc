@@ -1,5 +1,5 @@
 ////
-; Copyright (c) uib GmbH (www.uib.de)
+; Copyright (c) uib GmbH (uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
@@ -14,7 +14,7 @@
 
 :Author:    uib GmbH
 :Email:     info@uib.de
-:Date:      18.09.2023
+:Date:      17.09.2025
 :Revision:  4.3
 :toclevels: 6
 :doctype:   book
@@ -23,440 +23,408 @@
 
 
 
-
 [[opsi-manual-netboot-products]]
 = Netboot-Produkte
 
-Erklärender Einleitungsabschnitt
+Netboot-Produkte können unabhängig vom installierten Betriebssystem verwendet werden und bieten dadurch maximale Flexibilität für verschiedene Einsatzszenarien.
+Typische Anwendungsfälle sind die Neuinstallation von Betriebssystemen, Diagnosezwecke oder Wartungsarbeiten.
+In der Regel erfolgt die Ausführung über das *opsi-linux-bootimage* – eine speziell für opsi entwickelte und angepasste Linux-Distribution.
+Als Bootloader kommt *GRUB2* zum Einsatz. Für den xref:opsi-modules:secureboot.adoc[Secure-Boot-Betrieb] wird eine *shim* verwendet.
+
+Standardmäßig wird das *opsi-linux-bootimage* per PXE-Boot gestartet.
+Alternativ steht eine link:https://tools.43.opsi.org/stable/[ISO-Datei] zur Verfügung, die von CD oder USB-Stick gebootet werden kann.
+Dadurch können Netboot-Produkte auch in Umgebungen genutzt werden, in denen PXE nicht verfügbar ist.
+
+Netboot-Produkte können auch eigene Boot-Images bereitstellen, die ebenfalls per PXE gestartet werden.
+Beispiele hierfür sind *MemDisk* oder das Sicherheitstool *Desinfec’t*.
+
+Die Steuerung des PXE-Boots übernimmt der Dienst xref:server:components/opsipxeconfd.adoc[*opsipxeconfd*] auf dem opsi-Depotserver.
+Zusätzlich werden ein xref:server:components/dhcp-server.adoc[DHCP-Server] und ein xref:server:components/tftpd.adoc[TFTP-Server] benötigt.
+
+[[opsi-manual-netboot-products-configuration]]
+== Konfiguration der Netboot-Umgebung
+Die Netboot-Umgebung wird hauptsächlich über Host-Parameter mit dem Präfix `netboot.` konfiguriert.
+Diese Parameter können Depot-weit (für alle Clients eines Depots) oder Client-bezogen (nur für einen bestimmten Client) gesetzt werden.
+
+NOTE: Client-spezifische Einstellungen greifen aktuell nur, wenn für den Client eine Aktion für ein Netboot-Produkt gesetzt ist.
+
+Wichtige Host-Parameter für das Verhalten beim Netboot:
+
+`netboot.use_host_onetime_password`::
+Beim Netzwerk-Boot authentifiziert sich der Client am *opsi-Service*.
+Standardmäßig wird hierfür der *opsi-Host-Key* genutzt.
+Ist dieser Parameter auf `true` gesetzt, wird stattdessen ein einmaliges Passwort verwendet, was die Sicherheit erhöht.
+
+`netboot.host_identifiers`::
+Legt fest, wie Clients beim Netzwerk-Boot identifiziert werden. Mögliche Werte sind:
+
+* `mac_address` (MAC-Adresse der Netzwerkkarte)
+* `system_uuid` (System-UUID des Clients)
+
+Beide Werte können kombiniert werden.
+Je nach Auswahl wird im Boot-Verzeichnis eine Konfigurationsdatei erstellt, die entweder auf der System-UUID oder der MAC-Adresse basiert.
+
+`netboot.grub.additional_menu_entries`::
+Ermöglicht das Hinzufügen weiterer Menüeinträge zu *GRUB2*.
+
+`netboot.grub.graphicsmode`::
+Aktiviert oder deaktiviert den Grafikmodus von *GRUB2*.
+
+`netboot.grub.password`::
+Legt ein Passwort für den Zugriff auf das *GRUB2*-Menü fest.
+Der Benutzername ist immer `admin`.
+Das Passwort kann im Klartext oder als Hash angegeben werden (`grub.pbkdf2.sha512.10000.<salt>.<hash-value>`).
+Hashwerte lassen sich zum Beispiel mit `grub-mkpasswd-pbkdf2` erzeugen.
+
+`netboot.grub.timeout`::
+Legt fest, wie viele Sekunden das *GRUB2*-Menü angezeigt wird, bevor automatisch der Standard-Eintrag gestartet wird (sofern keine Aktion für ein Netboot-Produkt gesetzt ist).
+
 
 [[opsi-manual-netboot-bootimage-parametrization]]
 == Parameter für das Linux-Bootimage
 
-Das opsi-linux-bootimage hat eine Reihe von Standardeinstellungen, welche das Verhalten beeinflussen.
-Sollte nach dem Laden des Bootimages der Bildschirm schwarz bleiben oder die Netzwerkkarte nicht (korrekt) funktionieren, so müssen evtl. für diese Hardware die Startparameter des Bootimages angepasst werden. +
-Dies können Sie im _opsi-configed_ im Tab _Hostparameter_ am Eintrag _opsi-linux-bootimage.append_ tun.
+Alle Parameter mit dem Präfix `netboot.opsi-linux-bootimage.cmdline.` werden als Kernel-Parameter an das opsi-linux-bootimage übergeben.
+Dabei können sowohl reguläre link:https://www.kernel.org/doc/html/v4.14/admin-guide/kernel-parameters.html[Linux-Kernel-Parameter] als auch spezielle, vom opsi-linux-bootimage unterstützte Parameter verwendet werden.
 
-Typische Werte sind hier (einzeln oder kombiniert):
+Es gibt zwei Typen von Host-Parametern:
 
-* +acpi=off+
+Boolesche Host-Parameter::
+Diese dienen als Flags.
+Sie werden der Kernel-Commandline hinzugefügt, wenn sie auf `true` gesetzt sind.
+Bei `false` werden sie nicht übergeben.
 
-* +noapic+
+String-Host-Parameter::
+Diese werden als `<Parametername>=<Wert>` an die Kernel-Commandline übergeben.
+Mehrere Werte werden durch Kommata getrennt.
+Ist kein Wert gesetzt, wird der Parameter nicht übergeben.
 
-* +irqpoll+
+Weitere Kernel-Parameter können jederzeit ergänzt werden, indem entsprechende Host-Parameter mit dem Präfix `netboot.opsi-linux-bootimage.cmdline.` definiert werden.
 
-* +reboot=bios+
+Wichtige Kernel-Parameter im Zusammenhang mit opsi:
 
-Für AMD Ryzen 2XXX Prozessoren empfiehlt es sich, die Parameter
+`hn`:: Setzt den Hostnamen des Systems.
+`dn`:: Setzt den Domainnamen.
+`host_id`:: Setzt die opsi-Host-ID des Systems.
+`service`:: Adresse des opsi-Service, zu dem eine Verbindung hergestellt werden soll.
+`pckey`:: opsi-Host-Key für die Authentifizierung.
+`otp`:: Einmal-Passwort für die Authentifizierung (Alternative zu pckey).
+`opsi_ui`:: Auswahl der opsi-Benutzeroberfläche (splash oder tui). Standard ist splash.
+`lang`:: Setzt die Systemsprache. Format: `<Sprache>[_Region][.Zeichensatz]` (z. B. `de`, `de_DE`, `de_DE.UTF8`).
+`tz`:: Setzt die Zeitzone, z. B. `Europe/Berlin` (Standard ist `UTC`).
+`pwh`:: Passwort oder Passwort-Hash für den Root-Benutzer (`$<hash-type>$<salt>$<hash>`).
+`macaddress`:: Weist dem Netzwerkgerät eine benutzerdefinierte MAC-Adresse zu.
+`nodhcp`:: Deaktiviert die DHCP-Konfiguration für Netzwerkgeräte.
+`dhcp_identifier`:: Bestimmt den DHCPv4-Client-Identifier (`mac` oder `duid`). Standard ist `mac`.
+`ssh`:: Startet beim Booten den SSH-Dienst.
+`splash`:: Aktiviert den grafischen Splash-Screen während des Bootens.
+`tcpdump`:: Aktiviert die Netzwerk-Paketaufzeichnung in `/tmp/tcpdump.pcap`. Zusätzliche Optionen werden als Argumente an *tcpdump* übergeben.
+`opsi_loglevel`:: Setzt das opsi-Loglevel (0-9).
+`product`:: Gibt die ID des Netboot-Produkts an, das verarbeitet werden soll.
+`ask_conf`:: Fordert den Benutzer interaktiv zur Bestätigung von Konfigurationswerten auf.
 
-* +mem=2G+
+Weitere relevante Kernel-Parameter:
 
-* +ramdisk_size=2097152+
+`quiet`:: Unterdrückt die meisten Kernel- und Systemmeldungen während des Bootens.
+`loglevel`:: Setzt das Kernel-Loglevel (0-7).
+`video`:: Konfiguriert den Framebuffer.
+`vga`:: Legt VGA-Auflösung und Farbtiefe fest.
+`noapic`:: Deaktiviert den I/O-APIC (I/O Advanced Programmable Interrupt Controller).
+`irqpoll`:: Aktiviert IRQ-Polling für problematische Hardware.
+`pci`:: Optionen für das PCI-Subsystem.
+`mem`:: Legt die vom Kernel zu nutzende Speichermenge fest.
+`acpi`:: Steuert das Verhalten des ACPI-Subsystems.
+`reboot`:: Gibt die Methode für den Neustart an.
+`efi_no_storage_paranoia`:: Deaktiviert die Sicherheitsprüfung für reservierten Speicherplatz im EFI-NVRAM (standardmäßig 5120 Byte unter Linux 6.14.0). Achtung: Dieser Parameter sollte nur verwendet werden, wenn sichergestellt ist, dass die Firmware eine ordnungsgemäße Speicherbereinigung gemäß UEFI-Spezifikation durchführt. Andernfalls besteht die Gefahr, dass das Mainboard unbrauchbar wird.
 
-einzusetzen.
-Für AMD Ryzen 3XXX ist zusätzlich der Parameter
 
-* +nomodeset+
+[[opsi-manual-netboot-bootimage-debugging]]
+== Debugging und Fehlerbehebung beim Booten
+Da beim Booten eines Netboot-Produkts mehrere Services und Komponenten zusammenarbeiten, können Probleme an verschiedenen Stellen auftreten.
+Prüfen Sie zunächst, ob Sie die aktuellsten Versionen der opsi-Komponenten verwenden.
 
-nötig, um die grafische Ausgabe zu korrigieren.
+[[opsi-manual-netboot-bootimage-debugging-dhcp]]
+=== DHCP
+Der DHCP-Server weist den Clients IP-Adressen und weitere Netzwerkkonfigurationsparameter zu.
+Zusätzlich übermittelt er die Informationen zum Boot-Server und zur Boot-Datei, die für den PXE-Boot benötigt werden.
+Im Kapitel xref:server:components/dhcp-server.adoc#server-components-dhcp-troubleshooting[DHCP Troubleshooting] finden Sie Hinweise zur Fehlersuche bei DHCP-Problemen.
 
-Mittels
+[[opsi-manual-netboot-bootimage-debugging-tftp]]
+=== TFTP
+Der TFTP-Server stellt die Boot-Dateien bereit, die der Client zum Starten benötigt.
+In der Regel läuft der TFTP-Server auf dem opsi-Depotserver.
+Im Kapitel xref:server:components/tftpd.adoc#server-components-tftpd-troubleshooting[TFTP-Troubleshooting] finden Sie Hinweise zur Fehlersuche bei TFTP-Problemen.
 
-* +dhclienttimeout=SECONDS+
+[[opsi-manual-netboot-bootimage-debugging-grub2]]
+=== GRUB2
+*GRUB2* ist der von opsi verwendete Bootloader.
+Sollte der Bootvorgang an dieser Stelle fehlschlagen, prüfen Sie folgende Punkte:
 
-kann der Wert  _timeout_ der Datei `/etc/opsi/dhclient.conf` des Bootimages verändert werden (default 30 Sekunden).
+* Gibt es eine aktuellere BIOS- oder UEFI-Firmware für das Gerät?
+* Ist die Firmware korrekt konfiguriert (z.B. Boot-Reihenfolge, Secure Boot-Einstellungen)?
+* Funktioniert das Booten mit deaktiviertem Secure Boot?
+* Schalten Sie den Grafikmodus von *GRUB2* aus (Host-Parameter `netboot.grub.graphicsmode` auf false setzen).
+* Testen Sie das Booten des opsi-linux-bootimage über USB-Stick oder CD.
 
-Mit opsi-linux-bootimage >= 20220331-1 ist ein neuer Wert möglich
+Es steht auch eine Debug-Version von *GRUB2* zur Verfügung.
+Diese gibt während des Bootvorgangs ausführlichere Informationen aus und setzt den Ablauf nicht automatisch fort.
+Die Debug-Varianten befinden sich unter `<boot>/opsi/loader/grub-debug.<arch>.<efi|bios>` und können entweder über angepasste Symlinks oder durch entsprechende Einstellungen in der DHCP-Konfiguration des Clients genutzt werden.
 
-* +macaddress=MACADRESSE+
 
-Dieser Wert ermöglicht es, bei defektem `MAC Passthrough` die MAC Adresse der Netzwerkkarte einer Docking Station oder eines USB-to-Ethernet Adapters zu überschreiben und so die interne MAC Adresse des Gerätes zu nutzen.
-Bei Geräten, die auf Anhieb eine Netzwerkverbindung bekommen, also wenn `MAC Passthrough` korrekt funktioniert oder deaktiviert ist, funktioniert dieser Parameter nicht.
+[[opsi-manual-netboot-bootimage-debugging-linux-bootimage]]
+=== opsi-linux-bootimage
+Scheitert der Bootvorgang beim Start des *opsi-linux-bootimage*, prüfen Sie folgende Punkte:
 
-Eine weitere wichtige Standardeinstellung ist das Passwort von root im Bootimage. Dieses ist per default 'linux123' und sollte aus Sicherheitsgründen ebenfalls auf diesem Weg abgeändert werden.
+* Deaktivieren Sie den quiet-Mode und den Splash-Screen (Host-Parameter `netboot.opsi-linux-bootimage.cmdline.quiet` und `netboot.opsi-linux-bootimage.cmdline.splash` auf false setzen).
+* Erhöhen Sie das Log-Level des Linux-Kernels (Host-Parameter `netboot.opsi-linux-bootimage.cmdline.loglevel` auf 7 setzen).
+* Testen Sie das Booten mit verschiedenen Kernel-Parametern (z.B. `acpi=off`, `noapic`, `irqpoll`, `pci=nomsi`, `mem=2G`).
 
-Um diese angesprochenen Modifikationen durchzuführen, muss man die Konfiguration: _opsi-linux-bootimage.append_ am besten in der Serverkonfiguration anpassen.
+Um sich am laufenden Bootimage anzumelden, können Sie auf eines der TTYs 3-6 wechseln (z.B. mit `Ctrl`+`Alt`+`F3`).
+Melden Sie Sich mit dem Benutzernamen `root` und dem Passwort an, das im Host-Parameter `netboot.opsi-linux-bootimage.cmdline.pwh` gesetzt ist.
 
-Am einfachsten kann man dies mit _opsi-cli_ machen:
+Das Systemlog können Sie mit dem Befehl `journalctl` anzeigen.
+Das Kernel-Log ist über `dmesg` verfügbar.
+
+Um den Status des Netzwerks zu analysieren, können Sie die beispielsweise die Kommandos `networkctl status --all`, `ip l` und `ip a` verwenden.
+
+Tritt der Fehler erst bei Verarbeitung des Netboot-Produkts auf, können Sie die Log-Datei des Bootimages prüfen.
+Diese befindet sich unter `/tmp/log` im laufenden Bootimage.
+Wenn möglich, wird die Log-Datei auch auf den *opsi-Configserver* übertragen und ist dann z. B. über den *opsi-configed* einsehbar.
+
+Bei bestehender opsi-Messagebus-Verbindung können Sie über *opsi-Configed* oder *opsi-cli* ein Terminal auf dem Client öffnen.
+
+Auch über SSH ist ein Zugriff möglich.
+Dafür muss der Parameter `netboot.opsi-linux-bootimage.cmdline.ssh` auf `true` gesetzt sein.
+Der Benutzername für den SSH-Zugriff ist `root`.
+Als Passwort wird das unter `netboot.opsi-linux-bootimage.cmdline.pwh` gesetzte Passwort verwendet.
+
+
+[[opsi-manual-netboot-pxeConfigTemplate]]
+== Spezielle PXE-Boot-Konfigurationen
+Standardmäßig werden Netboot-Produkte über das opsi-linux-bootimage ausgeführt.
+Es besteht jedoch auch die Möglichkeit, eigene Boot-Images einzubinden, indem eine individuelle PXE-Boot-Konfiguration erstellt wird.
+
+Dazu kann das Attribut `pxeConfigTemplate` in den Metadaten des Netboot-Produkts verwendet werden.
+In diesem Attribut lässt sich ein GRUB2-Konfigurations-Template hinterlegen, das beim Start des Netboot-Produkts automatisch in die GRUB2-Konfiguration eingebunden wird.
+
+Die Templates basieren auf Jinja2 und können auf verschiedene Variablen zugreifen, unter anderem:
+
+`host`:: Das *Host*-Objekt des Clients.
+Alle Attribute sind verfügbar, z. B. `host.id`, `host.description`, `host.hardwareAddress`, `host.systemUUID`.
+
+`product`:: Das *Product*-Objekt des Netboot-Produkts.
+Verfügbare Attribute sind u. a. `product.id`, `product.name`, `product.description`.
+
+`product_on_depot`:: Das zugehörige *ProductOnDepot*-Objekt.
+
+`product_on_client`:: Das zugehörige *ProduktOnClient*-Objekt.
+
+`product_property_states`:: Die *ProductPropertyState*-Objekte des Produkts für den Client als Dictionary.
+Der Zugriff erfolgt über `product_property_states["<property_id>"]`.
+Sollte das Property nicht existieren, wird ein Platzhalter-Objekt zurückgegeben.
+Es stehen folgende Attribute zur Verfügung:
+
+* `id`: ID des *ProductProperty*.
+* `exists`: Gibt an, ob das *ProductProperty* existiert.
+* `values`: Die gesetzten Werte als Liste von Booleans oder Strings.
+* `str_value`: Die gesetzten Werte als kommaseparierter String.
+* `bool_value`: Der gesetzte Wert als Boolean.
+* `password_hash(method, format)`: Gibt den Wert als Passwort-Hash zurück.
+** `method`: `md5`, `sha512` oder `pbkdf2-sha512`.
+** `format`: `shadow`, `grub`
+* `cmdline(pattern, remove_prefix)`: Generiert Linux-Kernel-Parameter als String.
+** `pattern`: Ein einzelnes oder eine Liste von Unix-Wildcards zum Filtern der Property-Namen.
+** `remove_prefix`: Ein einzelnes oder eine Liste von Präfixen, die vom Property-Namen entfernt werden sollen.
+
+`config_states`:: Alle *ConfigStates* des Clients, die mit `netboot.` beginnen, als Dictionary.
+Die gleichen Attribute wie bei `ProductPropertyState`-Objekten sind verfügbar.
+
+`opsi-linux-bootimage`:: Ein spezielles Objekt, das die Methode `cmdline(additional_params, config_id_prefix)` bereitstellt, mit der alle erforderlichen Linux-Kernel-Parameter als String erzeugt werden.
+* `additional_params`: Zusätzliche Kernel-Parameter als Dictionary, die hinzugefügt oder überschrieben werden.
+* `config_id_prefix`: Prefix von Config-IDs, die als Kernel-Parameter hinzugefügt werden sollen (Standard ist `netboot.opsi-linux-bootimage.cmdline.`).
+
+Alternativ kann in `pxeConfigTemplate` auch ein Verzeichnisname angegeben werden.
+Dann wird die Datei `grub.cfg` aus dem Verzeichnis `<boot>/opsi/<verzeichnisname>` geladen.
+
+Beispiel für ein `pxeConfigTemplate`-Attribut:
+[source,shell]
+----
+if [ "$grub_platform" = "efi" ]; then
+	menuentry 'Start {{ product.name }}' --unrestricted {
+		echo "Loading {{ product.name }} {{ product.productVersion }}..."
+		linux (${bootsrc})/opsi/my-product/loader.efi {{ product_property_states.cmdline("cmdline.*", "cmdline.") }}
+	}
+else
+	echo "{{ product.id }} does not support Legacy BIOS booting."
+	sleep 5
+	exit
+fi
+----
+
+[[opsi-manual-netboot-bootimage-parameters-opsi-cli]]
+== Bootimage-Parameter mit opsi-cli setzen
+Mit *opsi-cli* können Bootimage-Parameter komfortabel gesetzt werden.
+Passwörter lassen sich dabei direkt in sichere Hashes umwandeln.
 
 [source,shell]
 ----
-opsi-cli bootimage set-boot-password klartextpasswort
+opsi-cli bootimage set-boot-password <PASSWORD>
 ----
-
-In der Ausgabe des Aufrufs findet sich der Passworthash, welcher zugleich als serverweiter Host-Parameter für _opsi-linux-bootimage.append_ eingetragen wird. Dieser sieht beispielhaft wie folgt aus:
-
-[source,shell]
-----
-pwh=$6$1LldvfXKEbECB5e1$Rk7vNUuRu0T0cHohCwQjNM0hlLtmWaaq9Y72aF50STeP6Sr0ylUPDJhjvR77BQ0zbXc0coSn9YhB3BoC9earg1
-----
-
-Mit dieser Einstellung wird bei jedem Client, der ein Netboot-Produkt auf setup gesetzt bekommt beim Start des _opsi-linux-bootimage_ das Passwort des Benutzers 'root' geändert.
-Man kann mit dem anschliessendem Aufruf von 
-[source,shell]
-----
-opsipxeconfd setup
-----
-den Passworthash in die allgemeine Grub Menü Konfiguration zu schreiben und somit auch den Start des _opsi-linux-bootimage_ über das Menü per Passwort zu schützen.
-
-Möchte man ein Python Skript vor dem eigentlichen Netboot Produkt starten, gibt es noch die Parameter:
-
-* +pre-execute+
-
-* +pre-script+
-
-Als Zusatz benötigen die Parameter noch eine Adresse, von der das entsprechende Skript gezogen werden soll. Dies kann eine _http://_ oder _tftp://_ Adresse sein. Hier ein Beispiel:
-
-* +tftp://172.16.166/linux/test.py+
-
-Es ist zu beachten, dass der Port für die Kommunikation mit dem tftp-Server standardmäßig auf 69 gestellt ist.
-
+Der Passwort-Hash wird automatisch im Host-Parameter `netboot.opsi-linux-bootimage.cmdline.pwh` gespeichert und zusätzlich auf der Konsole ausgegeben.
 
 [[opsi-manual-netboot-unattended]]
-== Automatische Betriebssysteminstallation unattended
+== Automatische Betriebssysteminstallation
 
-
-[[opsi-manual-netboot-unattended-overview]]
-=== Überblick
-
-
-.Ablauf einer Reinstallation:
-
-* Bei PXE-Boot:
-** Über den _opsi-configed_ oder _opsi-admin_ wird der PC für die Neuinstallation ausgewählt.
-* Der Client erkennt beim nächsten Bootvorgang mithilfe des PXE-Bootproms, dass er reinstalliert werden soll und lädt ein Bootimage vom _opsi-server_.
-* Bei CD-Boot:
-** Der Client bootet von der opsi-client-boot-cd das Bootimage.
-* Das Bootimage stellt am Client die Rückfrage, ob der PC tatsächlich reinstalliert werden soll. Dies ist die einzige Interaktion des gesamten Prozesses.
-* Das Bootimage partitioniert und formatiert die Festplatte.
-* Das Bootimage überträgt die notwendigen Installationsdateien und Konfigurationsinformationen vom _opsi-server_ auf den Client und leitet einen Reboot ein.
-* Nach dem Reboot installiert der Client selbstständig das Betriebssystem anhand der übertragenen Konfigurationsinformationen.
-* Im Anschluss wird der opsi-client-agent zur Einbindung der automatischen
-Softwareverteilung installiert.
-* Die automatische Softwareverteilung installiert die gesamte Software, die gemäß Konfigurationsdatei auf diesen Rechner gehört.
-
-[[opsi-manual-netboot-unattended-requirements]]
+[[opsi-manual-netboot-unattended-preconditions]]
 === Voraussetzungen
+Das Gerät sollte für einen Netzwerk-Boot (PXE-Boot) konfiguriert sein.
+Alternativ ist auch ein Boot von CD oder USB-Stick möglich.
 
-Der Client-PC sollte mit einer bootfähigen Netzwerkkarte ausgestattet sein. Viele heute eingesetzte Netzwerkkarten verfügen über eine entsprechende PXE-Firmware. Diese kontrolliert den Bootvorgang vom Netz, falls nicht eine andere Reihenfolge im BIOS eingestellt ist. Ist kein PXE vorhanden kann alternativ kann auch von der opsi-client-boot-cd das Bootimage gebootet werden.
-
-Das opsi-Installationspaket für das zu installierende Betriebssystem muss auf dem opsiserver installiert sein. In den folgenden Abschnitten wird als Beispiel jeweils Windows 10 angenommen.
+Das opsi-Paket für das gewünschte Betriebssystem muss auf dem *opsi-Server* installiert sein.
 
 [[opsi-manual-netboot-unattended-netboot]]
-=== PC-Client bootet vom Netz
+=== Netzwerkboot
+* Das Gerät startet per PXE-Boot.
+* Der DHCP-Server weist dem Gerät eine IP-Adresse zu und teilt ihm Boot-Server (meist *opsi-Depotserver*) und Boot-Datei mit.
+* Der Client lädt die Boot-Datei vom Boot-Server, abhängig von Architektur und BIOS-Typ (*UEFI* / *Legacy BIOS*).
+* Bei aktiviertem Secure Boot wird die shim geladen, die anschließend den *GRUB2*-Bootloader startet.
+* Ohne Secure Boot wird *GRUB2* direkt geladen und gestartet.
+* *GRUB* lädt die eingebettete Konfigurationsdatei.
+* Die client-spezifische *GRUB*-Konfigurationsdatei `<SystemUUID>.cfg` oder `<MAC-Adresse>.cfg` wird nachgeladen. Diese Dateien werden vom Dienst *opsipxeconfd* dynamisch erstellt.
+* Kernel und initramfs des opsi-linux-bootimage werden vom Bootserver geladen.
+* Der Kernel startet mit den Boot-Parametern aus der *GRUB*-Konfigurationsdatei.
+* Das Linux-Bootimage konfiguriert die Netzwerkschnittstellen per DHCP.
+* Der opsi-Service des Bootimage startet und verbindet sich mit dem *opsi-Service*.
+* Die Installationskonfiguration wird vom *opsi-Service* abgerufen.
+* Es wird eine Verbindung zum *opsi-Depotserver* hergestellt, um die Installationsdateien zu laden.
+* Das für die gewählte Aktion hinterlegte Skript wird ausgeführt.
 
-Die Firmware des PXE wird beim Starten eines PCs aktiv: sie „kann“ dhcp und führt die Abfragen im Netz durch.
+Alle weiteren Schritte hängen vom jeweiligen Netboot-Produkt ab.
+Im Folgenden wird der Ablauf für die unattended-Installation von Windows-Betriebssystemen unter UEFI beschrieben.
 
-.Schritt 1 beim PXE-Boot
-image::opsi-products:netboot-pxe.png[pdfwidth=70%, width=70%]
+[[opsi-manual-netboot-unattended-windows]]
+=== Unattended-Installation von Windows-Betriebssystemen
 
-Der PC kennt zu Beginn lediglich seine Hardware-Adresse (= hardware ethernet, MACNummer der Netzwerkkarte), bestehend aus sechs zweistelligen Hexadezimalzeichen.
+Ist das *ProductProperty* `askBeforeInst` gesetzt, muss der Start der Neuinstallation bestätigt werden.
 
-Die Firmware schickt damit eine Rundfrage ins Netz. Es ist eine *DHCPDISCOVER*Anfrage über Standardport per Broadcast (= an alle Rechner im Netz): „Ich brauche eine IP-Nummer und wer ist mein dhcp-Server?“ (Discover= entdecken)
+Vorbereitung der Festplatte::
+Die Festplatte wird partitioniert.
+Es werden mindestens eine EFI-Partition (FAT32), eine NTFS-Partition für Windows PE und eine NTFS-Partition für das Betriebssystem angelegt und formatiert.
 
-Mittels *DHCPOFFER* macht der dhcp-Server diesbezüglich einen Vorschlag.
-(offer=anbieten)
+Kopieren der Installationsdateien::
+Das im Netboot-Produkt hinterlegte Windows PE, die Installationsdateien, die passenden Windows-Treiber sowie der opsi-client-agent werden vom *opsi-Depotserver* auf die lokale Platte kopiert.
 
-*DHCPREQUEST* ist die Antwort des Clients an den Server (wenn er die angebotene IP akzeptiert; Hintergrund ist hier: Es können in einem Netz mehrere dhcp-Server tätig sein.). Der Client fordert damit die angebotene Adresse an. (request=Anfrage)
+Erstellen der Konfigurationsdateien::
+Es werden verschiedene Konfigurationsdateien für die Installation erstellt, darunter die `unattend.xml` als Steuerdatei für die Windows-Installation.
 
-Mit *DHCPACK* bestätigt der dhcp-Server diese Anforderung des Clients. Die Informationen werden an den Client übertragen. (acknowledge=bestätigen)
+Anpassung der Boot-Konfiguration::
+Die UEFI-Boot-Konfiguration wird so angepasst, dass beim nächsten Start von der Windows PE-Partition gebootet wird.
 
-Am Bildschirm des bootenden PCs können diese Prozesse mitverfolgt werden. Nach
-den ersten Systeminformationen meldet sich das PXE-BOOTPROM mit seinen technischen Daten und stellt seine „CLIENT MAC ADDR“ dar. Im Anschluss zeigt ein sich drehendes Pipe-Zeichen die Dauer der Anfrage des Clients an. Wird das bewegliche Zeichen durch einen Backslash ersetzt, hat der dhcp-Server ein Angebot gemacht („CLIENT IP, MASK, DHCP IP, GATEWAY IP“). +
-Kurze Zeit später – wenn alles funktioniert hat – meldet das PXE: „My IP ADDRESS
-SEEMS TO BE ..."
+Windows Setup::
+Nach dem Neustart startet Windows PE und führt die automatische Installation des Betriebssystems über das Windows Setup durch.
 
-Nach dem Empfang und der Verarbeitung dieser Konfigurationsinformationen durch
-den PC ist dieser als Netzwerkteilnehmer ordentlich konfiguriert.
-Der nächste Schritt ist, das in den Konfigurationsinformationen angegebene Bootfile (bootimage) zu laden.
+Installation des opsi-client-agent::
+Im Rahmen der Windows-Installation wird auch der *opsi-client-agent* installiert und konfiguriert.
+Anschließend installiert der *opsi-client-agent* weitere Localboot-Produkte, die auf `installed` oder `setup` stehen.
 
-[[opsi-manual-netboot-pxelinux]]
-=== grub wird geladen
+[[opsi-manual-netboot-unattended-windows-productproperties]]
+=== ProductProperties der Windows-Netboot-Produkte
 
-Das Bootimage wird per tftp (trivial file transfer protocol) geladen. (Meldung auf dem PC-Bildschirm: „LOADING“). Das Protokoll tftp ist zum Übertragen von Dateien, bei dem sich der Client nicht authentifizieren muss. Das heißt, die über tftp ladbaren Dateien sind für alle im Netz verfügbar. Daher wird der Zugriff per tftp auf ein bestimmtes Verzeichnis (mit Unterverzeichnissen) beschränkt. Gewöhnlich ist dieses Verzeichnis /tftpboot. Konfiguriert ist dies in der Konfigurationsdatei des x/inetd (/etc/inetd.conf), der den eigentlichen tftpd bei Bedarf startet. (z.B. `tftpd -p -u tftp -s /tftpboot`).
+Die Windows-Netboot-Produkte sind so konzipiert, dass sie eine möglichst flexible und anpassbare Installation von Windows-Betriebssystemen ermöglichen.
+Die Steuerung der Installation erfolgt über verschiedene *ProductProperties*, die im folgenden beschrieben werden.
 
-Der Ladevorgang gemäß dem PXE-Standard ist dabei mehrstufig: +
-In der ersten Stufe wird die per tftp übermittelte Datei (üblicherweise /tftpboot/opsi/opsi-linux-bootimage/loader/opsi-netboot.bios) geladen und gestartet. +
-Das Programm opsi-netboot.bios sucht bei Ausführung im Verzeichnis /tftpboot/opsi/opsi-linux-bootimage/cfg/ nach Konfigurations- bzw. Bootinformationen. Dabei wird zunächst nach PC-spezifischen Informationen gesucht. Eine solche PC-spezifische Datei basiert auf der Hardwareadresse (MAC-Adresse) der Netzwerkkarte im Dateinamen.
-Die Datei ist eine 'Einweg-Datei' (named pipe) und kann daher nur einmal
-gelesen werden. Der Hardwareadresse im Dateinamen werden dabei immer die zwei
-Ziffern 01 vorangestellt. Alle Zeichenpaare werden durch ein Minuszeichen verknüpft, z.B. 01-00-0c-29-11-6b-d2 für eine Netzwerkkarte mit MAC: 00:0C:29:11:6B:D2. Wird eine solche Datei nicht gefunden wird nach einer Datei gesucht deren Namen der Hexadezimaldarstellung der IP-Adresse entspricht. Ist auch keine solche PCspezifische Datei vorhanden, wird opsi-netboot.bios den Dateinamen (von hinten beginnend) immer weiter verkürzt suchen, bis die Suche ergebnislos verlaufen ist und bei der Datei 'default' endet. Diese Datei enthält den Befehl 'localboot 0' Lädt der PC diese Datei, findet also keine Installation statt, sondern das lokal installierte Betriebssystem wird gestartet.
+image::opsi-products:netboot-win-nt6-properties.png["Windows ProductProperties", pdfwidth=40%]
 
-.Schritt 2 beim PXE-Boot
-image::opsi-products:netboot-pxelinux.png[pdfwidth=70%, width=70%]
+additional_drivers:: Liste von Verzeichnissen unterhalb von `<depot-share>\<product-id>\drivers\drivers\additional`.
+Alle Treiber-Verzeichnisse unterhalb der angegebenen Verzeichnisse werden unabhängig von der automatischen Treibererkennung zusätzlich in die Installation mit eingebunden.
 
-Um für einen bestimmten PC eine Reinstallation einzuleiten, wird das Programm
-opsi-netboot.bios dazu gebracht, in einer zweiten Stufe ein Installationsbootimage zu laden.
-Dazu wird mithilfe des _opsipxeconfd_ eine PC-spezifische Datei in `/tftpboot/opsi/opsi-linux-bootimage/cfg/` erzeugt, in der unter anderem der Befehl zum Laden des eigentlichen Installationsbootimages liegt. Weiterhin findet sich hier der PC-spezifische Schlüssel zur Entschlüsselung des pcpatch-Passwortes. Diese Datei wird als 'named pipe' erzeugt und ist damit eine 'Einweg-Datei' die durch einmaliges Lesen von selbst verschwindet. Details hierzu in den Kapiteln zur Absicherung der Shares und zum _opsipxeconfd_. +
-Linux Installationsbootimage wird geladen +
-Basierend auf den Informationen die das opsi-netboot.bios aus der PXE Boot-Datei gelesen hat, wird nun per tftp vom _opsi-Server_ das eigentliche Installationsbootimage geladen. Dieses besteht üblicherweise aus dem Kernel `(/tftpboot/linux/install)` in dem dazugehörigen "initrd" (initiale root disc) Filesystem `(/tftpboot/linux/miniroot.bz2)`. +
-Das Bootimage, das nun geladen wird, ist Linux basiert.
+administrator_password:: Hier kann das Passwort angegeben werden, welches bei der Installation für den lokalen Administrator gesetzt wird.
 
-[[opsi-manual-netboot-unattended-CD]]
-=== PC-Client bootet von CD
+askbeforeinst:: Soll eine Bestätigung vor der Installation erfolgen?
 
-Analog zu dem Bootvorgang per tftp mithilfe des PXE-bootproms kann das Bootimage auch direkt von der opsi-client-boot-cd geladen werden.
+boot_partition_size:: Größe der *Boot-Partition* (Bitlocker Partition). Wird der Wert auf `0` gesetzt, wird keine *Boot-Partition* angelegt.
 
-Diese Möglichkeit bietet sich bei folgenden Voraussetzungen an:
+boot_partition_label:: Label der *Boot-Partition* (Bitlocker Partition)
 
-* der Client verfügt über kein PXE;
-* es gibt kein dhcp;
-* es gibt dhcp aber es sollen dort keine Einträge zu den Clients gemacht werden und die Hardwareadressen der Clients sind nicht bekannt;
-* es gibt dhcp aber dieses ist nicht korrekt konfigurierbar
+boot_partition_letter:: Laufwerksbuchstabe der *Boot-Partition* (Bitlocker Partition)
 
-Entsprechend der unterschiedlichen Situationen müssen dem Bootimage auf der CD unterschiedlich viele Informationen interaktiv bereitgestellt werden. Im einfachsten Fall müssen überhaupt keine Angaben gemacht werden.
+data_partition_create:: Soll eine eigene *Datenpartition* angelegt werden?
 
-Lesen Sie hierzu auch das Kapitel _Anlegen eines neuen opsi-Clients mithilfe der opsi-client-bootcd_ in Getting-Started Handbuch.
+data_partition_label:: Label der *Datenpartition*.
 
-[[opsi-manual-netboot-unattended-reinst]]
-=== Das Linux Installationsbootimage bereitet die Reinstallation vor
+data_partition_letter:: Laufwerksbuchstabe der *Datenpartition*.
 
-Das Bootimage startet eine erneute dhcp-Anfrage und konfiguriert sich entsprechend sein Netzwerkinterface. Danach werden über den 'opsi-Webservice' die Konfigurationsdaten für diesen Client geladen.
+data_partition_preserve:: Soll eine vorhandene *Datenpartition* bei einer Reinstallation erhalten bleiben?
 
-.Ueber PXE-Boot geladenes Bootimage bereitet Festplatte zur Betriebssysteminstallation vor
-image::opsi-products:netboot-pxeos.png[pdfwidth=70%, width=70%]
-
-Ergänzt wird dieses Informationspaket durch Angaben aus der dhcp-Antwort (z.B. wer ist der tftp-Server) sowie mit über den Webservice ermittelte Informationen. Die gesammelten Informationen werden für die Weiterverarbeitung durch das eigentliche Installationsskript bereitgestellt.
-
-Nun wird das Passwort des Installations-Users pcpatch mithilfe des übergebenen Schlüssels entschlüsselt und der angegebene Installationsshare gemountet. Jetzt kann das auf dem gemounteten Share liegende Installationsskript für das zu installierende Betriebssystem gestartet werden. Die Abläufe in diesem Skript sind abhängig von dem zu installierenden Betriebssystem. Im Folgenden werden beispielhaft die Abläufe für eine Windows-10-Installation skizziert.
-
-*Vorbereitung der Festplatte:* Auf der Platte wird eine 4 GB große FAT32 Partition angelegt, formatiert und bootfähig gemacht. Sofern nicht anders angegeben, wird der Rest der Festplatte mit einem NTFS Dateisystem formatiert. Auf diese Partition wird das Betriebssystem installiert.
-
-*Kopieren der Installationsdateien:* Die Dateien für die Installation des Betriebssystems werden von dem Installationsshare des Servers (z.B. /var/lib/opsi/depot/win10/installfiles) auf die lokale Platte kopiert. Das Gleiche gilt für das Setup-Programm des _opsi-client-agents_ zur Einrichtung der automatischen Softwareverteilung auf dem PC.
-
-*Einpflegen der Konfigurationsinformationen:* Unter den auf die lokale Platte kopierten Dateien finden sich auch Konfigurations- und Steuerdateien, die Platzhalter enthalten. Durch ein spezielles Skript (patcha) werden diese durch entsprechende Parameter aus dem Informationspaket ersetzt (gepatcht). Ein Beispiel für eine zu patchende Datei ist die 'unattend.xml'. Sie steuert das „unbeaufsichtigte“ Installieren von Windows.
-
-*Reboot vorbereiten:* Der 'Bootloader' wird so konfiguriert, dass beim nächsten Boot der Rechner via 'ntloader' in das Windows Setup-Programm startet. Der Aufruf ist dabei mit der Option versehen, die gepatchte 'unattend.xml' als Steuerdatei zu verwenden.
-
-
-*Reboot:* Da in `/tftpboot/opsi/opsi-linux-bootimage/cfg/` nun keine PC-spezifische Datei mehr vorhanden ist, wird in Stufe 1 des PXE-Boots der Befehl hdboot aus der Datei default geladen. Damit wird der lokale Bootloader gestartet und die Betriebssysteminstallation gestartet.
-
-Die beschriebenen Abläufe werden von dem für diese Installation angegebenen Python-Script gesteuert.
-
-[[opsi-manual-netboot-unattended-os]]
-=== Die Installation von Betriebssystem und opsi-client-agent
-
-Die Installation des Betriebssystems ist ein unattended Setup wie es von Microsoft vorgesehen ist. Dabei werden die Standardmöglichkeiten der Hardwareerkennung genutzt. Im Gegensatz zu einer normalen Installation von CD können auf der Installations-Partition schon aktualisierte Treiber und Servicepacks eingepflegt werden, damit diese schon direkt bei der Erstinstallation verwendet werden.
-
-Zu einer unattended Installation gehört die Möglichkeit, nach Abschluss der eigentlichen Betriebssysteminstallation automatisch noch weitere Installationen starten zu können. Dieser Mechanismus wird genutzt, um das Setup des _opsi-client-agents_ auszuführen und damit die automatische Softwareverteilung einzubinden. In der Registry wird eingetragen, dass sich der Rechner immer noch im Reinstallationsmodus befindet.
-
-Nach dem abschließenden Reboot starten nun vor einem Login die opsi-Programme
-zur Softwareverteilung. Diese Software erkennt anhand der Registry den Reinstallationsmodus. Dieser Modus hat hier zur Folge, dass alle Softwarepakete, für welche der Installationsstatus _installed_ oder die angeforderte Aktion _setup/update_ ist, nun installiert werden. Auf diese Weise werden sämtlich Pakete, die vor der Reinstallation des Betriebssystems auf diesem PC waren, automatisch wieder eingespielt. Erst nach Abschluss aller Installationen wird der Reinstallationsmodus zum Standard-Bootmodus zurückgeschaltet. (Im Gegensatz zum Reinstallationsmodus, werden im Standard-Bootmodus nur Pakete installiert, bei denen die Angeforderte Aktion _setup/update_ ist.)
-Damit ist der PC fertig installiert.
-
-[[opsi-manual-netboot-unattended-patcha]]
-=== Funktionsweise des patcha Programms
-
-Wie oben erläutert werden vom Bootimage (genauer gesagt vom Programm
-`/usr/local/bin/master.py`) die Konfigurationsinformationen aus dem _opsi-Webservice_ und dhcp gesammelt, um sie dann in entsprechende andere Konfigurationsdateien wie z.B. die 'unattended.xml' einzupflegen. Das Einpflegen übernimmt das Programm `/usr/local/bin/patcha`.
-
-Das Skript gleicht anhand eines Suchmusters _#@flagname(*)#_ eine Konfigurationsdatei mit den Einträgen aus einer anderen Datei (hier cmdline) ab, die Einträge der Art "Flagname=Wert" enthalten muss und patcht diese bei Übereinstimmung des Suchmusters. Das Suchmuster kann nach dem Flagnamen einen "*" enthalten und muß einen oder beliebig viele "#" als Abschluß enthalten. Die zu patchenden Parameter werden aus den Properties des jeweiligen Netboot-Produktes gelesen und in eine Variable im Bootimage geschrieben.
-
-[source,shell]
-----
-Usage: patcha [-h|-v] [-f <params file>] <patch file>
-
-Fill placeholders in file <patch file>
-Options:
--v Show version information and exit
--h Show this help
--f <params file> File containig key value pairs
-If option not given key value pairs from kernel cmdline are used
-----
-`patcha` patcht nur einen Tag pro Zeile.
-
-Der Platzhalter wird auf die Länge des zu ersetzenden Wertes getrimmt bzw erweitert und dann ersetzt. D.h unabhängig von der Länge des Platzhalters wird dieser durch den Wert ersetzt. Anhängende Zeichen bleiben anhängend. +
-Beispiel:
-
-Mit der Datei
-
-[source,shell]
-----
-cat try.in
-tag1=hallohallohallo1 tag2=t2
-----
-
-und der Datei
-
-[source,shell]
-----
-cat patch.me
-<#@tag1##########################>
-<#@tag2##########################>
-<#@tag1#>
-<#@tag2#>
-<#@tag1*##########################>
-<#@tag2*##########################>
-<#@tag1*#>
-<#@tag2*#>
-<#@tag1#><#@tag1#####>
-<#@tag2*#######><#@tag1#>
-----
-
-ergibt
-
-[source,shell]
-----
-./patcha -f try.in patch.me
-cat patch.me
-<hallohallohallo1>
-<t2>
-<hallohallohallo1>
-<t2>
-<hallohallohallo1>
-<t2>
-<hallohallohallo1>
-<t2>
-<hallohallohallo1><#@tag1#####>
-<t2><#@tag1#>
-----
-
-[[opsi-manual-netboot-unattended-products]]
-=== Aufbau der Produkte zur unattended Installation
-
-Die Informationen zum _Aufbau der Produkte zur unattended Installation_ finden Sie im Handbuch opsi-getting-started.
-
-[[opsi-manual-netboot-unattended-driver]]
-=== Vereinfachte Treiberintegration in die automatische Windowsinstallation
-
-Die Informationen zum 'Vereinfachte Treiberintegration in die automatische
-Windowsinstallation' finden Sie im Handbuch opsi-getting-started.
-
-[[opsi-manual-netboot-nt6]]
-== Hinweise zu den NT6 Netbootprodukten (Win 7 bis Win 10)
-
-.Voraussetzungen
-
-Alle Netbootprodukte der Version >= '4.1.0.0' benötigen einen auf dem Server installierten opsi-winst >= '4.12.0.13'.
-Diese Netbootprodukte laufen auch unter opsi 4.0.x.
-
-.Multidiskmode
-
-Der neue Multidiskmode bietet eine Unterstützung der Betriebssystem Installation auf Systemen mit mehreren Festplatten.
-Dabei kann gezielt die gewünschte Zielfestplatte ausgewählt werden.
-Es kann auch gezielt _die erste SSD_ oder _die erste rotierende Festplatte_ ausgewählt werden. +
-Der Multidiskmode ist nur implementiert für die Property-Einstellung: *winpenetworkmode = true*.
-
-
-IMPORTANT: Wenn Sie auf einem Rechner mit *MBR BIOS* über das Property `multidiskmode` eine Platte wählen, so müssen Sie dafür sorgen, das diese Platte auch die erste Platte in der BIOS Bootreihenfolge ist. +
-Bei *UEFI BIOS* Systemen müssen Sie nichts unternehmen, da hier die Bootreihenfolge durch die Installation gesteuert werden kann.
-
-.Verhalten im PE
-
-Bei der Windows Betriebssystem Installation wird durch das opsi-linux-bootimage
-die Festplatte vorbereitet und ein Win-PE Partition erstellt. Diese wird gebootet um die eigentliche Windowsinstallation zu starten. +
-In den 4.1.0.0 Produkten wird hier opsi-script gestartet um die notwendigen Arbeiten durch zu führen. Die Vorteile dieses Vorgehens sind:
-
-* Einfacheres und übersichtlichers Scripting
-
-* Erstellung einer Log-Datei der Vorgänge im Win-PE
-
-* Automatische Übertragung der Logdatei an den opsi-server. +
-(Diese Logdatei wird an das bootimage Log angehängt.)
-
-
-.NT6 Productproperties
-
-Die Netbootprodukte zur Installation von NT6 Betriebssystemen enthalten eine Fülle von Produktproperties, welche in Ihrer Funktion in der Folge erläutert werden sollen:
-
-image::opsi-products:netboot-win-nt6-properties.png["NT6 Productproperties", pdfwidth=40%]
-
-additional_drivers:: Liste von Verzeichnissen unterhalb von `<productid>\drivers\drivers\additional`. Alle Treiberverzeichnisse unterhalb der angegebenen Verzeichnisse werden unabhängig von der automatischen Treibererkennung zusätzlich in die Installation mit eingebunden.
-Wird hierüber Treiber für ein Gerät eingebunden, so wird für dieses Gerät kein weiterer Treiber über die automatische Treiberintegration mehr eingebunden.
-
-administrator_password:: Hier kann das Passort angegeben werden, welches bei der Installation für den lokalen Administrator gesetzt wird. +
-Default = 'nt123'
-
-architecture:: Wählt die Architektur des bootimages (z.B. 32bit /64bit). Das Property hat keinen (!) Einfluss auf die architektur des zu installierenden Betriebssystems. +
-Default = '64bit' Seit Version 4.1.0.0-15
-
-askbeforeinst:: Soll vor Beginn der Installation gefragt werden
-
-boot_partition_label:: Label der _boot_partition_ (Bitlocker Partion)
-
-boot_partition_letter:: Laufwerksbuchstabe der _boot_partition_ (Bitlocker Partion)
-
-boot_partition_size:: Größe der _boot_partition_ (Bitlocker Partion). 0 = keine Erstellen
-
-data_partition_label:: Label der Datenpartition, wenn eine erstellt wird.
-
-data_partition_letter:: Laufwerksbuchstabe der Datenpartition, wenn eine erstellt wird.
-
-data_partition_preserve:: Soll die Datenpartition bei einer Reinstallation erhalten bleiben
-
-fullname:: Vollständiger Name des Lizenznehmers wie er der Installation übergeben wird.
+fullname:: Vollständiger Name des Lizenznehmers, wie er der Installation übergeben wird.
 
 imagename:: Name der Variante des Betriebssystems das zu installieren ist.
 
-installto:: Diese Property ist nicht editierbar. Es dient beim Ablauf zur Unterscheidung zwischen stahdard (disk), opsi-local-image (oli) und opsi-vhd (vhd). +
-Bitte: Finger weg.
+installto:: Diese Einstellung ist nicht editierbar. Es dient beim Ablauf zur Unterscheidung zwischen Standard (`disk`), opsi-local-image (`oli`) und opsi-vhd (`vhd`).
 
-.NT6 Imagenames
-image::opsi-products:netboot-win-nt6-properties-imagenames.png["NT6 Imagenames", pdfwidth=40%]
+multi_disk_mode:: Diese Property dient zur Wahl der Festplatte auf die installiert werden soll.
+Mögliche Werte sind: `0`,`1`,`2`,`3`,`prefer_ssd` und `prefer_rotational`.
+Die Werte `0`,`1`,`2`,`3` geben den Index der Festplatte direkt an (`0`= 1. Festplatte).
+Der Wert `prefer_ssd` wählt die erste SSD aus.
+Der Wert `prefer_rotational` wählt die erste rotierende Festplatte (HDD) aus.
+Auf Systemen mit nur einer Festplatte wird das *ProductProperty* ignoriert.
 
-multi_disk_mode:: Diese Property dient zur Wahl der Festplatte auf die installiert werden soll. +
-Mögliche Werte sind: "0","1","2","3","prefer_ssd","prefer_rotational" +
-Die Werte "0","1","2","3" geben den Index der Festplatte direkt an ("0"= 1. Festplatte) +
-Der Wert "prefer_ssd" wählt die erste SSD Platte aus. +
-Der Wert "prefer_rotational" wählt die erste klassische Platte (mit rotierenden Scheiben)aus. +
-Das Property wird auf Systemen mit nur einer Platte ignoriert. +
-Default = "0"
+orgname:: Vollständiger Name der Organisation des Lizenznehmers, wie er der Installation übergeben wird.
 
-orgname:: Vollständiger Name der Firma / Organisation des Lizenznehmers wie er der Installation übergeben wird.
+pre_format_system_partitions:: Sollen vorherige Partitionen formatiert werden um Spuren vorheriger Installationen zu löschen?
 
-pre_format_system_partitions:: Sollen vorherige Partitionen formatiert werden um Spuren vorheriger Installationen zu löschen? (benötigt Zeit)
+preserve_winpe_partition:: Soll die Windows PW Partition nach der OS-Installation erhalten bleiben?
 
-preserve_winpe_partition:: Soll die WinPE Partition nach der OS-Installation erhalten bleiben
+productkey:: Lizenzschlüssel zur Installation.
+Wird nur verwendet wenn der Hostparameter `license-management.use` auf 'false' steht.
+Ansonsten wird ein Lizenzschlüssel aus dem Lizenzmanagement bezogen.
 
-productkey:: Lizenzschlüssel zur Installation. Wird nur ausgewertet wenn der Hostparameter `license-management.use` auf 'false' steht. Ansonsten wird der Lizenzschlüssel aus dem Lizenzmanagement geholt.
+setup_after_install:: Welche Localboot-Produkte sollen nach dem Betriebssystem installiert werden?
 
-setup_after_install:: Welches Produkt soll nach dem Betriebssystem installiert werden?
-
-system_keyboard_layout:: Sprachauswahl für die Tastatur. (siehe: http://msdn.microsoft.com/en-us/goglobal/bb895996[] )
-
-.Sprachauswahl für die Tastatur
-image::opsi-products:netboot-win-nt6-properties-keyboards.png["Sprachauswahl für die Tastatur", pdfwidth=40%]
+system_keyboard_layout:: Sprachauswahl für die Tastatur.
 
 system_language:: Sprachauswahl für das System.
 
 system_timezone:: Zeitzoneneinstellung
 
-use_raid1:: Soll ein RAID1 (SOFTWARE) angelegt werden?
+use_raid1:: Soll ein Software-RAID1 angelegt werden?
 
-windows_partition_label:: Label der Partition (Festplatte C:) auf die das Betriebssystem installiert werden soll.
+windows_partition_label:: Label der System-Partition (`C:`) auf die das Betriebssystem installiert werden soll.
 
-windows_partition_size:: Größe der Partition (Festplatte C:) auf die das Betriebssystem installiert werden soll. Die Angabe kann in Prozent der Festplatte oder in absoluten Zahlen (G=Gigabyte) erfolgen. Wird ein anderer Wert als 100% gewählt, so wird auf dem verbleibenden Rest der Fasplatte eine 'data_partition' angelegt.
+windows_partition_size:: Größe der System-Partition (`C:`).
+Die Angabe kann prozentual zur Festplatte oder als absolute Zahl (G=Gigabyte) erfolgen.
+Der verbleibende Speicherplatz wird für die Datenpartition genutzt.
 
-.Größe der C: Partition
-image::opsi-products:netboot-win-nt6-properties-winpartionsize.png["Größe der C: Partition", pdfwidth=40%]
+winpe_dir:: Das für die Installation verwendete Windows PE-Verzeichnis.
+Der Wert `auto` wählt das Verzeichnis automatisch.
+Andere Werte müssen auf ein gültiges Verzeichnis im Netboot-Produkt zeigen.
 
-winpe_dir:: Diese Property dient zu Debug Zwecken. +
-Der Wert "auto" wählt ermittelt das passende standard winpe Verzeichnis im Verzeichnis des Netbootproduktes. Dies ist 'winpe' bzw. 'winpe_uefi' +
-Andere Werte müssen auf ein entsprechendes, existierendes Verzeichnis im Verzeichnis des Netbootproduktes verweisen. +
-Default = 'auto'
+winpe_inputlocale:: Die unter Windows PE verwendete Eingabesprache.
 
-winpe_inputlocale:: Microsoft-Windows-International-Core-WinPE InputLocale
+winpenetworkmode:: Ist dieser Wert `true`, wird der Depot-Share im WinPE als Netzlaufwerk eingebunden und die Installation erfolgt über das Netzwerk.
+Andernfalls werden die benötigten Windows-Installationsdateien bereits im *opsi-linux-bootimage* auf die lokale Festplatte kopiert und die Installation erfolgt von den lokalen Dateien.
 
-winpenetworkmode:: Soll die Betriebssysteminstallation über den gemounteten Netzwerkshare vom PE aus erfolgen (true) oder sollen alle Installationsdateien vorher auf die Festplatte kopiert werden (false).
+winpe_uilanguage:: Die unter Winows PE verwendete Anzeigesprache.
 
-winpe_uilanguage:: Microsoft-Windows-International-Core-WinPE
+winpe_uilanguage_fallback:: Fallback-Anzeigesprache unter Windows PE, falls die primäre Sprache nicht verfügbar ist.
 
-winpe_uilanguage_fallback:: Microsoft-Windows-International-Core-WinPE
 
-winpenetworkmode:: Beim Wert true versucht lädt das WinPE die INstallationsdaten vom opsi share. Beim Wert false werden die kompletten Installationsdaten auf die lokale Festplatte geladen und die Installation startet von lokaler Platte
+[[opsi-manual-netboot-memtest86]]
+== memtest86
 
-[[opsi-manual-netboot-memtest]]
-== memtest
-
-Das Produkt 'memtest' dient dazu einen Memory-Test des Clients durchzuführen.
+Das *memtest86*-Produkt dient dazu, einen umfassenden Speichertest auf dem Gerät durchzuführen.
 
 [[opsi-manual-netboot-hwinvent]]
 == hwinvent
 
-Das Produkt 'hwinvent' dient dazu eine Hardwareinventariserung des Clients
-durchzuführen.
+Das *hwinvent*-Produkt erfasst detaillierte Hardwareinformationen des Geräts.
 
 [[opsi-manual-netboot-wipedisk]]
 == wipedisk
 
-Das Produkt 'wipedisk' überschreibt die gesamte Festplatte (partion=0) oder
-einzelne Partitionen mit unterschiedlichen Mustern. Die Anzahl der Schreibvorgänge wird über das Produkteigenschaft 'iterations' gesteuert (1-25).
+Das *wipedisk*-Produkt löscht die gesamte Festplatte (bei _partition_ = `0`) oder ausgewählte Partitionen sicher mit verschiedenen Datenmustern.
+Die Anzahl der Überschreibvorgänge wird über die Produkteigenschaft _iterations_ festgelegt (Bereich: 1–25).
+
+[[opsi-manual-netboot-enter-uefi-firmware-setup]]
+== enter-uefi-firmware-setup
+
+Dieses Produkt ermöglicht es, beim Booten automatisch das UEFI-Firmware-Setup des Geräts aufzurufen.

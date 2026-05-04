@@ -1,12 +1,12 @@
 
-= Health-Check & Monitoring
+= Health Check & Monitoring
 
 opsi offers a health check that checks the operating status of the opsi server. This health check can be called up via the web interface of the opsi server, for example. The health check checks the functionality and provides an overview of the status of the various components of the opsi server.
 
 The health check can be integrated into a monitoring system in order to monitor the status of the opsi server.
 
 [[server-components-opsiconfd-health-check]]
-== Health check
+== Health Check
 
 The `opsiconfd` provides a health check that can check various settings and versions of opsi components and thus provide information on possible problems. The health check can be started in different ways. All variants obtain their data from the API call `service_healthCheck`. The opsi API returns the data in JSON format. Such a JSON file is particularly useful for support requests.
 
@@ -18,16 +18,18 @@ The `checks` and `skip-checks` can also be configured in `/etc/opsi/opsiconfd.co
 You can start the health check in the terminal.
 image::server:opsi-health-check.png[“You can start the health check in the terminal.”, width=800, pdfwidth=80%]
 
-TIP: The health check can also be started with the command line tool `opsi-cli` (see section xref:server:components/commandline.adoc#server-components-opsi-cli-commands-support[*opsi-cli support*]). Quick access to a terminal on the opsi server is provided by the admin page via the _Terminal_ tab (see section xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-terminal[Opsiconfd Terminal]).
+TIP: The health check can also be started with the command-line tool `opsi-cli` (see section xref:server:components/commandline.adoc#server-components-opsi-cli-commands-support[*opsi-cli support*]). Quick access to a terminal on the opsi server is provided by the admin page via the _Terminal_ tab (see section xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page-terminal[opsiconfd Terminal]).
 
 
 === Output formats
 
 The health check can produce the following outputs:
 
-- cli (default) Output customized for the command line.
+- cli (default): Output customized for the command line.
 - json: Output in JSON format.
-- checkmk: Output so that it can be processed by Check_MK.
+- checkmk: Output so that it can be processed by Checkmk.
+- zabbix: Output so that it can be processed by Zabbix.
+- nagios: Output so that it can be processed by Nagios.
 
 The output formats can be controlled via the `--format` parameter.
 
@@ -56,18 +58,18 @@ The parameter `clear_cache` can also be passed to the API method `service_health
 [[server-components-opsiconfd-monitoring]]
 == Monitoring
 
-The health check can be integrated into a monitoring system to enable continuous monitoring of system health and performance. The health check can be called up regularly via the monitoring system. The results can be evaluated for various purposes, such as alarms, logs or for the automation of maintenance processes.
+The health check can be integrated into a monitoring system to enable continuous monitoring of system health and performance. The health check can be called up regularly via the monitoring system. The results can be evaluated for various purposes, such as alarms, logs, or the automation of maintenance processes.
 
 [server-components-opsiconfd-checkmk]]
-=== CheckMK
+=== Checkmk
 
-To use the results of the health check in CheckMK, one or more “local checks” are set up.
-CheckMK is a flexible and expandable monitoring tool that has been specially developed for monitoring IT infrastructures.
+To use the results of the health check in Checkmk, one or more "local checks" are set up.
+Checkmk is a flexible and expandable monitoring tool that has been specially developed for monitoring IT infrastructures.
 By integrating health check data, administrators can ensure that systems are always in optimum condition and that any problems are detected at an early stage.
 
-The opsiconfd comes with a template shell script that converts the output of the health check into the CheckMK format.
+The opsiconfd comes with a template shell script that converts the output of the health check into the Checkmk format.
 This script is contained in the opsi_checkmk file, which can be found under /usr/share/opsiconfd.
-The file can be integrated into CheckMK as a "local check" in order to regularly collect and evaluate the health check data.
+The file can be integrated into Checkmk as a "local check" in order to regularly collect and evaluate the health check data.
 
 For integration, copy the script to /usr/lib/check_mk_agent/local/<cache-time>, where <cache-time> stands for the cache interval at which the results are updated.
 After copying, the script must be made executable in order to work correctly.
@@ -77,15 +79,76 @@ Here is an example:
 
 [source,console]
 ----
-cp /usr/share/opsiconfd/opsi_checkmk /usr/lib/check_mk_agent/local/7200/opsi_check
-chmod +x /usr/lib/check_mk_agent/local/7200/opsi_check
+cp /usr/share/opsiconfd/opsi_checkmk /usr/lib/check_mk_agent/local/600/opsi_check
+chmod +x /usr/lib/check_mk_agent/local/600/opsi_check
 ----
 
-In this case, the check results are updated every 7200 seconds (2 hours).
-The documentation for the CheckMK local checks can be found here: https://docs.checkmk.com/latest/de/localchecks.html
+In this case, the check results are updated every 600 seconds (10 minutes).
+The documentation for the Checkmk local checks can be found here: https://docs.checkmk.com/latest/de/localchecks.html
 
 With the parameters `--checks` or `--skip-checks` the checks can be customized in the opsi-check script (see section xref:server:components/monitoring.adoc#server-components-opsiconfd-health-check[Health-Check]).
 
+
+=== Nagios / Icinga
+
+To integrate the results of the health check into Nagios or Icinga, the script `/usr/share/opsiconfd/opsi_nagios` can be used, which converts the output of the health check into a format readable by Nagios/Icinga. The script is copied to the directory `/usr/lib/nagios/plugins/` and made executable.
+
+[source,console]
+----
+cp /usr/share/opsiconfd/opsi_nagios /usr/lib/nagios/plugins/opsi_check
+chmod +x /usr/lib/nagios/plugins/opsi_check
+----
+
+The check script can be passed a parameter to execute the desired health check. The parameters correspond to the IDs of the opsi checks. For example:
+[source,console]
+----
+opsi_check mysql
+----
+
+The list of available checks can be retrieved using the command `opsiconfd health-check --list`. To get detailed information about a specific check, use `opsiconfd health-check --docs`.
+
+In the Nagios/Icinga configuration, a command is defined that calls this script. Here is an example of an Icinga2 command definition:
+
+image::opsi-icinga2-command.png["Icinga2 Command Definition", width=500]
+
+Next, a service is defined that uses this command. Here is an example of a service template definition:
+
+image::opsi-icinga2-service.png["Icinga2 Service Definition", width=500]
+
+Then, the service is assigned to a host to monitor the health check data. Here is an example of a host definition:
+
+image::opsi-icinga2-host.png["Icinga2 Host Definition", width=500]
+
+Finally, the configurations are rolled out to activate the changes.
+
+IMPORTANT: The user under which the Icinga2 service runs needs read access to the file `/etc/opsi/opsiconfd.conf` to read the configuration of the health check. This can be achieved by adding the user to the `opsiadmin` group.
+
+Further information about Icinga2 can be found in the documentation: https://icinga.com/docs/icinga-2/latest/doc/01-about/
+
+
+[[server-components-opsiconfd-zabbix]]
+=== Zabbix
+
+To integrate the results of the health check into Zabbix, so-called `UserParameters` can be used.
+The opsiconfd provides the shell script `/usr/share/opsiconfd/opsi_zabbix` for this purpose, which simplifies the integration.
+
+Here is an example of a UserParameter that executes the Redis check:
+
+[source,ini]
+----
+UserParameter=opsi.redis,/usr/share/opsiconfd/opsi_zabbix redis
+----
+
+To find out which checks are available, use the command `opsiconfd health-check --list --detailed`.
+Detailed information about a specific check can be obtained with `opsiconfd health-check --docs`.
+
+In the Zabbix configuration, you then create an item of type `Text` that uses this UserParameter.
+Select `Zabbix Agent` as the type and use the name of the UserParameter as the key, in this case `opsi.redis`.
+The update interval can be chosen flexibly, for example 60 seconds, since the results of the health check are cached by **opsiconfd** in Redis and thus do not cause high system load.
+Set the timeout for the item to 10 seconds.
+
+For alerting, set up triggers that evaluate the text of the item.
+You should check whether the result starts with `OK`, `WARNING`, or `CRITICAL` to correctly recognize the status.
 
 == Downtime
 
@@ -95,7 +158,7 @@ The downtime for a health check can be defined using the following configuration
 
   - opsi.check.enabled (default: true) - Enables or disables the health check. If false, the check is not executed.
 
-  - opsi.check.downtime.start (default: zero) - Start time of the downtime in ISO-8601 format (e.g. 2025-03-25T08:00:00).
+  - opsi.check.downtime.start (default: zero) - Start time of the downtime in ISO-8601 format (e.g., 2025-03-25T08:00:00).
 
   - opsi.check.downtime.end (default: null) - End time of the downtime in ISO-8601 format. The end of the downtime determines when the check is reactivated after the specified pause.
 
@@ -104,7 +167,7 @@ These parameters can be set in the client overview in opsi-configed. In the clie
 .Edit Health-Check downtime.
 image::server:opsiconfiged-client-values.png[“Edit Health-Check Downtime.”, width=400]
 
-For a detailed description of the health check settings and configurations, you can find further information in the configed chapter of the documentation (see xref:gui:configed.adoc[configed]).
+For a detailed description of the health check settings and configurations, you can find further information in the opsi-configed chapter of the documentation (see xref:gui:configed.adoc[opsi-configed]).
 
 .Edit health check downtime.
 image::server:configed-health-check-settings.gif[“Edit Health-Check Downtime.”, width=1024]

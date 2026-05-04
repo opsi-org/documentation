@@ -1,5 +1,5 @@
 ﻿////
-; Copyright (c) uib gmbh (www.uib.de)
+; Copyright (c) uib gmbh (uib.de)
 ; This documentation is owned by uib
 ; and published under the german creative commons by-sa license
 ; see:
@@ -313,27 +313,6 @@ The `opsi-auto-update` product can be used to ensure that the installed products
 
 NOTE: This product is quite useful, not just in the context of `opsi-local-image`. For a detailed description, see the xref:opsi-products:localboot-products.adoc[opsi Standard Products] chapter, section xref:opsi-products:localboot-products.adoc#opsi-manual-localboot-opsi-auto-update[opsi-auto-update].
 
-////
-[[opsi-manual-localimage-service-methods]]
-== Extended Service Methods
-
-You can combine the computers in a training room into a client group and then define actions that you perform for the entire group. The following extensions to the service methods are provided for this purpose:
-
-* `setProductActionRequestForHostGroup` +
-Parameters: `hostGroupId`, `productId`, `actionRequest` +
-Starts a specific action (e.g. restore an image) for all members of a group (e.g. for all computers in a training room).
-
-* `setProductPropertyForHostGroup` +.
-Parameters: `productId`, `propertyId`, `propertyValue`, `hostGroupId` +
-Sets a value for specific product property for all members of a group, e.g. an image to be restored.
-
-* `getPossibleImagefileValuesForHostGroup` +
-Parameters: `groupId` +
-Lists all `imagefile` names of images created by `opsi-local-image-backup` on the clients of the group. If a particular image (e.g. `opsi-local-image-win10`) is missing on one or more machines, it will not be part of the return list.
-
-NOTE: These methods are deprecated and will be removed in a future version. You can use `setProductActionRequest`, `productPropertyState_getObjects` or, in the case of more complex queries, the `opsi-cli` tool (see chapter xref:server:components/commandline.adoc#server-components-opsi-cli[opsi-cli]).
-
-////
 
 [[opsi-manual-localimage-backuppartition]]
 == Backup Partition
@@ -350,11 +329,10 @@ Among other things, you will find the following data on the backup partition:
 * The image directories have the same name as the image and contain the images' metadata in addition to the image itself. The size of the images depends not only on the operating system, but also on the software installed there. To give you an idea about the file size, here are a few numbers for different images of different operating systems without standard installed:
 
 ** `opsi-local-image-ubuntu`: 16{nbsp}GB (V 22.04)
-** `opsi-local-image-win7-x64`: 10{nbsp}GB
 ** `opsi-local-image-win11-x64`: 23{nbsp}GB
 
 [[opsi-manual-localimage-wimcapture]]
-=== Windows Imaging Format Integration (`opsi-local-image-wim-capture`)
+=== Windows Imaging Format Integration (`opsi-wim-capture`)
 
 Starting with NT6, Microsoft has introduced the image format WIM. A WIM file (_Windows Imaging Format_) stores the installation settings, including all software, hotfixes and configurations from an existing computer.It's an archive for files and metadata rather than a hard disk or partition image. You can then use this WIM as a base for future installations on other computers, making the whole process much easier and faster.
 
@@ -363,24 +341,23 @@ A WIM file can contain several images. The normal installation of an NT6 compute
 [[opsi-manual-localimage-wimcapture-components]]
 === WIM Components
 
-You need the `opsi-local-image-wim-capture` product to capture an image in WIM format.
+You need the `opsi-wim-capture` product to capture an image in WIM format.
 
 In addition, there are target products which are intended to hold the captured images:
 
 * `opsi-local-image-win10-capture`
 * `opsi-local-image-win10-x64-capture`
-* `opsi-local-image-win11-capture`
 * `opsi-local-image-win11-x64-capture`
 
 
 [[opsi-manual-localimage-wimcapture-proceedings]]
-=== Difference between `opsi-local-image-wim-capture` and `opsi-wim-capture`.
+=== Difference between `opsi-local-image` and `standard` mode in `opsi-wim-capture`
 
-The procedures and settings of the `opsi-local-image-wim-capture` product are similar to those of `opsi-wim-capture` (see xref:opsi-modules:wim-capture#opsi-manual-wimcap[Windows Imaging Format (opsi-wim-capture)]). The properties of `opsi-wim-capture` are described in section xref:opsi-modules:wim-capture#opsi-manual-wimcap-products-main[opsi WIM Capture].
+You can find the procedures and settings for the product `opsi-wim-capture` under xref:opsi-modules:wim-capture#opsi-manual-wimcap[Windows Imaging Format (opsi-wim-capture)]. The properties of `opsi-wim-capture` are described in section xref:opsi-modules:wim-capture#opsi-manual-wimcap-products-main[Main product opsi-wim-capture].
 
-The main difference between the two products is: `opsi-local-image-wim-capture` uses the mechanism of `opsi-local-image-backup`/`opsi-local-image-restore` to backup and restore the partition. `opsi-wim-capture` relies on the `opsi-clonezilla` product for this purpose.
+The main difference between the two modes is: with `opsi-local-image`, the mechanism of `opsi-local-image-backup`/`opsi-local-image-restore` is used for backing up and restoring the partition. In `standard` mode, the product `opsi-clonezilla` is used for this purpose.
 
-WARNING: `opsi-local-image-wim-capture` will fail if your system has a data partition. In this case, reinstall the computer with the `opsi-local-image-prepare` property `data_partition_size=0`.
+WARNING: In `opsi-local-image` mode, `opsi-wim-capture` will fail if your system has been set up with a data partition. In this case, reinstall the computer with the `opsi-local-image-prepare` property `data_partition_size=0`.
 
 [[opsi-manual-localimage-wimcapture-rollout]]
 == Windows Installation from a Target Product
@@ -399,19 +376,11 @@ If all products set to `installed` were now changed to `setup`, all products ins
 
 There are therefore two options for restoring the opsi metadata of installed products:
 
-* Option 1: +
-Restore metadata and keep `setup` action requests +.
-Products set to `installed` are *not* set to `setup` (default behavior). +
-
-* Option 2: +
-Restore metadata. +
-Products marked as `installed` are set to `setup` except for those which are included in the restored metadata. +
-
 === Option 1
 
 When rolling out a WIM image, only the products which were already set to `setup` before the start of the operating system installation are installed automatically afterwards. This may have been done either by a manual intervention or by setting the `setup_after_install` property.
 
-In this case, only products marked as `setup` before the operating system installation are installed. This is the default behavior.
+Products set to `installed` are *not* set to `setup`. This is the default behavior.
 
 === Option 2
 
@@ -419,7 +388,7 @@ Option 2 behaves similarly to installations from non-captured images. After rest
 
 To use option 2, configure the `host parameter` accordingly and set the `clientconfig.capture.switch_installed_products_to_setup` entry to `true`. If it is set to `false`, option 1 is used.
 
-These `Hostparameter` can then be used to enable or disable events for the respective client. You can create the `Hostparameter` via `opsi-configed` or `opsi-admin`. The corresponding `opsi-admin` command is as follows:
+These `Hostparameter` can then be used to enable or disable events for the respective client. You can create the `Hostparameter` via `opsi-configed` or `opsi-cli`. The corresponding `opsi-cli` command is as follows:
 
 [source,shell]
 ----
@@ -438,4 +407,3 @@ With the product `opsi-wim-info` you can quickly gather information about the im
 Property:
 
 * `target_product`: ProductId of the product where the `install.wim` file is searched.
-

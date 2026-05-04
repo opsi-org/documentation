@@ -1,0 +1,586 @@
+﻿////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      23.02.2026
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+
+
+[[opsi-manual-background-install]]
+= Background Install: Installation for logged-in users
+
+With the `opsi-background-install` extension, you can install software in the background when a user is logged in. If a conflict with running software is to be expected during an installation, the installation is deferred or the user is asked for the desired procedure.
+
+[[opsi-manual-background-install-preconditions]]
+== Requirements
+
+The extension is currently (05.2025) in the pilot phase,
+which serves to find errors and problems in the design of the extension.
+Only a small group of customers will be able to use it during this pilot phase in order to minimize the impact of any necessary changes.
+
+include::opsi-modules:partial$paid-extension-note.adoc[]
+
+Further details can be found in the chapter xref:opsi-modules:modules.adoc#opsi-manual-modules[opsi Extensions].
+
+
+[[opsi-manual-background-install-introduction]]
+== Introduction
+
+=== Reason
+
+The desire to install software with a logged-in user and (potentially) running software is caused by: +
+
+* 24/7 operation, e.g. in hospitals
+
+* No possibility for nightly installation via WakeOnLan
+
+* Changed user behavior, especially with laptops: users never log out and leave programs running (and close the laptop).
+
+=== Problems
+
+Attempting to install with the user logged in leads to a number of problems:
+
+* Visibility: interference from windows popping up.
+
+* Installation conflicts: Conflicts with running software.
+
+== Problems
+
+=== Problem: Visibility
+
+The abundance of windows and messages which are quite useful during an installation
+without a logged-in user do not meet the requirements for an installation in the background.
+
+=== Problem: Installation conflicts
+
+The problem described here is essentially Windows-specific.
+Under Unixoids (Linux / MacOS) it is generally not a problem to replace
+running software without a running process
+interfering with the installation. +
+Under Windows, replacing a file that is in use is not possible
+or requires a reboot. The file (.exe) of a program that is running is therefore in use. Attempting to replace this file will inevitably lead to a problem if the software is running.
+
+This extension is therefore only implemented for Windows.
+
+The type of problems that occur with installation conflicts can be very different and, once they have occurred, can no longer be resolved automatically. Therefore, the occurrence of installation conflicts must be avoided in advance.
+
+TIP: Even if this extension helps to avoid the problem, it remains the same: +
+The best time to install software on a Windows system is when no user is logged in, i.e. usually during startup or shutdown. +
+It is not without reason that these are precisely the system states that Windows itself uses to install updates.
+
+[[opsi-manual-background-install-concept]]
+
+== Concept
+
+=== Visibility
+
+No changes to the script and configuration are necessary here, as everything necessary is already implemented in the opsi-client-agent:
+
+* opsi-script only runs on the winlogon desktop
+
+* opsi-event notifier only runs on the winlogon desktop
+
+* Interactive dialogs of the opsi-script are displayed on the current desktop via the
+opsiclientd
+
+=== Avoid errors
+
+Before (un)installation, a check must be made for disruptive running processes.
+To do this, the critical processes must be known.
+These are determined from:
+
+* The installation directory of the product. +
+All `*.exe` and `*.bin` files within the installation directory are potentially questionable processes.
+
+* Additional processes and directories can be specified via the product's metadata.
+
+However, only those processes that have a visible window, i.e., foreground processes, are considered to be problematic processes from the list of potentially problematic processes. +
+Experience has shown that service processes and processes without a visible window are handled correctly and non-interactively by the installation programs.
+
+The necessary checks are carried out in the `opsi-script.exe` interpreter.
+It is therefore not necessary to adapt the scripts in existing opsi products. +
+Instead, an opsi product requires additional metadata in order to be made ready for a 
+background installation. +
+Has been implemented in the opsi script:
+
+* New product status `deferred` for deferred installations:
+** New report status (next to success, failed, suspended): +
+`deferred`
+** Installation status: unchanged (`installed`)
+** Report: `deferred`
+** Actionrequest: remains unchanged (`setup`)
+** Installed version: unchanged
+
+* Recognition and interpretation of the metadata file:
+
+** Is this product authorized for background installation ?
+
+** Detection of potentially interfering processes
+
+** Check whether interfering processes are running
+
+** If necessary, interactive query as to what should be done with these processes: +
+Defer (`defer`) or start the action request
+
+[[opsi-manual-background-install-activation]]
+
+== Background Install activation
+
+To activate the `opsi-background-install` extension, you must do the following:
+
+* Install a license for the extension.
+
+* Set the config `opsi-script.backgroundinstall.active` to *`true`*.
+
+[[opsi-manual-background-install-sequence]]
+
+== Procedure of the tests in the opsi-script
+
+. Are users logged in? +
+If not, there is no `background install situation`
+and therefore no further checks are necessary
+and the action request is executed.
+
+. background install enabled ? +
+If the Config `opsi-script.backgroundinstall.active` *is not set to `true`*,
+this extension is not activated and the action request is continued without further checking.
+
+. Is a license for `opsi-background-install` installed ? +
+If no, there is an error message in the log
+and the action request is continued without further checking. +
+
+. If all of the 3 previous conditions are met, we are in a `background install situation` in which an attempt is now made to avoid possible installation conflicts.
+
+. Is there a meta data file ? +
+If no, then the installation is moved (`deferred`). There is a corresponding warning in the log.
+An opsi product can be moved as often as required for this reason. I.e. MAX_DEFER does not apply here. +
+This also means: All opsi products which you have not yet provided with a corresponding metadata file cannot be installed in a `Background Install Situation`.
+
+. Creation of the `List of critical processes`. +
+ ** The entry `check_processes_from_dirs` is read from the meta file. The directories specified here are checked for programs and these are added to the `List of critical processes`. +
+
+** The entry `processes` is read from the meta file. The programs specified here are added to the `List of critical processes`. 
+
+** All non-running processes are removed from the `List of critical processes`.
+
+** All running service processes are removed from the `List of critical processes`.
+
+. Does the `List of critical processes` still contain at least one entry? +
+If no, the action request is continued without further checking.
+
+. Is DIALOG_TIMEOUT > 0 ? +
+If no, the DEFAULT_ACTION (usually = `defer`) is selected.
+
+. The user dialog is displayed. +
+If there is no response from the user within the DIALOG_TIMEOUT (usually = `60` seconds), the DEFAULT_ACTION (usually = `defer`) is selected.
+
+. `recheck` selected +
+If `recheck` has been selected more than MAX_RECHECK (3) in succession, the option `recheck` is no longer offered and the DEFAULT_ACTION is now MAX_RECHECK_ACTION (`defer`).
+
+
+. `defer` selected +
+If `defer` has been selected more than MAX_DEFER (5) in succession, the option `defer` is no longer offered and the DEFAULT_ACTION is now MAX_DEFER_ACTION (`kill`).
+
+. `kill` selected +
+If `kill` is selected, opsi-script shuts down the interfering process(es) and the action request is continued.
+
+
+.opsi-setup-detector: Dialog: `Quit programs`
+image::opsi-modules:osd_critical_programs_dlg_en.png["Dialog: `Quit programs`", pdfwidth=60%]
+
+[[opsi-manual-background-install-config]]
+== Configuration via configs
+
+The defaults and how they can be configured via Configs `Hostparameter`. +
+The configs can be found under: `opsi-script.backgroundinstall`:
+
+* active (default initially false) +
+This default value can be overwritten with the config
+`opsi-script.backgroundinstall.active`.
+
+* Default after timeout is defer ('Defer Installation') +
+(DEFAULT_ACTION=defer) +
+This default value can be overwritten with the Config
+`opsi-script.backgroundinstall.default_action`.
+
+* Timeout is 60 seconds +
+(DIALOG_TIMEOUT=60) +
+DIALOG_TIMEOUT = 0 means no interactivity, +
+the DEFAULT_ACTION is executed directly. +
+This default value can be overwritten with the config
+`opsi-script.backgroundinstall.dialog_timeout`.
+
+
+* After 3 rechecks in a row, MAX_RECHECK_ACTION is selected +
+(MAX_RECHECK=3) +
+This default value can be overwritten with the config
+`opsi-script.backgroundinstall.max_recheck`.
+
+* The default for MAX_RECHECK_ACTION=defer +
+This default value can be overwritten with the Config
+`opsi-script.backgroundinstall.max_recheck_action`.
+
+ * After 5 times defer in a row, MAX_DEFER_ACTION is selected +
+(MAX_DEFER=5) +
+This default value can be overwritten with the Config
+`opsi-script.backgroundinstall.max_defer`.
+
+* The default for MAX_DEFER_ACTION=kill +
+This default value can be overwritten with the config
+`opsi-script.backgroundinstall.max_defer_action`.
+
+NOTE: If these configs do not yet exist, 
+(e.g. in the pilot phase) +
+can be created with the following command line commands: +
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createBool opsi-script.backgroundinstall.active "bg-active" false
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.default_action "bg-default_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.dialog_timeout "bg-dialog_timeout" "60" "60"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_recheck "bg-max_recheck" "3" "3"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_recheck_action "bg-max_recheck_action" '["defer", "recheck", "kill"]' "defer" "false" "false"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_defer "bg-max_defer" "5" "5"
+opsi-cli jsonrpc execute config_createUnicode opsi-script.backgroundinstall.max_defer_action "bg-max_defer_action" '["defer", "recheck", "kill"]' "kill" "false" "false"
+----
+
+[[opsi-manual-background-install-meta-data]]
+== The metadata file: `opsi-meta-data.toml`.
+
+For an opsi product to function correctly via background_install, it must contain some additional metadata. This is stored in the file `opsi-meta-data.toml` in the directory `CLIENT_DATA`. This file in TOML format must contain the following information for the background installation:
+
+* A table `installers` for each setup / installer file concerned. This table contains the following information:
+
+ ** Information about the processes to be checked: +
+ The lists of the directories to be checked: `check_processes_from_dirs` and the list of additional processes `processes`. If both lists are empty, no running processes are checked. 
+
+** Furthermore, the entry `install_in_background=false` may be contained here. If this entry exists, this means that this product may not be installed in a `Background Install Situation`. Reasons for this could be required reboots or other unhandleable side effects. +
+If this entry does not exist, the default applies: `install_in_background=true`.
+
+* In the `installers.requirement` table:
+
+** The specification of the required operating system (`os`). +
+Allowed here are `windows, linux, macos`. +
+The extension `opsi-background-install` is only implemented for `windows`. +
+If no suitable OS entry is found, the product goes to failed.
+
+** The specification of the architecture of the required operating system (`os_arch`). +
+Allowed here are `x86, x64, arm64, arch_unknown`. On an x64 Windows operating system, the requirement `x86` is also fulfilled. The requirement `x64` is not fulfilled on an x86 Windows operating system. The `arch_unknown` requirement is always fulfilled. 
+
+A valid opsi-meta-data.toml contains further data for other purposes:
+
+* A table `specification` with the version of the data specification.
+
+* A table `product` with the name of the product icon file.
+
+* In the `installers` table:
+
+** the path (`path`) to the installer file. The path specification may contain opsi-script constants.
+
+** The specification of the installation directory (`install_dir`) for the installer file. The path specification may contain opsi-script constants.
+
+* In the `installers.requirement` table:
+
+** the specification of the required space in MB (`required_space_MB`).
+
+Examples
+
+.metadata file (example background installation - example 1)
+
+A Windows setup file - minimal configuration
+[source, toml]
+----
+[specification]
+version = '0.1'
+
+[product]
+product_icon_file_path = 'dummy.png'
+
+[[installers]]
+path = '%scriptpath%\files1\grepWin-1.6.15-x64.msi'
+install_dir = '%ProgramFiles64Dir%\grepWin'
+check_processes_from_dirs = ['%ProgramFiles64Dir%\grepWin']
+processes = []
+
+[installers.requirement]
+os_arch = 'x64'
+os = 'windows'
+required_space_MB = 4
+----
+
+.metadata file (example background installation - example 2)
+Two Windows setup files - 32 / 64
+[source, toml]
+----
+[specification]
+version='0.1'
+
+[product]
+product_icon_file_path = 'dummy.png'
+
+[[installers]]
+name = '7Zip-win32'
+path = 'files1/7Zip-32-setup.exe' 
+install_dir = '%ProgramFiles32Dir%\7-Zip'
+check_processes_from_dirs = ['%ProgramFiles32Dir%\7-Zip']
+processes = ['7z.exe','%ProgramFiles32Dir%/7-Zip/7zFM.exe']
+
+[[installers.requirements]]
+os = 'windows'
+os_arch = 'x86'
+
+[[installers]]
+name = '7Zip-win64'
+path = 'files2/7Zip-64-setup.exe'
+install_dir = '%ProgramFiles64Dir%\7-Zip'
+check_processes_from_dirs = ['%ProgramFiles64Dir%\7-Zip']
+processes = ['7z.exe','%ProgramFiles64Dir%\7-Zip\7zFM.exe']
+
+[[installers.requirements]]
+os = 'windows'
+os_arch = 'x64'
+----
+
+[[opsi-manual-background-install-new-products]]
+
+== Creating products with background metadata
+
+The `opsi-setup-detector` from version 4.3.6.x supports the creation of the metadata required for the background installation. Until the official release of this new extension, the corresponding functions of the `opsi-setup-detector` are deactivated by default and must first be activated via the configuration. This is done by activating the config: +
+
+*EnableBackgroundMetaData* : +
+Activates the background install support:
+Shows the `Background Info File` button on the start tab.
+Makes the `Product Configuration 3` tab visible and usable.
+Writes an `opsi-meta-data.toml` file during product creation.
+
+After checking the box and closing the configuration dialog, you have to restart the `opsi-setup-detector` or change the language to reload the interface. 
+
+After successfully activating the background install support, you will be forwarded to `Product configuration 3` after `Product configuration 2`, which displays the metadata to be saved.
+
+.opsi-setup-detector: `Product-Background Info`
+image::opsi-modules:osd_page_background1_en.png["Product-Background Info", pdfwidth=60%]
+
+
+* In order to generate metadata for a setup / installer file, the `Installer 1 Active` checkbox must be ticked.
+
+* The `InstallDir` field refers to the directory in which this software will be installed.
+If it is not yet filled in correctly, this can be entered here or selected using the selection button next to the input field. +
+The `InstallDir` can be copied to the `List of directories to be checked` via the `Down arrow` button.
+
+* The `List of directories to be checked` field is a list containing one directory per line, 
+which can be a source of critical processes. Usually only the installdir is listed here. 
+
+* The `List of processes to be checked` field is a list containing one process name per line 
+(with or without path), which can be a critical process. Usually there is nothing here. 
+
+* If both lists are empty, no running processes are checked and the software is installed directly.
+
+* If there is a checkmark next to `install_in_background`, this means that this product may be installed in a `Background Install Situation`. If the check mark is removed, the product *may not* be installed in a `Background Install Situation`. Reasons for this could be required reboots or other side effects that cannot be handled.
+
+* The `Operating System (OS)` should always be set to `windows`. The extension `opsi-background-install` is not active for other operating systems. 
+
+* The specification `OS architecture` indicates the architecture of the required operating system. +
+Allowed here are `x86, x64, arm64, arch_unknown`. The requirement `x86` is also fulfilled on an x64 Windows operating system. The requirement `x64` is not fulfilled on an x86 Windows operating system. The `arch_unknown` requirement is always fulfilled. 
+
+If everything has been filled in correctly, click on the “Next step” button to exit the screen. 
+The metadata file is automatically created when the opsi product is created using the `Create Opsi Package` button.
+
+[[opsi-manual-background-install-old-products]]
+== Provide legacy products with background metadata
+
+The `opsi-setup-detector` from version 4.3.6.x offers the possibility to supply
+simply existing products with the required metadata.
+To do this, check the *EnableBackgroundMetaData* box in the configuration window (see above).
+Then the button `Create Background Info File` will be visible at the bottom of the start page.
+This is used to subsequently supply existing opsi products with the metadata file.
+
+.opsi-setup-detector: `Start page with button Product-Background Info`
+image::opsi-modules:osd_page_start_bg_en.png["Start page with button Product-Background Info", pdfwidth=60%]
+
+
+If the `Create background info file` button is pressed, an attempt is first made to determine data about the existing product via 
+. For this purpose, an `opsi-setup-detector project file` 
+(*.osd) is requested. You can cancel the dialog if such a file does not exist.
+In this case, you will be asked for an existing `control file` (control, control.toml).
+You can cancel the dialog if you do not want to use such a file or if it does not exist. +
+The information from the project or control file may be used to detect the operating system architecture 
+and the package number.
+
+The `Product Configuration 3` screen is then displayed.
+
+.opsi-setup-detector: `Product Configuration 3`
+image::opsi-modules:osd_page_background2_en.png["Product-Background Info", pdfwidth=60%]
+
+The mask is filled in exactly as described in xref:background-install.adoc#opsi-manual-background-install-new-products[in the previous chapter].
+
+If everything is filled in correctly, select the `CLIENT_DATA` directory of the opsi product via the `Save file` button 
+and save the `opsi-meta-data.toml` file there. +
+In this case, the package number of the product is also increased by one
+and an entry is made in the `changelog.md`. +
+The product must then be rebuilt (`opsi-make-package`) and installed. +
+The metadata of the opsi product is now available.
+
+[[opsi-manual-background-bestpractice]]
+== Best Practice: Tips for handling / configuration with Background_install
+
+[[opsi-manual-background-bestpractice_configuration]]
+=== Configuration tips for the clients
+
+*Event configuration for the clients* +
+If Background_install is switched on for a client, this basically applies to *all* events if users are logged in. +
+Two options are presented here for which events can be used for Backgound_install
+:
+
+*Use of the existing event `opsiclientd.event_gui_startup`* +
+To do this, the following changes must be made to the standard configuration of the event:
+
+* Disable login blocker: +
+`opsiclientd.event_gui_startup.block_login=false`
+
+* Processing of actions only 30 minutes after the start of the event: +
+`opsiclientd.event_gui_startup.activation_delay = 1200` +
+
+*Advantage*: Products are installed after each start. +
+*Disadvantage*: Not suitable for `Roaming Profiles` as the login event 
+is blocked by the `event_gui_startup`.
+
+The alternative 1: +
+*Creation of the new timer-controlled event `opsiclientd.event_background_install`* +
+This event starts controlled by a timer. In the configuration proposed here, 30 minutes (1200 seconds) after the computer is started.
+
+This new event is created via the following entries in opsiclientd.conf.
+
+[source,ini]
+----
+[event_background_install]
+super = default
+type = custom
+
+[event_timer_backgroundinstall]
+super = background_install
+type = timer
+active = false
+interval = 604800
+start_interval = 1200
+
+[event_timer_backgroundinstall{user_logged_in}]
+shutdown_user_cancelable = 5
+shutdown_user_selectable_time = true
+shutdown_warning_time = 3600
+----
+
+To create these entries, you must execute the following command line commands on the server:
+
+[source,shell]
+----
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.super "bg_install_super" "default" "default"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_background_install.type "bg_install_type" "custom" "custom"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_cancelable "bg_install_shutdown_user_cancelable" "5" "5"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_user_selectable_time "bg_install_shutdown_user_cancelable" true
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall{user_logged_in}.shutdown_warning_time "bg_install_shutdown_warning_time" "3600" "3600"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.super "bg_install_timer_super" "background_install" "background_install"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.type "bg_install_timer_type" "timer" "timer"
+opsi-cli jsonrpc execute config_createBool opsiclientd.event_timer_backgroundinstall.active "bg_install_active" false
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.interval "bg_install_timer_interval" "604800" "604800"
+opsi-cli jsonrpc execute config_createUnicode opsiclientd.event_timer_backgroundinstall.start_interval "bg_install_timer_start_interval" "1200" "1200"
+----
+
+To activate the new event, the following must be set in the host parameters of the affected clients: `opsiclientd.event_timer_backgroundinstall.active=true`.
+
+*Advantage*: Suitable for `Roaming Profiles`. +
+*Disadvantage*: New event must be configured.
+
+The alternative 2: +
+*User-controlled installation via the opsi-client-systray* +
+To do this, the `opsi-client-agent` must be installed on the computers with the property `systray_install=true`. It is also advisable to set the value of the property `systray_check_interval` to a smaller value (e.g. 10). This property specifies how many minutes should pass before checking for pending installations and informs the user of any pending installations. +
+The user can then start the installation themselves via the context menu of the `opsi-client-systray`.
+
+*Advantage*: Suitable for `roaming profiles`. +
+*Disadvantage*: No installations if the user does not start them.
+
+*Configure shutdown notifier sensibly* +
+Especially for events that are active when the user is logged in,
+it is very important to configure the shutdown notifier well. +
+For the event which is used for the background installation, we recommend:
+
+* `shutdown_user_cancelable = 5` 
+
+* `shutdown_user_selectable_time = true` 
+
+* `shutdown_warning_time = 3600` 
+
+*Events for installation without user* +
+Since Background_install does not execute products without metadata or with a corresponding configuration, it makes sense to have events that are also executed without a logged-in user: +
+This can be, for example, in the installation on shutdown: +
+`opsiclientd.event_on_shutdown.active=true`
+
+[[opsi-manual-background-bestpractice_std_prod]]
+=== Configuration of opsi standard products
+
+The standard products and Abo / Abo+ products provided by uib will be successively adapted for use with the background installation at the start of the pilot phase.
+
+*Approved but configurable standard products*
+
+The following products are approved for the background installation, but should be adapted in the properties:
+
+* opsi-client-agent +
+Property: `allow_reboot=false` set
+
+* mshotfix +
+Property: set `noreboot=on`.
+
+*Approved standard products
+
+The following products are permitted for background installation:
+
+* All opsi standard products (with a few exceptions see below)
+
+* All products from the "Update Subscription Standard Products" which have been updated since 1.7.2025.
+
+* From the "Update Subscription MS-Hotfixes" the product mshotfix.
+
+* All products from the "Abo+" offer that have been updated since 1.8.2025.
+
+*(Not yet) approved standard products*
+
+The following products are *not* approved for background installation as of 23.02.2026:
+
+* jedit
+
+* microsoft-windows-policies
+
+* opsi-winpe
+
+* opsipackagebuilder_wlm
+
+* windows1*-enablement
+
+* windows1*-upgrade
+
+[[opsi-manual-background-bestpractice_prod_authorized_config]]
+=== Tips for deciding how a product should be authorized / configured
+
+*Avoid reboots* +
+It is essential that reboots are avoided as far as possible during the background installation.
+I.e. specifically:
+
+* Products that always and inevitably require one or more reboots should not be approved for background installation. In concrete terms, this means that `install_in_background=false` should be set in the metadata file. 
+
+* Products that do not necessarily require an immediate reboot should make this controllable via a property (e.g. `allow_reboot`),
+so that the reboots for clients that are to perform a background installation can be switched off.
