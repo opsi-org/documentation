@@ -50,7 +50,7 @@ and create a Merge Request/Pull Request (gitlab.uib.de or github).
 5) Now you can edit the opsidocs repository. Go back to [docs.opsi.org](https://docs.opsi.org). See [Edit via docs.opsi.org](#edit-docs).
 
 
-## How to build an opsi manual (Antora and HTML/PDF)
+## How to build an OPSI manual (Antora and HTML/PDF)
 
 To build the documentation files you can use the Visual Studio Code Dev Container.
 In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
@@ -237,7 +237,7 @@ Englische Begriffe, die ins deutsche Handbuch übernommen werden, unterliegen de
 
 ## Eigennamen
 
-Unsere Software heißt opsi (alles Kleinbuchstaben), und der Begriff wird genau so (auch am Satzanfang!) geschrieben.
+Unsere Software heißt OPSI (alles Großbuchstaben), und der Begriff wird genau so geschrieben.
 
 ## Maßeinheiten
 
