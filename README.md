@@ -65,7 +65,19 @@ A member of the uib staff will review the pull request and, if appropriate, merg
 To build the documentation files you can use the Visual Studio Code Dev Container.
 In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
 
+### Use VS Code Tasks
+Check, if the folder is opened in a Dev Container. The lower-left corner of VS Code should contain the text "Dev Container: opsidoc-asciidoctor".
 
+1) Open this folder in a Devcontainer, if it is not open already
+   `Ctrl Shift P` Dev Containers: Rebuilt and Reopen in Container
+
+2) Create this documentation with a Task
+   `Ctrl Shift P` Run Task `Enter` Build Antora site `Enter` local-playbook.yml `Enter`
+
+3) When the site is built the terminal will display the path from within the Dev Container: "Open file:///workspaces/opsidoc/build/site/index.html in a browser to view your site". To access the site you can replace `workspaces` by the oath to your local folder, e.g. `file:///home/alice/code/opsidoc/build/site/index.html . 
+
+### post-create.sh fails
+Run it from the terminal in vs code: `./.devcontainer/post-create.sh` 
 
 ### Check, if the ui/bundle exists
 If there is a directory antora-ui/build and it contains a file named ui-bundle.zip proceed to the next section of this README.
@@ -77,15 +89,15 @@ gulp bundle
 cd ..
 ```
 
-### Create Antora site
+### Create Antora site without the VS Code task
 
-To create the Antora site with your local changes use the VS Code task or execute:
+To create the Antora site with your local changes execute:
 
 ```console
 npx antora --log-level=debug local-playbook.yml
 ```
 
-### Access Antora site
+### Access Antora site via python server (alternative option)
 When using devcontainers, start an http-server in the container (which is in the terminal within vscode) with
 
 ```console
