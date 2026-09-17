@@ -1,10 +1,22 @@
-# Documentation for opsi
+
+
+<!-- TOC --><a name="documentation-for-opsi"></a>
+# Documentation for OPSI
 
 This is the source of the official documentation for the open source client management solution [opsi](https://www.opsi.org/).
 
 The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
+<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
 
+- [Documentation for OPSI](#documentation-for-opsi)
+   * [Edit this documentation](#edit-this-documentation)
+   * [How to build an OPSI manual (Antora and HTML/PDF)](#how-to-build-an-opsi-manual-antora-and-htmlpdf)
+   * [Accept changes from external](#accept-changes-from-external)
+- [Sprachführer deutsches Handbuch](#sprachführer-deutsches-handbuch)
+<!-- TOC end -->
+
+<!-- TOC --><a name="edit-this-documentation"></a>
 ## Edit this documentation
 
 There are two main ways to edit the documentation:
@@ -18,11 +30,7 @@ In case you are working for UIB, use our internal Gitlab repository.
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
 
-Edit via docs.opsi.org
-
-<a name="edit-docs"></a>
-
-You can edit the opsi documentation directly via [docs.opsi.org] (https://docs.opsi.org) and submit your changes as a pull request on GitHub.
+You can edit the OPSI documentation directly via [docs.opsi.org] (https://docs.opsi.org) and submit your changes as a pull request on GitHub.
 
 1) Go to [docs.opsi.org] (https://docs.opsi.org) and click `Edit this page` in the top-right corner of the page you want to edit.
 
@@ -51,6 +59,7 @@ A member of the uib staff will review the pull request and, if appropriate, merg
 
 
 
+<!-- TOC --><a name="how-to-build-an-opsi-manual-antora-and-htmlpdf"></a>
 ## How to build an OPSI manual (Antora and HTML/PDF)
 
 To build the documentation files you can use the Visual Studio Code Dev Container.
@@ -140,6 +149,7 @@ This script requires Python 3.
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
 
+<!-- TOC --><a name="accept-changes-from-external"></a>
 ## Accept changes from external
 
 Changes made via docs.opsi.org generate a merge request on gitlab.uib.de.
@@ -154,6 +164,7 @@ Then the merge to stable can be processed. Once everything has been merged, stab
 The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed.
 
 
+<!-- TOC --><a name="sprachführer-deutsches-handbuch"></a>
 # Sprachführer deutsches Handbuch
 
 Ein gutes Handbuch
@@ -326,7 +337,7 @@ In asciidoc werden Sternchen (``*``) verwendet um Text fett darzustellen.
 Fettgedruckte Schrift wird zur Hervorhebung der folgenden Elemente verwendet:
 
 * Eigennamen:
-  * opsi bietet mit dem *opsi-configed* ein komfortables Management Interface.
+  * OPSI bietet mit dem *OPSI-configed* ein komfortables Management Interface.
 
 ### Code-Blöcke und Listings
 
@@ -348,7 +359,7 @@ Gültige Typen sind beispielweise: `console`, `shell`, `bash`, `ini`, `xml`, `ht
 
 ### Weitere Konventionen
 
-* In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den opsi-Paketen z.&nbsp;B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
+* In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den OPSI-Paketen z.&nbsp;B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
 
 * Tasten und Tastenkombinationen stehen in eckigen Klammern, z.&nbsp;B. [C], [Strg]+[C] usw., normaler Font (keine Proportionalschrift)
 * In Überschriften werden keine Texthervorhebungen verwendet.
