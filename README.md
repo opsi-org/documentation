@@ -57,27 +57,45 @@ You can make several changes and create several commits before creating the pull
 A member of the uib staff will review the pull request and, if appropriate, merge the changes into the upstream repository.
 
 
-
-
 <!-- TOC --><a name="how-to-build-an-opsi-manual-antora-and-htmlpdf"></a>
-## How to build an OPSI manual (Antora and HTML/PDF)
+## How to build an OPSI manual (HTML)
 
-To build the documentation files you can use the Visual Studio Code Dev Container.
-In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
+You can build the OPSI documentation in the Visual Studio Code Dev Container. The container provides the tools required to build the Antora site and the HTML/PDF manuals.
 
-### Use VS Code Tasks
-Check, if the folder is opened in a Dev Container. The lower-left corner of VS Code should contain the text "Dev Container: opsidoc-asciidoctor".
+### Build the Antora site with a VS Code task
 
-1) Open this folder in a Devcontainer, if it is not open already
-   `Ctrl Shift P` Dev Containers: Rebuilt and Reopen in Container
+1. Open the repository in the Dev Container.
 
-2) Create this documentation with a Task
-   `Ctrl Shift P` Run Task `Enter` Build Antora site `Enter` local-playbook.yml `Enter`
+   In VS Code, open the Command Palette with `Ctrl+Shift+P` and select
+   `Dev Containers: Rebuild and Reopen in Container`.
 
-3) When the site is built the terminal will display the path from within the Dev Container: "Open file:///workspaces/opsidoc/build/site/index.html in a browser to view your site". To access the site you can replace `workspaces` by the oath to your local folder, e.g. `file:///home/alice/code/opsidoc/build/site/index.html . 
+   Make sure the lower-left corner displays
+   `Dev Container: opsidoc-asciidoctor`.
 
-### post-create.sh fails
-Run it from the terminal in vs code: `./.devcontainer/post-create.sh` 
+2. Run the build task.
+
+   Open the Command Palette with `Ctrl+Shift+P` and select:
+
+   `Tasks: Run Task` → `Build Antora site` → `local-playbook.yml`
+
+3. Open the generated site.
+
+   After the build completes, the terminal displays a message similar to:
+
+   ```text
+   Open file:///workspaces/opsidoc/build/site/index.html in a browser to view your site
+   ```
+
+   Open the generated index.html file in your browser. Replace `workspaces` with the path to your local repository, for example:
+   ```
+   file:///home/alice/code/opsidoc/build/site/index.html
+   ```                               
+
+### Troubleshooting container creation
+If the post-create.sh script fails while creating the container, run it manually from the VS Code terminal:
+```
+ `./.devcontainer/post-create.sh` 
+```
 
 ### Check, if the ui/bundle exists
 If there is a directory antora-ui/build and it contains a file named ui-bundle.zip proceed to the next section of this README.
@@ -97,20 +115,15 @@ To create the Antora site with your local changes execute:
 npx antora --log-level=debug local-playbook.yml
 ```
 
-### Access Antora site via python server (alternative option)
-When using devcontainers, start an http-server in the container (which is in the terminal within vscode) with
+### Checking for valid links
 
-```console
-cd antora-ui/build/site
-python3 -m http.server 5252
-```
+With the script `tools/check_links.py` the build documentation is scanned for broken links.
+This script requires Python 3.
 
-Then, you can access the created site via `http://localhost:5252`. This port is forwarded by devcontainers.
+To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
-Stop the server with Ctrl-C.
-To use other commands in this README, go back to the parent directory `/workspaces/opsidoc`.
 
-### Create PDF/HTML documentation
+## Create PDF/HTML documentation
 
 To create the CSS files, call the `build_stylesheets.sh` script.
 
@@ -152,13 +165,6 @@ Examples:
 ```console
 ./tools/make-books.sh -l en -m -n manual
 ```
-
-### Checking for valid links
-
-With the script `tools/check_links.py` the build documentation is scanned for broken links.
-This script requires Python 3.
-
-To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
 
 <!-- TOC --><a name="accept-changes-from-external"></a>
