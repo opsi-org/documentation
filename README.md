@@ -4,50 +4,51 @@ This is the source of the official documentation for the open source client mana
 
 The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
-PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.2/documentation/).
-
 
 ## Edit this documentation
 
 There are two main ways to edit the documentation:
 1) Via the edit link on [docs.opsi.org](https://docs.opsi.org).
-2) Clone this repository, edit the files locally
-and create a Merge Request/Pull Request (gitlab.uib.de or github).
+2) Fork this repository and clone your copy. Edit the files locally and create a pull request (GitHub).
+
+You need a Github account either way. 
+
+In case you are working for UIB, use our internal Gitlab repository.
 
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
 
-1) First, go to [docs.opsi.org] (https://docs.opsi.org) and click the `Edit this page` button at the top right of the page you want to edit.
+Edit via docs.opsi.org
 
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
+<a name="edit-docs"></a>
 
-2) You will get to https://gitlab.uib.de. To edit the docs you have to sign in (Standard) or create an account (see [create an account on gitlab.uib.de](#create-account)).
+You can edit the opsi documentation directly via [docs.opsi.org] (https://docs.opsi.org) and submit your changes as a pull request on GitHub.
 
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-gitlab-login.png)
+1) Go to [docs.opsi.org] (https://docs.opsi.org) and click `Edit this page` in the top-right corner of the page you want to edit.
 
-3) After logging in, the Gitlab editor opens.
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit.png)
+![opsidoc-edit-page-en](docs/en/modules/ROOT/assets/images/opsidoc-edit-page-en.png)
 
-- (1) Make your changes here.
-- (2) Append a meaningfull commit message.
-- (3) A branch name is automatically assigned and a merge request is created.
-- (4) With 'Commit changes' your changes are saved and the merge request is created.
-- A uib staff member then looks at the merge request and transfers the changes to the stable branch.
+2) You will be redirected to GitHub. You need to sign in with a GitHub account to edit the documentation. After signing in, fork the upstream repository `opsi-org/documentation`. This creates your own copy of the repository, where you can make your changes.
 
-### Create an account on gitlab.uib.de
-<a name="create-account"></a>
+![opsidoc-github-fork](/docs/en/modules/ROOT/assets/images/opsidoc-github-1-fork.png)
 
-1) Click "Register now" and fill out your information.
+3) The GitHub editor opens with the selected documentation page. Make your changes and then click `Commit changes...`.
+![opsidoc-github-edit](/docs/en/modules/ROOT/assets/images/opsidoc-github-2-edit.png)
 
-![gitlab-register](assets/images/en/readme/opsidoc-gitlab-register.png)
+You can make several changes and create several commits before creating the pull request.
 
-2) Now your account must be approved. This is a manual step. So it can take some time.
-3) When your account is approved you will recieve an email. Now you can sign in on gitlab.uib.de.
-4) Select a Role for yourself, e.g., developer.
+4) The dialog "propose changes" opens. Enter a meaningful commit message that briefly describes what you changed.
+![opsidoc-github-commit](/docs/en/modules/ROOT/assets/images/opsidoc-github-3-commit.png)
 
-![gitlab-welcome](assets/images/en/readme/opsidoc-gitlab-welcome.png)
+5) When you changes are complete, create a pull request:
+![opsidoc-github-](/docs/en/modules/ROOT/assets/images/opsidoc-github-4-create-pull-request.png)
 
-5) Now you can edit the opsidocs repository. Go back to [docs.opsi.org](https://docs.opsi.org). See [Edit via docs.opsi.org](#edit-docs).
+6) The "Open a pull request" page opens. Enter a meaningful title and, optionally, add a description explaining your changes.
+![opsidoc-github-](/docs/en/modules/ROOT/assets/images/opsidoc-github-5-pull-request.png)
+
+A member of the uib staff will review the pull request and, if appropriate, merge the changes into the upstream repository.
+
+
 
 
 ## How to build an OPSI manual (Antora and HTML/PDF)
