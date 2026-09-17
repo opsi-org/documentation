@@ -170,16 +170,9 @@ Examples:
 <!-- TOC --><a name="accept-changes-from-external"></a>
 ## Accept changes from external
 
-Changes made via docs.opsi.org generate a merge request on gitlab.uib.de.
-Queries and discussions can take place via the GitLab interface on gitlab.uib.de.
-If the changes are to be adopted, gitlab.uib.de is first entered as the second remote in the local opsidoc repository:
+Changes made through docs.opsi.org require the contributor to open a pull request on GitHub: github.com/opsi-org/documentation.
 
-```console
-git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
-```
-
-Then the merge to stable can be processed. Once everything has been merged, stable is pushed internally to gitlab.uib.gmbh.
-The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed.
+Questions and discussions can take place in the pull request on GitHub.
 
 
 <!-- TOC --><a name="sprachführer-deutsches-handbuch"></a>
