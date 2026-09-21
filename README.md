@@ -1,61 +1,101 @@
-# Documentation for opsi
+
+
+<!-- TOC --><a name="documentation-for-opsi"></a>
+# Documentation for OPSI
 
 This is the source of the official documentation for the open source client management solution [opsi](https://www.opsi.org/).
 
 The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
-PDF and HTML manuals can be found [here](https://download.uib.de/opsi4.2/documentation/).
+<!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
 
+- [Documentation for OPSI](#documentation-for-opsi)
+   * [Edit this documentation](#edit-this-documentation)
+   * [How to build an OPSI manual (Antora and HTML/PDF)](#how-to-build-an-opsi-manual-antora-and-htmlpdf)
+   * [Accept changes from external](#accept-changes-from-external)
+- [Sprachführer deutsches Handbuch](#sprachführer-deutsches-handbuch)
+<!-- TOC end -->
 
+<!-- TOC --><a name="edit-this-documentation"></a>
 ## Edit this documentation
 
 There are two main ways to edit the documentation:
 1) Via the edit link on [docs.opsi.org](https://docs.opsi.org).
-2) Clone this repository, edit the files locally
-and create a Merge Request/Pull Request (gitlab.uib.de or github).
+2) Fork this repository and clone your copy. Edit the files locally and create a pull request (GitHub).
+
+You need a Github account either way. 
+
+In case you are working for UIB, use our internal Gitlab repository.
 
 ### Edit via docs.opsi.org
 <a name="edit-docs"></a>
 
-1) First, go to [docs.opsi.org] (https://docs.opsi.org) and click the `Edit this page` button at the top right of the page you want to edit.
+You can edit the OPSI documentation directly via [docs.opsi.org] (https://docs.opsi.org) and submit your changes as a pull request on GitHub.
 
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit-page-en.png)
+1) Go to [docs.opsi.org] (https://docs.opsi.org) and click `Edit this page` in the top-right corner of the page you want to edit.
 
-2) You will get to https://gitlab.uib.de. To edit the docs you have to sign in (Standard) or create an account (see [create an account on gitlab.uib.de](#create-account)).
+![opsidoc-edit-page-en](docs/en/modules/ROOT/assets/images/opsidoc-edit-page-en.png)
 
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-gitlab-login.png)
+2) You will be redirected to GitHub. You need to sign in with a GitHub account to edit the documentation. After signing in, fork the upstream repository `opsi-org/documentation`. This creates your own copy of the repository, where you can make your changes.
 
-3) After logging in, the Gitlab editor opens.
-![opsidoc-edit-page-en](assets/images/en/readme/opsidoc-edit.png)
+![opsidoc-github-fork](/docs/en/modules/ROOT/assets/images/opsidoc-github-1-fork.png)
 
-- (1) Make your changes here.
-- (2) Append a meaningfull commit message.
-- (3) A branch name is automatically assigned and a merge request is created.
-- (4) With 'Commit changes' your changes are saved and the merge request is created.
-- A uib staff member then looks at the merge request and transfers the changes to the stable branch.
+3) The GitHub editor opens with the selected documentation page. Make your changes and then click `Commit changes...`.
+![opsidoc-github-edit](/docs/en/modules/ROOT/assets/images/opsidoc-github-2-edit.png)
 
-### Create an account on gitlab.uib.de
-<a name="create-account"></a>
+You can make several changes and create several commits before creating the pull request.
 
-1) Click "Register now" and fill out your information.
+4) The dialog "propose changes" opens. Enter a meaningful commit message that briefly describes what you changed.
+![opsidoc-github-commit](/docs/en/modules/ROOT/assets/images/opsidoc-github-3-commit.png)
 
-![gitlab-register](assets/images/en/readme/opsidoc-gitlab-register.png)
+5) When you changes are complete, create a pull request:
+![opsidoc-github-](/docs/en/modules/ROOT/assets/images/opsidoc-github-4-create-pull-request.png)
 
-2) Now your account must be approved. This is a manual step. So it can take some time.
-3) When your account is approved you will recieve an email. Now you can sign in on gitlab.uib.de.
-4) Select a Role for yourself, e.g., developer.
+6) The "Open a pull request" page opens. Enter a meaningful title and, optionally, add a description explaining your changes.
+![opsidoc-github-](/docs/en/modules/ROOT/assets/images/opsidoc-github-5-pull-request.png)
 
-![gitlab-welcome](assets/images/en/readme/opsidoc-gitlab-welcome.png)
-
-5) Now you can edit the opsidocs repository. Go back to [docs.opsi.org](https://docs.opsi.org). See [Edit via docs.opsi.org](#edit-docs).
+A member of the uib staff will review the pull request and, if appropriate, merge the changes into the upstream repository.
 
 
-## How to build an OPSI manual (Antora and HTML/PDF)
+<!-- TOC --><a name="how-to-build-an-opsi-manual-antora-and-htmlpdf"></a>
+## How to build an OPSI manual (HTML)
 
-To build the documentation files you can use the Visual Studio Code Dev Container.
-In the Dev Container you can execute the different scripts to create the Antora site and the HTML/PDF manuals or you can use the VS Code tasks.
+You can build the OPSI documentation in the Visual Studio Code Dev Container. The container provides the tools required to build the Antora site and the HTML/PDF manuals.
 
+### Build the Antora site with a VS Code task
 
+1. Open the repository in the Dev Container.
+
+   In VS Code, open the Command Palette with `Ctrl+Shift+P` and select
+   `Dev Containers: Rebuild and Reopen in Container`.
+
+   Make sure the lower-left corner displays
+   `Dev Container: opsidoc-asciidoctor`.
+
+2. Run the build task.
+
+   Open the Command Palette with `Ctrl+Shift+P` and select:
+
+   `Tasks: Run Task` → `Build Antora site` → `local-playbook.yml`
+
+3. Open the generated site.
+
+   After the build completes, the terminal displays a message similar to:
+
+   ```text
+   Open file:///workspaces/opsidoc/build/site/index.html in a browser to view your site
+   ```
+
+   Open the generated index.html file in your browser. Replace `workspaces` with the path to your local repository, for example:
+   ```
+   file:///home/alice/code/opsidoc/build/site/index.html
+   ```                               
+
+### Troubleshooting container creation
+If the post-create.sh script fails while creating the container, run it manually from the VS Code terminal:
+```
+ `./.devcontainer/post-create.sh` 
+```
 
 ### Check, if the ui/bundle exists
 If there is a directory antora-ui/build and it contains a file named ui-bundle.zip proceed to the next section of this README.
@@ -67,28 +107,23 @@ gulp bundle
 cd ..
 ```
 
-### Create Antora site
+### Create Antora site without the VS Code task
 
-To create the Antora site with your local changes use the VS Code task or execute:
+To create the Antora site with your local changes execute:
 
 ```console
 npx antora --log-level=debug local-playbook.yml
 ```
 
-### Access Antora site
-When using devcontainers, start an http-server in the container (which is in the terminal within vscode) with
+### Checking for valid links
 
-```console
-cd antora-ui/build/site
-python3 -m http.server 5252
-```
+With the script `tools/check_links.py` the build documentation is scanned for broken links.
+This script requires Python 3.
 
-Then, you can access the created site via `http://localhost:5252`. This port is forwarded by devcontainers.
+To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
-Stop the server with Ctrl-C.
-To use other commands in this README, go back to the parent directory `/workspaces/opsidoc`.
 
-### Create PDF/HTML documentation
+## Create PDF/HTML documentation
 
 To create the CSS files, call the `build_stylesheets.sh` script.
 
@@ -131,28 +166,16 @@ Examples:
 ./tools/make-books.sh -l en -m -n manual
 ```
 
-### Checking for valid links
 
-With the script `tools/check_links.py` the build documentation is scanned for broken links.
-This script requires Python 3.
-
-To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
-
-
+<!-- TOC --><a name="accept-changes-from-external"></a>
 ## Accept changes from external
 
-Changes made via docs.opsi.org generate a merge request on gitlab.uib.de.
-Queries and discussions can take place via the GitLab interface on gitlab.uib.de.
-If the changes are to be adopted, gitlab.uib.de is first entered as the second remote in the local opsidoc repository:
+Changes made through docs.opsi.org require the contributor to open a pull request on GitHub: github.com/opsi-org/documentation.
 
-```console
-git remote add gitlab.uib.de git@gitlab.uib.de:pub/opsidoc.git
-```
-
-Then the merge to stable can be processed. Once everything has been merged, stable is pushed internally to gitlab.uib.gmbh.
-The change is then automatically transferred to gitlab.uib.de and the merge request is automatically closed.
+Questions and discussions can take place in the pull request on GitHub.
 
 
+<!-- TOC --><a name="sprachführer-deutsches-handbuch"></a>
 # Sprachführer deutsches Handbuch
 
 Ein gutes Handbuch
@@ -325,7 +348,7 @@ In asciidoc werden Sternchen (``*``) verwendet um Text fett darzustellen.
 Fettgedruckte Schrift wird zur Hervorhebung der folgenden Elemente verwendet:
 
 * Eigennamen:
-  * opsi bietet mit dem *opsi-configed* ein komfortables Management Interface.
+  * OPSI bietet mit dem *OPSI-configed* ein komfortables Management Interface.
 
 ### Code-Blöcke und Listings
 
@@ -347,7 +370,7 @@ Gültige Typen sind beispielweise: `console`, `shell`, `bash`, `ini`, `xml`, `ht
 
 ### Weitere Konventionen
 
-* In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den opsi-Paketen z.&nbsp;B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
+* In `<spitzen Klammern>` stehen Bezeichnungen, die Sie durch ihre Bedeutung ersetzen müssen. So heißt die Dateifreigabe mit den OPSI-Paketen z.&nbsp;B. `<opsi-depot-share>`. Auf einem realen Server liegt sie in der Regel in `/var/lib/opsi/depot`. Das Softwarepaket `<opsi-depot-share>/ooffice` befindet sich also unter `/var/lib/opsi/depot/ooffice`.
 
 * Tasten und Tastenkombinationen stehen in eckigen Klammern, z.&nbsp;B. [C], [Strg]+[C] usw., normaler Font (keine Proportionalschrift)
 * In Überschriften werden keine Texthervorhebungen verwendet.
