@@ -115,13 +115,6 @@ To create the Antora site with your local changes execute:
 npx antora --log-level=debug local-playbook.yml
 ```
 
-### Checking for valid links
-
-With the script `tools/check_links.py` the build documentation is scanned for broken links.
-This script requires Python 3.
-
-To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
-
 
 <!-- TOC --><a name="accept-changes-from-external"></a>
 ## Accept changes from external
