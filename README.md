@@ -123,50 +123,6 @@ This script requires Python 3.
 To use this script first build the documentation and then run the script. It will show what links are broken and in case there are links that can not be opened a non-zero exit-code will be returned.
 
 
-## Create PDF/HTML documentation
-
-To create the CSS files, call the `build_stylesheets.sh` script.
-
-dependencies:
-- ruby, ruby-gems
-- gem install compass
-- gem install zurb-foundation
-<!-- - gem install zurb-foundation  --version 4.3.2 -->
-
-```console
-sh tools/build_stylesheets.sh
-```
-This will take the *conf/stylesheets/opsi.scss* and build the *conf/stylesheets/opsi.css*. Images used in the scss files should be in the folder *conf/stylesheets/images*. `create_docu.py` copies all images to *\<destination\>/opsi-css/* (location of the html file).
-
-To modify the PDF theme edit conf/opsi-theme.yml.
-
-The documentation then is built with the script `make-books.sh` in tools. This script uses Python 3.
-
-```console
-./tools/make-books.sh -l <LANGUAGE> -m -n <DOCUMENT>
-```
-
-```shell
-HELP
-
-Usage: ./bin/makepdf [-c] [-d] [-h] [-l] [-m] [-n <manual|getting-started|releasenotes|windows-client-manual|linux-client-manual|macos-client-manual|opsi-script-manual|quickinstall|opsi-script-reference-card|supportmatrix>]
-
--h ... help
--l ... set language default is de
--e ... Set failure level to ERROR (default: FATAL)
--c ... clean the build/ directory (contains the pdf)
--d ... Debug mode, prints the book to be converted. Only in combination with -m and/or -n
--m ... Build all available manuals
--n ... Build manual <name>. Only in combination with -m
-```
-
-Examples:
-
-```console
-./tools/make-books.sh -l en -m -n manual
-```
-
-
 <!-- TOC --><a name="accept-changes-from-external"></a>
 ## Accept changes from external
 
