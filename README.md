@@ -61,6 +61,7 @@ A member of the uib staff will review the pull request and, if appropriate, merg
 ## How to build an OPSI manual (HTML)
 
 You can build the OPSI documentation in the Visual Studio Code Dev Container. The container provides the tools required to build the Antora site and the HTML/PDF manuals.
+Prerequisites: Docker installed and running on your system (Windows: Docker Desktop), VS Code, and the Dev Containers (VS Code extension).
 
 ### Build the Antora site with a VS Code task
 
