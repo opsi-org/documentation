@@ -60,7 +60,7 @@ COPYING
 import warnings
 warnings.simplefilter('ignore',DeprecationWarning)
 
-import os, sys, tempfile, md5
+import os, sys, tempfile, md5, subprocess
 
 VERSION = '0.1.0'
 
@@ -91,14 +91,26 @@ def print_verbose(line):
         print_stderr(line)
 
 def run(cmd):
+    '''cmd must be a list of argv tokens; executed via execvp (no shell involved).'''
     global verbose
+    print_verbose('executing: %s' % ' '.join(cmd))
     if verbose:
-        cmd += ' 1>&2'
+        rc = os.spawnvp(os.P_WAIT, cmd[0], cmd)
     else:
-        cmd += ' >/dev/null 2>&1'
-    print_verbose('executing: %s' % cmd)
-    if os.system(cmd):
-        raise EApp, 'failed command: %s' % cmd
+        saved_out, saved_err = os.dup(1), os.dup(2)
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        os.close(devnull)
+        try:
+            rc = os.spawnvp(os.P_WAIT, cmd[0], cmd)
+        finally:
+            os.dup2(saved_out, 1)
+            os.dup2(saved_err, 2)
+            os.close(saved_out)
+            os.close(saved_err)
+    if rc:
+        raise EApp, 'failed command: %s' % ' '.join(cmd)
 
 def latex2png(infile, outfile, dpi, modified):
     '''Convert LaTeX input file infile to PNG file named outfile.'''
@@ -106,7 +118,8 @@ def latex2png(infile, outfile, dpi, modified):
     outdir = os.path.dirname(outfile)
     if not os.path.isdir(outdir):
         raise EApp, 'directory does not exist: %s' % outdir
-    texfile = tempfile.mktemp(suffix='.tex', dir=os.path.dirname(outfile))
+    tmpfd, texfile = tempfile.mkstemp(suffix='.tex', dir=os.path.dirname(outfile))
+    os.close(tmpfd)
     basefile = os.path.splitext(texfile)[0]
     dvifile = basefile + '.dvi'
     temps = [basefile + ext for ext in ('.tex','.dvi', '.aux', '.log')]
@@ -121,6 +134,7 @@ def latex2png(infile, outfile, dpi, modified):
                 skip = True
             open(f,'wb').write(checksum)
     else:
+        infile = os.path.realpath(infile)
         if not os.path.isfile(infile):
             raise EApp, 'input file does not exist: %s' % infile
         tex = open(infile).read()
@@ -137,13 +151,13 @@ def latex2png(infile, outfile, dpi, modified):
     os.chdir(outdir)
     try:
         # Compile LaTeX document to DVI file.
-        run('latex %s' % texfile)
+        run(['latex', texfile])
         # Convert DVI file to PNG.
-        cmd = 'dvipng'
+        cmd = ['dvipng']
         if dpi:
-            cmd += ' -D %s' % dpi
-        cmd += ' -T tight -x 1000 -z 9 -bg Transparent -o "%s" "%s"' \
-               % (outfile,dvifile)
+            cmd += ['-D', dpi]
+        cmd += ['-T', 'tight', '-x', '1000', '-z', '9', '-bg', 'Transparent',
+                '-o', outfile, dvifile]
         run(cmd)
     finally:
         os.chdir(saved_pwd)
