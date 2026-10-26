@@ -150,6 +150,90 @@ Set the timeout for the item to 10 seconds.
 For alerting, set up triggers that evaluate the text of the item.
 You should check whether the result starts with `OK`, `WARNING`, or `CRITICAL` to correctly recognize the status.
 
+[[server-components-opsiconfd-monitoring-downtimes]]
+== Monitoring Integration: Setting and Removing Downtimes
+
+`opsiconfd` can create and remove downtimes for hosts and services in a monitoring system. This feature is part of the xref:opsi-modules:modules.adoc[OPSI extension] https://opsi.org/en/product/extensions/#monitoring-connector[Monitoring Connector]. Currently only Checkmk is supported; further systems are planned. If you are interested in support for other monitoring systems, please contact us.
+
+With opsi-script, downtimes can be set for individual services or for the entire host, for example to avoid alarms while installing updates.
+
+=== Features
+
+* *New RPC methods:* `monitoring_setDowntime`, `monitoring_removeDowntime`, `monitoring_getDowntimes`, `monitoring_getInfo` and `monitoring_checkConnection`.
+* *Use by OPSI clients:* Clients can set and remove downtimes for themselves using opsi-script.
+* *Automatic end:* When setting a downtime, a duration must be specified (maximum 14400 seconds; the maximum is configurable). If a script aborts, the downtime ends automatically and the problem is displayed in the monitoring again afterwards.
+* *Security:* Clients may only manage downtimes for their own host. Only downtimes created by OPSI itself are removed (recognizable by the comment prefix).
+* *Host name in the monitoring:* By default, the client ID (FQDN) is used. The configuration `monitoring.host_name` can be used to specify a different name for each host. Only administrators may change this configuration.
+
+=== Setup
+
+Activation and credentials are configured in `/etc/opsi/backends/monitoring.conf`. The module `monitoring` is required (see xref:opsi-modules:modules.adoc[OPSI Extensions]). Existing `acl.conf` files are automatically extended with the new entries during setup.
+
+=== Example: Use in an opsi-script product
+
+The following example sets a downtime for the entire host and for the service `nginx` and removes them again. The calls are made via `OpsiServiceCall` sections.
+
+[source,opsiscript]
+----
+comment "Set monitoring downtime for host"
+DefStringList $ServiceResult$
+Set $ServiceResult$ = getReturnListFromSection('OpsiServiceCall_set_host_downtime')
+DefVar $downtimeIds$ = jsonAsObjectGetValueByKey(takeString(0, $ServiceResult$), "downtimeIds")
+if ($downtimeIds$ = "")
+	LogError "Failed to set monitoring downtime"
+	isFatalError "Failed to set monitoring downtime"
+endif
+
+...
+
+comment "Remove monitoring downtime for host"
+OpsiServiceCall_remove_host_downtime
+
+...
+
+comment "Set monitoring downtime for service nginx"
+OpsiServiceCall_set_nginx_downtime
+
+...
+
+comment "Remove monitoring downtime for service nginx"
+OpsiServiceCall_remove_nginx_downtime
+
+...
+
+[OpsiServiceCall_set_host_downtime]
+; Set a downtime for the entire host, not just specific services.
+"method":"monitoring_setDowntime"
+"params":[
+	'1800',
+	'"System update"',
+]
+
+[OpsiServiceCall_remove_host_downtime]
+; Only downtimes created by OPSI are removed.
+"method":"monitoring_removeDowntime"
+"params":[
+]
+
+[OpsiServiceCall_set_nginx_downtime]
+; Set a downtime for the service nginx only.
+"method":"monitoring_setDowntime"
+"params":[
+	'60',
+	'"Update nginx"',
+	'["nginx"]',
+]
+
+[OpsiServiceCall_remove_nginx_downtime]
+"method":"monitoring_removeDowntime"
+"params":[
+	'null',
+	'["nginx"]',
+]
+----
+
+The first parameter of `monitoring_setDowntime` is the duration in seconds, the second is the comment, and the optional third is a list of services. Without a service list, the downtime applies to the entire host.
+
 == Downtime
 
 A downtime can be set for certain health checks to allow for temporary failures or maintenance periods without triggering false alarms. The downtime can be set either for a specific check or for the entire monitoring system. This is particularly useful when performing planned maintenance or updates that result in a temporary loss of system availability.
