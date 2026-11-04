@@ -1,0 +1,124 @@
+////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      04.01.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+
+
+[[server-installation-ucs]]
+= Installation sur UCS
+
+Sur Univention Corporate Server (UCS), il existe deux méthodes pour installer le serveur OPSI :
+
+* xref:server:installation/ucs.adoc#server-installation-ucs-appcenter[Installation via l'Univention App Center] (disponible uniquement pour UCS 5.0 ou version ultérieure)
+* xref:server:installation/ucs.adoc#server-installation-ucs-manual[Installation manuelle via les dépôts uib] (pour UCS 4.4 et 5.0)
+
+Les deux approches permettent d'obtenir un serveur OPSI entièrement fonctionnel, mais elles ne doivent pas être utilisées simultanément sur le même serveur. Avant de poursuivre, déterminez la méthode d'installation la mieux adaptée à votre environnement. Si vous choisissez d'installer OPSI via l'Univention App Center, sachez que les mises à jour peuvent mettre davantage de temps à être disponibles. En outre, la mise à niveau vers une nouvelle version d'UCS (par exemple de la version 4.4 à la version 5.0) dépend de la disponibilité de toutes les applications installées pour cette nouvelle version. Si vous optez pour une installation via les dépôts uib, vous recevrez les mises à jour plus rapidement.
+
+[[server-installation-ucs-appcenter]]
+== Installation via l'App Center
+
+Dans le link:https://www.univention.com/products/app-catalog/opsi/[catalogue de l'Univention App Center (en anglais)], vous trouverez OPSI pour UCS version 5.0. Pendant l'installation, le gestionnaire de paquets ajoute automatiquement des paquets supplémentaires, notamment `opsi-tftpd-hpa` et `univention-mariadb`.
+
+NOTE: Dans un environnement UCS, le premier serveur OPSI configure un serveur MariaDB existant pour l'utiliser comme backend. Tout serveur de configuration OPSI supplémentaire dans le même environnement est enregistré comme serveur de dépôt OPSI. Si un serveur de configuration OPSI est déjà présent dans l'environnement UCS lors de l'installation, l'outil `opsi-package-updater` est configuré pour récupérer ses paquets depuis ce serveur.
+
+[[server-installation-ucs-manual]]
+== Installation manuelle
+
+Avant de procéder à l'installation manuelle du serveur OPSI sur Univention Corporate Server, assurez-vous que les conditions préalables suivantes sont remplies.
+
+=== Préparatifs
+
+* Assurez-vous que Samba est installé et configuré. Sur les serveurs UCS membres d'un domaine AD, `univention-samba` doit être installé. Ce paquet configure Samba comme serveur membre, sans fonctionnalité de contrôleur de domaine. Le paquet `univention-samba4`, quant à lui, configure Samba comme contrôleur de domaine AD.
+
+* L'installation et la configuration du serveur MariaDB sont nécessaires. Installez `univention-mariadb` à cette fin. Depuis UCS 4.3, `univention-mysql` est un métapaquet qui installe le serveur MariaDB.
+
+* Si l'ordinateur UCS doit également servir de serveur DHCP, configurez le démon DHCP avant d'installer OPSI et démarrez le service.
+
+L'installation du serveur OPSI est possible sur des serveurs ayant différents rôles UCS, notamment Primary Directory Node, Backup Directory Node, Replica Directory Node et Managed Node.
+
+WARNING: Si le serveur OPSI n'est pas installé sur un Primary Directory Node, mais sur un ordinateur ayant un autre rôle système UCS, il est impératif que le serveur UCS rejoigne d'abord le domaine.
+
+Le fichier de configuration `/etc/opsi/opsi.conf` définit le groupe autorisé à accéder aux partages via Samba ; ce groupe est nommé `opsifileadmins`. Pour accorder les droits d'accès aux partages OPSI (aux utilisateurs qui créent des paquets OPSI), tous les utilisateurs concernés doivent être membres du groupe `opsifileadmins`.
+
+=== Configuration des dépôts
+
+Assurez-vous que le répertoire `/usr/local/share/keyrings` existe :
+
+[source,console]
+----
+sudo mkdir -p /usr/local/share/keyrings
+----
+
+Ajoutez le dépôt Grafana :
+
+[source,console]
+----
+REPO_URL=https://apt.grafana.com
+REPO_KEY=/usr/local/share/keyrings/grafana.gpg
+curl -fsSL ${REPO_URL}/gpg.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+sudo echo "deb [signed-by=${REPO_KEY}] ${REPO_URL} stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+----
+
+Ajoutez le dépôt OPSI correspondant à votre distribution :
+
+*Univention UCS 5.2 :*
+[source,console]
+[subs="attributes"]
+----
+REPO_URL=https://download.opensuse.org/repositories/home:/uibmz:/opsi:/4.3:/stable/Univention_5.2/
+REPO_KEY=/usr/local/share/keyrings/opsi-obs.gpg
+sudo echo "deb [signed-by=${REPO_KEY}] ${REPO_URL}/ /" | sudo tee /etc/apt/sources.list.d/opsi.list
+curl -fsSL ${REPO_URL}/Release.key | gpg --dearmor | sudo tee ${REPO_KEY} > /dev/null
+----
+
+Pour vérifier que l'importation de la clé GnuPG a réussi, vous pouvez utiliser la commande suivante :
+
+[source,console]
+----
+gpg --show-keys /usr/local/share/keyrings/opsi-obs.gpg 2>/dev/null
+----
+
+La sortie devrait notamment contenir des lignes semblables aux suivantes :
+
+[source,console]
+----
+pub   rsa2048 2017-09-30 [SC] [expires: 2025-11-19]
+      2E98F7B5A5B2C8FE7F609705D1F933E6D8361F81
+uid           home:uibmz:opsi OBS Project <home:uibmz:opsi@build.opensuse.org>
+----
+
+=== Installation des paquets
+
+Installez le paquet `opsi-server-full` :
+
+[source,console]
+----
+sudo univention-install opsi-server-full
+----
+
+Si le serveur OPSI doit être installé sur un système UCS dont le rôle est différent de Primary Directory Node, il est nécessaire d'exécuter également la commande `univention-run-join-scripts`.
+
+Pour accéder à l'interface de gestion `opsi-configed`, les utilisateurs doivent être membres du groupe `opsiadmin`. Pendant l'installation, l'utilisateur `Administrator` est automatiquement ajouté à ce groupe. Pour ajouter d'autres comptes, utilisez le module _Gestion des utilisateurs_ (_User management_) de l'UMC, et plus précisément l'onglet _Groupes_ (_Groups_).
+
+include::server:partial$package-based-end.adoc[]
+
+Le serveur OPSI est désormais installé et prêt pour les xref:server:installation/next-steps.adoc[étapes suivantes].

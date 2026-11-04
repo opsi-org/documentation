@@ -1,0 +1,71 @@
+////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; see:
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/de/legalcode
+; english:
+; https://creativecommons.org/licenses/by-sa/3.0/
+; https://creativecommons.org/licenses/by-sa/3.0/legalcode
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      10.01.2024
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+
+
+Si vous devez accéder à Internet par un proxy HTTP, il est recommandé de configurer le proxy au niveau du système à l’aide de variables d’environnement. Inscrivez-les dans le fichier `/etc/environment`.
+
+NOTE: Les noms de ces variables d’environnement sont entièrement en minuscules.
+
+* `http_proxy` : configure le proxy pour les connexions HTTP. La valeur doit être une URL complète, incluant les informations d’authentification si nécessaire : +
+`http_proxy=http://<user>:<password>@<proxy-address>:<port>`
+* `https_proxy` : fonctionne comme `http_proxy`, mais pour les connexions HTTPS : +
+`https_proxy=https://<proxy-address>:<port>`
+* `no_proxy` : indique les adresses qui doivent contourner le proxy. Séparez plusieurs adresses par des virgules : +
+`no_proxy=127.0.0.1,localhost,mydomain.example,hostname.domain.com:8080` +
+Respectez les règles suivantes pour les adresses :
+  - Utilisez uniquement des lettres minuscules.
+  - Indiquez des adresses IP uniquement pour les accès directs par IP, car aucune résolution de noms n’est effectuée pour les exceptions.
+  - La notation CIDR pour les plages d’adresses IP (comme `192.168.0.0/24`) n’est pas prise en charge.
+  - Prévoyez toujours des exceptions pour `localhost` et `127.0.0.1`.
+  - Les caractères génériques et les expressions régulières ne sont pas pris en charge.
+  - Chaque nom est traité comme un suffixe ; ainsi, `domain.com` s’applique à tous les noms d’hôtes se terminant par `domain.com`.
+  - Vous pouvez ajouter un port après un deux-points à chaque adresse pour limiter l’exception à ce port.
+
+Voici un exemple de configuration du fichier `/etc/environment` :
+
+[source,toml]
+----
+http_proxy=http://10.1.1.1:8080
+https_proxy=https://10.1.1.1:8080
+no_proxy=127.0.0.1,localhost,company.tld
+----
+
+Pour appliquer les modifications au shell en cours d’exécution, exécutez les commandes suivantes :
+
+[source,console]
+----
+set -a; source /etc/environment; set +a
+----
+
+NOTE: Pour les distributions Suse, adaptez le paramètre `NO_PROXY` dans le fichier `/etc/sysconfig/proxy`. Définissez `NO_PROXY=127.0.0.1,localhost,company.tld` selon votre environnement.
+
+Si l’accès à `opsiconfd` passe par un proxy, les requêtes adressées au service semblent provenir de l’adresse IP du proxy. Par conséquent, toutes les fonctionnalités qui reposent sur l’adresse IP du client, telles que `networks`, `admin-networks`, `update-ip` ou `max-session-per-ip`, risquent de ne pas fonctionner correctement. Pour y remédier, vous pouvez définir les adresses des proxys de confiance à l’aide du paramètre `trusted-proxies`. Lorsqu’une connexion provient d’un proxy de confiance, le serveur utilise l’en-tête `X-Forwarded-For` pour déterminer l’adresse IP réelle du client.
+
+Exemple :
+
+[source,toml]
+----
+admin-networks=[192.168.10.0/24]
+trusted-proxies=[192.178.16.27]
+----
