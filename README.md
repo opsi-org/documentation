@@ -7,6 +7,19 @@ This is the source of the official documentation for the open source client mana
 
 The documentation is published on the website [https://docs.opsi.org](https://docs.opsi.org/).
 
+The Antora site includes German, English, and a partial French translation.
+The French sources are in [docs/fr/antora.yml](docs/fr/antora.yml) and its
+modules: the home page, quick start, and server installation chapters are
+translated. Links to chapters not yet translated explicitly lead to the English
+documentation. Screenshots are reused from the English component.
+French PDF books are not included yet.
+
+When extending the French translation, retain the English source paths, anchors,
+include tags, and executable examples. Translate the prose and navigation labels,
+add pages to the French navigation, and replace English cross-component links
+with local links once their targets are translated. Build with the local Antora
+playbook described below to check all three languages together.
+
 <!-- TOC start (generated with https://github.com/derlin/bitdowntoc) -->
 
 - [Documentation for OPSI](#documentation-for-opsi)
