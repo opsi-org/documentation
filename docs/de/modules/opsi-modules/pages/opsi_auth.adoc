@@ -1,0 +1,154 @@
+////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      05.11.2026
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+[[opsi-module-opsi-auth]]
+= opsi_auth: Datenbankgestützte Authentifizierung
+
+Die Erweiterung *opsi_auth* ermöglicht die Verwaltung von Benutzerkonten direkt in der OPSI-Datenbank.
+Der Dienst `opsiconfd` prüft die Anmeldedaten gegen die dort gespeicherten Passwort- oder Token-Hashes.
+Für die Anmeldung am OPSI-Service sind damit weder lokale Linux-Benutzer noch ein externer Verzeichnisdienst erforderlich.
+Die Konten können beispielsweise für `opsi-configed`, das OPSI-WebGUI und die JSON-RPC-Schnittstelle verwendet werden.
+
+Neben Passwörtern unterstützt die Erweiterung Authentifizierungs-Token, etwa für automatisierte Zugriffe auf die API.
+
+[[opsi-module-opsi-auth-requirements]]
+== Voraussetzungen und Freischaltung
+
+include::partial$paid-extension-note.adoc[]
+
+Sie benötigen einen `opsiconfd` mit Unterstützung für die Datenbankauthentifizierung sowie eine gültige Freischaltung für das Modul `opsi_auth`.
+Wie Sie Lizenzen einspielen und die Freischaltung prüfen, beschreibt das Kapitel xref:opsi-modules:modules.adoc#opsi-manual-modules-check[OPSI-Erweiterungen].
+Die Benutzerverwaltung erfolgt mit einem administrativen Konto über die xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[Admin-Seite] unter `https://<opsi-configserver>:4447/admin/`, Reiter _Users_.
+
+
+Die Aktionen zur Verwaltung von Datenbankpasswörtern und Token werden auf der Admin-Seite nur angezeigt, wenn das Modul freigeschaltet und nicht deaktiviert ist.
+
+NOTE: Datenbankbenutzer sind keine Linux- oder Samba-Konten und auch keine eigenen MariaDB-/MySQL-Benutzer.
+Sie erhalten dadurch keinen SSH- oder Samba-Zugang.
+Für Dateizugriffe gelten weiterhin die jeweiligen Berechtigungen; für den WebDAV-Zugriff auf das Depot ist zusätzlich die Dateiadministrator-Gruppe erforderlich (siehe xref:server:components/authorization.adoc#server-components-authorization-users-and-groups[Benutzer und Gruppen]).
+
+[[opsi-module-opsi-auth-users]]
+== Benutzer verwalten
+
+=== Benutzer anlegen
+
+. Melden Sie sich mit einem administrativen Konto an der Admin-Seite an und öffnen Sie den Reiter _Users_.
+. Klicken Sie auf _Create new user_.
+. Tragen Sie unter _Username_ den Benutzernamen ein. Verwenden Sie Kleinbuchstaben, da `opsiconfd` Benutzernamen bei der Anmeldung in Kleinbuchstaben umwandelt.
+. Geben Sie unter _Password_ und _Confirm password_ das Passwort ein.
+. Wählen Sie _Admin_ für administrativen Zugriff
+. Bestätigen Sie mit _Create user_.
+
+Die Admin-Seite verlangt für ein gesetztes Passwort mindestens acht Zeichen sowie jeweils mindestens einen Großbuchstaben, einen Kleinbuchstaben, eine Ziffer und ein Sonderzeichen.
+Sie können einen Benutzer auch ohne Passwort anlegen und anschließend ein Token für ihn erzeugen.
+Ein Benutzer ohne Passwort und ohne Token kann sich nicht über die Datenbank authentifizieren.
+
+
+NOTE: Die Gruppen eines Datenbankbenutzers werden aus seinem OPSI-Benutzerobjekt gelesen, nicht aus der lokalen Linux-Gruppenverwaltung.
+Die Erweiterung ersetzt nicht die separate xref:opsi-modules:user-roles.adoc[Verwaltung von Benutzerrollen].
+
+=== Passwörter ändern und Benutzer löschen
+
+Die Spalte _Internal Authentication_ zeigt an, ob ein Datenbankpasswort hinterlegt ist.
+Öffnen Sie in der Zeile des Benutzers das Menü _Actions_ und wählen Sie _Change password_, um ein Passwort zu setzen oder zu ändern.
+Dabei wird kein Linux-, Samba- oder LDAP-Passwort geändert.
+
+Über _Delete user_ löschen Sie das OPSI-Benutzerobjekt einschließlich der dort gespeicherten Passwort- und Token-Hashes sowie der TOTP-Konfiguration.
+Ein gegebenenfalls vorhandenes Konto im Betriebssystem oder Verzeichnisdienst bleibt bestehen.
+Ist PAM oder LDAP weiterhin aktiv, kann sich der Benutzer darüber erneut anmelden; dabei legt `opsiconfd` wieder ein OPSI-Benutzerobjekt an.
+
+[[opsi-module-opsi-auth-tokens]]
+== Authentifizierungs-Token
+
+=== Token erzeugen und widerrufen
+
+. Öffnen Sie im Reiter _Users_ das Menü _Actions_ des gewünschten Benutzers.
+. Wählen Sie _New Authentication Token_.
+. Kopieren Sie das angezeigte Token und bewahren Sie es sicher auf. Es wird nur einmal angezeigt.
+
+Das Token besteht aus 64 hexadezimalen Zeichen.
+In der Datenbank wird nur sein Hash gespeichert.
+Pro Benutzer kann ein Token hinterlegt sein; ein neues Token ersetzt das bisherige und macht es für neue Anmeldungen ungültig.
+Die Spalte _Token Authentication_ zeigt an, ob ein Token eingerichtet ist.
+Mit _Remove Authentication Token_ entfernen Sie es wieder.
+Das Datenbankpasswort bleibt davon unberührt.
+
+WARNING: Ein Token ermöglicht Zugriffe mit den Berechtigungen des zugehörigen Benutzers.
+Behandeln Sie es wie ein Passwort, übertragen Sie es ausschließlich über HTTPS und speichern Sie es nicht in Skripten oder Versionsverwaltungssystemen.
+
+=== Token verwenden
+
+Für API-Aufrufe können Sie das Token als Bearer-Token im HTTP-Header übermitteln:
+
+[source,http]
+----
+Authorization: Bearer <Token>
+----
+
+Dabei ist kein Benutzername erforderlich; `opsiconfd` ermittelt den Benutzer anhand des Tokens.
+Alternativ ist HTTP Basic Authentication möglich: Verwenden Sie den Benutzernamen und das Token anstelle des Passworts.
+Auch bei der Anmeldung über `/auth/login` kann das Token im Feld `password` übergeben werden.
+
+
+[[opsi-module-opsi-auth-config]]
+== Konfiguration
+
+Die folgenden Optionen konfigurieren Sie in `/etc/opsi/opsiconfd.conf` (siehe xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration von opsiconfd]):
+
+`database-password-hashing-method`::
+Hash-Verfahren für neu gesetzte bzw. migrierte Datenbankpasswörter.
+Mögliche Werte sind `argon2id` (Standard), `bcrypt` und `sha512`.
+Bei einer erfolgreichen Anmeldung mit einem Datenbankpasswort wird dessen Hash auf das konfigurierte Verfahren umgestellt, wenn bisher ein anderes Verfahren verwendet wurde.
+Die Option betrifft nicht die Token-Hashes.
+
+`database-password-hash-migration`::
+Mit dem Wert `database` wird nach einer erfolgreichen Passwortanmeldung über PAM oder LDAP ein Passwort-Hash im bereits vorhandenen OPSI-Benutzerobjekt hinterlegt, sofern dieses noch keinen Passwort-Hash enthält.
+Standardmäßig ist diese Migration nicht aktiviert.
+
+`disabled-auth-methods`::
+Liste der deaktivierten Authentifizierungsmethoden.
+Ein Eintrag `database` deaktiviert sowohl die Passwort- als auch die Token-Anmeldung gegen die Datenbank.
+Mit `pam` und `ldap` können Sie diese alternativen Methoden deaktivieren.
+Standardmäßig ist die Liste leer.
+
+`auth-allowed-groups`::
+Liste der Gruppen, deren Mitglieder sich anmelden dürfen.
+Standardwert ist `[\{admingroup\}, \{readonly\}]`.
+Eine leere Liste hebt diese Gruppeneinschränkung auf, erteilt aber keine zusätzlichen Berechtigungen.
+
+Nach Konfigurationsänderungen laden Sie den Dienst neu:
+
+[source,console]
+----
+opsiconfd reload
+----
+
+[[opsi-module-opsi-auth-migration]]
+== Bestehende Benutzer übernehmen
+
+Solange PAM bzw. LDAP nicht deaktiviert ist, können Sie Datenbankbenutzer und bestehende Konten parallel verwenden.
+`opsiconfd` prüft zunächst die Datenbankanmeldedaten.
+Gelingt diese Prüfung nicht, versucht der Dienst die konfigurierte alternative Methode: LDAP bei entsprechender Konfiguration und Freischaltung, ansonsten PAM.
+Eine erfolgreiche Datenbankanmeldung verwendet die im OPSI-Benutzerobjekt gespeicherten Gruppen.
+Bei einer erfolgreichen Anmeldung über PAM oder LDAP werden die Gruppen aus dieser Quelle in das Benutzerobjekt übernommen.
+
+WARNING: Änderungen oder Sperren eines Kontos im Betriebssystem oder Verzeichnisdienst deaktivieren dessen bereits vorhandenes Datenbankpasswort oder Token nicht.
+Bei erfolgreicher Datenbankauthentifizierung werden PAM bzw. LDAP nicht mehr abgefragt.
+Berücksichtigen Sie deshalb bei Passwortänderungen, Gruppenänderungen und Kontensperren auch die OPSI-Benutzerverwaltung.
+
