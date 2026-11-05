@@ -1,0 +1,150 @@
+////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      05.11.2026
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+[[opsi-module-audit-log]]
+= audit_log: Audit-Protokoll
+
+Die Erweiterung *audit_log* protokolliert ausgewählte sicherheits- und administrativ relevante Ereignisse des OPSI-Service.
+Damit können Sie beispielsweise nachvollziehen, wer eine Produktaktion angefordert, einen Konfigurationswert gesetzt oder ein Terminal geöffnet hat.
+Die Einträge werden in der OPSI-Datenbank gespeichert und können über die Admin-Seite des `opsiconfd` oder die JSON-RPC-Schnittstelle ausgewertet werden.
+
+Das Audit-Protokoll ist unabhängig von den technischen xref:server:components/opsiconfd.adoc#server-components-opsiconfd-logs[opsiconfd-Logfiles] und der Hardware-/Software-Inventarisierung (`hwaudit`/`swaudit`).
+Es ist kein vollständiges Protokoll aller RPC-Aufrufe oder aller Änderungen im System.
+
+[[opsi-module-audit-log-requirements]]
+== Voraussetzungen und Freischaltung
+
+include::partial$paid-extension-note.adoc[]
+
+Sie benötigen einen `opsiconfd` eine gültige Freischaltung für das Modul `audit_log`.
+Wie Sie Lizenzen einspielen und die Freischaltung prüfen, beschreibt das Kapitel xref:opsi-modules:modules.adoc#opsi-manual-modules-check[OPSI-Erweiterungen].
+Zusätzlich müssen Sie die Aufzeichnung explizit aktivieren; standardmäßig ist sie ausgeschaltet.
+Für die Auswertung über die Admin-Seite benötigen Sie ein administratives Konto.
+
+[[opsi-module-audit-log-config]]
+== Konfiguration und Aktivierung
+
+Die folgenden Optionen konfigurieren Sie in `/etc/opsi/opsiconfd.conf` (siehe xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Konfiguration von opsiconfd]):
+
+[cols="1,1,3", options="header"]
+|===
+|Option |Standardwert |Bedeutung
+|`audit-log-enabled` |`false` |Aktiviert die Aufzeichnung. Zusätzlich muss das Modul `audit_log` freigeschaltet sein.
+|`audit-log-events` |Alle unterstützten Ereignistypen |Liste der aufzuzeichnenden Ereignisse. Eine explizite Liste ersetzt die Standardauswahl; eine leere Liste deaktiviert die Aufzeichnung aller Ereignisse.
+|`audit-log-retention-days` |`180` |Aufbewahrungsfrist in Tagen für die Datenbankbereinigung (siehe <<opsi-module-audit-log-retention>>).
+|===
+
+Um alle unterstützten Ereignistypen mit der Standardaufbewahrungsfrist zu erfassen, genügt folgender Eintrag:
+
+[source,ini]
+----
+audit-log-enabled = true
+----
+
+Wenn Sie nur erfolgreiche und fehlgeschlagene Anmeldungen sowie Abmeldungen erfassen und die Einträge 90 Tage aufbewahren möchten, verwenden Sie beispielsweise:
+
+[source,ini]
+----
+audit-log-enabled = true
+audit-log-events = [authentication.login.succeeded, authentication.login.failed, authentication.logout]
+audit-log-retention-days = 90
+----
+
+Laden Sie den Dienst nach Änderungen neu:
+
+[source,console]
+----
+opsiconfd reload
+----
+
+Alternativ können Sie die Optionen über die Kommandozeile oder die Umgebungsvariablen `OPSICONFD_AUDIT_LOG_ENABLED`, `OPSICONFD_AUDIT_LOG_EVENTS` und `OPSICONFD_AUDIT_LOG_RETENTION_DAYS` setzen.
+
+NOTE: Aufgezeichnet werden nur Ereignisse, die nach der Aktivierung eintreten und deren Typ in `audit-log-events` enthalten ist.
+Frühere Ereignisse werden nicht nachträglich erfasst.
+Mit `audit-log-enabled = false` stoppen Sie die weitere Aufzeichnung; bereits gespeicherte Einträge werden dadurch nicht gelöscht.
+
+[[opsi-module-audit-log-events]]
+== Erfasste Ereignisse
+
+[cols="2,3", options="header"]
+|===
+|Ereignistyp |Inhalt
+|`authentication.login.succeeded` |Erfolgreiche Authentifizierung einschließlich der verwendeten Authentifizierungsmethoden.
+|`authentication.login.failed` |Fehlgeschlagene Authentifizierung einschließlich des Fehlergrunds. Ist noch kein Benutzer identifiziert, kann der Benutzername fehlen.
+|`authentication.logout` |Abmeldung bzw. Beendigung einer Sitzung, einschließlich des Grunds, etwa durch Ablauf der Sitzung.
+|`client.product.action_request` |Setzen einer Aktionsanforderung für ein Produkt auf einem Client, einschließlich Produkt-ID und angeforderter Aktion (z.{nbsp}B. `setup`, `uninstall` oder `none`). Dies ist kein Nachweis für die erfolgreiche Ausführung der Aktion.
+|`config.value.set` |Setzen von Standardwerten einer OPSI-Konfiguration (`Config.defaultValues`) oder von hostbezogenen Werten (`ConfigState`), einschließlich Konfigurations-ID, Geltungsbereich und neuem Wert.
+|`config.value.deleted` |Löschen einer solchen Konfiguration bzw. eines hostbezogenen Konfigurationswerts, einschließlich Konfigurations-ID und Geltungsbereich.
+|`product_property_state.value.set` |Setzen von Produkt-Property-Werten für einen Client oder ein Depot, einschließlich Produkt-ID, Property-ID, Geltungsbereich und neuem Wert.
+|`product_property_state.value.deleted` |Löschen solcher Produkt-Property-Zuweisungen, einschließlich Produkt-ID, Property-ID und Geltungsbereich.
+|`client.terminal.open`, `client.terminal.close` |Öffnen bzw. Schließen eines Messagebus-Terminals auf einem Client.
+|`server.terminal.open`, `server.terminal.close` |Öffnen bzw. Schließen eines Messagebus-Terminals auf einem OPSI-Server.
+|===
+
+
+
+[[opsi-module-audit-log-admin]]
+== Auswertung auf der Admin-Seite
+
+. Öffnen Sie `https://<opsi-configserver>:4447/admin/#audit-log` und melden Sie sich mit einem administrativen Konto an.
+. Wechseln Sie zum Reiter _Audit Log_. Die neuesten Einträge werden standardmäßig zuerst angezeigt.
+. Grenzen Sie die Anzeige mit den Filtern _Event type_, _Username_, _Host ID_ und _Actor type_ ein. Bei Ereignistyp und Akteurstyp ist eine Mehrfachauswahl möglich.
+. Bei ausgewählten Konfigurations- bzw. Produkt-Property-Ereignissen stehen zusätzlich _Config ID_, _Property ID_ und _Scope_ zur Verfügung. Die sichtbaren Filter und Detailspalten passen sich der Ereignisauswahl an.
+. Klicken Sie auf eine Spaltenüberschrift, um die Sortierung zu ändern. Ein erneuter Klick kehrt die Sortierrichtung um.
+
+IMPORTANT: Die Admin-Seite lädt pro Abfrage höchstens 500 Einträge.
+Die Filter _Scope_, _Config ID_ und _Property ID_ werden erst im Browser auf diese bereits geladene Auswahl angewendet.
+Eine leere oder kurze Ergebnisliste bedeutet daher nicht, dass keine weiteren passenden Einträge in der Datenbank vorhanden sind.
+Für umfangreichere oder zeitlich eingegrenzte Auswertungen verwenden Sie die JSON-RPC-Schnittstelle.
+
+[[opsi-module-audit-log-api]]
+== Auswertung über JSON-RPC
+
+Die Methode `auditLog_getObjects(attributes, filter, orderBy, limit)` liefert Audit-Einträge einschließlich der ereignisspezifischen Detailobjekte.
+Mit `attributes = []` erhalten Sie alle Attribute.
+`filter` enthält Bedingungen für die Basisattribute des Audit-Eintrags; Bedingungen für unterschiedliche Attribute sind UND-verknüpft, mehrere Werte eines Attributs sind ODER-verknüpft.
+Zeichenketten unterstützen `*` als Platzhalter und die Vergleichsoperatoren `<`, `<=`, `=`, `>=` und `>`.
+
+Das folgende Beispiel liefert bis zu 100 fehlgeschlagene Anmeldungen, neueste zuerst:
+
+[source,console]
+----
+opsi-cli jsonrpc execute auditLog_getObjects '[]' '{"eventType":"authentication.login.failed"}' '{"created":"desc"}' 100
+----
+
+Mit einem Filter wie `{"created":">=2026-11-01", "username":"admin*"}` können Sie beispielsweise nach Zeitstempel und Benutzername eingrenzen.
+`orderBy` ordnet Attributnamen den Werten `asc` oder `desc` zu.
+Ohne `limit` ist keine maximale Ergebnisanzahl vorgegeben; begrenzen Sie umfangreiche Abfragen deshalb explizit.
+Die Methode `auditLog_getIdents` liefert alternativ nur die IDs der passenden Einträge.
+
+Der Zugriff unterliegt den RPC-Zugriffsregeln.
+Die mitgelieferte ACL erlaubt den Zugriff auf `auditLog_.*` der OPSI-Administratorgruppe und Depotservern, nicht jedoch Clients oder reinen Lesebenutzern.
+
+[[opsi-module-audit-log-retention]]
+== Aufbewahrung und Datenschutz
+
+Die Einträge liegen in der OPSI-Datenbank in der Tabelle `AUDIT_LOG`; ereignisspezifische Daten liegen in zugehörigen Detailtabellen.
+Bei der Datenbankbereinigung im Rahmen des MySQL-Setups (z.{nbsp}B. durch `opsiconfd setup`) werden Einträge gelöscht, deren Zeitstempel älter als `audit-log-retention-days` Tage ist.
+Die Frist ist damit keine Zusage einer zeitgenauen Löschung im laufenden Betrieb.
+Der Wert `0` bedeutet keine unbegrenzte Aufbewahrung: Auch dann greift die Löschbedingung für Einträge vor dem aktuellen Zeitpunkt.
+Verwenden Sie eine positive, zu Ihren Anforderungen passende Tageszahl.
+
+WARNING: Audit-Einträge können personenbezogene Daten und sensible Konfigurations- bzw. Produkt-Property-Werte enthalten.
+Beschränken Sie den Zugriff auf Datenbank, API, Exporte und Sicherungen entsprechend und stimmen Sie Aufbewahrungsfristen mit Ihren Datenschutzvorgaben ab.
+Das Audit-Protokoll ersetzt keine gesonderte manipulationsgeschützte Archivierung.
