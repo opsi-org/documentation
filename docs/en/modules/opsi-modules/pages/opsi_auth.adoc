@@ -1,0 +1,153 @@
+////
+; Copyright (c) uib GmbH (uib.de)
+; This documentation is owned by uib
+; and published under the german creative commons by-sa license
+; https://creativecommons.org/licenses/by-sa/3.0/de/
+; https://creativecommons.org/licenses/by-sa/3.0/
+;
+; credits: https://www.opsi.org/credits/
+////
+
+:Author:    uib GmbH
+:Email:     info@uib.de
+:Date:      05.11.2026
+:Revision:  4.3
+:toclevels: 6
+:doctype:   book
+:icons:     font
+:xrefstyle: full
+
+[[opsi-module-opsi-auth]]
+= opsi_auth: Database-based Authentication
+
+The *opsi_auth* extension allows you to manage user accounts directly in the OPSI database.
+The `opsiconfd` service verifies login credentials against the password or token hashes stored there.
+Neither local Linux users nor an external directory service are required to log in to the OPSI service.
+The accounts can be used, for example, for `opsi-configed`, the OPSI web GUI, and the JSON-RPC interface.
+
+In addition to passwords, the extension supports authentication tokens, for example for automated API access.
+
+[[opsi-module-opsi-auth-requirements]]
+== Requirements and Activation
+
+include::partial$paid-extension-note.adoc[]
+
+You need an `opsiconfd` version that supports database authentication and a valid activation for the `opsi_auth` module.
+The chapter xref:opsi-modules:modules.adoc#opsi-manual-modules-check[OPSI Extensions] explains how to install licenses and check module activation.
+You manage users with an administrative account on the xref:server:components/opsiconfd.adoc#server-components-opsiconfd-admin-page[admin page] at `https://<opsi-configserver>:4447/admin/`, on the _Users_ tab.
+
+
+The actions for managing database passwords and tokens are only displayed on the admin page if the module is activated and not disabled.
+
+NOTE: Database users are neither Linux or Samba accounts nor separate MariaDB/MySQL users.
+They therefore do not get SSH or Samba access.
+The respective permissions still apply to file access; WebDAV access to the depot additionally requires membership in the file administrator group (see xref:server:components/authorization.adoc#server-components-authorization-users-and-groups[Users and Groups]).
+
+[[opsi-module-opsi-auth-users]]
+== Managing Users
+
+=== Creating Users
+
+. Log in to the admin page with an administrative account and open the _Users_ tab.
+. Click _Create new user_.
+. Enter the user name under _Username_. Use lowercase letters, because `opsiconfd` converts user names to lowercase at login.
+. Enter the password under _Password_ and _Confirm password_.
+. Select _Admin_ for administrative access.
+. Confirm with _Create user_.
+
+For a password that is set, the admin page requires at least eight characters, including at least one uppercase letter, one lowercase letter, one digit, and one special character.
+You can also create a user without a password and then generate a token for that user.
+A user without a password and without a token cannot authenticate via the database.
+
+
+NOTE: The groups of a database user are read from their OPSI user object, not from the local Linux group management.
+The extension does not replace the separate xref:opsi-modules:user-roles.adoc[management of user roles].
+
+=== Changing Passwords and Deleting Users
+
+The _Internal Authentication_ column shows whether a database password is stored.
+In the user's row, open the _Actions_ menu and select _Change password_ to set or change a password.
+This does not change any Linux, Samba, or LDAP password.
+
+With _Delete user_, you delete the OPSI user object including the password and token hashes stored there as well as the TOTP configuration.
+Any existing account in the operating system or directory service remains in place.
+If PAM or LDAP is still active, the user can log in again through them; `opsiconfd` then creates a new OPSI user object.
+
+[[opsi-module-opsi-auth-tokens]]
+== Authentication Tokens
+
+=== Creating and Revoking Tokens
+
+. On the _Users_ tab, open the _Actions_ menu of the desired user.
+. Select _New Authentication Token_.
+. Copy the displayed token and store it securely. It is displayed only once.
+
+The token consists of 64 hexadecimal characters.
+Only its hash is stored in the database.
+Each user can have one token; a new token replaces the previous one and invalidates it for new logins.
+The _Token Authentication_ column shows whether a token is set up.
+Use _Remove Authentication Token_ to remove it.
+The database password remains unaffected.
+
+WARNING: A token grants access with the permissions of the associated user.
+Treat it like a password, transmit it only over HTTPS, and do not store it in scripts or version control systems.
+
+=== Using Tokens
+
+For API calls, you can send the token as a bearer token in the HTTP header:
+
+[source,http]
+----
+Authorization: Bearer <Token>
+----
+
+No user name is required; `opsiconfd` determines the user from the token.
+Alternatively, HTTP Basic Authentication is possible: use the user name and the token instead of the password.
+When logging in via `/auth/login`, you can also pass the token in the `password` field.
+
+
+[[opsi-module-opsi-auth-config]]
+== Configuration
+
+Configure the following options in `/etc/opsi/opsiconfd.conf` (see xref:server:components/opsiconfd.adoc#server-components-opsiconfd-config[Configuring opsiconfd]):
+
+`database-password-hashing-method`::
+Hashing method for newly set or migrated database passwords.
+Possible values are `argon2id` (default), `bcrypt`, and `sha512`.
+After a successful login with a database password, its hash is converted to the configured method if a different method was used before.
+The option does not affect token hashes.
+
+`database-password-hash-migration`::
+With the value `database`, after a successful password login via PAM or LDAP, a password hash is stored in the already existing OPSI user object, provided it does not yet contain a password hash.
+This migration is not enabled by default.
+
+`disabled-auth-methods`::
+List of disabled authentication methods.
+An entry `database` disables both password and token login against the database.
+With `pam` and `ldap`, you can disable these alternative methods.
+By default, the list is empty.
+
+`auth-allowed-groups`::
+List of groups whose members are allowed to log in.
+The default value is `[\{admingroup\}, \{readonly\}]`.
+An empty list removes this group restriction but does not grant any additional permissions.
+
+After changing the configuration, reload the service:
+
+[source,console]
+----
+opsiconfd reload
+----
+
+[[opsi-module-opsi-auth-migration]]
+== Taking Over Existing Users
+
+As long as PAM or LDAP is not disabled, you can use database users and existing accounts in parallel.
+`opsiconfd` first checks the database credentials.
+If this check fails, the service tries the configured alternative method: LDAP if configured and activated, otherwise PAM.
+A successful database login uses the groups stored in the OPSI user object.
+After a successful login via PAM or LDAP, the groups from that source are copied to the user object.
+
+WARNING: Changes to or locks of an account in the operating system or directory service do not deactivate its existing database password or token.
+If database authentication succeeds, PAM and LDAP are no longer queried.
+Therefore, also consider the OPSI user management when changing passwords or groups and when locking accounts.
