@@ -173,6 +173,90 @@ Setzen Sie den Timeout für das Item auf 10 Sekunden.
 Für die Alarmierung richten Sie Trigger ein, die den Text des Items auswerten.
 Dabei sollte geprüft werden, ob das Ergebnis mit `OK`, `WARNING` oder `CRITICAL` beginnt, um den Status korrekt zu erkennen.
 
+[[server-components-opsiconfd-monitoring-downtimes]]
+== Monitoring-Integration: Downtimes über OPSI setzen und entfernen
+
+`opsiconfd` kann Downtimes für Hosts und Services in einem Monitoring-System anlegen und wieder entfernen. Das Feature ist Teil der xref:opsi-modules:modules.adoc[OPSI-Erweiterung] https://opsi.org/de/product/extensions/#monitoring-connector[Monitoring Connector]. Zunächst wird nur Checkmk unterstützt; weitere Systeme sind geplant. Wenn Sie an der Unterstützung weiterer Monitoring-Systeme interessiert sind, nehmen Sie gerne Kontakt mit uns auf.
+
+So lassen sich per opsi-script Downtimes für einzelne Services oder den gesamten Host setzen, um Alarme während der Installation von Updates zu vermeiden.
+
+=== Funktionen
+
+* *Neue RPC-Methoden:* `monitoring_setDowntime`, `monitoring_removeDowntime`, `monitoring_getDowntimes`, `monitoring_getInfo` und `monitoring_checkConnection`.
+* *Nutzung durch OPSI-Clients:* Clients können per opsi-script Downtimes für sich selbst setzen und entfernen.
+* *Automatisches Ende:* Beim Setzen einer Downtime muss eine Dauer angegeben werden (maximal 14400 Sekunden; der Höchstwert ist konfigurierbar). Bricht ein Skript ab, endet die Downtime automatisch, und das Problem wird anschließend wieder im Monitoring angezeigt.
+* *Sicherheit:* Clients dürfen ausschließlich Downtimes für ihren eigenen Host verwalten. Entfernt werden nur Downtimes, die OPSI selbst angelegt hat (erkennbar am Kommentar-Präfix).
+* *Hostname im Monitoring:* Standardmäßig wird die Client-ID (FQDN) verwendet. Über die Konfiguration `monitoring.host_name` lässt sich pro Host ein abweichender Name festlegen; diese Konfiguration dürfen nur Administratoren ändern.
+
+=== Einrichtung
+
+Aktivierung und Zugangsdaten werden in `/etc/opsi/backends/monitoring.conf` konfiguriert. Voraussetzung ist das Modul `monitoring` (siehe xref:opsi-modules:modules.adoc[OPSI-Erweiterungen]). Bestehende `acl.conf`-Dateien werden beim Setup automatisch um die neuen Einträge ergänzt.
+
+=== Beispiel: Verwendung in einem opsi-script-Produkt
+
+Das folgende Beispiel setzt eine Downtime für den gesamten Host und für den Service `nginx` und entfernt sie wieder. Die Aufrufe erfolgen über `OpsiServiceCall`-Sektionen.
+
+[source,opsiscript]
+----
+comment "Set monitoring downtime for host"
+DefStringList $ServiceResult$
+Set $ServiceResult$ = getReturnListFromSection('OpsiServiceCall_set_host_downtime')
+DefVar $downtimeIds$ = jsonAsObjectGetValueByKey(takeString(0, $ServiceResult$), "downtimeIds")
+if ($downtimeIds$ = "")
+	LogError "Failed to set monitoring downtime"
+	isFatalError "Failed to set monitoring downtime"
+endif
+
+...
+
+comment "Remove monitoring downtime for host"
+OpsiServiceCall_remove_host_downtime
+
+...
+
+comment "Set monitoring downtime for service nginx"
+OpsiServiceCall_set_nginx_downtime
+
+...
+
+comment "Remove monitoring downtime for service nginx"
+OpsiServiceCall_remove_nginx_downtime
+
+...
+
+[OpsiServiceCall_set_host_downtime]
+; Set a downtime for the entire host, not just specific services.
+"method":"monitoring_setDowntime"
+"params":[
+	'1800',
+	'"System update"',
+]
+
+[OpsiServiceCall_remove_host_downtime]
+; Only downtimes created by OPSI are removed.
+"method":"monitoring_removeDowntime"
+"params":[
+]
+
+[OpsiServiceCall_set_nginx_downtime]
+; Set a downtime for the service nginx only.
+"method":"monitoring_setDowntime"
+"params":[
+	'60',
+	'"Update nginx"',
+	'["nginx"]',
+]
+
+[OpsiServiceCall_remove_nginx_downtime]
+"method":"monitoring_removeDowntime"
+"params":[
+	'null',
+	'["nginx"]',
+]
+----
+
+Der erste Parameter von `monitoring_setDowntime` ist die Dauer in Sekunden, der zweite der Kommentar und der optionale dritte eine Liste von Services. Ohne Service-Liste gilt die Downtime für den gesamten Host.
+
 == Downtime
 
 Für bestimmte Health-Checks kann eine Downtime festgelegt werden, um temporäre Ausfälle oder Wartungsperioden zu berücksichtigen, ohne dass falsche Alarme ausgelöst werden. Die Downtime kann entweder für einen spezifischen Check oder für das gesamte Monitoring-System gesetzt werden. Dies ist besonders nützlich, wenn geplante Wartungsmaßnahmen oder Updates durchgeführt werden, die zu einem vorübergehenden Verlust der Systemverfügbarkeit führen.
